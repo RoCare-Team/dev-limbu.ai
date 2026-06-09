@@ -33,6 +33,8 @@ import ScheduleConfirmationModal from "../../components/post-management/Schedule
 import FacebookShareModal from "../../components/post-management/FacebookShareModal";
 import InstagramShareModal from "../../components/post-management/InstagramShareModal";
 import PinterestShareModal from "../../components/post-management/PinterestShareModal";
+import InhousePinterestMappingModal from "../../components/post-management/InhousePinterestMappingModal";
+import InhousePinterestShareModal from "../../components/post-management/InhousePinterestShareModal";
 import YouTubeShareModal from "../../components/post-management/YouTubeShareModal";
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostManagementHeader from "../../components/post-management/PostManagementHeader";
@@ -54,7 +56,7 @@ import RejectReasonModal from "../../components/RejectReasonModal";
 import { stripBase64, fileToBase64 } from "@/utils/postHelpers";
 import { usePostManagementActions } from "@/hooks/usePostManagementActions";
 import { usePostFilters } from "@/hooks/usePostFilters";
-import { getLocalStorage } from "@/utils/storage";
+import { getLocalStorage, getSessionStorage } from "@/utils/storage";
 import { usePinterest } from "@/hooks/usePinterest";
 import { useLinkedin } from "@/hooks/useLinkedin";
 import { useYouTube } from "@/hooks/useYouTube";
@@ -74,6 +76,7 @@ import PostResultModal from "../../components/post-management/PostResultModal";
 
 const AI_IMAGE_GENERATION_COINS = 80;
 const VIDEO_GENERATION_COINS = 200;
+const INHOUSE_PINTEREST_EMAIL = "rocare7@gmail.com";
 
 const buildBrandAssetSlots = (savedAssets = {}) => [
   { name: "Logo", url: savedAssets.logoImage || "" },
@@ -116,6 +119,8 @@ export default function PostManagementPage() {
     showFacebookModal: false,
     showInstagramModal: false,
     showPinterestModal: false,
+    showInhousePinterestModal: false,
+    showInhousePinterestMappingModal: false,
     showLinkedinModal: false,
     showPostResultModal: false,
     showYouTubeModal: false,
@@ -199,10 +204,17 @@ export default function PostManagementPage() {
     fetchYouTubeChannels,
   } = useYouTube(router, searchParams);
 
-  const { pinterestProfiles, publishPin, createPinterestBoard } = usePinterest(
-    null,
-    null,
-  ); // We don't need router/searchparams here for just fetching/publishing
+  const {
+    pinterestProfiles,
+    publishPin,
+    createPinterestBoard,
+    inhouseMappings,
+    fetchInhouseMappings,
+    fetchPinterestProfiles,
+    saveInhouseMappings,
+    generateInhousePinterestContent,
+    publishInhousePins,
+  } = usePinterest(null, null); // We don't need router/searchparams here for just fetching/publishing
 
   const [socialState, setSocialState] = useState({
     facebookPages: [],
@@ -213,6 +225,9 @@ export default function PostManagementPage() {
     postToInstagram: null,
     postToYouTube: null,
   });
+  const [inhousePinterestContent, setInhousePinterestContent] = useState(null);
+  const [isGeneratingInhousePinterest, setIsGeneratingInhousePinterest] =
+    useState(false);
 
   const updateSocialState = useCallback((updates) => {
     setSocialState((prev) => ({ ...prev, ...updates }));
@@ -225,6 +240,22 @@ export default function PostManagementPage() {
   const loaderRef = useRef(null);
 
   const { allCounts, updateCounts } = usePostFilters(activeTab);
+
+  const activeUserEmail = useMemo(() => {
+    const impersonatedEmail =
+      getLocalStorage("impersonatedEmail") ||
+      getSessionStorage("impersonatedEmail");
+    const email =
+      getLocalStorage("email") ||
+      getLocalStorage("userEmail") ||
+      getSessionStorage("email") ||
+      getSessionStorage("userEmail");
+    return String(impersonatedEmail || email || session?.user?.email || "")
+      .trim()
+      .toLowerCase();
+  }, [session?.user?.email]);
+
+  const isInhousePinterestUser = activeUserEmail === INHOUSE_PINTEREST_EMAIL;
 
   // modal posting
   const [msgIndex, setMsgIndex] = useState(0);
@@ -406,6 +437,19 @@ export default function PostManagementPage() {
   useEffect(() => {
     fetchUserAssets();
   }, [fetchUserAssets]);
+
+  useEffect(() => {
+    if (isInhousePinterestUser) {
+      fetchInhouseMappings();
+    }
+  }, [fetchInhouseMappings, isInhousePinterestUser]);
+
+  useEffect(() => {
+    // Fetch Pinterest profiles for inhouse Pinterest user
+    if (isInhousePinterestUser) {
+      fetchPinterestProfiles();
+    }
+  }, [isInhousePinterestUser, fetchPinterestProfiles]);
 
   useEffect(() => {
     const size = selectedPlatforms.some((p) => p === "fb" || p === "ig")
@@ -1083,7 +1127,7 @@ export default function PostManagementPage() {
   );
 
   const handlePinterestPost = useCallback(
-    (post, media = null) => {
+    async (post, media = null) => {
       // Automatically use generated image as cover image for videos
       let mediaWithCover = media;
       if (!mediaWithCover && post) {
@@ -1105,9 +1149,88 @@ export default function PostManagementPage() {
 
       setSelectedMediaForAction(mediaWithCover);
       updateSocialState({ postToPinterest: post });
+
+      if (isInhousePinterestUser) {
+        updateUiState({ showInhousePinterestModal: true });
+        setInhousePinterestContent(null);
+        setIsGeneratingInhousePinterest(true);
+
+        const imageUrl = mediaWithCover?.coverImageUrl || post.aiOutput;
+        const result = await generateInhousePinterestContent(imageUrl);
+
+        if (result?.success) {
+          setInhousePinterestContent(result.content || {});
+        }
+
+        setIsGeneratingInhousePinterest(false);
+        fetchInhouseMappings();
+        return;
+      }
+
       updateUiState({ showPinterestModal: true });
     },
-    [updateUiState, updateSocialState],
+    [
+      fetchInhouseMappings,
+      generateInhousePinterestContent,
+      isInhousePinterestUser,
+      updateUiState,
+      updateSocialState,
+    ],
+  );
+
+  const handleSaveInhouseMappings = useCallback(
+    async (mappings) => {
+      const result = await saveInhouseMappings(mappings);
+      if (result?.success) {
+        fetchInhouseMappings();
+      }
+      return result;
+    },
+    [fetchInhouseMappings, saveInhouseMappings],
+  );
+
+  const handlePublishInhousePins = useCallback(
+    async ({ post, boards, title, description, hashtags, media_url }) => {
+      // ← boards & media_url
+      const resolvedMediaUrl =
+        selectedMediaForAction?.coverImageUrl || post.aiOutput || media_url;
+
+      const result = await publishInhousePins({
+        boards, // ← boardIds ki jagah boards
+        title,
+        description,
+        hashtags,
+        media_url: resolvedMediaUrl, // ← mediaUrl ki jagah media_url
+      });
+
+      if (result?.success) {
+        updateUiState({ showInhousePinterestModal: false });
+        setSelectedMediaForAction(null);
+        setPostingPlatform("Pinterest");
+        setIsSuccess(true);
+
+        await updatePostStatusAction({
+          id: post._id,
+          userId,
+          status: "posted",
+          postedPlatform: "pinterest",
+          whenPosted: buildWhenPostedUpdate(
+            "pinterest",
+            result.results?.find((item) => item.success)?.pin?.id || "",
+          ),
+        });
+        fetchPosts(1, true);
+      }
+
+      return result;
+    },
+    [
+      fetchPosts,
+      publishInhousePins,
+      selectedMediaForAction,
+      updateUiState,
+      userId,
+    ],
   );
 
   const { linkedinPages, publishLinkedinPost } = useLinkedin(null, null);
@@ -1963,6 +2086,34 @@ export default function PostManagementPage() {
             }}
           />
         )}
+        {uiState.showInhousePinterestMappingModal && (
+          <InhousePinterestMappingModal
+            isOpen={uiState.showInhousePinterestMappingModal}
+            onClose={() =>
+              updateUiState({ showInhousePinterestMappingModal: false })
+            }
+            locations={availableLocations}
+            mappings={inhouseMappings}
+            pinterestProfiles={pinterestProfiles}
+            onSave={handleSaveInhouseMappings}
+          />
+        )}
+        {uiState.showInhousePinterestModal && (
+          <InhousePinterestShareModal
+            isOpen={uiState.showInhousePinterestModal}
+            onClose={() => {
+              updateUiState({ showInhousePinterestModal: false });
+              setSelectedMediaForAction(null);
+            }}
+            post={socialState.postToPinterest}
+            pinterestProfiles={pinterestProfiles}
+            mappings={inhouseMappings}
+            aiContent={inhousePinterestContent}
+            isGeneratingContent={isGeneratingInhousePinterest}
+            onCreateBoard={createPinterestBoard}
+            onPublish={handlePublishInhousePins}
+          />
+        )}
         <ImageToVideoModal
           isOpen={uiState.imageToVideoOpen}
           onClose={() => updateUiState({ imageToVideoOpen: false })}
@@ -2048,6 +2199,28 @@ export default function PostManagementPage() {
           setSelectedPlatforms={setSelectedPlatforms}
           previewData={previewData}
         />
+
+        {isInhousePinterestUser && (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-widest text-red-700">
+                Inhouse Pinterest
+              </p>
+              <p className="truncate text-xs font-semibold text-red-500/80">
+                {inhouseMappings.length} city board mapping(s) saved
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                updateUiState({ showInhousePinterestMappingModal: true })
+              }
+              className="shrink-0 rounded-xl bg-[#E60023] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#c5001f]"
+            >
+              Edit Mapping
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
           <div className="lg:col-span-7">

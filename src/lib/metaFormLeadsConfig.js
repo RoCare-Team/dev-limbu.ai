@@ -32,7 +32,7 @@ export const META_FORM_CONFIGS = {
 export const META_FORM_SYNC_IDS = Object.keys(META_FORM_CONFIGS);
 
 /** Stored `User.leadTags` values that count as Meta / instant-form leads */
-export const META_LEAD_TAG_KEYS = ["metaleads", "real-estate-lead"];
+export const META_LEAD_TAG_KEYS = [ "metaleads"];
 
 export function getMetaFormConfig(formId) {
   const id = String(formId || "").trim();

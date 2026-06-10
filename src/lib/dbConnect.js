@@ -1,11 +1,10 @@
 import mongoose from "mongoose";
 import { mongooseConnectionUri } from "./mongoConnectionUri";
 
-/**
- * Resolves MONGODB_URI to include DB name when omitted (e.g. mongodb://host:27017 → …/gmb_dashboard).
- * Set MONGODB_DB_NAME to override default database.
- */
 function getResolvedUri() {
+  if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI not defined in environment variables");
+  }
   return mongooseConnectionUri(process.env.MONGODB_URI);
 }
 
@@ -24,8 +23,7 @@ function getConnectOptions() {
     maxPoolSize,
     minPoolSize,
     serverSelectionTimeoutMS:
-      parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || "10000", 10) ||
-      10000,
+      parseInt(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || "10000", 10) || 10000,
     connectTimeoutMS:
       parseInt(process.env.MONGODB_CONNECT_TIMEOUT_MS || "10000", 10) || 10000,
     socketTimeoutMS:
@@ -33,7 +31,6 @@ function getConnectOptions() {
     maxIdleTimeMS:
       parseInt(process.env.MONGODB_MAX_IDLE_TIME_MS || "60000", 10) || 60000,
     retryWrites: true,
-    // Helps on some hosts where IPv6 is broken for the bound address
     ...(process.env.MONGODB_FORCE_IPV4 === "1" ? { family: 4 } : {}),
   };
 }
@@ -50,55 +47,48 @@ function bindConnectionHandlers() {
   });
   c.on("disconnected", () => {
     console.warn("[MongoDB] disconnected — cache cleared for reconnect");
-    if (global.mongoose) {
-      global.mongoose.conn = null;
-      global.mongoose.promise = null;
+    if (global._mongooseCache) {
+      global._mongooseCache.conn = null;
+      global._mongooseCache.promise = null;
     }
   });
 }
 
-const MONGO_URI = process.env.MONGODB_URI;
-
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+// Use a clearly named global cache key (avoids collision with other libs)
+if (!global._mongooseCache) {
+  global._mongooseCache = { conn: null, promise: null };
 }
 
-/**
- * Single cached Mongoose connection for API routes / server code.
- * Uses the same URI rules as mongooseConnectionUri (host-only URI gets /gmb_dashboard).
- */
+const cached = global._mongooseCache;
+
 export default async function dbConnect() {
-  console.log("👉 DB CONNECT FUNCTION CALLED");
-
-  if (!MONGO_URI) {
-    console.error("❌ MONGODB_URI missing in ENV");
-    throw new Error("MONGODB_URI not defined");
-  }
-
-  console.log("🔗 MONGO URI:", MONGO_URI);
-
-  if (cached.conn) {
-    console.log("✅ Using cached DB connection");
+  // Return existing live connection immediately
+  if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
-  if (!cached.promise) {
-    console.log("⏳ Creating new DB connection...");
+  // ✅ Always resolve the URI through mongooseConnectionUri — adds DB name if missing
+  const uri = getResolvedUri();
+  const opts = getConnectOptions();
 
-    cached.promise = mongoose.connect(MONGO_URI, {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 10000, // fast fail
+  bindConnectionHandlers();
+
+  if (!cached.promise) {
+    console.log("[MongoDB] Creating new connection to:", uri.replace(/:\/\/.*@/, "://<credentials>@"));
+    cached.promise = mongoose.connect(uri, opts).catch((err) => {
+      // Clear promise on failure so next call retries
+      cached.promise = null;
+      throw err;
     });
   }
 
   try {
     cached.conn = await cached.promise;
-    console.log("✅ MongoDB Connected Successfully");
+    console.log("[MongoDB] Connected — DB:", mongoose.connection.db?.databaseName);
   } catch (e) {
-    console.error("❌ MongoDB Connection Error:", e.message);
     cached.promise = null;
+    cached.conn = null;
+    console.error("[MongoDB] Connection failed:", e.message);
     throw e;
   }
 

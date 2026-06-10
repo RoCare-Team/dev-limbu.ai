@@ -376,10 +376,14 @@ function DatePickerField({ value, onChange }) {
 function FormCard() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({ name: "", contact: "", business: "", selectedDate: null });
+  const [formData, setFormData] = useState({
+    name: "",
+    contact: "",
+    business: "",
+    selectedDate: null,
+  });
   const [selectedTime, setSelectedTime] = useState("");
-  const [timeSlots, setTimeSlots] = useState([]);
-  const [slotsLoading, setSlotsLoading] = useState(false);
+
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -397,32 +401,48 @@ function FormCard() {
     });
   };
 
-  const isSunday = formData.selectedDate ? new Date(formData.selectedDate).getDay() === 0 : false;
+  const isSunday = formData.selectedDate
+    ? new Date(formData.selectedDate).getDay() === 0
+    : false;
 
-  useEffect(() => {
-    if (!formData.selectedDate || isSunday) {
-      setTimeSlots([]);
-      setSelectedTime("");
-      return;
-    }
+  const FIXED_SLOTS = [
+    "10:00 AM",
+    "11:00 AM",
+    "12:00 PM",
+    "1:00 PM",
+    "2:00 PM",
+    "3:00 PM",
+    "4:00 PM",
+    "5:00 PM",
+    "6:00 PM",
+    "7:00 PM",
+  ];
 
-    const dateIso = formatDateISO(formData.selectedDate);
-    setSlotsLoading(true);
-    fetch(`/api/bookDemo?slots=1&date=${encodeURIComponent(dateIso)}`, {
-      cache: "no-store",
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (!data.success) return;
-        const slots = Array.isArray(data.slots) ? data.slots : [];
-        setTimeSlots(slots);
-        const firstOpen = slots.find((slot) => !slot.booked);
-        setSelectedTime(firstOpen?.label || "");
-      })
-      .catch(() => setTimeSlots([]))
-      .finally(() => setSlotsLoading(false));
-  }, [formData.selectedDate, isSunday]);
+  // Ye helper function add karo FIXED_SLOTS ke neeche:
+  const getAvailableSlots = () => {
+    const selectedDateISO = formatDateISO(formData.selectedDate);
+    const todayISO = formatDateISO(new Date());
 
+    // Agar aaj ki date nahi hai toh sab slots dikhao
+    if (selectedDateISO !== todayISO) return FIXED_SLOTS;
+
+    // Aaj ki date hai toh current time ke baad wale slots hi dikhao
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+
+    return FIXED_SLOTS.filter((slot) => {
+      const [time, period] = slot.split(" ");
+      let [hours] = time.split(":").map(Number);
+      if (period === "PM" && hours !== 12) hours += 12;
+      if (period === "AM" && hours === 12) hours = 0;
+
+      // Current hour se aage wale dikhao, same hour mai bhi 30 min buffer
+      return (
+        hours > currentHour || (hours === currentHour && currentMinutes < 30)
+      );
+    });
+  };
   const demoTime = selectedTime;
 
   const handleInputChange = (e) => {
@@ -434,16 +454,18 @@ function FormCard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return setError("Please enter your full name.");
-    if (!formData.contact.trim()) return setError("Please enter your WhatsApp number.");
-    if (!/^\d{10}$/.test(formData.contact.trim())) return setError("Enter a valid 10-digit WhatsApp number.");
-    if (!formData.selectedDate) return setError("Please select a date for your demo.");
-    if (isSunday) return setError("Demos are not available on Sundays. Please pick another day.");
+    if (!formData.contact.trim())
+      return setError("Please enter your WhatsApp number.");
+    if (!/^\d{10}$/.test(formData.contact.trim()))
+      return setError("Enter a valid 10-digit WhatsApp number.");
+    if (!formData.selectedDate)
+      return setError("Please select a date for your demo.");
+    if (isSunday)
+      return setError(
+        "Demos are not available on Sundays. Please pick another day.",
+      );
     if (!demoTime) {
       return setError("Please choose an available time slot.");
-    }
-    const chosenSlot = timeSlots.find((slot) => slot.label === demoTime);
-    if (chosenSlot?.booked) {
-      return setError("This time slot is already booked. Please pick another time.");
     }
 
     setIsSubmitting(true);
@@ -500,7 +522,8 @@ function FormCard() {
         setError(
           result.availableSlots.length
             ? `${result.message} Available: ${result.availableSlots.join(", ")}`
-            : result.message || "This slot is booked. Please pick another date.",
+            : result.message ||
+                "This slot is booked. Please pick another date.",
         );
       } else {
         setError(result.message || "Something went wrong. Please try again.");
@@ -621,46 +644,48 @@ function FormCard() {
                 <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
                   Choose time slot
                 </p>
-                {slotsLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-slate-500 py-3">
-                    <Loader2 size={14} className="animate-spin" />
-                    Loading available slots…
-                  </div>
-                ) : timeSlots.length === 0 ? (
-                  <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 font-semibold">
-                    No slots left for this date. Please pick another day.
+                {getAvailableSlots().length === 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 font-semibold">
+                      Aaj ke saare slots complete ho gaye — apna preferred time
+                      likhein.
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <Clock size={15} />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="e.g. 10:00 PM, Tomorrow 9 AM..."
+                        value={selectedTime}
+                        onChange={(e) => {
+                          setSelectedTime(e.target.value);
+                          if (error) setError("");
+                        }}
+                        className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                    {timeSlots.map((slot) => (
+                    {getAvailableSlots().map((slot) => (
                       <button
-                        key={slot.key}
+                        key={slot}
                         type="button"
-                        disabled={slot.booked}
                         onClick={() => {
-                          if (!slot.booked) {
-                            setSelectedTime(slot.label);
-                            if (error) setError("");
-                          }
+                          setSelectedTime(slot);
+                          if (error) setError("");
                         }}
                         className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
-                          slot.booked
-                            ? "border-red-200 bg-red-50 text-red-500 cursor-not-allowed line-through"
-                            : selectedTime === slot.label
-                              ? "border-yellow-400 bg-yellow-50 text-yellow-900 ring-2 ring-yellow-300"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:border-yellow-300"
+                          selectedTime === slot
+                            ? "border-yellow-400 bg-yellow-50 text-yellow-900 ring-2 ring-yellow-300"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-yellow-300"
                         }`}
                       >
-                        {slot.label}
-                        {slot.booked ? (
-                          <span className="block text-[10px] font-bold text-red-600 mt-0.5">
-                            Booked
-                          </span>
-                        ) : (
-                          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
-                            Available
-                          </span>
-                        )}
+                        {slot}
+                        <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+                          Available
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -912,7 +937,9 @@ export default function WebinarPage() {
 
   useEffect(() => {
     const id = setInterval(() => {
-      setLiveUser(rand(names) + " from " + rand(cities) + " just booked a demo");
+      setLiveUser(
+        rand(names) + " from " + rand(cities) + " just booked a demo",
+      );
     }, 3000);
     return () => clearInterval(id);
   }, []);

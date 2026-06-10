@@ -243,36 +243,7 @@ export async function POST(request) {
     }
 
     const normalizedDate = normalizeBookingSelectedDate(selectedDate);
-    const availability = await getDemoSlotAvailability(normalizedDate);
-    const slotMatch = availability.slots.find(
-      (slot) =>
-        normalizeSeminarTime(slot.label) === normalizeSeminarTime(seminarTime),
-    );
-    if (!slotMatch) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "This time slot is not available. Please pick another date or time.",
-        },
-        { status: 400 },
-      );
-    }
-    if (await isDemoSlotBooked(normalizedDate, seminarTime)) {
-      const availability = await getDemoSlotAvailability(normalizedDate);
-      const alternatives = availability.slots
-        .filter((slot) => !slot.booked)
-        .map((slot) => slot.label);
-      return NextResponse.json(
-        {
-          success: false,
-          message: `This time slot is already booked. Please choose another time.`,
-          slotBooked: true,
-          availableSlots: alternatives,
-        },
-        { status: 409 },
-      );
-    }
+
 
     const saved = await DemoBooking.create({
       name,
@@ -316,6 +287,7 @@ export async function POST(request) {
           source: "chatbot",
           leadStage: "Active",
           leadStatus: "",
+          wallet: 500,
           assignedAgentId: assignedAgent?._id || null,
           accountManager: assignedAgent?._id || null,
           accountManagerName: assignedAgent?.fullName || null,

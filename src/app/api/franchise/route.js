@@ -176,29 +176,65 @@ export async function GET(req) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
 
+    const id = searchParams.get("id");
+    const phoneNumber = searchParams.get("phoneNumber");
+
+    // Search by ID
     if (id) {
       const franchise = await Franchise.findById(id);
 
       if (!franchise) {
         return NextResponse.json(
-          { success: false, message: "Not found" },
-          { status: 404 },
+          { success: false, message: "Franchise not found" },
+          { status: 404 }
         );
       }
 
       return NextResponse.json(
         { success: true, data: franchise },
-        { status: 200 },
+        { status: 200 }
       );
     }
 
-    const franchises = await Franchise.find().sort({ createdAt: -1 });
+    // Search by Phone Number
+    if (phoneNumber) {
+      const normalizedPhone = String(phoneNumber).trim();
+
+      const franchise = await Franchise.findOne({
+        phone: normalizedPhone,
+      });
+
+      if (!franchise) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Franchise not found",
+          },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json(
+        {
+          success: true,
+          data: franchise,
+        },
+        { status: 200 }
+      );
+    }
+
+    // Get all franchises
+    const franchises = await Franchise.find().sort({
+      createdAt: -1,
+    });
 
     return NextResponse.json(
-      { success: true, data: franchises },
-      { status: 200 },
+      {
+        success: true,
+        data: franchises,
+      },
+      { status: 200 }
     );
   } catch (error) {
     console.error("Franchise GET API Error:", error);
@@ -208,7 +244,7 @@ export async function GET(req) {
         success: false,
         message: error?.message || "Internal Server Error",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

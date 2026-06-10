@@ -61,9 +61,14 @@ export default async function SitePage({ params }) {
   if (!slug) return notFound();
 
   const siteData = await getSiteData(slug);
+
+  console.log("Site Data for slug:", slug);
+  // console.log(siteData);
   if (!siteData) return notFound();
 
   const business = siteData.business || {};
+
+  console.log(business)
   const aiContent = siteData.aiContent || {};
   
   // ✅ DYNAMIC THEME EXTRACTION

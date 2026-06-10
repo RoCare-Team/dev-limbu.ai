@@ -42,8 +42,7 @@ export default function DemoPage() {
       const res = await fetch("/api/bookDemo?admin=1", { cache: "no-store" });
       const data = await res.json();
       if (!data.success) return;
-      console.log("datadata",data);
-      
+      console.log("datadata", data);
 
       setBookings(Array.isArray(data.data) ? data.data : []);
       setTodayBookings(Array.isArray(data.todayData) ? data.todayData : []);
@@ -127,7 +126,7 @@ export default function DemoPage() {
           <button
             type="button"
             onClick={syncUsers}
-            className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Users size={16} />
             Register Users
@@ -141,8 +140,8 @@ export default function DemoPage() {
           onClick={() => setActiveTab("all")}
           className={`rounded-xl border p-4 text-left transition ${
             activeTab === "all"
-              ? "border-rose-500 bg-rose-600 text-white shadow-md"
-              : "border-gray-200 bg-white text-gray-900 hover:border-rose-200"
+              ? "border-blue-500 bg-blue-600 text-white shadow-md"
+              : "border-gray-200 bg-white text-gray-900 hover:border-blue-200"
           }`}
         >
           <p className="text-xs font-bold uppercase tracking-wide opacity-80">
@@ -155,16 +154,16 @@ export default function DemoPage() {
           onClick={() => setActiveTab("today")}
           className={`rounded-xl border p-4 text-left transition ${
             activeTab === "today"
-              ? "border-rose-500 bg-rose-50 text-rose-900 shadow-md ring-2 ring-rose-300"
-              : "border-gray-200 bg-white text-gray-900 hover:border-rose-200"
+              ? "border-blue-500 bg-blue-50 text-blue-900 shadow-md ring-2 ring-blue-300"
+              : "border-gray-200 bg-white text-gray-900 hover:border-blue-200"
           }`}
         >
-          <p className="text-xs font-bold uppercase tracking-wide text-rose-600">
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-600">
             Today Demo Booked
           </p>
-          <p className="text-3xl font-black mt-1 text-rose-700">{stats.today}</p>
+          <p className="text-3xl font-black mt-1 text-blue-700">{stats.today}</p>
           {stats.calendarDate && (
-            <p className="text-[11px] mt-1 text-rose-500">
+            <p className="text-[11px] mt-1 text-blue-500">
               Scheduled for {stats.calendarDate}
             </p>
           )}
@@ -177,7 +176,7 @@ export default function DemoPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, phone, date, time..."
-          className="w-full md:max-w-md rounded-lg border border-gray-200 px-4 py-2 text-sm"
+          className="w-full md:max-w-md rounded-lg border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
         />
         <p className="text-sm text-gray-500">
           Showing {displayedBookings.length}{" "}
@@ -234,7 +233,7 @@ export default function DemoPage() {
               displayedBookings.map((b, i) => (
                 <tr
                   key={b._id}
-                  className={`hover:bg-gray-50 transition ${
+                  className={`hover:bg-blue-50/40 transition ${
                     i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
                   }`}
                 >
@@ -248,7 +247,7 @@ export default function DemoPage() {
                   </td>
                   <td className="px-5 py-4 font-semibold text-gray-900">{b.name}</td>
                   <td className="px-5 py-4 text-gray-700">{b.phone}</td>
-                  <td className="px-5 py-4 text-rose-600 font-medium">{b.seminarTime}</td>
+                  <td className="px-5 py-4 text-blue-600 font-medium">{b.seminarTime}</td>
                   <td className="px-5 py-4 text-gray-600 whitespace-nowrap">
                     <span className="font-medium text-gray-900">
                       {b.selectedDateLabel || b.selectedDate || "—"}

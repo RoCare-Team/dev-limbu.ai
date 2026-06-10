@@ -131,6 +131,13 @@ function mapWhatsAppContactRow(contact = {}) {
     (m) => m.wamid !== null && m.type !== "",
   );
 
+  const systemDropped = messages.length - realMessages.length;
+  if (systemDropped > 0) {
+    console.log(
+      `[mapWhatsAppContactRow] 🗑️ System msgs dropped: ${systemDropped} | phone: ${contact.phone} | total: ${messages.length} | real: ${realMessages.length}`,
+    );
+  }
+
   const lastMessage = realMessages
     .slice()
     .sort((a, b) =>
@@ -354,8 +361,12 @@ export async function ensureChatbotRowsSaved(botRows = []) {
   const errors = [];
 
   for (const bot of normalizedRows) {
+    // ✅ AFTER
     const messageCount = Number(bot.message_count) || 0;
     if (messageCount < 1) {
+      console.log(
+        `[ensureChatbotRowsSaved] ⏭️ SKIP (no messages) | phone: ${bot.phone} | waId: ${bot.user_id}`,
+      );
       skipped++;
       continue;
     }
@@ -367,7 +378,10 @@ export async function ensureChatbotRowsSaved(botRows = []) {
         String(m?.content || "").trim() !== "",
     ).length;
 
-    if (inboundCount < 1) {
+    if (inboundCount < 2) {
+      console.log(
+        `[ensureChatbotRowsSaved] ⏭️ SKIP (inbound < 2) | phone: ${bot.phone} | waId: ${bot.user_id} | inboundCount: ${inboundCount} | totalMessages: ${messageCount}`,
+      );
       skipped++;
       continue;
     }
@@ -403,6 +417,10 @@ export async function ensureChatbotRowsSaved(botRows = []) {
         }
 
         await User.updateOne({ _id: existing._id }, { $set: setData });
+        console.log(
+          `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | stages: ${JSON.stringify(setData.conversationStages)}`,
+        );
+
         linked++;
         continue;
       }
@@ -415,6 +433,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
 
       existingByPhone.set(String(created.phone), created);
       if (bot.user_id) existingByWaId.set(bot.user_id, created);
+      console.log(
+        `[ensureChatbotRowsSaved] ✅ INSERTED new user | phone: ${bot.phone} | waId: ${bot.user_id} | name: ${bot.name || "?"} | inbound: ${inboundCount}`,
+      );
       inserted++;
 
       void runWelcomeBonusForUserId(created.userId).catch((err) =>
@@ -432,6 +453,10 @@ export async function ensureChatbotRowsSaved(botRows = []) {
       }
     }
   }
+
+  console.log(
+    `[ensureChatbotRowsSaved] ═══ DONE | inserted: ${inserted} | linked: ${linked} | assigned: ${assigned} | skipped: ${skipped} | errors: ${errors.length}`,
+  );
 
   if (inserted || linked || assigned) invalidateLimbuBotCache();
 
@@ -665,9 +690,7 @@ function virtualUserFromBotRow(row) {
     whatsappContactId: contact.id || null,
     whatsappChatStatus: contact.chat_status || "",
     chatbotHistory: history,
-    conversationStages: conversationStages.length
-      ? conversationStages
-      : [],
+    conversationStages: conversationStages.length ? conversationStages : [],
   };
 }
 
@@ -999,6 +1022,9 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const users = contacts
     .map(mapWhatsAppContactRow)
     .filter((row) => row.user_id);
+  console.log(
+    `[fetchLimbuBotAdminUsers] ✅ Fetched | total contacts: ${contacts.length} | valid Indian users: ${users.length} | dropped (non-Indian/empty): ${allMapped.length - users.length}`,
+  );
 
   // console.log(
   //   `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,
@@ -1031,7 +1057,9 @@ function toCompactStageRow(row = {}) {
     email: row.email || contact?.email || "",
     message_count: Number(row.message_count) || 0,
     last_active: row.last_active || "",
-    last_message: row.last_message ? String(row.last_message).slice(0, 200) : "",
+    last_message: row.last_message
+      ? String(row.last_message).slice(0, 200)
+      : "",
     stages: Array.isArray(row.stages) ? row.stages : [],
     contact: contact
       ? {
@@ -1064,7 +1092,9 @@ function hydrateSnapshotDoc(doc) {
     stageCounts: doc.stageCounts || {},
     stageUsers: indexStageUsers(allUsers),
     allUsers,
-    stageOrder: doc.stageOrder?.length ? doc.stageOrder : CONVERSATION_STAGE_KEYS,
+    stageOrder: doc.stageOrder?.length
+      ? doc.stageOrder
+      : CONVERSATION_STAGE_KEYS,
     fetchedAt: doc.fetchedAt || doc.updatedAt,
     fromCache: true,
   };
@@ -1101,7 +1131,9 @@ async function writeConversationStagesSnapshot(payload) {
   });
 }
 
-export async function buildConversationStagesFromApi({ bypassCache = false } = {}) {
+export async function buildConversationStagesFromApi({
+  bypassCache = false,
+} = {}) {
   const [{ total, users: botUsers }, demoByPhone] = await Promise.all([
     fetchLimbuBotAdminUsers({ bypassCache }),
     loadChatbotDemoBookingsByPhone(),
@@ -1119,7 +1151,11 @@ export async function buildConversationStagesFromApi({ bypassCache = false } = {
         const matched = detectConversationStages(history);
         const stages = [...matched];
         const phone = waIdToPhone(waId);
-        if (phone && demoByPhone.has(phone) && !stages.includes(DEMO_BOOKED_STAGE)) {
+        if (
+          phone &&
+          demoByPhone.has(phone) &&
+          !stages.includes(DEMO_BOOKED_STAGE)
+        ) {
           stages.push(DEMO_BOOKED_STAGE);
         }
 
@@ -1172,12 +1208,10 @@ export async function refreshConversationStagesSnapshot({
 } = {}) {
   const built = await buildConversationStagesFromApi({ bypassCache });
   if (persistUsers) {
-    await ensureChatbotRowsSaved(
-      built.allUsers.map((row) => ({
-        ...row,
-        history: [],
-      })),
-    );
+    const { users: freshBotUsers } = await fetchLimbuBotAdminUsers({
+      bypassCache: true,
+    });
+    await ensureChatbotRowsSaved(freshBotUsers);
   }
   return writeConversationStagesSnapshot(built);
 }
@@ -1257,6 +1291,22 @@ export async function syncChatbotUsersToApp(options = {}) {
     }
 
     if (messageCount < minMessageCount) {
+      skipped++;
+      continue;
+    }
+
+    // ✅ YEH NAYA BLOCK ADD KARO (existing code ke baad)
+    const history = Array.isArray(bot.history) ? bot.history : [];
+    const inboundCount = history.filter(
+      (m) =>
+        String(m?.role || "").toLowerCase() === "user" &&
+        String(m?.content || "").trim() !== "",
+    ).length;
+    // ✅ AFTER
+    if (inboundCount < 2) {
+      console.log(
+        `[syncChatbotUsersToApp] ⏭️ SKIP (inbound < 2) | phone: ${phone} | waId: ${waId} | inboundCount: ${inboundCount}`,
+      );
       skipped++;
       continue;
     }
@@ -1360,7 +1410,10 @@ export async function syncChatbotUsersToApp(options = {}) {
       persistUsers: false,
     });
   } catch (err) {
-    console.error("[syncChatbotUsersToApp] stage snapshot refresh failed:", err);
+    console.error(
+      "[syncChatbotUsersToApp] stage snapshot refresh failed:",
+      err,
+    );
   }
 
   return {
@@ -1489,11 +1542,13 @@ function getStageFirstAchievedCalendarDate(history = [], stage) {
         String(m?.content || "").trim() !== "",
     );
     if (!inbound.length) return "";
-    const sorted = inbound.slice().sort((a, b) =>
-      String(a.time || a.created_at || "").localeCompare(
-        String(b.time || b.created_at || ""),
-      ),
-    );
+    const sorted = inbound
+      .slice()
+      .sort((a, b) =>
+        String(a.time || a.created_at || "").localeCompare(
+          String(b.time || b.created_at || ""),
+        ),
+      );
     return getLastActiveCalendarDate(
       sorted[0]?.time || sorted[0]?.created_at || "",
     );
@@ -1539,7 +1594,10 @@ function countTodayStageAchievements(botUsers = [], stage, calendarDate) {
 }
 
 /** Total + today counts for WhatsApp chatbot dashboard summary cards. */
-export async function getChatbotDashboardMetrics({ filterByAgent = null, role = null } = {}) {
+export async function getChatbotDashboardMetrics({
+  filterByAgent = null,
+  role = null,
+} = {}) {
   const todayBounds = getAppDayBounds();
   const calendarDate = todayBounds.calendarDate;
 
@@ -1551,50 +1609,95 @@ export async function getChatbotDashboardMetrics({ filterByAgent = null, role = 
   // If agent filter is provided, compute metrics scoped to that agent
   if (role === "agent" && filterByAgent) {
     // Map all bot rows to table users once to build agent filter map
-    const allMappedUsers = await mapBotStageRowsToTableUsers(snapshot.allUsers || []);
+    const allMappedUsers = await mapBotStageRowsToTableUsers(
+      snapshot.allUsers || [],
+    );
     const byAgent = (u) => u.assignedAgentId?.email === filterByAgent;
-    
+
     // Get IDs of users assigned to this agent
     const agentUserIds = new Set(
       allMappedUsers
         .filter(byAgent)
-        .map(u => String(u.chatbotUserId || u.whatsappUserId || u.limbuBotUserId || "").trim())
-        .filter(Boolean)
+        .map((u) =>
+          String(
+            u.chatbotUserId || u.whatsappUserId || u.limbuBotUserId || "",
+          ).trim(),
+        )
+        .filter(Boolean),
     );
 
     // Filter bot users by agent assignment
-    const agentBotUsers = botUsers.filter(bot => 
-      agentUserIds.has(String(bot.user_id || "").trim())
+    const agentBotUsers = botUsers.filter((bot) =>
+      agentUserIds.has(String(bot.user_id || "").trim()),
     );
 
     // Calculate totals from snapshot (already mapped)
     const agentMappedUsers = allMappedUsers.filter(byAgent);
-    
-    const chatStartedTotal = agentMappedUsers.filter((user) => (user.conversationStages || []).length > 0).length;
+
+    const chatStartedTotal = agentMappedUsers.filter(
+      (user) => (user.conversationStages || []).length > 0,
+    ).length;
 
     const totals = {
       chatsCreated: chatStartedTotal,
-      gmbConnected: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Connected")).length,
-      gmbHealth: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Health")).length,
-      magicQr: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("Magic QR")).length,
-      gmbInsights: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("GMB Insight")).length,
-      websitesBuilt: agentMappedUsers.filter((u) => (u.conversationStages || []).includes("Build Website")).length,
+      gmbConnected: agentMappedUsers.filter((u) =>
+        (u.conversationStages || []).includes("GMB Connected"),
+      ).length,
+      gmbHealth: agentMappedUsers.filter((u) =>
+        (u.conversationStages || []).includes("GMB Health"),
+      ).length,
+      magicQr: agentMappedUsers.filter((u) =>
+        (u.conversationStages || []).includes("Magic QR"),
+      ).length,
+      gmbInsights: agentMappedUsers.filter((u) =>
+        (u.conversationStages || []).includes("GMB Insight"),
+      ).length,
+      websitesBuilt: agentMappedUsers.filter((u) =>
+        (u.conversationStages || []).includes("Build Website"),
+      ).length,
     };
 
     // For today counts, use filtered botUsers
     const today = {
-      chatsCreated: countTodayStageAchievements(agentBotUsers, null, calendarDate),
-      gmbConnected: countTodayStageAchievements(agentBotUsers, "GMB Connected", calendarDate),
-      gmbHealth: countTodayStageAchievements(agentBotUsers, "GMB Health", calendarDate),
-      magicQr: countTodayStageAchievements(agentBotUsers, "Magic QR", calendarDate),
-      gmbInsights: countTodayStageAchievements(agentBotUsers, "GMB Insight", calendarDate),
-      websitesBuilt: countTodayStageAchievements(agentBotUsers, "Build Website", calendarDate),
+      chatsCreated: countTodayStageAchievements(
+        agentBotUsers,
+        null,
+        calendarDate,
+      ),
+      gmbConnected: countTodayStageAchievements(
+        agentBotUsers,
+        "GMB Connected",
+        calendarDate,
+      ),
+      gmbHealth: countTodayStageAchievements(
+        agentBotUsers,
+        "GMB Health",
+        calendarDate,
+      ),
+      magicQr: countTodayStageAchievements(
+        agentBotUsers,
+        "Magic QR",
+        calendarDate,
+      ),
+      gmbInsights: countTodayStageAchievements(
+        agentBotUsers,
+        "GMB Insight",
+        calendarDate,
+      ),
+      websitesBuilt: countTodayStageAchievements(
+        agentBotUsers,
+        "Build Website",
+        calendarDate,
+      ),
     };
 
     const yesterdayBounds = getAppDayBounds(
       new Date(todayBounds.start.getTime() - 36 * 3600000),
     );
-    const yesterdayChats = filterBotUsersByInboundCalendarDay(agentBotUsers, yesterdayBounds.calendarDate).length;
+    const yesterdayChats = filterBotUsersByInboundCalendarDay(
+      agentBotUsers,
+      yesterdayBounds.calendarDate,
+    ).length;
 
     return {
       timeZone: todayBounds.timeZone,
@@ -1706,7 +1809,9 @@ function filterBotRowsForMetric(botUsers = [], metricId, period, calendarDate) {
 function filterSnapshotRowsForMetric(snapshot, metricId) {
   const stage = CHATBOT_METRIC_STAGE_MAP[metricId];
   if (metricId === "chatsCreated") {
-    return (snapshot.allUsers || []).filter((user) => (user.stages || []).length > 0);
+    return (snapshot.allUsers || []).filter(
+      (user) => (user.stages || []).length > 0,
+    );
   }
   return snapshot.stageUsers?.[stage] || [];
 }
@@ -1755,11 +1860,11 @@ export async function getChatbotMetricUsers({
   }
 
   let users = await mapBotStageRowsToTableUsers(rows);
-  
+
   // Filter by agent if agent is viewing
   if (role === "agent" && filterByAgent) {
-    users = users.filter(user => 
-      user.assignedAgentId?.email === filterByAgent
+    users = users.filter(
+      (user) => user.assignedAgentId?.email === filterByAgent,
     );
   }
 

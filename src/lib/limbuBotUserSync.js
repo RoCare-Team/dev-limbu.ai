@@ -1022,9 +1022,7 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const users = contacts
     .map(mapWhatsAppContactRow)
     .filter((row) => row.user_id);
-  console.log(
-    `[fetchLimbuBotAdminUsers] ✅ Fetched | total contacts: ${contacts.length} | valid Indian users: ${users.length} | dropped (non-Indian/empty): ${allMapped.length - users.length}`,
-  );
+ 
 
   // console.log(
   //   `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,

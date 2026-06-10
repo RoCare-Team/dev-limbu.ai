@@ -3,9 +3,7 @@ import User from "@/models/User";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/dbConnect";
 import { getAppDayBounds } from "@/lib/appDayBounds";
-import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 
-const DEMO_DB_NAME = "demoBookingDB";
 const DEMO_COLLECTION = "demoBookings";
 const DEV_REMOTE_BOOK_DEMO_URL =
   process.env.BOOK_DEMO_REMOTE_URL?.trim() ||
@@ -22,51 +20,21 @@ const DemoBookingSchema = new mongoose.Schema(
     userCreated: { type: Boolean, default: false },
     status: { type: String, default: "Not Attended" },
   },
-  { timestamps: true, collection: "demoBookings" },
+  { timestamps: true, collection: DEMO_COLLECTION },
 );
 
-let _demoConn = null;
 let _allBookingsCache = null;
 let _allBookingsCacheAt = 0;
 const BOOKINGS_CACHE_MS = 2 * 60 * 1000;
 
-function buildDemoBookingMongoUri() {
-  if (process.env.DEMO_BOOKING_MONGODB_URI) {
-    return process.env.DEMO_BOOKING_MONGODB_URI;
-  }
-
-  const raw = process.env.MONGODB_URI;
-  if (!raw) throw new Error("MONGODB_URI not defined");
-
-  if (/\/demoBookingDB(\?|$)/.test(raw)) {
-    return mongooseConnectionUri(raw);
-  }
-
-  const resolved = mongooseConnectionUri(raw);
-  const qIndex = resolved.indexOf("?");
-  const query = qIndex === -1 ? "" : resolved.slice(qIndex);
-  const withoutQuery = qIndex === -1 ? resolved : resolved.slice(0, qIndex);
-
-  let base;
-  if (/\/\/[^/]+\/[^/]+/.test(withoutQuery)) {
-    base = withoutQuery.replace(/\/[^/]+$/, `/${DEMO_DB_NAME}`);
-  } else {
-    base = `${withoutQuery.replace(/\/$/, "")}/${DEMO_DB_NAME}`;
-  }
-
-  return `${base}${query}`;
-}
-
-async function getDemoBookingConnection() {
-  if (_demoConn && _demoConn.readyState === 1) return _demoConn;
-
-  const uri = buildDemoBookingMongoUri();
-  _demoConn = mongoose.createConnection(uri, {
-    bufferCommands: false,
-    serverSelectionTimeoutMS: 10000,
-  });
-  await _demoConn.asPromise();
-  return _demoConn;
+// ✅ Reuses the main DB connection — no separate DB, no timeout issues
+export async function getDemoBookingModel() {
+  await dbConnect();
+  const conn = mongoose.connection;
+  return (
+    conn.models.demoBookings ||
+    conn.model("demoBookings", DemoBookingSchema)
+  );
 }
 
 function mergeBookingsById(lists = []) {
@@ -79,24 +47,6 @@ function mergeBookingsById(lists = []) {
   return [...byId.values()].sort(
     (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
   );
-}
-
-async function fetchLegacyDashboardBookings() {
-  try {
-    await dbConnect();
-    const conn = mongoose.connection;
-    const dbName = conn.db?.databaseName;
-    if (!dbName || dbName === DEMO_DB_NAME) return [];
-
-    const LegacyModel =
-      conn.models._legacyDemoBookings ||
-      conn.model("_legacyDemoBookings", DemoBookingSchema, DEMO_COLLECTION);
-
-    return LegacyModel.find().sort({ createdAt: -1 }).lean();
-  } catch (err) {
-    console.warn("[demoBookings] legacy dashboard read failed:", err.message);
-    return [];
-  }
 }
 
 async function fetchRemoteDemoBookings(url) {
@@ -131,14 +81,6 @@ export function normalizeBookingPhone(phone) {
 function phoneToWaId(phone) {
   const p = normalizeBookingPhone(phone);
   return p ? `wa_91${p}` : "";
-}
-
-export async function getDemoBookingModel() {
-  const conn = await getDemoBookingConnection();
-  return (
-    conn.models.demoBookings ||
-    conn.model("demoBookings", DemoBookingSchema)
-  );
 }
 
 /** Normalize "4:00 PM IST" / "4:00 PM" to the same key */
@@ -287,14 +229,9 @@ export async function fetchAllDemoBookings({ bypassCache = false } = {}) {
   }
 
   const DemoBooking = await getDemoBookingModel();
-  const [primary, legacy] = await Promise.all([
-    DemoBooking.find().sort({ createdAt: -1 }).lean(),
-    fetchLegacyDashboardBookings(),
-  ]);
+  let bookings = await DemoBooking.find().sort({ createdAt: -1 }).lean();
 
-  let bookings = mergeBookingsById([primary, legacy]);
-
-  // Local DB often has only test rows — fall back to production read API in dev.
+  // In dev with few local rows, fall back to production read API
   if (bookings.length <= 1 && DEV_REMOTE_BOOK_DEMO_URL) {
     const remote = await fetchRemoteDemoBookings(DEV_REMOTE_BOOK_DEMO_URL);
     if (remote?.length > bookings.length) {

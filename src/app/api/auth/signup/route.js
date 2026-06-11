@@ -1,13 +1,13 @@
-import dbConnect from "@/lib/dbConnect";// Mongodb se connection banane ka function || agar hata diya database operations fail ho jayenga 
+import dbConnect from "@/lib/dbConnect"; // Mongodb se connection banane ka function || agar hata diya database operations fail ho jayenga
 
-import Transaction from "@/models/Transaction";  // ye transaction wallet history 
+import Transaction from "@/models/Transaction"; // ye transaction wallet history
 
-import User from "@/models/User"; // ye user data store 
+import User from "@/models/User"; // ye user data store
 
 import Admin from "@/models/Admin"; // admin agents assign karne ke liye
 
-import bcrypt from "bcryptjs"; // password ko hash karta hai (encrypt nahi, hash) kabhi bhi plain passord database me store nahi karte 
-import mongoose from "mongoose";// custom schema banane ke liye 
+import bcrypt from "bcryptjs"; // password ko hash karta hai (encrypt nahi, hash) kabhi bhi plain passord database me store nahi karte
+import mongoose from "mongoose"; // custom schema banane ke liye
 
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
@@ -18,19 +18,24 @@ const SettingSchema = new mongoose.Schema({
   value: mongoose.Schema.Types.Mixed,
 }); // ye database me counter store karta he
 
-const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema); // ye nextjs hot reload error avoid karta he  ager ye comnnditon na ho  connaot overwritter model once complied
+const Setting =
+  mongoose.models.settings || mongoose.model("settings", SettingSchema); // ye nextjs hot reload error avoid karta he  ager ye comnnditon na ho  connaot overwritter model once complied
 
 // ✅ SIGNUP (same as before)
-export async function POST(req) { // Ye Signup API hai.
+export async function POST(req) {
+  // Ye Signup API hai.
   await dbConnect(); // Har request pe DB connect ensure karta hai.
 
   try {
     const { fullName, email, password } = await req.json(); // Frontend se data receive kar raha hai.
 
-    if (!fullName || !email || !password) { // Empty data allow nahi karte.
+    if (!fullName || !email || !password) {
+      // Empty data allow nahi karte.
       return new Response(
-        JSON.stringify({ error: "Full name, email, and password are required" }),
-        { status: 400 }
+        JSON.stringify({
+          error: "Full name, email, and password are required",
+        }),
+        { status: 400 },
       );
     }
 
@@ -38,7 +43,7 @@ export async function POST(req) { // Ye Signup API hai.
     if (existingUser) {
       return new Response(
         JSON.stringify({ error: "User already exists with this email" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -87,7 +92,8 @@ export async function POST(req) { // Ye Signup API hai.
       console.error("Agent assignment error:", error);
     }
 
-    const newUser = new User({ // New document create kar raha hai.
+    const newUser = new User({
+      // New document create kar raha hai.
       userId: formattedUserId,
       fullName,
       email,
@@ -112,7 +118,7 @@ export async function POST(req) { // Ye Signup API hai.
         message: "User created successfully",
         userId: newUser.userId,
       }),
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("Signup Error:", error);
@@ -130,63 +136,97 @@ export async function PUT(req) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
     const body = await req.json();
-    const { amount, type, reason, metadata } = body;
+
+    // Sabhi fields nikaal lo
+    const { amount, type, reason, metadata, GstNumber, fullName, email } = body;
 
     if (!userId) {
-      return new Response(JSON.stringify({ error: "userId required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "userId required" }), {
+        status: 400,
+      });
     }
 
-    // ── increment_posts_used ──────────────────────────────────────────
+    // ── STEP 1: AUTO-UPDATE PROFILE FIELDS (GST, Name, etc.) ─────────
+    // Agar body mein GST ya koi aur info hai, toh pehle use update karo
+    if (GstNumber !== undefined || fullName || email) {
+      const updateData = {};
+      if (GstNumber !== undefined) updateData.GstNumber = GstNumber;
+      if (fullName) updateData.fullName = fullName;
+      if (email) updateData.email = email;
+
+      const updatedUser = await User.findOneAndUpdate(
+        { userId },
+        { $set: updateData },
+        { new: true, runValidators: false },
+      );
+
+      if (!updatedUser) {
+        return new Response(JSON.stringify({ error: "User not found" }), {
+          status: 404,
+        });
+      }
+
+      // Agar sirf update tha (wallet operation nahi), toh yahi se return kar do
+      if (!type) {
+        return new Response(
+          JSON.stringify({
+            message: "User info updated",
+            GstNumber: updatedUser.GstNumber,
+          }),
+          { status: 200 },
+        );
+      }
+    }
+
+    // ── STEP 2: WALLET OPERATIONS (Requires 'type') ──────────────────
+
+    // 1. Increment Posts
     if (type === "increment_posts_used") {
       const updated = await User.findOneAndUpdate(
         { userId },
         { $inc: { postsUsed: 1 } },
-        { new: true, runValidators: false }
+        { new: true },
       );
-      if (!updated) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
-      return new Response(JSON.stringify({ message: "postsUsed incremented", postsUsed: updated.postsUsed }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          message: "postsUsed incremented",
+          postsUsed: updated?.postsUsed,
+        }),
+        { status: 200 },
+      );
     }
 
-    // ── wallet add ────────────────────────────────────────────────────
+    // 2. Wallet Add
     if (type === "add" || type === "credit") {
       const updated = await User.findOneAndUpdate(
         { userId },
         { $inc: { wallet: amount } },
-        { new: true, runValidators: false }
+        { new: true },
       );
-      if (!updated) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
-
       await Transaction.create({
         userId,
         type: "credit",
         amount,
         balanceAfter: updated.wallet,
         reason: reason || "wallet_add",
-        metadata: metadata || {},
       });
-
-      return new Response(JSON.stringify({ message: "Wallet updated", wallet: updated.wallet }), { status: 200 });
+      return new Response(
+        JSON.stringify({ message: "Wallet credited", wallet: updated.wallet }),
+        { status: 200 },
+      );
     }
 
-    // ── wallet deduct ─────────────────────────────────────────────────
+    // 3. Wallet Deduct
     if (type === "deduct" || type === "debit") {
-      // Check balance first without saving
-      const user = await User.findOne({ userId }).select("wallet");
-      if (!user) return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
-
-      if (user.wallet < amount) {
-        return new Response(JSON.stringify({ error: "Insufficient balance" }), { status: 400 });
-      }
-
       const updated = await User.findOneAndUpdate(
-        { userId, wallet: { $gte: amount } }, // double-check atomically
+        { userId, wallet: { $gte: amount } },
         { $inc: { wallet: -amount } },
-        { new: true, runValidators: false }
+        { new: true },
       );
-
-      if (!updated) {
-        return new Response(JSON.stringify({ error: "Insufficient balance" }), { status: 400 });
-      }
+      if (!updated)
+        return new Response(JSON.stringify({ error: "Insufficient balance" }), {
+          status: 400,
+        });
 
       await Transaction.create({
         userId,
@@ -194,17 +234,23 @@ export async function PUT(req) {
         amount,
         balanceAfter: updated.wallet,
         reason: reason || "wallet_deduct",
-        metadata: metadata || {},
       });
-
-      return new Response(JSON.stringify({ message: "Wallet updated", wallet: updated.wallet }), { status: 200 });
+      return new Response(
+        JSON.stringify({ message: "Wallet debited", wallet: updated.wallet }),
+        { status: 200 },
+      );
     }
 
-    return new Response(JSON.stringify({ error: "Invalid type" }), { status: 400 });
-
+    // Agar na update info thi, na sahi type tha
+    return new Response(
+      JSON.stringify({ error: "Invalid request or missing type" }),
+      { status: 400 },
+    );
   } catch (error) {
-    console.error("Wallet Update Error:", error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+    console.error("API Error:", error);
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+      status: 500,
+    });
   }
 }
 
@@ -219,7 +265,7 @@ export async function GET(req) {
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "userId is required in query params" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -252,7 +298,7 @@ export async function DELETE(req) {
     if (!userId && !phone) {
       return new Response(
         JSON.stringify({ error: "userId or phone is required" }),
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -264,12 +310,19 @@ export async function DELETE(req) {
     }
 
     if (!deletedUser) {
-      return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+      });
     }
 
-    return new Response(JSON.stringify({ message: "User deleted successfully" }), { status: 200 });
+    return new Response(
+      JSON.stringify({ message: "User deleted successfully" }),
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Delete User Error:", error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+      status: 500,
+    });
   }
 }

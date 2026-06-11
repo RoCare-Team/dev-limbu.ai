@@ -50,8 +50,9 @@ const FranchiseRevenueSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
     },
     type: { type: String, default: "franchise_lead" },
+    invoiceUrl: { type: String, default: "" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 FranchiseRevenueSchema.index({ leadId: 1 });

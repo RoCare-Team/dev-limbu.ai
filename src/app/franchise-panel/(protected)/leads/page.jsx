@@ -2,12 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  CheckCircle,
   ChevronLeft,
   ChevronRight,
-  Crown,
   Edit2,
-  Loader2,
   Mail,
   MessageCircle,
   Phone,
@@ -15,7 +12,6 @@ import {
   Trash2,
   UserRound,
   Wallet,
-  X,
 } from "lucide-react";
 
 import DashboardStats from "../../../../components/FranchiseLeads/DashboardStats";
@@ -23,21 +19,18 @@ import RemarksModal from "../../../../components/FranchiseLeads/RemarksModal";
 import FienchiesePlanUpgradeModel from "../../components/FienchiesePlanUpgradeModel";
 import FrienchieseServiceBookingModel from "../../components/FrienchieseServiceBookingModel";
 import UpdateWalletModal from "../../components/UpdateWalletModal";
+import AddLeadModal from "../../components/AddLeadModel";
+import EditLeadModal from "../../components/EditLeadModel";
+import DeleteLeadModal from "../../components/DeleteLeadModel";
 import {
   canAccessBookings,
   canManageWallet,
   getFranchiseUserFromStorage,
 } from "@/lib/franchiseAuth";
+import toast, { Toaster } from "react-hot-toast";
 
 const STAGES = ["Active", "Follow Up", "Inactive", "Onboard"];
 const STATUSES = ["", "Hot", "Warm", "Cold"];
-const SOURCES = [
-  "manual-upload",
-  "chatbot",
-  "website",
-  "Meta Lead",
-  "expolead",
-];
 
 const statusClass = {
   Hot: "bg-red-50 text-red-700 border-red-200",
@@ -63,20 +56,19 @@ export default function UserManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadStats, setLeadStats] = useState(null);
-  const [openModal, setOpenModal] = useState(false);
+
+  // Modal state
+  const [openAddModal, setOpenAddModal] = useState(false);
   const [editModalUser, setEditModalUser] = useState(null);
   const [deleteModalUser, setDeleteModalUser] = useState(null);
-  const [savingLead, setSavingLead] = useState(false);
-  const [deletingLeadId, setDeletingLeadId] = useState("");
-  const [toast, setToast] = useState("");
   const [remarksUser, setRemarksUser] = useState(null);
   const [remarksHistory, setRemarksHistory] = useState([]);
-  const [savingStageId, setSavingStageId] = useState("");
-  const [savingTagId, setSavingTagId] = useState("");
-  const [savingAssigneeId, setSavingAssigneeId] = useState("");
-  const [teamMembers, setTeamMembers] = useState([]);
+  const [upgradeModalUser, setUpgradeModalUser] = useState(null);
   const [serviceModalUser, setServiceModalUser] = useState(null);
-  const [formData, setFormData] = useState({
+  const [walletModalUser, setWalletModalUser] = useState(null);
+
+  // Edit form state (kept here so parent controls it alongside editModalUser)
+  const [editFormData, setEditFormData] = useState({
     fullName: "",
     email: "",
     phone: "",
@@ -84,9 +76,16 @@ export default function UserManagement() {
     source: "manual-upload",
   });
 
-  const [upgradeModalUser, setUpgradeModalUser] = useState(null);
-  const [walletModalUser, setWalletModalUser] = useState(null);
+  // Loading states
+  const [savingLead, setSavingLead] = useState(false);
+  const [deletingLeadId, setDeletingLeadId] = useState("");
+  const [savingStageId, setSavingStageId] = useState("");
+  const [savingTagId, setSavingTagId] = useState("");
+  const [savingAssigneeId, setSavingAssigneeId] = useState("");
+
+  const [teamMembers, setTeamMembers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
+
   const canManageBookings = canAccessBookings(currentUser?.role);
   const canUpdateWallet = canManageWallet(currentUser?.role);
 
@@ -103,42 +102,10 @@ export default function UserManagement() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const updateLeadStage = async (user, leadStage) => {
-    setSavingStageId(user._id);
-    try {
-      const res = await fetch("/api/franchise-panel/franchise-user", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ userId: user._id, leadStage }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setUsers((prev) =>
-          prev.map((item) => (item._id === data.user._id ? data.user : item)),
-        );
-        showToast("Lead stage updated");
-
-        if (leadStage === "Onboard" && canAccessBookings(currentUser?.role)) {
-          setUpgradeModalUser(user);
-        }
-      } else {
-        showToast("Failed to update lead stage");
-      }
-    } catch (error) {
-      console.error("Stage update error:", error);
-      showToast("Failed to update lead stage");
-    } finally {
-      setSavingStageId("");
-    }
-  };
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+  // Convenience wrapper — keeps call sites unchanged
+  const showToast = (msg, type = "success") => {
+    if (type === "error") toast.error(msg);
+    else toast.success(msg);
   };
 
   const getAuthHeaders = () => {
@@ -149,7 +116,6 @@ export default function UserManagement() {
   const fetchUsers = useCallback(
     async (page = currentPage) => {
       setLoading(true);
-
       try {
         const franchiseCode = localStorage.getItem("franchise_code");
         if (!franchiseCode) {
@@ -204,30 +170,10 @@ export default function UserManagement() {
         headers: getAuthHeaders(),
       });
       const data = await res.json();
-
       setTeamMembers(data.success ? data.data || [] : []);
     } catch (error) {
       console.error("Team fetch error:", error);
       setTeamMembers([]);
-    }
-  };
-
-  /* ---------------- UPLOAD TO S3 (client helper) ---------------- */
-  const uploadToS3 = async (file) => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const result = await uploadToS3Action(formData);
-
-      if (!result.success) {
-        throw new Error(result.error || "Failed to upload to S3");
-      }
-
-      return result.url;
-    } catch (error) {
-      console.error("S3 upload error:", error);
-      throw error;
     }
   };
 
@@ -243,9 +189,94 @@ export default function UserManagement() {
   const pageStart = totalLeads === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const pageEnd = Math.min(currentPage * PAGE_SIZE, totalLeads);
 
+  // ── Stage update ──────────────────────────────────────────────
+  const updateLeadStage = async (user, leadStage) => {
+    setSavingStageId(user._id);
+    try {
+      const res = await fetch("/api/franchise-panel/franchise-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ userId: user._id, leadStage }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setUsers((prev) =>
+          prev.map((item) => (item._id === data.user._id ? data.user : item)),
+        );
+        showToast("Lead stage updated");
+        if (leadStage === "Onboard" && canAccessBookings(currentUser?.role)) {
+          setUpgradeModalUser(user);
+        }
+      } else {
+        showToast("Failed to update lead stage");
+      }
+    } catch (error) {
+      console.error("Stage update error:", error);
+      showToast("Failed to update lead stage");
+    } finally {
+      setSavingStageId("");
+    }
+  };
+
+  // ── Tag update ────────────────────────────────────────────────
+  const updateLeadTag = async (user, leadStatus) => {
+    setSavingTagId(user._id);
+    try {
+      const res = await fetch("/api/franchise-panel/franchise-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ userId: user._id, leadStatus }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setUsers((prev) =>
+          prev.map((item) => (item._id === data.user._id ? data.user : item)),
+        );
+        showToast("Lead tag updated");
+      } else {
+        showToast(data.message || "Failed to update lead tag");
+      }
+    } catch (error) {
+      console.error("Tag update error:", error);
+      showToast("Failed to update lead tag");
+    } finally {
+      setSavingTagId("");
+    }
+  };
+
+  // ── Assignee update ───────────────────────────────────────────
+  const updateAssignee = async (user, assignedAgentId) => {
+    setSavingAssigneeId(user._id);
+    try {
+      const res = await fetch("/api/franchise-panel/franchise-user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ userId: user._id, assignedAgentId }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setUsers((prev) =>
+          prev.map((item) => (item._id === data.user._id ? data.user : item)),
+        );
+        showToast(assignedAgentId ? "Lead assigned" : "Lead unassigned");
+      } else {
+        showToast(data.message || "Failed to update assignee");
+      }
+    } catch (error) {
+      console.error("Assignee update error:", error);
+      showToast("Failed to update assignee");
+    } finally {
+      setSavingAssigneeId("");
+    }
+  };
+
+  // ── Edit lead ─────────────────────────────────────────────────
   const openEditModal = (user) => {
     setEditModalUser(user);
-    setFormData({
+    setEditFormData({
       fullName: user.fullName || "",
       email: user.email || "",
       phone: user.phone || "",
@@ -256,29 +287,17 @@ export default function UserManagement() {
 
   const handleEditLead = async () => {
     if (!editModalUser) return;
-
-    if (!formData.fullName.trim() || !formData.email.trim()) {
+    if (!editFormData.fullName.trim() || !editFormData.email.trim()) {
       showToast("Please enter full name and email");
       return;
     }
 
     setSavingLead(true);
-
     try {
       const res = await fetch("/api/franchise-panel/franchise-user", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          userId: editModalUser._id,
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          leadStatus: formData.leadStatus,
-          source: formData.source,
-        }),
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ userId: editModalUser._id, ...editFormData }),
       });
       const data = await res.json();
 
@@ -289,7 +308,6 @@ export default function UserManagement() {
 
       showToast("Lead updated successfully");
       setEditModalUser(null);
-      resetForm();
       setUsers((prev) =>
         prev.map((item) => (item._id === data.user._id ? data.user : item)),
       );
@@ -301,18 +319,14 @@ export default function UserManagement() {
     }
   };
 
+  // ── Delete lead ───────────────────────────────────────────────
   const handleDeleteLead = async () => {
     if (!deleteModalUser) return;
-
     setDeletingLeadId(deleteModalUser._id);
-
     try {
       const res = await fetch(
         `/api/franchise-panel/franchise-user?userId=${deleteModalUser._id}`,
-        {
-          method: "DELETE",
-          headers: getAuthHeaders(),
-        },
+        { method: "DELETE", headers: getAuthHeaders() },
       );
       const data = await res.json();
 
@@ -338,54 +352,7 @@ export default function UserManagement() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      fullName: "",
-      email: "",
-      phone: "",
-      leadStatus: "",
-      source: "manual-upload",
-    });
-  };
-
-  const handleAddLead = async () => {
-    const referCode = localStorage.getItem("franchise_code") || "";
-    if (!referCode) {
-      showToast("Franchise code missing. Please log in again");
-      return;
-    }
-    if (!formData.fullName.trim() || !formData.email.trim()) {
-      showToast("Please enter full name and email");
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/franchise-panel/franchise-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ ...formData, referCode }),
-      });
-      const data = await res.json();
-
-      if (!data.success) {
-        showToast(data.error || "Failed to add lead");
-        return;
-      }
-
-      showToast("Lead added and assigned successfully");
-      resetForm();
-      setOpenModal(false);
-      setCurrentPage(1);
-      fetchUsers(1);
-    } catch (error) {
-      console.error("Add lead error:", error);
-      showToast("Failed to add lead");
-    }
-  };
-
+  // ── Remarks ───────────────────────────────────────────────────
   const openRemarks = async (user) => {
     setRemarksUser(user);
     const userId = user?._id || user?.userId;
@@ -405,64 +372,6 @@ export default function UserManagement() {
     }
   };
 
-  const updateLeadTag = async (user, leadStatus) => {
-    setSavingTagId(user._id);
-    try {
-      const res = await fetch("/api/franchise-panel/franchise-user", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ userId: user._id, leadStatus }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setUsers((prev) =>
-          prev.map((item) => (item._id === data.user._id ? data.user : item)),
-        );
-        showToast("Lead tag updated");
-      } else {
-        showToast(data.message || "Failed to update lead tag");
-      }
-    } catch (error) {
-      console.error("Tag update error:", error);
-      showToast("Failed to update lead tag");
-    } finally {
-      setSavingTagId("");
-    }
-  };
-
-  const updateAssignee = async (user, assignedAgentId) => {
-    setSavingAssigneeId(user._id);
-    try {
-      const res = await fetch("/api/franchise-panel/franchise-user", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ userId: user._id, assignedAgentId }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setUsers((prev) =>
-          prev.map((item) => (item._id === data.user._id ? data.user : item)),
-        );
-        showToast(assignedAgentId ? "Lead assigned" : "Lead unassigned");
-      } else {
-        showToast(data.message || "Failed to update assignee");
-      }
-    } catch (error) {
-      console.error("Assignee update error:", error);
-      showToast("Failed to update assignee");
-    } finally {
-      setSavingAssigneeId("");
-    }
-  };
-
   const getAssignedId = (user) => {
     const assigned = user.referredByAgentId || user.assignedAgentId || "";
     if (!assigned) return "";
@@ -470,20 +379,14 @@ export default function UserManagement() {
     return String(assigned);
   };
 
-  const getLeadDisplayCode = (user) => {
-    return user.referCode || "-";
-  };
+  const getLeadDisplayCode = (user) => user.referCode || "-";
 
   return (
     <>
       <div className="p-6">
-        {toast && (
-          <div className="fixed top-5 right-5 z-50 flex items-center gap-2 rounded-xl bg-green-500 px-6 py-3 text-white shadow-lg">
-            <CheckCircle size={18} />
-            {toast}
-          </div>
-        )}
+      {/* Toaster is rendered at root level below */}
 
+        {/* Header */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <h1 className="text-2xl font-bold text-gray-950">User Management</h1>
 
@@ -504,7 +407,7 @@ export default function UserManagement() {
 
             <button
               type="button"
-              onClick={() => setOpenModal(true)}
+              onClick={() => setOpenAddModal(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
             >
               <span className="text-lg leading-none">+</span>
@@ -526,6 +429,7 @@ export default function UserManagement() {
           showToast={showToast}
         />
 
+        {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full min-w-[1450px] text-sm">
             <thead className="bg-gray-50 text-xs uppercase text-gray-700">
@@ -541,7 +445,6 @@ export default function UserManagement() {
                 {canManageBookings && (
                   <th className="px-5 py-4 text-left">Service</th>
                 )}
-                {/* <th className="px-5 py-4 text-left">Chat</th> */}
                 <th className="px-5 py-4 text-left">Wallet</th>
                 <th className="px-5 py-4 text-left">Actions</th>
               </tr>
@@ -549,19 +452,13 @@ export default function UserManagement() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td
-                    colSpan="13"
-                    className="px-5 py-10 text-center text-gray-500"
-                  >
+                  <td colSpan="13" className="px-5 py-10 text-center text-gray-500">
                     Loading...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="13"
-                    className="px-5 py-10 text-center text-gray-500"
-                  >
+                  <td colSpan="13" className="px-5 py-10 text-center text-gray-500">
                     No users found
                   </td>
                 </tr>
@@ -719,6 +616,7 @@ export default function UserManagement() {
           </table>
         </div>
 
+        {/* Pagination */}
         {!loading && totalLeads > 0 && (
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-sm text-gray-600">
@@ -758,231 +656,69 @@ export default function UserManagement() {
             </div>
           </div>
         )}
-
-        {openModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-950">
-                  Add New Lead
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setOpenModal(false)}
-                  className="rounded-full p-2 hover:bg-gray-100"
-                >
-                  <X size={20} className="text-gray-700" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <FormInput
-                  label="Full Name"
-                  value={formData.fullName}
-                  onChange={(value) =>
-                    setFormData({ ...formData, fullName: value })
-                  }
-                  placeholder="Enter full name"
-                />
-                <FormInput
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(value) =>
-                    setFormData({ ...formData, email: value })
-                  }
-                  placeholder="user@example.com"
-                />
-                <FormInput
-                  label="Phone"
-                  value={formData.phone}
-                  onChange={(value) =>
-                    setFormData({ ...formData, phone: value })
-                  }
-                  placeholder="+91 9876543210"
-                />
-                <FormSelect
-                  label="Lead Tag"
-                  value={formData.leadStatus}
-                  onChange={(value) =>
-                    setFormData({ ...formData, leadStatus: value })
-                  }
-                  options={STATUSES}
-                  emptyLabel="Untagged"
-                />
-                <FormSelect
-                  label="Source"
-                  value={formData.source}
-                  onChange={(value) =>
-                    setFormData({ ...formData, source: value })
-                  }
-                  options={SOURCES}
-                />
-              </div>
-
-              <div className="mt-5 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                <Crown size={16} />
-                Saving this lead will assign it automatically to the next active
-                team member by round robin.
-              </div>
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setOpenModal(false)}
-                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddLead}
-                  className="flex-1 rounded-xl bg-gray-950 px-6 py-3 font-medium text-white hover:bg-gray-800"
-                >
-                  Save Lead
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {editModalUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-950">Edit Lead</h2>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditModalUser(null);
-                    resetForm();
-                  }}
-                  className="rounded-full p-2 hover:bg-gray-100"
-                >
-                  <X size={20} className="text-gray-700" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <FormInput
-                  label="Full Name"
-                  value={formData.fullName}
-                  onChange={(value) =>
-                    setFormData({ ...formData, fullName: value })
-                  }
-                  placeholder="Enter full name"
-                />
-                <FormInput
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(value) =>
-                    setFormData({ ...formData, email: value })
-                  }
-                  placeholder="user@example.com"
-                />
-                <FormInput
-                  label="Phone"
-                  value={formData.phone}
-                  onChange={(value) =>
-                    setFormData({ ...formData, phone: value })
-                  }
-                  placeholder="+91 9876543210"
-                />
-                <FormSelect
-                  label="Lead Tag"
-                  value={formData.leadStatus}
-                  onChange={(value) =>
-                    setFormData({ ...formData, leadStatus: value })
-                  }
-                  options={STATUSES}
-                  emptyLabel="Untagged"
-                />
-                <FormSelect
-                  label="Source"
-                  value={formData.source}
-                  onChange={(value) =>
-                    setFormData({ ...formData, source: value })
-                  }
-                  options={SOURCES}
-                />
-              </div>
-
-              <div className="mt-6 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditModalUser(null);
-                    resetForm();
-                  }}
-                  className="flex-1 rounded-xl bg-gray-100 px-6 py-3 font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleEditLead}
-                  disabled={savingLead}
-                  className="flex-1 rounded-xl bg-gray-950 px-6 py-3 font-medium text-white hover:bg-gray-800 disabled:opacity-60"
-                >
-                  {savingLead ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 size={16} className="animate-spin" />
-                      Saving...
-                    </span>
-                  ) : (
-                    "Update Lead"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {deleteModalUser && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <div className="mb-4 flex items-center gap-3">
-                <div className="rounded-full bg-red-100 p-3">
-                  <Trash2 className="text-red-600" size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-950">Delete Lead</h2>
-                  <p className="text-sm text-gray-500">
-                    This action cannot be undone.
-                  </p>
-                </div>
-              </div>
-
-              <p className="mb-6 text-sm text-gray-700">
-                Are you sure you want to delete{" "}
-                <span className="font-semibold text-gray-950">
-                  {deleteModalUser.fullName || deleteModalUser.email}
-                </span>
-                ?
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setDeleteModalUser(null)}
-                  className="flex-1 rounded-xl bg-gray-100 px-4 py-3 font-medium text-gray-700 hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteLead}
-                  disabled={deletingLeadId === deleteModalUser._id}
-                  className="flex-1 rounded-xl bg-red-600 px-4 py-3 font-medium text-white hover:bg-red-700 disabled:opacity-60"
-                >
-                  {deletingLeadId === deleteModalUser._id ? "Deleting..." : "Delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* ── Modals ─────────────────────────────────────────────── */}
+
+      {openAddModal && (
+        <AddLeadModal
+          onClose={() => setOpenAddModal(false)}
+          onSuccess={() => {
+            setOpenAddModal(false);
+            setCurrentPage(1);
+            fetchUsers(1);
+          }}
+          getAuthHeaders={getAuthHeaders}
+        />
+      )}
+
+      {/* react-hot-toast container — renders all toasts */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3500,
+          style: {
+            borderRadius: "12px",
+            fontWeight: "600",
+            fontSize: "14px",
+            padding: "12px 18px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+          },
+          success: {
+            style: {
+              background: "#f0fdf4",
+              color: "#166534",
+              border: "1px solid #bbf7d0",
+            },
+            iconTheme: { primary: "#16a34a", secondary: "#f0fdf4" },
+          },
+          error: {
+            style: {
+              background: "#fef2f2",
+              color: "#991b1b",
+              border: "1px solid #fecaca",
+            },
+            iconTheme: { primary: "#dc2626", secondary: "#fef2f2" },
+          },
+        }}
+      />
+
+      <EditLeadModal
+        user={editModalUser}
+        formData={editFormData}
+        setFormData={setEditFormData}
+        onClose={() => setEditModalUser(null)}
+        onSave={handleEditLead}
+        saving={savingLead}
+      />
+
+      <DeleteLeadModal
+        user={deleteModalUser}
+        onClose={() => setDeleteModalUser(null)}
+        onConfirm={handleDeleteLead}
+        deleting={deletingLeadId === deleteModalUser?._id}
+      />
+
       {canManageBookings && upgradeModalUser && (
         <FienchiesePlanUpgradeModel
           selectedUser={upgradeModalUser}
@@ -1018,43 +754,5 @@ export default function UserManagement() {
         />
       )}
     </>
-  );
-}
-
-function FormInput({ label, value, onChange, placeholder, type = "text" }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-gray-900"
-      />
-    </label>
-  );
-}
-
-function FormSelect({ label, value, onChange, options, emptyLabel }) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-sm font-medium text-gray-700">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:ring-2 focus:ring-gray-900"
-      >
-        {options.map((option) => (
-          <option key={option || "empty"} value={option}>
-            {option || emptyLabel}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }

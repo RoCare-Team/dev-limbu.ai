@@ -26,7 +26,7 @@ export function slugifyFromBusiness(business) {
 }
 
 // ✅ Yahan apne unlimited users ke IDs daalo
-const UNLIMITED_USER_IDS = ["USR1763361446609", "USR1761994068831"];
+const UNLIMITED_USER_IDS = ["USR1763361446609", "USR1761994068831","USR1779545395705"];
 
 export async function upsertPublishSite(body) {
   await dbConnect();

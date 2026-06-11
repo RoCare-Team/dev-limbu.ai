@@ -86,7 +86,7 @@ export default function RevenueShare() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-2 sm:p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-gray-950">Revenue Share</h1>
         <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">

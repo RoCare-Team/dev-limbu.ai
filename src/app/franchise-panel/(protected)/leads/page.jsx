@@ -383,7 +383,7 @@ export default function UserManagement() {
 
   return (
     <>
-      <div className="p-6">
+      <div className="p-2">
       {/* Toaster is rendered at root level below */}
 
         {/* Header */}

@@ -72,7 +72,7 @@ export default function FranchisePackageBookingList() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-2 sm:p-6">
       <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
 
       {/* ── Desktop Table ── */}

@@ -8,19 +8,17 @@ import {
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 import Admin from "@/models/Admin";
 import User from "@/models/User";
+import { generateInvoicePDFBuffer } from "@/app/api/admin/invoice-tax/route"; // ✅ new
+import { uploadToS3 } from "@/utils/s3Config"; // ✅ new
 import { getServerSession } from "next-auth";
 
-
-// ==================
-// GET: FETCH REVENUE DATA (ROLE-BASED)
-// ==================
 export async function GET(req) {
   try {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
 
-    // ✅ NEW: franchiseCode param check — ServiceBookingList ke liye
+    // ✅ franchiseCode param check — ServiceBookingList ke liye
     const franchiseCode = searchParams.get("franchiseCode");
 
     if (franchiseCode) {
@@ -52,7 +50,7 @@ export async function GET(req) {
       }
 
       let revenueData = await FranchiseRevenue.find({
-        franchiseId: franchiseCode, // ✅ model mein franchiseId: String
+        franchiseId: franchiseCode,
         status: { $ne: "inactive" },
         ...dateMatchQuery,
       })
@@ -70,7 +68,7 @@ export async function GET(req) {
 
       return NextResponse.json({
         success: true,
-        data: revenueData, // ✅ json.data — component ke saath match
+        data: revenueData,
         revenue: revenueData,
         totalRevenue,
         franchiseShare: totalRevenue * 0.5,
@@ -78,8 +76,32 @@ export async function GET(req) {
         count: revenueData.length,
       });
     }
-    // ✅ END franchiseCode block — existing logic neeche bilkul same hai
 
+    // ✅ NEW: userId param — specific user ki saari revenue entries
+    const userId = searchParams.get("userId");
+
+    if (userId) {
+      const revenueData = await FranchiseRevenue.find({
+        leadId: userId, // leadId se userId match karo
+        status: { $ne: "inactive" },
+      })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const totalAmount = revenueData.reduce(
+        (sum, rev) => sum + (Number(rev.amount) || 0),
+        0,
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: revenueData,
+        count: revenueData.length,
+        totalAmount,
+      });
+    }
+
+    // ✅ Role-based fetch — email + role required
     const email = searchParams.get("email");
     const role = searchParams.get("role");
 
@@ -103,7 +125,6 @@ export async function GET(req) {
       dateMatchQuery = { createdAt: { $gte: startDate, $lte: endDate } };
     }
 
-    // Find the admin
     const admin = await Admin.findOne({ email }).lean();
 
     if (!admin) {
@@ -115,15 +136,12 @@ export async function GET(req) {
 
     let revenueData;
     let totalRevenue = 0;
-
-    // Separate breakdowns
     let userOnboardRevenue = 0;
     let franchiseLeadRevenue = 0;
     let userOnboardCount = 0;
     let franchiseLeadCount = 0;
     let paidLeads = [];
 
-    // SuperAdmin: See ALL revenue (both user onboarding and franchise leads)
     if (role === "superAdmin" || role === "superFranchiseAdmin") {
       revenueData = await FranchiseRevenue.find({
         status: { $in: ["active", "user_onboard"] },
@@ -149,7 +167,6 @@ export async function GET(req) {
       userOnboardCount = revenueData.filter(
         (rev) => rev.type === "user_onboard",
       ).length;
-
       franchiseLeadCount = revenueData.filter(
         (rev) => rev.type === "franchise_lead",
       ).length;
@@ -157,10 +174,7 @@ export async function GET(req) {
       paidLeads = revenueData
         .filter((rev) => rev.type === "franchise_lead")
         .map((rev) => rev.leadId);
-    }
-
-    // FranchiseAdmin: See only their own franchise lead revenue
-    else if (role === "franchiseAdmin") {
+    } else if (role === "franchiseAdmin") {
       revenueData = await FranchiseRevenue.find({
         onboardedBy: admin._id,
         status: "user_onboard",
@@ -175,15 +189,10 @@ export async function GET(req) {
         (sum, rev) => sum + (rev.amount || 0),
         0,
       );
-
       franchiseLeadRevenue = totalRevenue;
       franchiseLeadCount = revenueData.length;
-
       paidLeads = revenueData.map((rev) => rev.leadId);
-    }
-
-    // Agent: See only their own user onboarding revenue
-    else if (role === "agent") {
+    } else if (role === "agent") {
       revenueData = await FranchiseRevenue.find({
         onboardedBy: admin._id,
         status: "active",
@@ -198,7 +207,6 @@ export async function GET(req) {
         (sum, rev) => sum + (rev.amount || 0),
         0,
       );
-
       userOnboardRevenue = totalRevenue;
       userOnboardCount = revenueData.length;
     } else {
@@ -208,18 +216,14 @@ export async function GET(req) {
       );
     }
 
-    /* 🔥 USER EXPIRY FETCH FOR ALL ROLES */
-
+    // 🔥 USER EXPIRY FETCH FOR ALL ROLES
     const userIds = revenueData.map((item) => item.leadId);
 
-    const users = await User.find({
-      userId: { $in: userIds },
-    })
+    const users = await User.find({ userId: { $in: userIds } })
       .select("userId packageExpiryDate packageStartDate")
       .lean();
 
     const userMap = {};
-
     users.forEach((user) => {
       userMap[String(user.userId).trim()] = user;
     });
@@ -339,6 +343,30 @@ export async function POST(req) {
     });
 
     await newRevenue.save();
+
+    // ✅ Invoice generate + S3 upload
+    try {
+      const invoiceBuffer = await generateInvoicePDFBuffer({
+        ...newRevenue.toObject(),
+        userEmail: userEmail || "",
+        userPhone: phone || "",
+      });
+
+      const s3Result = await uploadToS3(
+        invoiceBuffer,
+        `invoice-${newRevenue._id}.pdf`,
+        "application/pdf",
+      );
+
+      if (s3Result.success) {
+        await FranchiseRevenue.findByIdAndUpdate(newRevenue._id, {
+          invoiceUrl: s3Result.url,
+        });
+      }
+    } catch (invoiceErr) {
+      console.error("Invoice generation/upload failed:", invoiceErr);
+      // ✅ Revenue save hogi, invoice fail ho to bhi crash nahi hoga
+    }
 
     await User.findOneAndUpdate(
       { userId: leadId },

@@ -1,188 +1,33 @@
+// app/api/admin/invoice-tax/route.js
+
 import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import connectDB from "@/lib/dbConnect";
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 import User from "@/models/User";
 
-// ✅ Reusable PDF generator
-export async function generateInvoicePDFBuffer(user) {
-  const PDFDocument = (await import("pdfkit")).default;
-
-  const amount = Number(user.amount || 0);
-  const taxable = (amount / 1.18).toFixed(2);
-  const gst = (amount - taxable).toFixed(2);
-
-  const invoiceNo = `LIM/${new Date().getFullYear()}/${String(
-    Math.floor(Math.random() * 9999)
-  ).padStart(4, "0")}`;
-
-  const invoiceDate = new Date(user.createdAt || Date.now()).toLocaleDateString("en-IN");
-  const customerName = user.leadName || user.name || user.fullName || "Customer";
-  const planName = user.plan || "Subscription Plan";
-
-  const doc = new PDFDocument({ size: "A4", margin: 40 });
-  const buffers = [];
-  doc.on("data", buffers.push.bind(buffers));
-  const pdfPromise = new Promise((resolve) => {
-    doc.on("end", () => resolve(Buffer.concat(buffers)));
-  });
-
-  // ── Customer fields ──
-  const customerEmail = user.userEmail || user.email || user.contactEmail || "-";
-  const customerPhone = user.userPhone || user.phone || user.mobile || "-";
-  const customerAddress = user.address || user.fullAddress || user.city || "-";
-  const customerGST = user.gstNumber || user.gstin || user.GSTIN || "-";
-
-  const packageStartDate = user.userPackageStartDate
-    ? new Date(user.userPackageStartDate).toLocaleDateString("en-IN")
-    : user.packageStartDate
-      ? new Date(user.packageStartDate).toLocaleDateString("en-IN")
-      : user.createdAt
-        ? new Date(user.createdAt).toLocaleDateString("en-IN")
-        : "-";
-
-  const packageExpiryDate = user.userPackageExpiryDate
-    ? new Date(user.userPackageExpiryDate).toLocaleDateString("en-IN")
-    : user.packageExpiryDate
-      ? new Date(user.packageExpiryDate).toLocaleDateString("en-IN")
-      : user.expiryDate
-        ? new Date(user.expiryDate).toLocaleDateString("en-IN")
-        : "-";
-
-  const planDuration =
-    user.planDuration ||
-    user.packageDuration ||
-    user.duration ||
-    "1 Month";
-
-  // ── Drawing ──
-  doc.fontSize(20).font("Helvetica-Bold").text("TAX INVOICE", 0, 30, { align: "center" });
-  doc.rect(30, 20, 535, 780).stroke();
-
-  doc.fontSize(10).font("Helvetica-Bold").text("LIMBU AI TECHNOLOGIES", 40, 60);
-  doc.font("Helvetica").fontSize(8)
-    .text("8th Floor, B 32, JMD Megapolis,", 40, 78)
-    .text("Sector 48, Sohna Road,", 40, 90)
-    .text("Gurugram, Haryana, 122018", 40, 102)
-    .text("GSTIN/UIN: 06XXXXXXXXXXXX", 40, 114)
-    .text("State Name: Haryana, Code: 06", 40, 126)
-    .text("E-Mail: info@limbu.ai", 40, 138)
-    .text("Website: www.limbu.ai", 40, 150);
-
-  doc.rect(320, 60, 225, 110).stroke();
-  const rightX = 330;
-  let y = 70;
-  const addInfoRow = (label, value) => {
-    doc.font("Helvetica-Bold").fontSize(8).text(label, rightX, y);
-    doc.font("Helvetica").text(value, rightX + 85, y);
-    y += 16;
+// Helper function to convert Amount to Words
+function amountToWords(amount) {
+  const num = Math.floor(amount);
+  if (num === 0) return "Zero";
+  const a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  
+  const inWords = (n) => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + a[n % 10] : "");
+    if (n < 1000) return a[Math.floor(n / 100)] + " Hundred" + (n % 100 !== 0 ? " and " + inWords(n % 100) : "");
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + " Thousand" + (n % 1000 !== 0 ? " " + inWords(n % 1000) : "");
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + " Lakh" + (n % 100000 !== 0 ? " " + inWords(n % 100000) : "");
+    return inWords(Math.floor(n / 10000000)) + " Crore" + (n % 10000000 !== 0 ? " " + inWords(n % 10000000) : "");
   };
-  addInfoRow("Invoice No.", invoiceNo);
-  addInfoRow("Dated", invoiceDate);
-  addInfoRow("Payment Terms", "Due on Receipt");
-  addInfoRow("Reference", "-");
-  addInfoRow("Other References", "-");
-
-  doc.rect(40, 185, 505, 190).stroke();
-
-  const drawLabelValue = (label, value, x, yPos) => {
-    doc.font("Helvetica-Bold").fontSize(9).text(label, x, yPos, { continued: true });
-    doc.font("Helvetica").fontSize(9).text(value || "-");
-  };
-
-  doc.font("Helvetica-Bold").fontSize(9).text("Bill To", 50, 195);
-
-  drawLabelValue("Name: ", customerName, 50, 215);
-  drawLabelValue("Email: ", customerEmail, 50, 230);
-  drawLabelValue("Mobile: ", customerPhone, 50, 245);
-  drawLabelValue("Address: ", customerAddress, 50, 260);
-  drawLabelValue("Plan: ", planName, 50, 290);
-  drawLabelValue("Plan Duration: ", planDuration, 50, 305);
-  drawLabelValue("Start Date: ", packageStartDate, 50, 320);
-  drawLabelValue("Expiry Date: ", packageExpiryDate, 50, 335);
-
-  drawLabelValue("Place of Supply: ", "India", 300, 215);
-  drawLabelValue("GSTIN/UIN: ", customerGST, 300, 230);
-  drawLabelValue("Invoice Date: ", invoiceDate, 300, 245);
-  drawLabelValue("Invoice No.: ", invoiceNo, 300, 260);
-  drawLabelValue("Payment Status: ", "Paid", 300, 275);
-  drawLabelValue("Amount Paid: ", `₹${amount.toFixed(2)}`, 300, 290);
-  drawLabelValue("Taxable Value: ", `₹${taxable}`, 300, 305);
-  drawLabelValue("IGST (18%): ", `₹${gst}`, 300, 320);
-  drawLabelValue("Total Amount: ", `₹${amount.toFixed(2)}`, 300, 335);
-
-  const tableTop = 385;
-  const tableHeight = 120;
-  const totalY = tableTop + tableHeight;
-
-  doc.rect(40, tableTop, 505, 25).stroke();
-  doc.font("Helvetica-Bold").fontSize(8);
-  doc.text("Sl.", 45, tableTop + 8);
-  doc.text("Description of Services", 80, tableTop + 8);
-  doc.text("HSN/SAC", 320, tableTop + 8);
-  doc.text("Qty", 390, tableTop + 8);
-  doc.text("Rate", 430, tableTop + 8);
-  doc.text("Amount", 490, tableTop + 8);
-
-  const rowY = tableTop + 30;
-  doc.font("Helvetica").fontSize(8);
-  doc.text("1", 50, rowY);
-  doc.text(planName, 85, rowY);
-  doc.text("9983", 330, rowY);
-  doc.text("1", 400, rowY);
-  doc.text(amount.toFixed(2), 430, rowY);
-  doc.text(amount.toFixed(2), 490, rowY);
-  doc.font("Helvetica-Oblique")
-    .text(`Taxable Amount: ₹${taxable}`, 85, rowY + 18)
-    .text(`IGST @ 18%: ₹${gst}`, 85, rowY + 32);
-
-  [40, 545].forEach(x => doc.moveTo(x, tableTop).lineTo(x, tableTop + tableHeight).stroke());
-  [75, 315, 385, 425, 485].forEach(x => doc.moveTo(x, tableTop).lineTo(x, tableTop + tableHeight).stroke());
-  doc.moveTo(40, tableTop + tableHeight).lineTo(545, tableTop + tableHeight).stroke();
-
-  doc.rect(40, totalY, 505, 25).stroke();
-  doc.moveTo(485, totalY).lineTo(485, totalY + 25).stroke();
-  doc.font("Helvetica-Bold").fontSize(7)
-    .text(`Amount Chargeable (in words): INR ${amount.toFixed(2)} Only`, 70, totalY + 9, { width: 330, lineBreak: false });
-  doc.font("Helvetica-Bold").fontSize(9)
-    .text("Grand Total", 390, totalY + 7, { width: 85, align: "right" });
-  doc.font("Helvetica-Bold").fontSize(9)
-    .text(`₹ ${amount.toFixed(2)}`, 480, totalY + 7, { width: 50, align: "right" });
-
-  doc.rect(40, totalY + 65, 505, 65).stroke();
-  doc.font("Helvetica-Bold").fontSize(8)
-    .text("Taxable Value", 60, totalY + 75)
-    .text("IGST 18%", 200, totalY + 75)
-    .text("Total Tax", 310, totalY + 75)
-    .text("Total Amount", 430, totalY + 75);
-  doc.font("Helvetica").fontSize(8)
-    .text(taxable, 60, totalY + 95)
-    .text(gst, 200, totalY + 95)
-    .text(gst, 310, totalY + 95)
-    .text(amount.toFixed(2), 430, totalY + 95);
-
-  doc.rect(40, totalY + 130, 505, 95).stroke();
-  doc.font("Helvetica-Bold").fontSize(8).text("Remarks:", 60, totalY + 140);
-  doc.font("Helvetica").text(`Subscription fees paid for ${planName}.`, 60, totalY + 155);
-  doc.font("Helvetica-Bold").text("Company's Bank Details", 380, totalY + 140);
-  doc.font("Helvetica")
-    .text("A/c Holder: LIMBU AI TECHNOLOGIES", 380, totalY + 155)
-    .text("Bank Name: IDFC FIRST BANK", 380, totalY + 170)
-    .text("A/c No.: 10259083115", 380, totalY + 185)
-    .text("IFSC Code: IDFB0080175", 380, totalY + 200);
-
-  doc.rect(40, totalY + 225, 505, 65).stroke();
-  doc.font("Helvetica-Bold").text("Declaration", 60, totalY + 235);
-  doc.font("Helvetica").fontSize(7)
-    .text("We declare that this invoice shows the actual price of the services described and that all particulars are true and correct.", 60, totalY + 250, { width: 250 });
-  doc.font("Helvetica-Bold").fontSize(8).text("for LIMBU AI TECHNOLOGIES", 380, totalY + 235);
-  doc.font("Helvetica").text("Authorised Signatory", 420, totalY + 275);
-
-  doc.end();
-  return pdfPromise;
+  return inWords(num) + " Only";
 }
 
-// ✅ GET — ID se invoice download
+const formatCurrency = (amount) => {
+  return Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export async function GET(req) {
   try {
     await connectDB();
@@ -196,23 +41,178 @@ export async function GET(req) {
     }
 
     const userDetails = await User.findOne({ userId: revenue.leadId }).lean();
+    const user = { ...revenue, ...userDetails };
 
-    const user = {
-      ...revenue,
-      userEmail: userDetails?.email || "",
-      userPhone: userDetails?.phone || "",
+    // Smart Date Logic
+    const startDate = revenue.packageStartDate ? new Date(revenue.packageStartDate) : new Date(revenue.createdAt);
+    const expiryDate = revenue.packageExpiryDate ? new Date(revenue.packageExpiryDate) : null;
+    let displayDuration = "1 Month";
+    if (startDate && expiryDate && !isNaN(expiryDate)) {
+      const months = (expiryDate.getFullYear() - startDate.getFullYear()) * 12 + (expiryDate.getMonth() - startDate.getMonth());
+      displayDuration = `${months} ${months > 1 ? 'Months' : 'Month'}`;
+    }
+
+    const formattedStart = startDate.toLocaleDateString("en-IN");
+    const formattedEnd = (expiryDate && !isNaN(expiryDate)) ? expiryDate.toLocaleDateString("en-IN") : "-";
+
+    const amount = Number(revenue.amount || 0);
+    const taxable = amount / 1.18;
+    const gst = amount - taxable;
+
+    const invoiceNo = `LIM/${new Date().getFullYear()}/${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+    const invoiceDate = new Date(revenue.createdAt).toLocaleDateString("en-IN");
+
+    const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
+    const buffers = [];
+    doc.on("data", buffers.push.bind(buffers));
+    const pdfPromise = new Promise((resolve) => doc.on("end", () => resolve(Buffer.concat(buffers))));
+
+    const primaryColor = "#333333";
+    const borderColor = "#CCCCCC";
+    const tableHeaderBg = "#F5F5F5";
+    const margin = 40;
+    const contentWidth = 515;
+
+    // 1. Header
+    doc.rect(margin, margin, contentWidth, 30).fill(tableHeaderBg);
+    doc.fillColor(primaryColor).fontSize(14).font("Helvetica-Bold").text("TAX INVOICE", margin, margin + 8, { align: "center", width: contentWidth });
+
+    let currentY = margin + 50;
+
+    // 2. Seller Info
+    doc.fontSize(11).font("Helvetica-Bold").text("LIMBU AI TECHNOLOGIES", margin, currentY);
+    doc.fontSize(8).font("Helvetica").fillColor("#666666")
+       .text("8th Floor, Unit No. 831, JMD Megapolis, Sector 48, Sohna Road,", margin, currentY + 15)
+       .text("Gurugram, Haryana, 122018 | GSTIN: 06XXXXXXXXXXXX", margin, currentY + 25)
+       .text("Email: info@limbu.ai | Web: www.limbu.ai", margin, currentY + 35);
+
+    // 3. Invoice Info Box
+    doc.roundedRect(350, currentY, 205, 75, 4).lineWidth(0.5).strokeColor(borderColor).stroke();
+    doc.fillColor(primaryColor).fontSize(8)
+       .font("Helvetica-Bold").text("Invoice No:", 360, currentY + 10).font("Helvetica").text(invoiceNo, 435, currentY + 10)
+       .font("Helvetica-Bold").text("Invoice Date:", 360, currentY + 25).font("Helvetica").text(invoiceDate, 435, currentY + 25)
+       .font("Helvetica-Bold").text("Terms:", 360, currentY + 40).font("Helvetica").text("Due on Receipt", 435, currentY + 40)
+       .font("Helvetica-Bold").text("Status:", 360, currentY + 55).fillColor("green").text("PAID", 435, currentY + 55).fillColor(primaryColor);
+
+    currentY += 95;
+
+    // 4. Billed To Section
+    doc.roundedRect(margin, currentY, contentWidth, 120, 4).strokeColor(borderColor).stroke();
+    doc.rect(margin, currentY, contentWidth, 20).fillAndStroke(tableHeaderBg, borderColor);
+    doc.fillColor(primaryColor).fontSize(9).font("Helvetica-Bold").text("Billed To & Subscription Details", margin + 10, currentY + 6);
+
+    const leftCol = margin + 10;
+    const rightCol = margin + 270;
+    let detailY = currentY + 28;
+
+    const addDetail = (label, value, x, y) => {
+      doc.font("Helvetica-Bold").fontSize(8).text(label, x, y, { continued: true }).font("Helvetica").text(value || "-");
     };
 
-    const pdfBuffer = await generateInvoicePDFBuffer(user);
+    addDetail("Name: ", revenue.leadName, leftCol, detailY);
+    addDetail("Email: ", revenue.email || user.email, leftCol, detailY + 15);
+    addDetail("Mobile: ", revenue.phone || user.phone, leftCol, detailY + 30);
+    addDetail("GSTIN: ", revenue.gstNumber || "N/A", leftCol, detailY + 45);
+    addDetail("Address: ", user.address || "-", leftCol, detailY + 60);
+    addDetail("Place of Supply: ", "India (Haryana)", leftCol, detailY + 75);
+
+    addDetail("Plan Name: ", revenue.plan, rightCol, detailY);
+    addDetail("Plan Duration: ", displayDuration, rightCol, detailY + 15);
+    addDetail("Start Date: ", formattedStart, rightCol, detailY + 30);
+    addDetail("Expiry Date: ", formattedEnd, rightCol, detailY + 45);
+    addDetail("Payment Status: ", "Paid (Online)", rightCol, detailY + 60);
+    addDetail("UTR No: ", revenue.utrNumber || "-", rightCol, detailY + 75);
+
+    currentY += 135;
+
+    // 5. SERVICES TABLE (FIXED LINES & ALIGNMENT)
+    const cols = { sl: 40, desc: 70, hsn: 300, qty: 360, rate: 405, amt: 475 };
+    const tableTop = currentY;
+    const tableHeight = 120; // Entire table height
+
+    // Header Background
+    doc.rect(margin, tableTop, contentWidth, 20).fillAndStroke(tableHeaderBg, borderColor);
+    
+    // Header Text
+    doc.fillColor(primaryColor).font("Helvetica-Bold").fontSize(8);
+    doc.text("#", cols.sl + 5, tableTop + 6);
+    doc.text("Description of Services", cols.desc + 5, tableTop + 6);
+    doc.text("HSN/SAC", cols.hsn + 5, tableTop + 6);
+    doc.text("Qty", cols.qty + 5, tableTop + 6);
+    doc.text("Rate", cols.rate, tableTop + 6, { width: 60, align: "right" });
+    doc.text("Amount", cols.amt, tableTop + 6, { width: 75, align: "right" });
+
+    // Table Body (Outer Box)
+    doc.rect(margin, tableTop, contentWidth, tableHeight).strokeColor(borderColor).stroke();
+
+    // Vertical Column Lines
+    const lineBottom = tableTop + tableHeight;
+    doc.moveTo(cols.desc, tableTop).lineTo(cols.desc, lineBottom).stroke();
+    doc.moveTo(cols.hsn, tableTop).lineTo(cols.hsn, lineBottom).stroke();
+    doc.moveTo(cols.qty, tableTop).lineTo(cols.qty, lineBottom).stroke();
+    doc.moveTo(cols.rate, tableTop).lineTo(cols.rate, lineBottom).stroke();
+    doc.moveTo(cols.amt, tableTop).lineTo(cols.amt, lineBottom).stroke();
+
+    // Row Data
+    const rowY = tableTop + 25;
+    doc.font("Helvetica").fontSize(8).fillColor(primaryColor);
+    doc.text("1", cols.sl + 5, rowY);
+    doc.text(`Service Subscription: ${revenue.plan}`, cols.desc + 5, rowY, { width: 220 });
+    doc.text("9983", cols.hsn + 5, rowY);
+    doc.text("1.00", cols.qty + 5, rowY);
+    doc.text(formatCurrency(taxable), cols.rate, rowY, { width: 60, align: "right" });
+    doc.text(formatCurrency(taxable), cols.amt, rowY, { width: 75, align: "right" });
+
+    // Tax Row
+    doc.fontSize(7).fillColor("#666666").font("Helvetica-Oblique")
+       .text(`Output IGST @ 18% (on INR ${formatCurrency(taxable)})`, cols.desc + 5, rowY + 15);
+    doc.fontSize(8).fillColor(primaryColor).font("Helvetica")
+       .text(formatCurrency(gst), cols.amt, rowY + 15, { width: 75, align: "right" });
+
+    currentY = lineBottom;
+
+    // 6. TOTAL SECTION (FIXED OVERFLOW)
+    doc.rect(margin, currentY, contentWidth, 30).strokeColor(borderColor).stroke();
+    doc.font("Helvetica-Bold").fontSize(9).text("Total Amount Payable (Inclusive of GST)", margin + 10, currentY + 10);
+    
+    // Increased width for price to prevent overflow
+    doc.fontSize(10).text(`INR ${formatCurrency(amount)}`, 440, currentY + 10, { width: 110, align: "right" });
+
+    // 7. Amount in Words
+    doc.fontSize(8).font("Helvetica-Bold").text(`Amount in Words: INR ${amountToWords(amount)}`, margin, currentY + 45);
+
+    // 8. Bank Details
+    currentY += 75;
+    doc.roundedRect(margin, currentY, contentWidth, 75, 4).strokeColor(borderColor).stroke();
+    doc.font("Helvetica-Bold").text("Company's Bank Details:", margin + 10, currentY + 10);
+    doc.font("Helvetica").fontSize(8)
+       .text("Bank Name: IDFC FIRST BANK | A/c Name: LIMBU AI TECHNOLOGIES", margin + 10, currentY + 25)
+       .text(`Account No: 10259083115 | IFSC: IDFB0080175`, margin + 10, currentY + 37)
+       .text(`UTR No: ${revenue.utrNumber || "N/A"}`, margin + 10, currentY + 50);
+
+    // 9. Sign & Declaration
+    currentY += 95;
+    doc.font("Helvetica-Bold").fontSize(8).text("Declaration:", margin, currentY);
+    doc.font("Helvetica").fontSize(7).fillColor("#666666")
+       .text("We declare that this invoice shows the actual price of the services described and that all particulars are true and correct.", margin, currentY + 12, { width: 280 });
+
+    doc.font("Helvetica-Bold").fontSize(8).fillColor(primaryColor).text("For LIMBU AI TECHNOLOGIES", 380, currentY);
+    doc.font("Helvetica").text("Authorised Signatory", 415, currentY + 55);
+
+    // Footer
+    doc.fontSize(6).fillColor("#999999").text("8th Floor, Unit No. 831, JMD Megapolis, Sohna Road, Gurugram, Haryana - 122018", margin, 790, { align: "center", width: contentWidth });
+
+    doc.end();
+    const pdfBuffer = await pdfPromise;
 
     return new NextResponse(pdfBuffer, {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="tax-invoice-${id}.pdf"`,
+        "Content-Disposition": `attachment; filename="tax-invoice-${invoiceNo.replace(/\//g, "-")}.pdf"`,
       },
     });
   } catch (error) {
-    console.error("Invoice PDF Error:", error);
-    return NextResponse.json({ success: false, message: "Failed to generate invoice" }, { status: 500 });
+    console.error("Invoice Error:", error);
+    return NextResponse.json({ success: false, message: "Internal Server Error" }, { status: 500 });
   }
 }

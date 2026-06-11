@@ -37,7 +37,7 @@ export default function TransactionsPage() {
   }, []);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-2 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-5">Franchise Transactions</h1>
 
       {loading ? (

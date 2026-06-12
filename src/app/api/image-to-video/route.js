@@ -11,7 +11,7 @@ const DEFAULT_IMAGE_TO_VIDEO_URL =
 
 /** Coins charged after a successful image→video render (saved via Post + Transaction). */
 const IMAGE_TO_VIDEO_COINS = 200;
-const IMAGE_TO_VIDEO_DURATION = 8;
+const IMAGE_TO_VIDEO_DURATION = 12;
 const IMAGE_TO_VIDEO_QUALITY = "720p";
 const IMAGE_TO_VIDEO_RATIO = "9:16";
 
@@ -264,12 +264,18 @@ export async function POST(req) {
     });
 
     const text = await upstream.text();
+
+    // console.log("UPSTREAM STATUS:", upstream.status);
+// console.log("UPSTREAM RAW RESPONSE:", text);
+
     let data;
     try {
       data = JSON.parse(text);
     } catch {
       data = { raw: text };
     }
+
+    // console.log("UPSTREAM PARSED RESPONSE:", data);
 
     if (!upstream.ok) {
       console.error("Image-to-video upstream error:", {

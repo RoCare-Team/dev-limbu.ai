@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import {
@@ -66,33 +68,28 @@ function PeriodCell({
         width: "50%",
         border: "none",
         cursor: loading ? "default" : "pointer",
-        py: 1.25,
-        px: 0.75,
+        py: 1.5,
+        px: 1,
         textAlign: "center",
-        transition: "background 0.15s ease",
-        background: active
-          ? style.color
-          : isToday
-            ? style.bg
-            : "transparent",
+        transition: "background 0.15s ease, border-color 0.15s ease",
+        background: active ? style.bg : "#fff",
+        borderRight: isToday ? "none" : `2px solid ${style.color}30`,
         fontFamily: "var(--font-inter)",
+        outline: active ? `2px solid ${style.color}` : "none",
+        outlineOffset: -2,
         "&:hover:not(:disabled)": {
-          background: active
-            ? style.color
-            : isToday
-              ? style.bg
-              : "rgba(0,0,0,0.03)",
+          background: style.bg,
         },
         "&:disabled": { opacity: 0.7 },
       }}
     >
       <Typography
         sx={{
-          fontSize: "9px",
+          fontSize: "10px",
           fontWeight: 700,
           textTransform: "uppercase",
-          letterSpacing: 0.5,
-          color: active ? "rgba(255,255,255,0.9)" : "#9ca3af",
+          letterSpacing: 0.6,
+          color: style.color,
           lineHeight: 1,
         }}
       >
@@ -101,11 +98,11 @@ function PeriodCell({
       <Typography
         component="p"
         sx={{
-          mt: 0.6,
-          fontSize: "clamp(15px, 2.2vw, 20px)",
+          mt: 0.75,
+          fontSize: "clamp(16px, 2.2vw, 22px)",
           fontWeight: 800,
           lineHeight: 1.1,
-          color: active ? "#fff" : isToday ? style.color : "#111827",
+          color: "#111827",
           fontVariantNumeric: "tabular-nums",
           overflow: "hidden",
           textOverflow: "ellipsis",
@@ -139,8 +136,8 @@ function MetricBlock({
     <Card
       elevation={0}
       sx={{
-        borderRadius: "12px",
-        border: isActive ? `2px solid ${style.color}` : "1px solid #e5e7eb",
+        borderRadius: "10px",
+        border: isActive ? `2px solid ${style.color}` : `1.5px solid ${style.color}55`,
         background: "#fff",
         overflow: "hidden",
         minWidth: 0,
@@ -151,16 +148,16 @@ function MetricBlock({
       <Box
         sx={{
           px: 1.25,
-          py: 0.9,
-          borderBottom: "1px solid #f3f4f6",
-          background: "#fafafa",
+          py: 0.85,
+          borderBottom: `2px solid ${style.color}40`,
+          background: style.bg,
         }}
       >
         <Typography
           sx={{
             fontSize: "11px",
             fontWeight: 700,
-            color: "#374151",
+            color: style.color,
             textAlign: "center",
             lineHeight: 1.25,
             overflow: "hidden",
@@ -175,17 +172,10 @@ function MetricBlock({
 
       <Stack
         direction="row"
-        divider={
-          <Box
-            sx={{
-              width: "1px",
-              alignSelf: "stretch",
-              background: "#e5e7eb",
-              my: 0.75,
-            }}
-          />
-        }
-        sx={{ minWidth: 0 }}
+        sx={{
+          minWidth: 0,
+          borderTop: `1px solid ${style.color}25`,
+        }}
       >
         <PeriodCell
           period="total"
@@ -226,11 +216,11 @@ export default function ChatbotSummaryMetrics({
     <Card
       elevation={0}
       sx={{
-        border: "1px solid #e5e7eb",
-        borderRadius: "14px",
+        border: "2px solid #d1d5db",
+        borderRadius: "12px",
         p: 1.5,
         mb: 1.5,
-        background: "#fff",
+        background: "#fafafa",
       }}
     >
       <Stack

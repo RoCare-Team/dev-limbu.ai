@@ -831,7 +831,10 @@ export default function UserManagement() {
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
-    if (Array.isArray(user.chatbotHistory)) {
+    if (
+      Array.isArray(user.chatbotHistory) &&
+      user.chatbotHistory.length > 0
+    ) {
       setChatHistoryModal({
         open: true,
         user,
@@ -4526,8 +4529,11 @@ export default function UserManagement() {
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
                         User Name
                       </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[90px]">
+                        Chat
+                      </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
-                        Conversation
+                        Contact
                       </th>
                       {/* <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                       Plan
@@ -4540,9 +4546,6 @@ export default function UserManagement() {
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Lead Stage
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
-                        Contact
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Plan
@@ -4952,6 +4955,32 @@ export default function UserManagement() {
                                           </div>
                                         </div>
                                       </td>
+
+                                      {/* CHAT BUTTON & PROGRESS COUNT */}
+                                      <td className="px-6 py-5">
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            fetchChatHistoryForUser(user);
+                                          }}
+                                          disabled={!botUserId}
+                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
+                                            hasAnyProgress
+                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                          }`}
+                                        >
+                                          <MessageCircle size={14} />
+                                          <span>Chat</span>
+                                          {hasAnyProgress && (
+                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
+                                              {completedSteps.length}
+                                            </div>
+                                          )}
+                                        </button>
+                                      </td>
+
                                       {/* CONTACT INFO */}
                                       <td className="px-6 py-5">
                                         <div className="text-xs space-y-1">
@@ -5102,31 +5131,6 @@ export default function UserManagement() {
                                             Onboard
                                           </option>
                                         </select>
-                                      </td>
-
-                                      {/* CHAT BUTTON & PROGRESS COUNT */}
-                                      <td className="px-6 py-5">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchChatHistoryForUser(user);
-                                          }}
-                                          disabled={!botUserId}
-                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
-                                            hasAnyProgress
-                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                          }`}
-                                        >
-                                          <MessageCircle size={14} />
-                                          <span>Chat</span>
-                                          {hasAnyProgress && (
-                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
-                                              {completedSteps.length}
-                                            </div>
-                                          )}
-                                        </button>
                                       </td>
 
                                       <td className="px-6 py-4">

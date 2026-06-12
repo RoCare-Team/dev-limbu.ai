@@ -2,12 +2,9 @@ import { useState } from "react";
 import {
   updatePostStatusAction,
   deductFromWalletAction,
-  getUserWalletAction
+  getUserWalletAction,
 } from "@/app/actions/postActions";
-import {
-  metaPublishMedia,
-  postImageUrl
-} from "@/lib/postMediaUrls";
+import { metaPublishMedia, postImageUrl } from "@/lib/postMediaUrls";
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 
 export function usePostManagementActions({
@@ -28,8 +25,13 @@ export function usePostManagementActions({
 
   const VIDEO_GENERATION_COINS = 200;
 
-  const handleFacebookPost = async (post, pageData, caption, forcedMedia = null) => {
-    // If forcedMedia is provided, we use it directly. 
+  const handleFacebookPost = async (
+    post,
+    pageData,
+    caption,
+    forcedMedia = null,
+  ) => {
+    // If forcedMedia is provided, we use it directly.
     // This allows the user to choose between videoOutput and aiOutput manually.
     const media = forcedMedia || metaPublishMedia(post);
     if (!caption?.trim() && !media.url) {
@@ -65,10 +67,13 @@ export function usePostManagementActions({
       await fetchPosts(1, true);
     } catch (err) {
       console.error("Facebook post error:", err);
-      showToast(err.message || "Something went wrong posting to Facebook", "error");
+      showToast(
+        err.message || "Something went wrong posting to Facebook",
+        "error",
+      );
     } finally {
       setTimeout(() => {
-          setIsPosting(false);
+        setIsPosting(false);
       }, 1000);
     }
   };
@@ -78,7 +83,7 @@ export function usePostManagementActions({
     accountData,
     caption,
     instagramVideoMediaType,
-    forcedMedia = null
+    forcedMedia = null,
   ) => {
     // Priority to forcedMedia (user selection), then default detection
     const media = forcedMedia || metaPublishMedia(post);
@@ -116,10 +121,13 @@ export function usePostManagementActions({
       await fetchPosts(1, true);
     } catch (err) {
       console.error("Instagram post error:", err);
-      showToast(err.message || "Something went wrong posting to Instagram", "error");
+      showToast(
+        err.message || "Something went wrong posting to Instagram",
+        "error",
+      );
     } finally {
       setTimeout(() => {
-          setIsPosting(false);
+        setIsPosting(false);
       }, 1000);
     }
   };
@@ -128,12 +136,19 @@ export function usePostManagementActions({
     if (!userId || !post?._id) return;
 
     const source = postImageUrl(post);
-    if (!source) return showToast("No still image on this post to convert.", "error");
+    if (!source)
+      return showToast("No still image on this post to convert.", "error");
 
-    const promptBase = (post.promat && String(post.promat).trim()) ||
+    const promptBase =
+      (post.promat && String(post.promat).trim()) ||
       prompt.trim() ||
-      (post.description && String(post.description).trim()) || "";
-    if (!promptBase) return showToast("No saved prompt on this post — use Customize below.", "error");
+      (post.description && String(post.description).trim()) ||
+      "";
+    if (!promptBase)
+      return showToast(
+        "No saved prompt on this post — use Customize below.",
+        "error",
+      );
 
     // ✅ Check wallet upfront
     const userWalletData = await getUserWalletAction(userId);
@@ -153,10 +168,13 @@ export function usePostManagementActions({
       metadata: { postId: post._id, source: "image_to_video_auto" },
     });
 
+    // console.log("VIDEO WALLET RESPONSE =>", walletRes);
+
     const deductOk =
-      walletRes?.message === "Wallet updated" ||
       walletRes?.success === true ||
-      walletRes?.status === "success";
+      walletRes?.status === "success" ||
+      walletRes?.ok === true ||
+      !!walletRes?.message;
 
     if (!deductOk || walletRes?.error) {
       showToast(walletRes?.error || "Coin deduction failed", "error");
@@ -164,12 +182,12 @@ export function usePostManagementActions({
     }
 
     // ✅ Update wallet state immediately after confirmed deduction
-    setUserWallet(prev => Math.max(0, prev - VIDEO_GENERATION_COINS));
+    setUserWallet((prev) => Math.max(0, prev - VIDEO_GENERATION_COINS));
     emitWalletDeduct(VIDEO_GENERATION_COINS); // ✅ sidebar sync
 
-    showToast(`${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`);
-
-
+    showToast(
+      `${VIDEO_GENERATION_COINS} coins deducted for video generation ✅`,
+    );
 
     setConvertingVideoPostId(String(post._id));
     try {
@@ -193,7 +211,9 @@ export function usePostManagementActions({
 
       if (!source.startsWith("http://") && !source.startsWith("https://")) {
         delete body.image_url;
-        body.image = source.startsWith("data:") ? source : `data:image/png;base64,${source}`;
+        body.image = source.startsWith("data:")
+          ? source
+          : `data:image/png;base64,${source}`;
       }
 
       console.log("Image-to-video request payload:", body);
@@ -207,17 +227,17 @@ export function usePostManagementActions({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
-          signal: controller.signal
+          signal: controller.signal,
         });
       } catch (fetchError) {
-        if (fetchError.name === 'AbortError') {
+        if (fetchError.name === "AbortError") {
           throw new Error("TIMEOUT_ERROR");
         }
         throw fetchError;
       } finally {
         clearTimeout(timeoutId);
       }
-      
+
       const ivData = await ivRes.json().catch(() => ({}));
 
       if (!ivRes.ok || ivData.success === false) {
@@ -225,14 +245,25 @@ export function usePostManagementActions({
       }
 
       if (!ivRes.ok || (ivData.success === false && !ivData.drive_link)) {
-        throw new Error(typeof ivData.error === "string" ? ivData.error : ivData.message || "Video generation failed");
+        throw new Error(
+          typeof ivData.error === "string"
+            ? ivData.error
+            : ivData.message || "Video generation failed",
+        );
       }
 
-      const ig = typeof ivData.instagram_caption === "string" ? ivData.instagram_caption.trim() : "";
-      const fb = typeof ivData.facebook_caption === "string" ? ivData.facebook_caption.trim() : "";
+      const ig =
+        typeof ivData.instagram_caption === "string"
+          ? ivData.instagram_caption.trim()
+          : "";
+      const fb =
+        typeof ivData.facebook_caption === "string"
+          ? ivData.facebook_caption.trim()
+          : "";
 
       const upd = await updatePostStatusAction({
-        id: post._id, userId,
+        id: post._id,
+        userId,
         status: post.status || "pending",
         videoOutput: ivData.drive_link,
         videoPrompt,
@@ -240,14 +271,16 @@ export function usePostManagementActions({
         ...(ig ? { igDescription: ig } : {}),
       });
 
-      if (!upd.success) throw new Error(upd.error || "Could not save video on this post");
+      if (!upd.success)
+        throw new Error(upd.error || "Could not save video on this post");
 
       const merged = { ...post, ...upd.data };
-      setPosts(prev => prev.map(p => p._id === post._id ? merged : p));
-      setPreviewData(prev => prev?._id === post._id ? { ...prev, ...upd.data } : prev);
+      setPosts((prev) => prev.map((p) => (p._id === post._id ? merged : p)));
+      setPreviewData((prev) =>
+        prev?._id === post._id ? { ...prev, ...upd.data } : prev,
+      );
       showToast("Video ready — tap the Video tab", "success");
       await fetchPosts(1, true);
-
     } catch (e) {
       console.error("Auto image-to-video conversion error:", e);
       // ✅ Refund if video generation failed or timed out
@@ -257,13 +290,16 @@ export function usePostManagementActions({
         reason: "refund_video_failed",
         metadata: { postId: post._id, error: e.message },
       });
-      setUserWallet(prev => prev + VIDEO_GENERATION_COINS);
+      setUserWallet((prev) => prev + VIDEO_GENERATION_COINS);
       emitWalletCredit(VIDEO_GENERATION_COINS); // ✅ sidebar sync
-      
+
       if (e.message === "TIMEOUT_ERROR") {
         showToast("Video generation timed out — coins refunded", "error");
       } else {
-        showToast(e.message || "Video conversion failed — coins refunded", "error");
+        showToast(
+          e.message || "Video conversion failed — coins refunded",
+          "error",
+        );
       }
     } finally {
       setConvertingVideoPostId(null);

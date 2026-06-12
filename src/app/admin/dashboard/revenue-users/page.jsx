@@ -422,7 +422,7 @@ export default function RevenueUsersPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId: user._id,
+          revenueId: user._id,
         }),
       });
 
@@ -438,6 +438,34 @@ export default function RevenueUsersPage() {
       alert("WhatsApp send failed");
     }
   };
+
+  //   try {
+  //     console.log("Sending invoice for:", user);
+
+  //     const res = await fetch("/api/admin/send-invoice-whatsapp", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         userId: user._id,
+  //       }),
+  //     });
+
+  //     const data = await res.json();
+
+  //     console.log("WhatsApp Response:", data);
+
+  //     if (data.success) {
+  //       alert("Invoice sent successfully on WhatsApp");
+  //     } else {
+  //       alert(data.message || "Failed to send invoice");
+  //     }
+  //   } catch (error) {
+  //     console.error("WhatsApp Send Error:", error);
+  //     alert("WhatsApp send failed");
+  //   }
+  // };
 
   const handleSendInvoiceEmail = async (r) => {
     try {
@@ -961,16 +989,12 @@ export default function RevenueUsersPage() {
 
                                   {/* Send WhatsApp - ONLY after download */}
 
-                                  {invoiceUrls[r._id] && (
-                                    <button
-                                      onClick={() =>
-                                        handleSendInvoiceWhatsApp(r)
-                                      }
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-                                    >
-                                      Send WhatsApp
-                                    </button>
-                                  )}
+                                  <button
+                                    onClick={() => handleSendInvoiceWhatsApp(r)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Send Invoice
+                                  </button>
                                 </div>
                               </td>
 
@@ -1209,9 +1233,9 @@ export default function RevenueUsersPage() {
 
                                   {invoiceUrls[u._id] && (
                                     <button
-                                      onClick={() =>
-                                        handleSendInvoiceWhatsApp(r)
-                                      }
+                                      // onClick={() =>
+                                      //   handleSendInvoiceWhatsApp(r)
+                                      // }
                                       className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
                                     >
                                       Send WhatsApp

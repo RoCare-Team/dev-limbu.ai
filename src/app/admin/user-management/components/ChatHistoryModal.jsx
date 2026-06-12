@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import React from "react";
@@ -86,7 +88,7 @@ export default function ChatHistoryModal({
               </button>
             </div>
           ) : history.length === 0 ? (
-            <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-center">
+            <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border-2 border-slate-300 bg-white text-center">
               <MessageCircle size={26} className="mb-2 text-slate-300" />
               <p className="text-sm font-bold text-slate-500">No conversation found</p>
             </div>

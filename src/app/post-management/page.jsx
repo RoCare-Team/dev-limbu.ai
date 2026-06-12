@@ -1447,11 +1447,12 @@ export default function PostManagementPage() {
           reason: "Post-on-GMB-Batch",
         });
 
-        const deductOk =
-          walletRes?.message === "Wallet updated" ||
-          walletRes?.success === true ||
-          walletRes?.status === "success" ||
-          walletRes?.ok === true;
+       const deductOk =
+  walletRes?.message === "Wallet updated" ||
+  walletRes?.message === "Wallet debited" ||
+  walletRes?.success === true ||
+  walletRes?.status === "success" ||
+  walletRes?.ok === true;
 
         if (!deductOk) {
           throw new Error(

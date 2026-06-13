@@ -9,8 +9,7 @@ import FranchiseRevenue from "@/models/FranchiseRevenue";
 import Admin from "@/models/Admin";
 import User from "@/models/User";
 import { generateInvoicePDFBuffer } from "@/app/api/admin/invoice-tax/route"; // ✅ new
-import { uploadToS3 } from "@/utils/s3Config"; // ✅ new
-import { getServerSession } from "next-auth";
+import { uploadToS3 } from "@/utils/s3Config"; 
 
 export async function GET(req) {
   try {

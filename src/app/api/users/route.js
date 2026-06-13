@@ -520,21 +520,23 @@ export async function GET(req) {
       return NextResponse.json({ success: true, user });
     }
 
-    const email               = searchParams.get("email");
-    const search              = searchParams.get("search");
-    const assignedAgentId     = searchParams.get("assignedAgentId");
-    const page                = parseInt(searchParams.get("page"))  || 1;
-    const limit               = parseInt(searchParams.get("limit")) || 70;
-    const dateFilter          = searchParams.get("dateFilter");
-    const startDateParam      = searchParams.get("startDate");
-    const endDateParam        = searchParams.get("endDate");
-    const leadStatus          = searchParams.get("leadStatus");
-    const leadStage           = searchParams.get("leadStage");
-    const source              = searchParams.get("source");
-    const conversationStage   = (searchParams.get("conversationStage") || "").trim();
-    const remarkCount         = searchParams.get("remarkCount");
-    const chatbotChatDay      = searchParams.get("chatbotChatDay");
-    const franchiseLeads      = searchParams.get("franchiseLeads");
+    const email = searchParams.get("email");
+    const search = searchParams.get("search");
+    const assignedAgentId = searchParams.get("assignedAgentId");
+    const page = parseInt(searchParams.get("page")) || 1;
+    const limit = parseInt(searchParams.get("limit")) || 70;
+    const dateFilter = searchParams.get("dateFilter");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
+    const leadStatus = searchParams.get("leadStatus");
+    const leadStage = searchParams.get("leadStage");
+    const source = searchParams.get("source");
+    const conversationStage = (
+      searchParams.get("conversationStage") || ""
+    ).trim();
+    const remarkCount = searchParams.get("remarkCount");
+    const chatbotChatDay = searchParams.get("chatbotChatDay");
+    const franchiseLeads = searchParams.get("franchiseLeads");
 
     if (!email) {
       return NextResponse.json(
@@ -582,7 +584,7 @@ export async function GET(req) {
 
       const fetched = await User.find(idQuery)
         .populate("assignedAgentId", "fullName email role mobileNumber")
-        .populate("accountManager",  "fullName email role mobileNumber")
+        .populate("accountManager", "fullName email role mobileNumber")
         .sort({ createdAt: -1 });
 
       const order = new Map(idList.map((id, i) => [String(id), i]));
@@ -614,11 +616,18 @@ export async function GET(req) {
         if (assignedAgentId === "Unassigned") {
           matchStage.assignedAgentId = null;
         } else {
-          matchStage.assignedAgentId = new mongoose.Types.ObjectId(assignedAgentId);
+          matchStage.assignedAgentId = new mongoose.Types.ObjectId(
+            assignedAgentId,
+          );
         }
       }
 
-      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+      if (
+        dateFilter &&
+        startDateParam &&
+        endDateParam &&
+        dateFilter !== "all"
+      ) {
         const startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(endDateParam);
@@ -652,26 +661,29 @@ export async function GET(req) {
         matchStage = addMatchCondition(matchStage, remarkCountMatch);
       }
 
-      const statsMatchStage = await addConversationStageFilter(matchStage, conversationStage);
+      const statsMatchStage = await addConversationStageFilter(
+        matchStage,
+        conversationStage,
+      );
 
       const stats = await User.aggregate([
         { $match: statsMatchStage },
         {
           $group: {
             _id: {
-              agent:      "$assignedAgentId",
-              stage:      { $ifNull: ["$leadStage",  "Active"] },
-              leadStatus: { $ifNull: ["$leadStatus", "Cold"]   },
+              agent: "$assignedAgentId",
+              stage: { $ifNull: ["$leadStage", "Active"] },
+              leadStatus: { $ifNull: ["$leadStatus", "Cold"] },
             },
             count: { $sum: 1 },
           },
         },
       ]);
 
-      const agentStats      = { Unassigned: 0 };
-      const stageStats      = { Active: 0, "Follow Up": 0, Inactive: 0, Onboard: 0 };
+      const agentStats = { Unassigned: 0 };
+      const stageStats = { Active: 0, "Follow Up": 0, Inactive: 0, Onboard: 0 };
       const leadStatusStats = { Hot: 0, Warm: 0, Cold: 0 };
-      const detailedStats   = [];
+      const detailedStats = [];
 
       const agentIds = [
         ...new Set(
@@ -685,28 +697,42 @@ export async function GET(req) {
           .select("_id fullName name")
           .lean();
         agents.forEach((agent) => {
-          agentNameMap[agent._id.toString()] = agent.fullName || agent.name || "Unknown";
+          agentNameMap[agent._id.toString()] =
+            agent.fullName || agent.name || "Unknown";
         });
       }
 
       stats.forEach((item) => {
-        const agentId   = item._id.agent ? item._id.agent.toString() : "Unassigned";
-        const agentName = agentId === "Unassigned" ? "Unassigned" : agentNameMap[agentId] || "Unknown";
-        const stage      = item._id.stage;
-        const ls         = item._id.leadStatus || "Cold";
-        const count      = item.count;
+        const agentId = item._id.agent
+          ? item._id.agent.toString()
+          : "Unassigned";
+        const agentName =
+          agentId === "Unassigned"
+            ? "Unassigned"
+            : agentNameMap[agentId] || "Unknown";
+        const stage = item._id.stage;
+        const ls = item._id.leadStatus || "Cold";
+        const count = item.count;
 
-        agentStats[agentId]  = (agentStats[agentId]  || 0) + count;
-        stageStats[stage]    = (stageStats[stage]    || 0) + count;
-        leadStatusStats[ls]  = (leadStatusStats[ls]  || 0) + count;
-        detailedStats.push({ stage, agentId, agentName, leadStatus: ls, count });
+        agentStats[agentId] = (agentStats[agentId] || 0) + count;
+        stageStats[stage] = (stageStats[stage] || 0) + count;
+        leadStatusStats[ls] = (leadStatusStats[ls] || 0) + count;
+        detailedStats.push({
+          stage,
+          agentId,
+          agentName,
+          leadStatus: ls,
+          count,
+        });
       });
 
       let extraStats = {};
 
       if (admin.role === "superAdmin") {
         const { start: startOfDay, end: endOfDay } = getAppDayBounds();
-        const todayCreated = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
+        const todayCreated = {
+          createdAt: { $gte: startOfDay, $lte: endOfDay },
+        };
 
         const [
           totalUsers,
@@ -729,20 +755,32 @@ export async function GET(req) {
             { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
             {
               $lookup: {
-                from: "admins", localField: "_id",
-                foreignField: "_id", as: "agent",
+                from: "admins",
+                localField: "_id",
+                foreignField: "_id",
+                as: "agent",
               },
             },
             { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
-            { $project: { agentName: { $ifNull: ["$agent.fullName", "Unknown"] }, count: 1 } },
+            {
+              $project: {
+                agentName: { $ifNull: ["$agent.fullName", "Unknown"] },
+                count: 1,
+              },
+            },
           ]),
         ]);
 
         extraStats = {
-          totalUsers, totalSignupUsers, totalMetaLeadUsers,
-          totalSignups: totalSignupUsers, totalMetaLeads: totalMetaLeadUsers,
-          metaLeadsCount: totalMetaLeadUsers, signupLeadsCount: totalSignupUsers,
-          todayLeads, todayAgentAssignments,
+          totalUsers,
+          totalSignupUsers,
+          totalMetaLeadUsers,
+          totalSignups: totalSignupUsers,
+          totalMetaLeads: totalMetaLeadUsers,
+          metaLeadsCount: totalMetaLeadUsers,
+          signupLeadsCount: totalSignupUsers,
+          todayLeads,
+          todayAgentAssignments,
         };
       } else if (admin.role === "agent") {
         const { start: startOfDay, end: endOfDay } = getAppDayBounds();
@@ -774,9 +812,14 @@ export async function GET(req) {
       } = getAppDayBounds();
 
       let startDate = startOfDay;
-      let endDate   = endOfDay;
+      let endDate = endOfDay;
 
-      if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
+      if (
+        dateFilter &&
+        startDateParam &&
+        endDateParam &&
+        dateFilter !== "all"
+      ) {
         startDate = new Date(startDateParam);
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(endDateParam);
@@ -841,13 +884,17 @@ export async function GET(req) {
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(endDateParam);
       endDate.setHours(23, 59, 59, 999);
-      query = addMatchCondition(query, { createdAt: { $gte: startDate, $lte: endDate } });
+      query = addMatchCondition(query, {
+        createdAt: { $gte: startDate, $lte: endDate },
+      });
     }
 
     /* 3. Lead Status */
     if (leadStatus && leadStatus !== "All") {
       if (leadStatus === "Untagged") {
-        query = addMatchCondition(query, { leadStatus: { $in: ["", null, undefined] } });
+        query = addMatchCondition(query, {
+          leadStatus: { $in: ["", null, undefined] },
+        });
       } else {
         query = addMatchCondition(query, { leadStatus });
       }
@@ -856,7 +903,9 @@ export async function GET(req) {
     /* 4. Lead Stage */
     if (leadStage && leadStage !== "All") {
       if (leadStage === "Active") {
-        query = addMatchCondition(query, { leadStage: { $in: ["Active", "", null] } });
+        query = addMatchCondition(query, {
+          leadStage: { $in: ["Active", "", null] },
+        });
       } else {
         query = addMatchCondition(query, { leadStage });
       }
@@ -893,16 +942,17 @@ export async function GET(req) {
       const searchRegex = { $regex: search, $options: "i" };
       query = addMatchCondition(query, {
         $or: [
-          { fullName:  searchRegex },
-          { email:     searchRegex },
-          { phone:     searchRegex },
-          { userId:    searchRegex },
+          { fullName: searchRegex },
+          { email: searchRegex },
+          { phone: searchRegex },
+          { userId: searchRegex },
         ],
       });
     }
 
     /* 9. Chatbot chat day filter (short-circuits normal pagination) */
-    const isChatbotDayFilter = chatbotChatDay === "today" || chatbotChatDay === "yesterday";
+    const isChatbotDayFilter =
+      chatbotChatDay === "today" || chatbotChatDay === "yesterday";
 
     if (isChatbotDayFilter) {
       try {
@@ -915,11 +965,11 @@ export async function GET(req) {
         });
         return NextResponse.json({
           success: true,
-          users:          chatbotList.users,
-          totalUsers:     chatbotList.totalUsers,
-          currentPage:    chatbotList.currentPage,
-          totalPages:     chatbotList.totalPages,
-          limit:          chatbotList.limit,
+          users: chatbotList.users,
+          totalUsers: chatbotList.totalUsers,
+          currentPage: chatbotList.currentPage,
+          totalPages: chatbotList.totalPages,
+          limit: chatbotList.limit,
           chatbotChatDay,
           chatbotDayLabel: chatbotList.chatbotDayLabel,
           chatbotDayCount: chatbotList.chatbotDayCount,
@@ -927,7 +977,10 @@ export async function GET(req) {
       } catch (chatbotErr) {
         console.error("chatbotChatDay filter:", chatbotErr);
         return NextResponse.json(
-          { success: false, error: chatbotErr.message || "Failed to load chatbot chat users" },
+          {
+            success: false,
+            error: chatbotErr.message || "Failed to load chatbot chat users",
+          },
           { status: 502 },
         );
       }
@@ -936,14 +989,21 @@ export async function GET(req) {
     /* 10. Conversation stage filter (async — must come after all sync filters) */
     query = await addConversationStageFilter(query, conversationStage);
 
+    /* ── 10.5 totalActiveUsers — runs on final query, applies to ALL roles ── */
+    // Active = leadStage is "Active", "" (empty), or null (new leads default to Active)
+    const activeQuery = addMatchCondition(query, {
+      leadStage: { $in: ["Active", "", null] },
+    });
+    const totalActiveUsers = await User.countDocuments(activeQuery);
+
     /* 11. Count + paginate — AFTER all filters are applied */
     const totalUsers = await User.countDocuments(query);
-    const skip       = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
     /* 12. Fetch users */
     const users = await User.find(query)
       .populate("assignedAgentId", "fullName email role mobileNumber")
-      .populate("accountManager",  "fullName email role mobileNumber")
+      .populate("accountManager", "fullName email role mobileNumber")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -977,8 +1037,10 @@ export async function GET(req) {
           { $group: { _id: "$assignedAgentId", count: { $sum: 1 } } },
           {
             $lookup: {
-              from: "admins", localField: "_id",
-              foreignField: "_id", as: "agent",
+              from: "admins",
+              localField: "_id",
+              foreignField: "_id",
+              as: "agent",
             },
           },
           { $unwind: { path: "$agent", preserveNullAndEmptyArrays: true } },
@@ -995,10 +1057,10 @@ export async function GET(req) {
         totalGlobalUsers,
         totalSignupUsers,
         totalMetaLeadUsers,
-        totalSignups:      totalSignupUsers,
-        totalMetaLeads:    totalMetaLeadUsers,
-        metaLeadsCount:    totalMetaLeadUsers,
-        signupLeadsCount:  totalSignupUsers,
+        totalSignups: totalSignupUsers,
+        totalMetaLeads: totalMetaLeadUsers,
+        metaLeadsCount: totalMetaLeadUsers,
+        signupLeadsCount: totalSignupUsers,
         todayLeads,
         todayAgentAssignments,
       };
@@ -1008,12 +1070,12 @@ export async function GET(req) {
       success: true,
       loggedInRole: admin.role,
       totalUsers,
-      totalPages:  Math.ceil(totalUsers / limit),
+      totalActiveUsers, // ✅ available for ALL roles: agent, manager, superAdmin
+      totalPages: Math.ceil(totalUsers / limit),
       currentPage: page,
       users,
       ...superAdminData,
     });
-
   } catch (error) {
     console.error("GET USERS ERROR:", error);
     return NextResponse.json(

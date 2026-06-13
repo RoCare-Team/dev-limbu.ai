@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+
 import {
   Users,
   TrendingUp,
@@ -29,8 +21,6 @@ import {
 
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
-
-import { getTodayUsersData } from "../user-management/page";
 
 import UserStats from "../../../app/admin/dashboard/UserStats";
 import useUserManagement from "../user-management/hooks/useUserManagement";
@@ -56,6 +46,7 @@ export default function AdminDashboard() {
 
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
+    totalActiveUsers: 0,
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
   });
@@ -450,6 +441,7 @@ export default function AdminDashboard() {
       if (listData.success) {
         setDashboardStats({
           totalUsers: listData.totalUsers || 0,
+          totalActiveUsers: listData.totalActiveUsers || 0,
           totalRevenue: 0,
           planCounts: { basic: 0, standard: 0, premium: 0 },
         });
@@ -638,40 +630,34 @@ export default function AdminDashboard() {
   }, [isAgent]);
 
   const totalClients = dashboardKpis.managerPerformance
-  .filter((m) =>
-    ["shivani", "asma", "pinki"].includes(
-      (m.name || "").toLowerCase().trim()
+    .filter((m) =>
+      ["shivani", "asma", "pinki"].includes(
+        (m.name || "").toLowerCase().trim(),
+      ),
     )
-  )
-  .reduce((sum, m) => sum + (m.assigned || 0), 0);
+    .reduce((sum, m) => sum + (m.assigned || 0), 0);
 
   const mergedAgents = Object.values(
-  (followUpStats.byAgent || []).reduce((acc, agent) => {
-    const key = (agent.agentName || "").trim().toLowerCase();
+    (followUpStats.byAgent || []).reduce((acc, agent) => {
+      const key = (agent.agentName || "").trim().toLowerCase();
 
-    if (!acc[key]) {
-      acc[key] = { ...agent };
-    } else {
-      acc[key].today =
-        (acc[key].today || 0) + (agent.today || 0);
+      if (!acc[key]) {
+        acc[key] = { ...agent };
+      } else {
+        acc[key].today = (acc[key].today || 0) + (agent.today || 0);
 
-      acc[key].tomorrow =
-        (acc[key].tomorrow || 0) + (agent.tomorrow || 0);
+        acc[key].tomorrow = (acc[key].tomorrow || 0) + (agent.tomorrow || 0);
 
-      acc[key].next7days =
-        (acc[key].next7days || 0) + (agent.next7days || 0);
+        acc[key].next7days = (acc[key].next7days || 0) + (agent.next7days || 0);
 
-      acc[key].total =
-        (acc[key].total || 0) + (agent.total || 0);
-    }
+        acc[key].total = (acc[key].total || 0) + (agent.total || 0);
+      }
 
-    return acc;
-  }, {})
-);
+      return acc;
+    }, {}),
+  );
 
   console.log("FOLLOWUP AGENTS =>", followUpStats.byAgent);
-
-
 
   if (loading) {
     return (
@@ -688,7 +674,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-2">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
+      <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-6">
         Dashboard Overview
       </h1>
 
@@ -705,10 +691,10 @@ export default function AdminDashboard() {
         >
           <option value="all">All Time</option>
           <option value="today">Today</option>
-          <option value="1week">Last 1 Week</option>
-          <option value="1month">Last 1 Month</option>
+          <option value="1week">This Month</option>
+          <option value="1month">Last  Month</option>
           <option value="6months">Last 6 Months</option>
-          <option value="custom">Custom Range</option>
+          <option value="custom">Custom</option>
         </select>
 
         {globalDateFilter === "custom" && (
@@ -1011,9 +997,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="mb-8 grid gap-6 xl:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
         {!isAgent && (
-          <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-6 min-h-[500px] flex flex-col">
+          <div className="bg-white rounded-[32px] border border-slate-200 shadow-[0_18px_50px_-34px_rgba(15,23,42,0.35)] p-3 md:p-6 min-h-[500px] flex flex-col">
             <div className="flex align-center mb-2 gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-3xl bg-indigo-600 text-white shadow-lg">
                 <UserCog size={16} />
@@ -1035,56 +1021,55 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="max-h-[calc(100%-56px)] overflow-y-auto">
-                <table className="min-w-full border-collapse text-sm text-slate-700">
+              <div className="max-h-[calc(100%-56px)] overflow-y-auto overflow-x-auto">
+                <table className="min-w-[600px] md:min-w-full border-collapse text-sm text-slate-700">
                   <tbody className="bg-slate-50">
-
                     {dashboardKpis.managerPerformance
-  .filter((m) =>
-    ["shivani", "asma", "pinki"].includes(
-      (m.name || "").toLowerCase().trim()
-    )
-  )
-  .map((m) => {
-                      const leadCount = agentLeads.find(
-                        (a) => a.agentName === m.name,
-                      )?.count;
-                      const formatPositive = (value) =>
-                        Number(value) > 0 ? value : "";
-                      return (
-                        <tr
-                          key={m.name}
-                          className="border-b border-slate-200 bg-white hover:bg-slate-50"
-                        >
-                          <td className="px-5 py-4">
-                            <div className="font-medium text-slate-900 truncate">
-                              {m.name}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-right font-semibold text-slate-800">
-                            {formatPositive(m.assigned)}
-                          </td>
-                          <td className="px-5 py-4 text-right font-semibold text-rose-600">
-                            {m.renewalDue != null ? m.renewalDue : ""}
-                          </td>
-                          <td className="px-5 py-4 text-right font-semibold text-indigo-600">
-                            {leadCount != null ? leadCount : ""}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                      .filter((m) =>
+                        ["shivani", "asma", "pinki"].includes(
+                          (m.name || "").toLowerCase().trim(),
+                        ),
+                      )
+                      .map((m) => {
+                        const leadCount = agentLeads.find(
+                          (a) => a.agentName === m.name,
+                        )?.count;
+                        const formatPositive = (value) =>
+                          Number(value) > 0 ? value : "";
+                        return (
+                          <tr
+                            key={m.name}
+                            className="border-b border-slate-200 bg-white hover:bg-slate-50"
+                          >
+                            <td className="px-5 py-4">
+                              <div className="font-medium text-slate-900 truncate">
+                                {m.name}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 text-right font-semibold text-slate-800">
+                              {formatPositive(m.assigned)}
+                            </td>
+                            <td className="px-5 py-4 text-right font-semibold text-rose-600">
+                              {m.renewalDue != null ? m.renewalDue : ""}
+                            </td>
+                            <td className="px-5 py-4 text-right font-semibold text-indigo-600">
+                              {leadCount != null ? leadCount : ""}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
 
                 <div className="border-t border-slate-200 bg-slate-100 px-5 py-4 flex justify-between items-center">
-  <span className="font-bold text-slate-900">
-    Total Clients
-  </span>
+                  <span className="font-bold text-slate-900">
+                    Total Clients
+                  </span>
 
-  <span className="font-bold text-indigo-600 text-lg">
-    {totalClients}
-  </span>
-</div>
+                  <span className="font-bold text-indigo-600 text-lg">
+                    {totalClients}
+                  </span>
+                </div>
 
                 {dashboardKpis.managerPerformance.length === 0 && (
                   <div className="flex h-full items-center justify-center p-6 text-center text-slate-500">
@@ -1122,9 +1107,6 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="bg-slate-50">
-                      
-                      
-                      
                       {mergedAgents.map((agent, idx) => (
                         <tr
                           key={agent._id || agent.agentName || idx}

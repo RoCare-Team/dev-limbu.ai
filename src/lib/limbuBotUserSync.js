@@ -314,6 +314,17 @@ function takeNextChatbotEmail(state) {
   return email;
 }
 
+const META_CHATBOT_TRIGGER =
+  "Looking for a smart Google Business Profile solution.";
+
+function isMetaChatbotUser(history = []) {
+  return history.some(
+    (m) =>
+      String(m?.role || "").toLowerCase() === "user" &&
+      String(m?.content || "").trim() === META_CHATBOT_TRIGGER,
+  );
+}
+
 export async function ensureChatbotRowsSaved(botRows = []) {
   await dbConnect();
 
@@ -378,7 +389,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
         String(m?.content || "").trim() !== "",
     ).length;
 
-    if (inboundCount < 2) {
+    // AFTER:
+    const metaChatbot = isMetaChatbotUser(history);
+    if (inboundCount < 2 && !metaChatbot) {
       console.log(
         `[ensureChatbotRowsSaved] ⏭️ SKIP (inbound < 2) | phone: ${bot.phone} | waId: ${bot.user_id} | inboundCount: ${inboundCount} | totalMessages: ${messageCount}`,
       );
@@ -416,7 +429,13 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           }
         }
 
-        await User.updateOne({ _id: existing._id }, { $set: setData });
+         await User.updateOne(
+          { _id: existing._id },
+          {
+            $set: setData,
+            ...(metaChatbot ? { $addToSet: { leadTags: "meta chatbot" } } : {}),
+          },
+        );
         console.log(
           `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | stages: ${JSON.stringify(setData.conversationStages)}`,
         );
@@ -427,9 +446,18 @@ export async function ensureChatbotRowsSaved(botRows = []) {
 
       const assignedAgentId = await assignNextAgentId();
       const email = takeNextChatbotEmail(emailState);
+      
+
       const created = await User.create(
         buildChatbotUserPayload(bot, { email, assignedAgentId }),
       );
+
+      if (metaChatbot) {
+        await User.updateOne(
+          { _id: created._id },
+          { $addToSet: { leadTags: "meta chatbot" } },
+        );
+      }
 
       existingByPhone.set(String(created.phone), created);
       if (bot.user_id) existingByWaId.set(bot.user_id, created);
@@ -1022,7 +1050,6 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   const users = contacts
     .map(mapWhatsAppContactRow)
     .filter((row) => row.user_id);
- 
 
   // console.log(
   //   `[fetchLimbuBotAdminUsers] ✅ Total mapped users (Indian numbers): ${users.length} / ${contacts.length}`,
@@ -1338,6 +1365,7 @@ export async function syncChatbotUsersToApp(options = {}) {
                 : null,
               ...(waId ? { chatbotUserId: waId } : {}),
             },
+            ...(metaChatbot ? { $addToSet: { leadTags: "meta chatbot" } } : {}),
           },
         );
         linked++;
@@ -1381,6 +1409,14 @@ export async function syncChatbotUsersToApp(options = {}) {
           ? String(bot.last_message).slice(0, 500)
           : null,
       });
+
+       if (metaChatbot) {
+        await User.updateOne(
+          { _id: created._id },
+          { $addToSet: { leadTags: "meta chatbot" } },
+        );
+      }
+
 
       inserted++;
 

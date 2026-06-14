@@ -429,7 +429,7 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           }
         }
 
-         await User.updateOne(
+        await User.updateOne(
           { _id: existing._id },
           {
             $set: setData,
@@ -437,7 +437,7 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           },
         );
         console.log(
-          `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | stages: ${JSON.stringify(setData.conversationStages)}`,
+          `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | metaChatbot: ${metaChatbot}${metaChatbot ? " | 🏷️ meta chatbot tag saved" : ""} | stages: ${JSON.stringify(setData.conversationStages)}`, // 👈 metaChatbot part add karo
         );
 
         linked++;
@@ -446,7 +446,6 @@ export async function ensureChatbotRowsSaved(botRows = []) {
 
       const assignedAgentId = await assignNextAgentId();
       const email = takeNextChatbotEmail(emailState);
-      
 
       const created = await User.create(
         buildChatbotUserPayload(bot, { email, assignedAgentId }),
@@ -457,6 +456,10 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           { _id: created._id },
           { $addToSet: { leadTags: "meta chatbot" } },
         );
+        console.log(
+          // 👈 YEH LOG ADD KARO
+          `[ensureChatbotRowsSaved] 🏷️ META CHAsuTBOT TAG SAVED | phone: ${bot.phone} | waId: ${bot.user_id} | userId: ${created.userId}`, // 👈
+        ); // 👈
       }
 
       existingByPhone.set(String(created.phone), created);
@@ -1328,7 +1331,10 @@ export async function syncChatbotUsersToApp(options = {}) {
         String(m?.content || "").trim() !== "",
     ).length;
     // ✅ AFTER
-    if (inboundCount < 2) {
+    // ✅ AFTER
+    const metaChatbot = isMetaChatbotUser(history); // 👈 YEH LINE ADD KARO
+    if (inboundCount < 2 && !metaChatbot) {
+      // 👈 && !metaChatbot ADD KARO
       console.log(
         `[syncChatbotUsersToApp] ⏭️ SKIP (inbound < 2) | phone: ${phone} | waId: ${waId} | inboundCount: ${inboundCount}`,
       );
@@ -1368,6 +1374,10 @@ export async function syncChatbotUsersToApp(options = {}) {
             ...(metaChatbot ? { $addToSet: { leadTags: "meta chatbot" } } : {}),
           },
         );
+        console.log(
+          // 👈 YEH LOG ADD KARO
+          `[syncChatbotUsersToApp] 🔗 LINKED | phone: ${phone} | waId: ${waId} | metaChatbot: ${metaChatbot}${metaChatbot ? " | 🏷️ meta chatbot tag saved" : ""}`, // 👈
+        ); // 👈
         linked++;
         continue;
       }
@@ -1410,14 +1420,21 @@ export async function syncChatbotUsersToApp(options = {}) {
           : null,
       });
 
-       if (metaChatbot) {
+      if (metaChatbot) {
         await User.updateOne(
           { _id: created._id },
           { $addToSet: { leadTags: "meta chatbot" } },
         );
+        console.log(
+          // 👈 YEH LOG ADD KARO
+          `[syncChatbotUsersToApp] 🏷️ META CHATBOT TAG SAVED | phone: ${phone} | waId: ${waId} | userId: ${created.userId}`, // 👈
+        ); // 👈
       }
 
-
+      console.log(
+        // 👈 YEH LOG ADD KARO
+        `[syncChatbotUsersToApp] ✅ INSERTED | phone: ${phone} | waId: ${waId} | metaChatbot: ${metaChatbot}`, // 👈
+      ); // 👈
       inserted++;
 
       void runWelcomeBonusForUserId(created.userId).catch((err) =>

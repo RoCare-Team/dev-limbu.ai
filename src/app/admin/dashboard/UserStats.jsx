@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation"; 
+import { useRouter } from "next/navigation";
 
 import { useState } from "react";
 import {
@@ -20,14 +20,14 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-const StatCard = ({ 
-  title, 
-  value, 
-  subtitle, 
-  icon: Icon, 
+const StatCard = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
   colorClass = "blue",
   onClick,
-  isClickable = false 
+  isClickable = false,
 }) => {
   const colorStyles = {
     green: "from-green-50 to-emerald-50 border-green-200",
@@ -61,20 +61,18 @@ const StatCard = ({
         <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">
           {title}
         </p>
-        
-        <div className={`w-8 h-8 ${iconColors[colorClass]} rounded-lg flex items-center justify-center`}>
+
+        <div
+          className={`w-8 h-8 ${iconColors[colorClass]} rounded-lg flex items-center justify-center`}
+        >
           <Icon size={18} />
         </div>
       </div>
 
       {/* Bottom Row - Value */}
-      <p className="text-2xl md:text-2.5xl font-bold text-gray-900">
-        {value}
-      </p>
-      
-      {subtitle && (
-        <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
-      )}
+      <p className="text-2xl md:text-2.5xl font-bold text-gray-900">{value}</p>
+
+      {subtitle && <p className="text-xs text-gray-500 mt-2">{subtitle}</p>}
     </div>
   );
 };
@@ -92,9 +90,9 @@ export default function UserStats({
   todayUsersMetaLeads,
   todayUsersSignups,
   todayUsersCount,
-  
+
   fetchRevenueUsers,
-  
+
   loadingRevenueUsers,
   revenueUsersList,
   setRevenueUsersList,
@@ -104,20 +102,14 @@ export default function UserStats({
   setChatModalFilter,
   setShowChatStatsModal,
   displayTodayUsersCount,
-    stageModal,
+  stageModal,
   setStageModal,
   stageData,
-  loadingStage
+  loadingStage,
 }) {
+  const router = useRouter();
 
-    const router = useRouter();
-
-  
   const [approvalBusyId, setApprovalBusyId] = useState(null);
-
-  
-
-  
 
   return (
     <>
@@ -136,7 +128,7 @@ export default function UserStats({
             {/* Active Leads */}
             <StatCard
               title="Active Leads"
-              value={stageStats["Active"] || 0}
+              value={stats?.totalActiveUsers || 0}
               icon={CheckCircle}
               colorClass="teal"
               onClick={() => fetchStageData("Active")}
@@ -145,17 +137,16 @@ export default function UserStats({
 
             {/* Total Revenue */}
             <StatCard
-  title="Total Revenue"
-  value={`₹${(totalRevenue || 0).toLocaleString()}`}
-  icon={Wallet}
-  colorClass="purple"
-  onClick={() => {
-    fetchRevenueUsers();
-    router.push("/admin/dashboard/revenue-users")
-
-  }}
-  isClickable={true}
-/>
+              title="Total Revenue"
+              value={`₹${(totalRevenue || 0).toLocaleString()}`}
+              icon={Wallet}
+              colorClass="purple"
+              onClick={() => {
+                fetchRevenueUsers();
+                router.push("/admin/dashboard/revenue-users");
+              }}
+              isClickable={true}
+            />
 
             {/* Heading Due */}
             <StatCard
@@ -164,9 +155,9 @@ export default function UserStats({
               icon={Clock}
               colorClass="red"
               onClick={() => {
-  fetchStageData("Follow Up");
-  setStageModal("Follow Up");
-}}
+                fetchStageData("Follow Up");
+                setStageModal("Follow Up");
+              }}
               isClickable={true}
             />
 
@@ -177,10 +168,10 @@ export default function UserStats({
               icon={UserX}
               colorClass="blue"
               onClick={() => {
-  console.log("CLICK WORKING");
-  fetchStageData("Inactive");
-  setStageModal("Inactive"); // ✅ ADD BACK
-}}
+                console.log("CLICK WORKING");
+                fetchStageData("Inactive");
+                setStageModal("Inactive"); // ✅ ADD BACK
+              }}
               isClickable={true}
             />
 
@@ -191,9 +182,9 @@ export default function UserStats({
               icon={Rocket}
               colorClass="purple"
               onClick={() => {
-  fetchStageData("Onboard");
-  setStageModal("Onboard");
-}}
+                fetchStageData("Onboard");
+                setStageModal("Onboard");
+              }}
               isClickable={true}
             />
           </div>
@@ -217,78 +208,6 @@ export default function UserStats({
               </div>
             </div>
 
-            {/* Total Chats */}
-            <div
-              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
-              onClick={() => {
-                setChatModalFilter("all");
-                setShowChatStatsModal(true);
-                fetchChatStats();
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                    Total Chats
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {chatStats?.total || 0}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center shrink-0">
-                  <MessageSquare size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Chats Today */}
-            <div
-              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
-              onClick={() => {
-                setChatModalFilter("today");
-                setShowChatStatsModal(true);
-                fetchChatStats();
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                    Chats Today
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {chatStats?.today || 0}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center shrink-0">
-                  <MessageSquare size={20} />
-                </div>
-              </div>
-            </div>
-
-            {/* Resolved Chats */}
-            <div
-              className="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition-all cursor-pointer hover:scale-105"
-              onClick={() => {
-                setChatModalFilter("resolved");
-                setShowChatStatsModal(true);
-                fetchChatStats();
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-gray-600 uppercase tracking-wide mb-1">
-                    Resolved
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {chatStats?.resolved || 0}
-                  </p>
-                </div>
-                <div className="w-10 h-10 bg-green-100 text-green-600 rounded-lg flex items-center justify-center shrink-0">
-                  <Shield size={20} />
-                </div>
-              </div>
-            </div>
-
             {/* Users Today - Compact Card */}
             <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl p-4 shadow-md border border-teal-200 hover:shadow-lg transition-all">
               <div className="flex items-start justify-between gap-2">
@@ -304,15 +223,21 @@ export default function UserStats({
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs">
                         <span className="text-teal-600 font-medium">Meta:</span>
-                        <span className="font-bold text-teal-900">{todayUsersMetaLeads}</span>
+                        <span className="font-bold text-teal-900">
+                          {todayUsersMetaLeads}
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-teal-600 font-medium">Sign:</span>
-                        <span className="font-bold text-teal-900">{todayUsersSignups}</span>
+                        <span className="font-bold text-teal-900">
+                          {todayUsersSignups}
+                        </span>
                       </div>
                       <div className="border-t border-teal-300 pt-1 mt-1 flex justify-between text-xs">
                         <span className="text-teal-700 font-bold">Total:</span>
-                        <span className="font-bold text-teal-900">{todayUsersCount}</span>
+                        <span className="font-bold text-teal-900">
+                          {todayUsersCount}
+                        </span>
                       </div>
                     </div>
                   ) : (
@@ -329,10 +254,6 @@ export default function UserStats({
           </div>
         </>
       )}
-
-     
-
-     
     </>
   );
 }

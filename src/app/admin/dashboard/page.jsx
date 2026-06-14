@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+
 import {
   Users,
   TrendingUp,
@@ -29,8 +21,6 @@ import {
 
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
-
-import { getTodayUsersData } from "../user-management/page";
 
 import UserStats from "../../../app/admin/dashboard/UserStats";
 import useUserManagement from "../user-management/hooks/useUserManagement";
@@ -56,6 +46,7 @@ export default function AdminDashboard() {
 
   const [dashboardStats, setDashboardStats] = useState({
     totalUsers: 0,
+    totalActiveUsers: 0,
     totalRevenue: 0,
     planCounts: { basic: 0, standard: 0, premium: 0 },
   });
@@ -450,6 +441,7 @@ export default function AdminDashboard() {
       if (listData.success) {
         setDashboardStats({
           totalUsers: listData.totalUsers || 0,
+          totalActiveUsers: listData.totalActiveUsers || 0,
           totalRevenue: 0,
           planCounts: { basic: 0, standard: 0, premium: 0 },
         });

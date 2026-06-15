@@ -191,6 +191,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
     try {
       setUpdatingService(true);
 
+      // console.log("SERVICE DATA =>", service);
+
       const res = await fetch("/api/service/add", {
         method: "POST",
         headers: {
@@ -275,39 +277,47 @@ export default function AdminServicepaneModal({ service, onClose }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          type: "service",
-          leadId: service?.userId || service?._id,
-          userId: service?.userId || service?._id,
-          leadName:
-            service?.name ||
-            service?.fullName ||
-            service?.leadName ||
-            "Customer",
+  type: "service",
+  leadId: service?.userId || service?._id,
+  userId: service?.userId || service?._id,
 
-          email: localStorage.getItem("email"),
+  leadName:
+    service?.name ||
+    service?.fullName ||
+    service?.leadName ||
+    "Customer",
 
-          paidService: selectedPlan.title,
-          plan: selectedPlan.title,
-          amount: selectedPlan.price,
-          planDuration: planDuration,
+  email: localStorage.getItem("email"),
 
-          packageStartDate: serviceDate,
-          packageExpiryDate: expiryDate,
+  userEmail: service?.email || "",
 
-          // ✅ S3 URL
-          paymentScreenshot: screenshotUrl,
-          screenshot: screenshotUrl,
+  phone:
+    service?.mobile ||
+    service?.phone ||
+    service?.phoneNumber ||
+    "",
 
-          notes: serviceNote,
-          remarks: serviceNote,
-          gstNumber: gstNumber,
-          isServiceBooked: true,
-          planApprovalStatus: "pending",
-        }),
+  paidService: selectedPlan.title,
+  plan: selectedPlan.title,
+  amount: selectedPlan.price,
+  planDuration: planDuration,
+
+  packageStartDate: serviceDate,
+  packageExpiryDate: expiryDate,
+
+  paymentScreenshot: screenshotUrl,
+  screenshot: screenshotUrl,
+
+  notes: serviceNote,
+  remarks: serviceNote,
+  gstNumber: gstNumber,
+  isServiceBooked: true,
+  planApprovalStatus: "pending",
+}),
       });
 
       const data = await res.json();
-      console.log("🔥 RESPONSE:", data);
+      // console.log("🔥 RESPONSE:", data);
 
       if (!res.ok || !data.success) {
         alert(data.message || "Error booking service");
@@ -392,7 +402,7 @@ try {
 
       const whatsappData = await whatsappRes.json();
 
-      console.log("📲 WhatsApp Response:", whatsappData);
+      // console.log("📲 WhatsApp Response:", whatsappData);
 
       if (whatsappData.success && emailData.success) {
         alert(

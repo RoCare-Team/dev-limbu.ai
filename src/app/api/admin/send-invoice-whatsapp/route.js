@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/dbConnect";
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 
+import User from "@/models/User"; // file ke top me
+
 export async function POST(req) {
   try {
     await connectDB();
@@ -12,17 +14,31 @@ export async function POST(req) {
 
     const revenue = await FranchiseRevenue.findById(revenueId);
 
-    if (!revenue) {
-      return NextResponse.json({
-        success: false,
-        message: "Revenue not found",
-      });
-    }
+if (!revenue) {
+  return NextResponse.json({
+    success: false,
+    message: "Revenue not found",
+  });
+}
+
+// console.log("Revenue Full Record =>", revenue);
+
+// User fetch karo
+const user = await User.findOne({
+  leadId: revenue.leadId,
+});
+
+// console.log("USER =>", user);
 
     const phone =
-      revenue.phone ||
-      revenue.mobile ||
-      revenue.customerPhone;
+  revenue.phone ||
+  revenue.mobile ||
+  revenue.customerPhone ||
+  revenue.phoneNumber ||
+  revenue.contactNumber ||
+  revenue.whatsappNumber ||
+  revenue.userPhone ||
+  revenue.leadMobile;
 
     if (!phone) {
       return NextResponse.json({
@@ -30,6 +46,8 @@ export async function POST(req) {
         message: "Phone number not found",
       });
     }
+
+    // console.log("REVENUE =>", revenue);
 
     // Invoice URL
     const invoiceUrl =
@@ -77,7 +95,7 @@ export async function POST(req) {
 
     const result = await whatsappRes.json();
 
-    console.log("WHATSAPP API RESPONSE =>", result);
+    // console.log("WHATSAPP API RESPONSE =>", result);
 
     return NextResponse.json({
       success: true,

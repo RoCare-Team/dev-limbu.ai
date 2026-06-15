@@ -273,8 +273,8 @@ export default function RevenueUsersPage() {
       const res = await fetch(`/api/franchise-revenue?${params}`);
       const data = await res.json();
 
-      console.log("🔥 FRANCHISE REVENUE API RESPONSE:", data);
-      console.log("📦 REVENUE LIST:", data.revenue);
+      // console.log("🔥 FRANCHISE REVENUE API RESPONSE:", data);
+      // console.log("📦 REVENUE LIST:", data.revenue);
 
       if (data.success) {
         setRevenueUsersList(data.revenue || []);
@@ -415,6 +415,7 @@ export default function RevenueUsersPage() {
   };
 
   const handleSendInvoiceWhatsApp = async (user) => {
+     console.log("Sending invoice for:", user);
     try {
       const res = await fetch("/api/admin/send-invoice-whatsapp", {
         method: "POST",
@@ -427,6 +428,7 @@ export default function RevenueUsersPage() {
       });
 
       const data = await res.json();
+       console.log("API Response:", data);
 
       if (data.success) {
         alert("Invoice sent successfully on WhatsApp");
@@ -1110,7 +1112,7 @@ export default function RevenueUsersPage() {
 
                       {activeView === "service" &&
                         serviceRows.map((u, i) => {
-                          console.log("FULL SERVICE ROW", u);
+                          // console.log("FULL SERVICE ROW", u);
 
                           return (
                             <tr
@@ -1231,16 +1233,13 @@ export default function RevenueUsersPage() {
                                     </button>
                                   )}
 
-                                  {invoiceUrls[u._id] && (
                                     <button
-                                      // onClick={() =>
-                                      //   handleSendInvoiceWhatsApp(r)
-                                      // }
-                                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-                                    >
-                                      Send WhatsApp
+                                         onClick={() => handleSendInvoiceWhatsApp(u)}
+                                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                      >
+                                         Send Invoice
                                     </button>
-                                  )}
+                                
                                 </div>
                               </td>
 

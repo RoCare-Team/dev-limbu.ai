@@ -39,6 +39,9 @@ export default function RevenueUsersPage() {
   const [revenueUsersList, setRevenueUsersList] = useState([]);
   const [users, setUsers] = useState([]);
 
+  const [updating, setUpdating] = useState(false);
+  const [updatingService, setUpdatingService] = useState(false);
+
   // packge delete edit modal
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -47,6 +50,9 @@ export default function RevenueUsersPage() {
 
   const [editPlan, setEditPlan] = useState("");
   const [editRemarks, setEditRemarks] = useState("");
+  const [editProofImage, setEditProofImage] = useState(null);
+   const [editStartDate, setEditStartDate] = useState("");
+const [editExpiryDate, setEditExpiryDate] = useState("");
 
   // service delete edit modal
   const [editServiceModal, setEditServiceModal] = useState(false);
@@ -55,8 +61,15 @@ export default function RevenueUsersPage() {
 
   const [editAmount, setEditAmount] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [editServiceStartDate, setEditServiceStartDate] = useState("");
+const [editServiceExpiryDate, setEditServiceExpiryDate] = useState("");
+const [editServiceProofImage, setEditServiceProofImage] = useState(null);
+
+ 
 
   const [currentPage, setCurrentPage] = useState(1);
+
+
 
   const rowsPerPage = 20;
 
@@ -186,6 +199,10 @@ export default function RevenueUsersPage() {
             return new Date(item.createdAt).toDateString() === today;
           })
           .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+
+
+      
 
   // service package
 
@@ -588,41 +605,69 @@ export default function RevenueUsersPage() {
   // package handle edit
 
   const handleEdit = (item) => {
-    setEditData(item);
+  setEditData(item);
 
-    setEditPlan(item.plan || "");
-    setEditAmount(item.amount || "");
-    setEditRemarks(item.planRemarks || "");
+  setEditPlan(item.plan || "");
+  setEditAmount(item.amount || "");
+  setEditRemarks(item.planRemarks || "");
 
-    setEditModal(true);
-  };
+  setEditStartDate(
+    item.userPackageStartDate
+      ? new Date(item.userPackageStartDate).toISOString().split("T")[0]
+      : ""
+  );
+
+  setEditExpiryDate(
+    item.userPackageExpiryDate
+      ? new Date(item.userPackageExpiryDate).toISOString().split("T")[0]
+      : ""
+  );
+
+    setEditProofImage(item.paymentScreenshot || "");
+
+
+  setEditModal(true);
+};
 
   // package handle delte
-  const handleUpdatePackage = async () => {
-    try {
-      const res = await fetch("/api/franchise-revenue", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editData._id,
-          plan: editPlan,
-          amount: editAmount,
-          planRemarks: editRemarks,
-        }),
-      });
+const handleUpdatePackage = async () => {
+  try {
+    setUpdating(true);
 
-      const data = await res.json();
+    const formData = new FormData();
 
-      if (data.success) {
-        setEditModal(false);
-        fetchRevenueUsers();
-      } else {
-        alert(data.message);
-      }
-    } catch (err) {
-      console.error(err);
+    formData.append("id", editData._id);
+    formData.append("plan", editPlan);
+    formData.append("amount", editAmount);
+    formData.append("planRemarks", editRemarks);
+
+    formData.append("packageStartDate", editStartDate);
+    formData.append("packageExpiryDate", editExpiryDate);
+
+    if (editProofImage instanceof File) {
+      formData.append("paymentScreenshot", editProofImage);
     }
-  };
+
+    const res = await fetch("/api/franchise-revenue", {
+      method: "PUT",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setEditModal(false);
+      fetchRevenueUsers();
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+  } finally {
+    setUpdating(false);
+  }
+};
 
   //  delte user tabe
 
@@ -674,63 +719,46 @@ export default function RevenueUsersPage() {
   };
 
   const updateService = async () => {
-    try {
-      if (!selectedService?._id) {
-        alert("Service record ID not found");
-        return;
-      }
+  try {
+    setUpdatingService(true);
 
-      const payload = {
-        id: selectedService._id,
-        _id: selectedService._id,
-        type: "service",
-        amount: Number(editAmount) || 0,
-        notes: editNotes,
-        remarks: editNotes,
-      };
+    const formData = new FormData();
 
-      const res = await fetch("/api/franchise-revenue", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+    formData.append("id", selectedService?._id);
+    formData.append("type", "service");
 
-      const data = await res.json();
+    formData.append("amount", editAmount);
+    formData.append("notes", editNotes);
 
-      if (!res.ok || !data.success) {
-        alert(data.message || "Service update failed");
-        return;
-      }
+    formData.append("packageStartDate", editServiceStartDate);
+    formData.append("packageExpiryDate", editServiceExpiryDate);
 
-      // ✅ Table ko turant local state me update karo
-      setRevenueUsersList((prev) =>
-        prev.map((item) =>
-          String(item._id) === String(selectedService._id)
-            ? {
-                ...item,
-                amount: Number(editAmount) || 0,
-                notes: editNotes,
-                remarks: editNotes,
-              }
-            : item,
-        ),
+    if (editServiceProofImage instanceof File) {
+      formData.append(
+        "paymentScreenshot",
+        editServiceProofImage
       );
-
-      // Modal close
-      setEditServiceModal(false);
-      setSelectedService(null);
-      setEditAmount("");
-      setEditNotes("");
-
-      alert("Service updated successfully");
-    } catch (error) {
-      console.error("UPDATE ERROR:", error);
-      alert("Something went wrong");
     }
-  };
 
+    const res = await fetch("/api/franchise-revenue", {
+      method: "PUT",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setEditServiceModal(false);
+      fetchRevenueUsers();
+    } else {
+      alert(data.message);
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setUpdatingService(false);
+  }
+};
   // paginatedPackageRows filter
   const paginatedPackageRows = filteredData.filter(
     (r) => r.type === "user_onboard" || r.type === "plan", // ✅ "plan" bhi add
@@ -1318,6 +1346,19 @@ export default function RevenueUsersPage() {
                                       setEditNotes(
                                         u.notes ?? u.remarks ?? u.Remarks ?? "",
                                       );
+                                      setEditServiceStartDate(
+  u.packageStartDate
+    ? new Date(u.packageStartDate).toISOString().split("T")[0]
+    : ""
+);
+
+setEditServiceExpiryDate(
+  u.packageExpiryDate
+    ? new Date(u.packageExpiryDate).toISOString().split("T")[0]
+    : ""
+);
+
+setEditServiceProofImage(u.paymentScreenshot || "");
                                       setEditServiceModal(true);
                                     }}
                                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
@@ -1359,27 +1400,47 @@ export default function RevenueUsersPage() {
 
         {/* // package edit moada */}
         <EditPackageModal
-          editModal={editModal}
-          setEditModal={setEditModal}
-          editPlan={editPlan}
-          setEditPlan={setEditPlan}
-          editAmount={editAmount}
-          setEditAmount={setEditAmount}
-          editRemarks={editRemarks}
-          setEditRemarks={setEditRemarks}
-          handleUpdatePackage={handleUpdatePackage}
-        />
+  editModal={editModal}
+  setEditModal={setEditModal}
+  editPlan={editPlan}
+  setEditPlan={setEditPlan}
+  editAmount={editAmount}
+  setEditAmount={setEditAmount}
+  editRemarks={editRemarks}
+  setEditRemarks={setEditRemarks}
+  editStartDate={editStartDate}
+  setEditStartDate={setEditStartDate}
+  editExpiryDate={editExpiryDate}
+  setEditExpiryDate={setEditExpiryDate}
+  handleUpdatePackage={handleUpdatePackage}
+   editProofImage={editProofImage}
+  setEditProofImage={setEditProofImage}
+    updating={updating}
+  
+/>
         {/* // service modal */}
 
         <EditServiceModal
-          editServiceModal={editServiceModal}
-          setEditServiceModal={setEditServiceModal}
-          editAmount={editAmount}
-          setEditAmount={setEditAmount}
-          editNotes={editNotes}
-          setEditNotes={setEditNotes}
-          updateService={updateService}
-        />
+  editServiceModal={editServiceModal}
+  setEditServiceModal={setEditServiceModal}
+  editAmount={editAmount}
+  setEditAmount={setEditAmount}
+  editNotes={editNotes}
+  setEditNotes={setEditNotes}
+
+  editServiceStartDate={editServiceStartDate}
+  setEditServiceStartDate={setEditServiceStartDate}
+
+  editServiceExpiryDate={editServiceExpiryDate}
+  setEditServiceExpiryDate={setEditServiceExpiryDate}
+
+  editServiceProofImage={editServiceProofImage}
+  setEditServiceProofImage={setEditServiceProofImage}
+
+  updateService={updateService}
+   updatingService={updatingService}
+  
+/>
 
         {/* // Delete modal */}
 

@@ -63,9 +63,19 @@ export default function RevenueStats({
       <div className="bg-white rounded-2xl p-3 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between ">
         <div>
           <p className="text-sm text-dark opacity-90">Total Revenue</p>
-          <h2 className="text-2xl text-gray-700 font-bold mt-2">
-            ₹{totalRevenue.toLocaleString("en-IN")}
-          </h2>
+       <h2 className="text-2xl text-gray-700 font-bold mt-2">
+  ₹{
+    activeView === "package"
+      ? revenueUsersList
+          .filter((r) => r.type === "user_onboard")
+          .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+          .toLocaleString("en-IN")
+      : revenueUsersList
+          .filter((r) => r.type === "service")
+          .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+          .toLocaleString("en-IN")
+  }
+</h2>
         </div>
 
         <div className="bg-blue-100 p-3  text-gray-700 rounded-xl backdrop-blur ml-2">

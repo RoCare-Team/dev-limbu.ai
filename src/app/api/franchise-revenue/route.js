@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
+// import { uploadToS3 } from "";
 import {
   assertFranchiseBookingAccess,
   assertFranchiseBookingWriteAccess,
@@ -423,6 +424,10 @@ export async function PATCH(req) {
       );
     }
 
+    let screenshotUrl = null;
+
+
+
     const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
       revenueId,
       { status },
@@ -450,108 +455,189 @@ export async function PATCH(req) {
   }
 }
 
-export async function PUT(req) {
-  try {
-    await dbConnect();
+  export async function PUT(req) {
+    try {
+      await dbConnect();
 
-    const body = await req.json();
+      
+      const formData = await req.formData();
 
-    const {
-      id,
-      plan,
-      amount,
-      notes,
-      planRemarks,
-      packageStartDate,
-      packageExpiryDate,
-      type,
-      gstNumber, // 🔥 ADD THIS
-    } = body;
+      const id = formData.get("id");
+      const plan = formData.get("plan");
+      const amount = formData.get("amount");
+      const planRemarks = formData.get("planRemarks");
+      const packageStartDate = formData.get("packageStartDate");
+      const packageExpiryDate = formData.get("packageExpiryDate");
+      const paymentScreenshot = formData.get("paymentScreenshot");
 
-    if (!id) {
-      return NextResponse.json(
-        { success: false, message: "ID required" },
-        { status: 400 },
-      );
-    }
+      const type = formData.get("type");
+      const gstNumber = formData.get("gstNumber");
+      const notes = formData.get("notes");
 
-    // ========================
-    // 🔥 SERVICE UPDATE
-    // ========================
-
-    if (type === "service") {
-      // ✅ Service records FranchiseRevenue collection me stored hote hain
-      const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
-        id,
-        {
-          ...(amount !== undefined && { amount: Number(amount) || 0 }),
-
-          ...(notes !== undefined && { notes }),
-          ...(notes !== undefined && { remarks: notes }),
-
-          ...(packageStartDate && {
-            packageStartDate: new Date(packageStartDate),
-          }),
-
-          ...(packageExpiryDate && {
-            packageExpiryDate: new Date(packageExpiryDate),
-          }),
-        },
-        { new: true },
-      );
-
-      if (!updatedRevenue) {
+      if (!id) {
         return NextResponse.json(
-          {
-            success: false,
-            message: "Service record not found",
-          },
-          { status: 404 },
+          { success: false, message: "ID required" },
+          { status: 400 },
         );
       }
 
-      return NextResponse.json({
-        success: true,
-        message: "Service updated successfully",
-        revenue: updatedRevenue,
-      });
-    }
+      // ========================
+      // 🔥 SERVICE UPDATE
+      // ========================
 
-    // ========================
-    // 📦 PACKAGE UPDATE
-    // ========================
-    const updated = await FranchiseRevenue.findByIdAndUpdate(
-      id,
-      {
-        ...(plan && { plan }),
-        ...(amount && { amount }),
-        ...(notes && { notes }),
-        ...(planRemarks && { planRemarks }),
+      if (type === "service") {
 
-        ...(gstNumber !== undefined && { gstNumber }),
+  let screenshotUrl = null;
 
-        ...(packageStartDate && {
-          packageStartDate: new Date(packageStartDate),
-        }),
-        ...(packageExpiryDate && {
-          packageExpiryDate: new Date(packageExpiryDate),
-        }),
-      },
-      { new: true },
+  if (
+    paymentScreenshot &&
+    typeof paymentScreenshot === "object" &&
+    paymentScreenshot.name
+  ) {
+    const bytes = await paymentScreenshot.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    const uploadResult = await uploadToS3(
+      buffer,
+      paymentScreenshot.name,
+      paymentScreenshot.type
     );
 
-    return NextResponse.json({
-      success: true,
-      revenue: updated,
-    });
-  } catch (err) {
+    if (uploadResult?.success) {
+      screenshotUrl = uploadResult.url;
+    }
+  }
+
+  const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
+    id,
+    {
+      ...(amount !== undefined && {
+        amount: Number(amount) || 0,
+      }),
+
+      ...(notes !== undefined && { notes }),
+      ...(notes !== undefined && { remarks: notes }),
+
+      ...(packageStartDate && {
+        packageStartDate: new Date(packageStartDate),
+      }),
+
+      ...(packageExpiryDate && {
+        packageExpiryDate: new Date(packageExpiryDate),
+      }),
+
+      ...(screenshotUrl && {
+        paymentScreenshot: screenshotUrl,
+        screenshot: screenshotUrl,
+      }),
+    },
+    { new: true }
+  );
+
+  if (!updatedRevenue) {
     return NextResponse.json(
-      { success: false, message: err.message },
-      { status: 500 },
+      {
+        success: false,
+        message: "Service record not found",
+      },
+      { status: 404 }
     );
   }
+
+  return NextResponse.json({
+    success: true,
+    message: "Service updated successfully",
+    revenue: updatedRevenue,
+  });
 }
-// ==================
+
+      // ========================
+// 📦 PACKAGE UPDATE
+// ========================
+
+let screenshotUrl = null;
+
+if (
+  paymentScreenshot &&
+  typeof paymentScreenshot === "object" &&
+  paymentScreenshot.name
+) {
+  const bytes = await paymentScreenshot.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const uploadResult = await uploadToS3(
+    buffer,
+    paymentScreenshot.name,
+    paymentScreenshot.type
+  );
+
+  if (uploadResult?.success) {
+    screenshotUrl = uploadResult.url;
+  }
+}
+
+const updated = await FranchiseRevenue.findByIdAndUpdate(
+  id,
+  {
+    ...(plan && { plan }),
+    ...(amount && { amount }),
+    ...(planRemarks && { planRemarks }),
+
+    ...(screenshotUrl && {
+      paymentScreenshot: screenshotUrl,
+      screenshot: screenshotUrl,
+    }),
+
+    ...(packageStartDate && {
+      packageStartDate: new Date(packageStartDate),
+    }),
+
+    ...(packageExpiryDate && {
+      packageExpiryDate: new Date(packageExpiryDate),
+    }),
+  },
+  { new: true }
+);
+
+  // console.log("PACKAGE UPDATE DATA", {
+  //   leadId: updated?.leadId,
+  //   packageStartDate,
+  //   packageExpiryDate,
+  // });
+
+  // 🔥 USER COLLECTION UPDATE
+  if (updated?.leadId) {
+    await User.findOneAndUpdate(
+      { userId: updated.leadId },
+      {
+        $set: {
+          packageStartDate: packageStartDate
+            ? new Date(packageStartDate)
+            : null,
+
+          packageExpiryDate: packageExpiryDate
+            ? new Date(packageExpiryDate)
+            : null,
+        },
+      }
+    );
+
+    console.log("USER DATE UPDATED", updated.leadId);
+  }
+
+  return NextResponse.json({
+    success: true,
+    revenue: updated,
+  });
+
+    } catch (err) {
+      return NextResponse.json(
+        { success: false, message: err.message },
+        { status: 500 },
+      );
+    }
+  }
+  // ==================
 // DELETE: DELETE REVENUE ENTRY
 // ==================
 

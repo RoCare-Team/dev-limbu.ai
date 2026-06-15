@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-
 import {
   Users,
   TrendingUp,
@@ -133,16 +132,14 @@ export default function AdminDashboard() {
           const end = new Date();
           const start = new Date();
           if (dFilter === "today") {
-
             start.setHours(0, 0, 0, 0);
-          }else if (dFilter === "yesterday") {
-  start.setDate(start.getDate() - 1);
-  start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "yesterday") {
+            start.setDate(start.getDate() - 1);
+            start.setHours(0, 0, 0, 0);
 
-  end.setDate(end.getDate() - 1);
-  end.setHours(23, 59, 59, 999);
-}
-           else if (dFilter === "1week") {
+            end.setDate(end.getDate() - 1);
+            end.setHours(23, 59, 59, 999);
+          } else if (dFilter === "1week") {
             start.setDate(start.getDate() - 7);
           } else if (dFilter === "1month") {
             start.setMonth(start.getMonth() - 1);
@@ -186,15 +183,13 @@ export default function AdminDashboard() {
           const start = new Date();
           if (dFilter === "today") {
             start.setHours(0, 0, 0, 0);
-          }else if (dFilter === "yesterday") {
-  start.setDate(start.getDate() - 1);
-  start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "yesterday") {
+            start.setDate(start.getDate() - 1);
+            start.setHours(0, 0, 0, 0);
 
-  end.setDate(end.getDate() - 1);
-  end.setHours(23, 59, 59, 999);
-}
-          
-          else if (dFilter === "1week") {
+            end.setDate(end.getDate() - 1);
+            end.setHours(23, 59, 59, 999);
+          } else if (dFilter === "1week") {
             start.setDate(start.getDate() - 7);
           } else if (dFilter === "1month") {
             start.setMonth(start.getMonth() - 1);
@@ -363,15 +358,13 @@ export default function AdminDashboard() {
           const start = new Date();
           if (dFilter === "today") {
             start.setHours(0, 0, 0, 0);
-          }else if (dFilter === "yesterday") {
-  start.setDate(start.getDate() - 1);
-  start.setHours(0, 0, 0, 0);
+          } else if (dFilter === "yesterday") {
+            start.setDate(start.getDate() - 1);
+            start.setHours(0, 0, 0, 0);
 
-  end.setDate(end.getDate() - 1);
-  end.setHours(23, 59, 59, 999);
-}
-          
-          else if (dFilter === "1week") {
+            end.setDate(end.getDate() - 1);
+            end.setHours(23, 59, 59, 999);
+          } else if (dFilter === "1week") {
             start.setDate(start.getDate() - 7);
           } else if (dFilter === "1month") {
             start.setMonth(start.getMonth() - 1);
@@ -446,14 +439,12 @@ export default function AdminDashboard() {
           if (dFilter === "today") {
             start.setHours(0, 0, 0, 0);
           } else if (dFilter === "yesterday") {
-  start.setDate(start.getDate() - 1);
-  start.setHours(0, 0, 0, 0);
+            start.setDate(start.getDate() - 1);
+            start.setHours(0, 0, 0, 0);
 
-  end.setDate(end.getDate() - 1);
-  end.setHours(23, 59, 59, 999);
-}
-          
-          else if (dFilter === "1week") {
+            end.setDate(end.getDate() - 1);
+            end.setHours(23, 59, 59, 999);
+          } else if (dFilter === "1week") {
             start.setDate(start.getDate() - 7);
           } else if (dFilter === "1month") {
             start.setMonth(start.getMonth() - 1);
@@ -723,9 +714,9 @@ export default function AdminDashboard() {
         >
           <option value="all">All Time</option>
           <option value="today">Today</option>
-           <option value="yesterday">Yesterday</option>
+          <option value="yesterday">Yesterday</option>
           <option value="1week">This Month</option>
-          <option value="1month">Last  Month</option>
+          <option value="1month">Last Month</option>
           <option value="6months">Last 6 Months</option>
           <option value="custom">Custom</option>
         </select>

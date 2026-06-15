@@ -1070,7 +1070,7 @@ export async function GET(req) {
       success: true,
       loggedInRole: admin.role,
       totalUsers,
-      totalActiveUsers, // ✅ available for ALL roles: agent, manager, superAdmin
+      totalActiveUsers,
       totalPages: Math.ceil(totalUsers / limit),
       currentPage: page,
       users,

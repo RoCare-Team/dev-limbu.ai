@@ -769,12 +769,18 @@ export default function LocalSEOPage({ city, slug }) {
                 business rank higher on Google Maps. No long-term contracts.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-3">
-                <button className="px-8 py-3 bg-yellow-400 text-slate-900 rounded-lg font-bold text-base hover:bg-yellow-500 transition shadow-md">
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-yellow-400 text-slate-900 rounded-lg font-bold text-base hover:bg-yellow-500 transition shadow-md text-center"
+                >
                   Start Free Trial
-                </button>
-                <button className="px-8 py-3 bg-slate-900 text-white rounded-lg font-bold text-base hover:bg-slate-800 transition shadow-md">
+                </Link>
+                <a
+                  href="/webinar-demo#webinar-demo"
+                  className="px-8 py-3 bg-slate-900 text-white rounded-lg font-bold text-base hover:bg-slate-800 transition shadow-md"
+                >
                   Book Free {cityName} Consultation
-                </button>
+                </a>
               </div>
               <p className="mt-6 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 ⭐ Rated 4.9/5 by {cityName} small business owners

@@ -38,6 +38,8 @@ export default function AdminLayout({ children }) {
   const [email, setEmail] = useState("");
   const theme = "light";
 
+  const [isMobile, setIsMobile] = useState(false);
+
   /* ----------------------------
       AUTH + USER DATA
     ---------------------------- */
@@ -76,242 +78,251 @@ export default function AdminLayout({ children }) {
     ---------------------------- */
   const [openGroup, setOpenGroup] = useState(null);
 
-useEffect(() => {
-  const foundIndex = navGroups.findIndex((group) =>
-    group.items.some((item) =>
-      pathname.startsWith(item.href)
-    )
-  );
+  useEffect(() => {
+    const foundIndex = navGroups.findIndex((group) =>
+      group.items.some((item) => pathname.startsWith(item.href)),
+    );
 
-  if (foundIndex !== -1) {
-    setOpenGroup(foundIndex);
-  }
-}, [pathname]);
+    if (foundIndex !== -1) {
+      setOpenGroup(foundIndex);
+    }
+  }, [pathname]);
 
-const isAgent = role === "agent";
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
 
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    if (isMobile) {
+      setOpen(false);
+    }
+  }, [isMobile]);
+
+  const isAgent = role === "agent";
 
   const navGroups = isAgent
-  ? [
-      {
-        title: "Overview",
-        groupIcon: <BarChart3 size={16} />,
-        items: [
-          {
-            name: "Dashboard",
-            href: "/admin/dashboard",
-            icon: <BarChart3 size={16} />,
-          },
-        ],
-      },
+    ? [
+        {
+          title: "Overview",
+          groupIcon: <BarChart3 size={16} />,
+          items: [
+            {
+              name: "Dashboard",
+              href: "/admin/dashboard",
+              icon: <BarChart3 size={16} />,
+            },
+          ],
+        },
 
-      {
-        title: "Leads",
-        groupIcon: <Users size={16} />,
-        items: [
-          {
-            name: "Leads",
-            icon: <Users size={18} />,
-            href: "/admin/user-management",
-          },
-           {
-        name: "Contact Leads",
-        href: "/admin/contact-form",
-        icon: <Users size={16} />,
-      },
-      {
-        name: "Demo Booked",
-        href: "/admin/demoBook",
-        icon: <Users size={16} />,
-      },
-      {
-        name: "Tata Dialer Leads",
-        href: "/admin/tata-dialer-lead",
-        icon: <Users size={16} />,
-      },
-        ],
-      },
+        {
+          title: "Leads",
+          groupIcon: <Users size={16} />,
+          items: [
+            {
+              name: "Leads",
+              icon: <Users size={18} />,
+              href: "/admin/user-management",
+            },
+            {
+              name: "Contact Leads",
+              href: "/admin/contact-form",
+              icon: <Users size={16} />,
+            },
+            {
+              name: "Demo Booked",
+              href: "/admin/demoBook",
+              icon: <Users size={16} />,
+            },
+            {
+              name: "Tata Dialer Leads",
+              href: "/admin/tata-dialer-lead",
+              icon: <Users size={16} />,
+            },
+          ],
+        },
+      ]
+    : [
+        {
+          title: "Overview",
+          groupIcon: <BarChart3 size={16} />,
+          items: [
+            {
+              name: "Dashboard",
+              href: "/admin/dashboard",
+              icon: <BarChart3 size={16} />,
+            },
+            {
+              name: "Store Business",
+              href: "/admin/store-bussiness",
+              icon: <QrCode size={16} />,
+            },
+            {
+              name: "User Recharge",
+              href: "/admin/user-recharge",
+              icon: <Wallet size={16} />,
+            },
+            {
+              name: "User Management",
+              href: "/admin/rbac",
+              icon: <UserSquare size={16} />,
+            },
+          ],
+        },
 
-    
-    ]
-  : [
-  
+        {
+          title: "Leads",
+          groupIcon: <Users size={16} />,
+          href: "/admin/user-management",
+          items: [
+            {
+              name: "Leads",
+              icon: <Users size={18} />,
+              href: "/admin/user-management",
+              key: "manageUsers",
+            },
+            {
+              name: "Contact Leads",
+              href: "/admin/contact-form",
+              icon: <Users size={16} />,
+            },
+            {
+              name: "jobs Leads",
+              href: "/admin/job-applications",
+              icon: <Users size={16} />,
+            },
+            {
+              name: "Demo Booked",
+              href: "/admin/demoBook",
+              icon: <Users size={16} />,
+            },
+            {
+              name: "Tata Dialer Leads",
+              href: "/admin/tata-dialer-lead",
+              icon: <Users size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Overview",
-    groupIcon: <BarChart3 size={16} />,
-    items: [
-      {
-        name: "Dashboard",
-        href: "/admin/dashboard",
-        icon: <BarChart3 size={16} />,
-      },
-      {
-        name: "Store Business",
-        href: "/admin/store-bussiness",
-        icon: <QrCode size={16} />,
-      },
-      {
-        name: "User Recharge",
-        href: "/admin/user-recharge",
-        icon: <Wallet size={16} />,
-      },
-      {
-        name: "User Management",
-        href: "/admin/rbac",
-        icon: <UserSquare size={16} />,
-      },
-    ],
-  },
+        {
+          title: "Bookings",
+          groupIcon: <BookCheck size={16} />,
+          items: [
+            {
+              name: "Service Booking",
+              href: "/admin/service-booking",
+              icon: <CircleUser size={16} />,
+            },
+            {
+              name: "Package Booking",
+              href: "/admin/our-package",
+              icon: <Users size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Leads",
-    groupIcon: <Users size={16} />,
-    href: "/admin/user-management",
-    items: [
-      {
-        name: "Leads",
-        icon: <Users size={18} />,
-        href: "/admin/user-management",
-        key: "manageUsers",
-      },
-      {
-        name: "Contact Leads",
-        href: "/admin/contact-form",
-        icon: <Users size={16} />,
-      },
-      {
-        name: "jobs Leads",
-        href: "/admin/job-applications",
-        icon: <Users size={16} />,
-      },
-      {
-        name: "Demo Booked",
-        href: "/admin/demoBook",
-        icon: <Users size={16} />,
-      },
-      {
-        name: "Tata Dialer Leads",
-        href: "/admin/tata-dialer-lead",
-        icon: <Users size={16} />,
-      },
-    ],
-  },
+        {
+          title: "Content",
+          groupIcon: <QrCode size={16} />,
+          items: [
+            {
+              name: "Blog Management",
+              href: "/admin/blog",
+              icon: <BookCheck size={16} />,
+            },
+            {
+              name: "City Services",
+              href: "/admin/citys",
+              icon: <Map size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Bookings",
-    groupIcon: <BookCheck size={16} />,
-    items: [
-      {
-        name: "Service Booking",
-        href: "/admin/service-booking",
-        icon: <CircleUser size={16} />,
-      },
-      {
-        name: "Package Booking",
-        href: "/admin/our-package",
-        icon: <Users size={16} />,
-      },
-    ],
-  },
+        {
+          title: "Franchise",
+          groupIcon: <LucideHeadset size={16} />,
+          items: [
+            {
+              name: "Franchise Lead",
+              href: "/admin/franchise/franchise-lead",
+              icon: <LucideHeadset size={16} />,
+            },
+            {
+              name: "Create Franchise",
+              href: "/admin/create-franchise",
+              icon: <LucideHeadset size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Content",
-    groupIcon: <QrCode size={16} />,
-    items: [
-      {
-        name: "Blog Management",
-        href: "/admin/blog",
-        icon: <BookCheck size={16} />,
-      },
-      {
-        name: "City Services",
-        href: "/admin/citys",
-        icon: <Map size={16} />,
-      },
-    ],
-  },
+        {
+          title: "Team",
+          groupIcon: <CircleUser size={16} />,
+          items: [
+            {
+              name: "Account Manager",
+              href: "/admin/manager-assignment",
+              icon: <UserSquare size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Franchise",
-    groupIcon: <LucideHeadset size={16} />,
-    items: [
-      {
-        name: "Franchise Lead",
-        href: "/admin/franchise/franchise-lead",
-        icon: <LucideHeadset size={16} />,
-      },
-      {
-        name: "Create Franchise",
-        href: "/admin/create-franchise",
-        icon: <LucideHeadset size={16} />,
-      },
-    ],
-  },
+        {
+          title: "Integrations",
+          groupIcon: <Link2 size={16} />,
+          items: [
+            {
+              name: "OnBoarded Franchise",
+              href: "/admin/onboarded-franchise",
+              icon: <Building2 size={16} />,
+            },
 
-  {
-    title: "Team",
-    groupIcon: <CircleUser size={16} />,
-    items: [
-      {
-        name: "Account Manager",
-        href: "/admin/manager-assignment",
-        icon: <UserSquare size={16} />,
-      },
-    ],
-  },
+            {
+              name: "Business Connected Nodes",
+              href: "/admin/connected-node",
+              icon: <Workflow size={16} />,
+            },
+            {
+              name: "Invoice Generator",
+              href: "/admin/customGenereate",
+              icon: <Wand2 size={16} />,
+            },
+            {
+              name: "Scrapper Data",
+              href: "/admin/dataFormSection",
+              icon: <FileSpreadsheet size={16} />,
+            },
+          ],
+        },
 
-  {
-    title: "Integrations",
-    groupIcon: <Link2 size={16} />,
-    items: [
-
-       {
-        name: "OnBoarded Franchise",
-        href: "/admin/onboarded-franchise",
-        icon: <Building2 size={16} />,
-      },
-
-      {
-        name: "Business Connected Nodes",
-        href: "/admin/connected-node",
-        icon: <Workflow size={16} />,
-      },
-       {
-        name: "Invoice Generator",
-        href: "/admin/customGenereate",
-        icon: <Wand2 size={16} />,
-      },
-      {
-        name: "Scrapper Data",
-        href: "/admin/dataFormSection",
-        icon: <FileSpreadsheet size={16} />,
-      },
-    ],
-  },
-
-  {
-    title: "System",
-    groupIcon: <Settings size={16} />,
-    items: [
-      {
-        name: "Settings",
-        href: "/admin/settings",
-        icon: <Settings size={16} />,
-      },
-      {
-        name: "Maintenance",
-        href: "/admin/maintenance",
-        icon: <PanelLeftDashed size={16} />,
-      },
-      {
-        name: "API Logs",
-        href: "/admin/logs",
-        icon: <BarChart3 size={16} />,
-      },
-    ],
-  },
-];
+        {
+          title: "System",
+          groupIcon: <Settings size={16} />,
+          items: [
+            {
+              name: "Settings",
+              href: "/admin/settings",
+              icon: <Settings size={16} />,
+            },
+            {
+              name: "Maintenance",
+              href: "/admin/maintenance",
+              icon: <PanelLeftDashed size={16} />,
+            },
+            {
+              name: "API Logs",
+              href: "/admin/logs",
+              icon: <BarChart3 size={16} />,
+            },
+          ],
+        },
+      ];
 
   /* ----------------------------
       ROLE-BASED FILTER
@@ -328,16 +339,34 @@ const isAgent = role === "agent";
           : "bg-slate-100 text-slate-900"
       } `}
     >
+      {isMobile && open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
       {/* Sidebar */}
       <aside
-        className={`${open ? "w-64" : "w-20"} fixed left-0 top-0 h-screen z-50
-              transition-all duration-300 flex flex-col
-             overflow-y-hidden hover:overflow-y-auto
-           ${
-             theme === "dark"
-               ? "bg-[#0b141a] text-white"
-               : "bg-gradient-to-b from-white to-slate-50 text-slate-900 border-r border-slate-200 shadow-sm"
-           }`}
+        className={`
+         fixed left-0 top-0 h-screen z-50
+         transition-all duration-300
+
+         ${
+           isMobile
+           ? open
+              ? "translate-x-0 w-64"
+               : "-translate-x-full w-64"
+            : open
+            ? "w-64"
+            : "w-20"
+          }
+
+         ${
+           theme === "dark"
+           ? "bg-[#0b141a] text-white"
+           : "bg-gradient-to-b from-white to-slate-50 text-slate-900 border-r border-slate-200 shadow-sm"
+          }
+        `}
       >
         {/* Header */}
         <div
@@ -388,57 +417,57 @@ const isAgent = role === "agent";
           {navGroups.map((group, idx) => (
             <div key={idx}>
               <button
-  onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
-  className={`w-full flex items-center ${
-    open ? "justify-between px-4" : "justify-center"
-  } py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 transition-all`}
->
-  <div className="flex items-center gap-2">
-    {group.groupIcon}
-    {open && <span>{group.title}</span>}
-  </div>
+                onClick={() => setOpenGroup(openGroup === idx ? null : idx)}
+                className={`w-full flex items-center ${
+                  open ? "justify-between px-4" : "justify-center"
+                } py-3 text-[12px] font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100 transition-all`}
+              >
+                <div className="flex items-center gap-2">
+                  {group.groupIcon}
+                  {open && <span>{group.title}</span>}
+                </div>
 
-  {open && (
-    <span
-      className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
-        openGroup === idx ? "rotate-180" : ""
-      }`}
-    >
-      ⌵
-    </span>
-  )}
-</button>
+                {open && (
+                  <span
+                    className={`text-xl font-bold leading-none transition-transform duration-500 ease-in-out ${
+                      openGroup === idx ? "rotate-180" : ""
+                    }`}
+                  >
+                    ⌵
+                  </span>
+                )}
+              </button>
 
               <div
-  className={`ml-2 mt-1 space-y-1 overflow-hidden transition-all duration-500 ease-in-out
-  ${
-    openGroup === idx
-      ? "max-h-[500px] opacity-100 translate-y-0"
-      : "max-h-0 opacity-0 -translate-y-2"
-  }`}
->
-  {group.items.map((item) => {
-    const active = pathname.startsWith(item.href);
+                className={`ml-2 mt-1 space-y-1 overflow-hidden transition-all duration-500 ease-in-out
+                  ${
+                    openGroup === idx
+                      ? "max-h-[500px] opacity-100 translate-y-0"
+                      : "max-h-0 opacity-0 -translate-y-2"
+                     }`}
+              >
+                {group.items.map((item) => {
+                  const active = pathname.startsWith(item.href);
 
-    return (
-      <Link
-        key={item.name}
-        href={item.href}
-        className={`flex items-center ${
-  open ? "gap-3 px-4 justify-start" : "justify-center"
-} py-2.5 text-[14px] rounded-lg transition-all duration-300
-        ${
-          active
-            ? "bg-blue-50 text-blue-600 font-medium shadow-sm scale-[1.02]"
-            : "text-slate-700 hover:bg-slate-100 hover:text-black hover:translate-x-1"
-        }`}
-      >
-        {item.icon}
-        {open && item.name}
-      </Link>
-    );
-  })}
-</div>
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={`flex items-center ${
+                        open ? "gap-3 px-4 justify-start" : "justify-center"
+                      } py-2.5 text-[14px] rounded-lg transition-all duration-300
+                        ${
+                            active
+                            ? "bg-blue-50 text-blue-600 font-medium shadow-sm scale-[1.02]"
+                            : "text-slate-700 hover:bg-slate-100 hover:text-black hover:translate-x-1"
+                           }`}
+                    >
+                      {item.icon}
+                      {open && item.name}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           ))}
 
@@ -468,10 +497,19 @@ const isAgent = role === "agent";
         </div>
       </aside>
 
+      {isMobile && !open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed top-4 left-4 z-[60] bg-white p-2 rounded-lg shadow-md"
+        >
+          <Menu size={22} />
+        </button>
+      )}
+
       {/* Main Content */}
       <main
         className={`flex-1 min-w-0 p-6 overflow-y-auto ${
-          open ? "ml-64" : "ml-20"
+          isMobile ? "ml-0" : open ? "ml-64" : "ml-20"
         }`}
       >
         {children}

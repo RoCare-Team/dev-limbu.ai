@@ -1,5 +1,9 @@
 "use server";
 
+import dbConnect from "@/lib/dbConnect";
+import Transaction from "@/models/Transaction";
+import User from "@/models/User";
+
 const API_URL =
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.NEXTAUTH_URL ||
@@ -101,13 +105,34 @@ export async function savePostAction(postPayload) {
     return await postRes.json();
 }
 
-export async function deductFromWalletAction(userId, payload) {
-    const walletRes = await fetch(`${API_URL}/api/auth/signup?userId=${userId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+export async function deductFromWalletAction(userId, { amount, reason, metadata }) {
+  try {
+    await dbConnect();
+
+    const updated = await User.findOneAndUpdate(
+      { userId, wallet: { $gte: amount } },
+      { $inc: { wallet: -amount } },
+      { new: true }
+    );
+
+    if (!updated) {
+      return { error: "Insufficient balance" };
+    }
+
+    await Transaction.create({
+      userId,
+      type: "debit",
+      amount,
+      balanceAfter: updated.wallet,
+      reason: reason || "wallet_deduct",
+      metadata: metadata || {},
     });
-    return await walletRes.json();
+
+    return { message: "Wallet debited", wallet: updated.wallet };
+  } catch (err) {
+    console.error("❌ deductFromWalletAction error:", err.message);
+    return { error: err.message };
+  }
 }
 
 export async function generateWithAssetsAction(payload) {

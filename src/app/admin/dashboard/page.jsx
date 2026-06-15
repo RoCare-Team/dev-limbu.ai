@@ -715,7 +715,7 @@ export default function AdminDashboard() {
           <option value="all">All Time</option>
           <option value="today">Today</option>
           <option value="yesterday">Yesterday</option>
-          <option value="1week">This Month</option>
+          <option value="1week">This Week</option>
           <option value="1month">Last Month</option>
           <option value="6months">Last 6 Months</option>
           <option value="custom">Custom</option>

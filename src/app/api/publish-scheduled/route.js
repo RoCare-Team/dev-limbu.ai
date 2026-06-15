@@ -736,25 +736,7 @@ export async function GET(req) {
                   throw new Error(errMsg);
                 }
 
-                // ✅ Wallet deduction ONLY after success
-                const walletData = await deductFromWalletAction(user.userId, {
-                  amount: 20,
-                  type: "deduct",
-                  reason: "Post-on-GMB",
-                  metadata: {
-                    aiPrompt: post.promat || "",
-                    logoUsed: !!post.logoUrl,
-                    postId: post._id.toString(),
-                    locationId: loc.locationId,
-                  },
-                });
-
-                if (walletData?.message !== "Wallet updated") {
-                  throw new Error("Wallet deduction failed");
-                }
-
-                log("🪙 20 coins deducted via wallet action");
-
+                // ✅ STEP 1: Post success mark karo — wallet se pehle
                 post.locations.forEach((l) => {
                   if (l.locationId === loc.locationId) {
                     l.isPosted = true;
@@ -783,6 +765,31 @@ export async function GET(req) {
                 post.markModified("mediaStatus");
                 processedLocIds.add(loc.locationId);
                 successCount++;
+
+                // ✅ STEP 2: Wallet alag try-catch mein
+                try {
+                  const walletData = await deductFromWalletAction(user.userId, {
+                    amount: 20,
+                    type: "deduct",
+                    reason: "Post-on-GMB",
+                    metadata: {
+                      aiPrompt: post.promat || "",
+                      logoUsed: !!post.logoUrl,
+                      postId: post._id.toString(),
+                      locationId: loc.locationId,
+                    },
+                  });
+
+                  if (walletData?.message === "Wallet debited") {
+                    log(`🪙 20 coins deducted | balance: ${walletData.wallet}`);
+                  } else if (walletData?.error === "Insufficient balance") {
+                    log(`⚠️ Insufficient wallet balance — post still succeeded`);
+                  } else {
+                    log(`⚠️ Wallet response: ${JSON.stringify(walletData)}`);
+                  }
+                } catch (walletErr) {
+                  log(`⚠️ Wallet error (post still succeeded): ${walletErr.message}`);
+                }
               } catch (err) {
                 log(
                   `❌ Error posting to location ${loc.locationId}:`,

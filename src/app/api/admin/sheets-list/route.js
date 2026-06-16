@@ -1,6 +1,4 @@
 
-
-
 import { NextResponse } from "next/server";
 
 import { getAllSheetNames } from "@/lib/googleSheets";

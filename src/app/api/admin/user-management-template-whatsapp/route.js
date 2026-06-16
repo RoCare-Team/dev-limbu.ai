@@ -6,9 +6,20 @@ const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
 const normalizeNumber = (num) => {
   if (!num) return null;
+
   let n = String(num).replace(/\D/g, "");
+
+  // Strip country code 91 if number is too long (e.g., "9109899144738" = 13 digits)
+  if (n.startsWith("91") && n.length > 12) {
+    n = n.slice(2);
+  }
+
+  // Remove leading 0 (e.g., "09899144738" → "9899144738")
   if (n.startsWith("0")) n = n.slice(1);
+
+  // Add country code if 10 digits
   if (n.length === 10) n = `91${n}`;
+
   return n.length === 12 ? n : null;
 };
 

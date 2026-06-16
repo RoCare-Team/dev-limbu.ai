@@ -14,6 +14,7 @@ export async function GET(req) {
     const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
     const limit = Math.max(1, parseInt(searchParams.get("limit")) || 70);
     const filterByAgent = searchParams.get("filterByAgent");
+    const search = (searchParams.get("search") || "").trim();
 
     if (!adminEmail) {
       return NextResponse.json(
@@ -37,13 +38,14 @@ export async function GET(req) {
     }
 
     const result = await getChatbotMetricUsers({
-      metricId,
-      period,
-      page,
-      limit,
-      filterByAgent: filterByAgent || null,
-      role: admin.role,
-    });
+  metricId,
+  period,
+  page,
+  limit,
+  search,
+  filterByAgent: filterByAgent || null,
+  role: admin.role,
+});
 
     return NextResponse.json(result);
   } catch (err) {

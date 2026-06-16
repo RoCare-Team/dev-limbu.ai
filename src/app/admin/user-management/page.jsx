@@ -594,12 +594,19 @@ export default function UserManagement() {
   ]);
 
   const filteredUsers = useMemo(() => {
-    if (chatbotMetricTableActive) {
-      return chatbotMetricUsers;
-    }
-    if (conversationStageTableActive) {
-      return conversationStageUsers;
-    }
+    const applySearch = (list) => {
+      if (!searchQuery.trim()) return list;
+      const q = searchQuery.trim().toLowerCase();
+      return list.filter((u) => {
+        const hay =
+          `${u.email || ""} ${u.userId || ""} ${u.phone || ""} ${u.mobileNumber || ""} ${u.fullName || ""}`.toLowerCase();
+        return hay.includes(q);
+      });
+    };
+
+    if (chatbotMetricTableActive) return applySearch(chatbotMetricUsers);
+    if (conversationStageTableActive)
+      return applySearch(conversationStageUsers);
     return preConversationFilteredUsers;
   }, [
     preConversationFilteredUsers,
@@ -607,6 +614,7 @@ export default function UserManagement() {
     chatbotMetricUsers,
     conversationStageTableActive,
     conversationStageUsers,
+    searchQuery, // 👈 sirf ye add hua
   ]);
 
   const fetchAllUserIds = async () => {
@@ -831,10 +839,7 @@ export default function UserManagement() {
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
-    if (
-      Array.isArray(user.chatbotHistory) &&
-      user.chatbotHistory.length > 0
-    ) {
+    if (Array.isArray(user.chatbotHistory) && user.chatbotHistory.length > 0) {
       setChatHistoryModal({
         open: true,
         user,
@@ -1387,6 +1392,9 @@ export default function UserManagement() {
     const nextFranchiseLeadsFilter =
       overrides.franchiseLeadsFilter ?? franchiseLeadsFilter;
 
+    const nextChatbotMetricFilter =
+      overrides.chatbotMetricFilter ?? chatbotMetricFilter;
+
     try {
       const params = new URLSearchParams({
         email: adminEmail, // 🔑 REQUIRED
@@ -1445,6 +1453,11 @@ export default function UserManagement() {
 
       if (nextFranchiseLeadsFilter) {
         params.append("franchiseLeads", "true");
+      }
+
+      if (nextChatbotMetricFilter?.metricId) {
+        params.append("metricId", nextChatbotMetricFilter.metricId);
+        params.append("period", nextChatbotMetricFilter.period);
       }
 
       const res = await fetch(`/api/users?${params.toString()}`);
@@ -1778,6 +1791,7 @@ export default function UserManagement() {
         period: filter.period,
         page: String(page),
         limit: String(limit),
+        search: searchQuery.trim(),
       });
 
       // If user is an agent, only show their own data
@@ -2460,39 +2474,30 @@ export default function UserManagement() {
         }
 
         // ==============================
-// Auto Send Invoice PDF WhatsApp
-// ==============================
-try {
-  if (revenueData) {
-    const invoiceWhatsappRes = await fetch(
-      "/api/admin/send-invoice-whatsapp",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          revenueId:
-            revenueData?.revenue?._id ||
-            revenueData?._id,
-        }),
-      }
-    );
+        // Auto Send Invoice PDF WhatsApp
+        // ==============================
+        try {
+          if (revenueData) {
+            const invoiceWhatsappRes = await fetch(
+              "/api/admin/send-invoice-whatsapp",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  revenueId: revenueData?.revenue?._id || revenueData?._id,
+                }),
+              },
+            );
 
-    const invoiceWhatsappData =
-      await invoiceWhatsappRes.json();
+            const invoiceWhatsappData = await invoiceWhatsappRes.json();
 
-    console.log(
-      "📲 Invoice WhatsApp Response:",
-      invoiceWhatsappData
-    );
-  }
-} catch (err) {
-  console.error(
-    "Invoice WhatsApp failed:",
-    err
-  );
-}
+            console.log("📲 Invoice WhatsApp Response:", invoiceWhatsappData);
+          }
+        } catch (err) {
+          console.error("Invoice WhatsApp failed:", err);
+        }
 
         showToast("User plan updated successfully!", "success");
         fetchUsers();
@@ -2716,7 +2721,7 @@ try {
 
     const usersPayload = getSelectedWhatsAppUsersPayload();
 
-       console.log("Selected IDs", bulkWaSelectedUserIds.length);
+    console.log("Selected IDs", bulkWaSelectedUserIds.length);
     // console.log("All Users", allSelectedUsers.length);
     // console.log("Payload", usersPayload.length);
 

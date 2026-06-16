@@ -1873,6 +1873,7 @@ export async function getChatbotMetricUsers({
   period = "total",
   page = 1,
   limit = 70,
+  search = "",
   filterByAgent = null,
   role = null,
 } = {}) {
@@ -1911,6 +1912,19 @@ export async function getChatbotMetricUsers({
   }
 
   let users = await mapBotStageRowsToTableUsers(rows);
+
+  if (search?.trim()) {
+  const q = search.trim().toLowerCase();
+
+  users = users.filter((user) => {
+    return (
+      user.email?.toLowerCase().includes(q) ||
+      user.phoneNumber?.toLowerCase().includes(q) ||
+      user.userId?.toString().toLowerCase().includes(q) ||
+      user.name?.toLowerCase().includes(q)
+    );
+  });
+}
 
   // Filter by agent if agent is viewing
   if (role === "agent" && filterByAgent) {

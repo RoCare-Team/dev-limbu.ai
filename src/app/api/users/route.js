@@ -629,9 +629,7 @@ export async function GET(req) {
         dateFilter !== "all"
       ) {
         const startDate = new Date(startDateParam);
-        startDate.setHours(0, 0, 0, 0);
         const endDate = new Date(endDateParam);
-        endDate.setHours(23, 59, 59, 999);
         matchStage.createdAt = { $gte: startDate, $lte: endDate };
       }
 
@@ -821,9 +819,7 @@ export async function GET(req) {
         dateFilter !== "all"
       ) {
         startDate = new Date(startDateParam);
-        startDate.setHours(0, 0, 0, 0);
         endDate = new Date(endDateParam);
-        endDate.setHours(23, 59, 59, 999);
       }
 
       const todayMatch = { createdAt: { $gte: startDate, $lte: endDate } };
@@ -881,9 +877,7 @@ export async function GET(req) {
     /* 2. Date filter */
     if (dateFilter && startDateParam && endDateParam && dateFilter !== "all") {
       const startDate = new Date(startDateParam);
-      startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(endDateParam);
-      endDate.setHours(23, 59, 59, 999);
       query = addMatchCondition(query, {
         createdAt: { $gte: startDate, $lte: endDate },
       });
@@ -1070,7 +1064,7 @@ export async function GET(req) {
       success: true,
       loggedInRole: admin.role,
       totalUsers,
-      totalActiveUsers, // ✅ available for ALL roles: agent, manager, superAdmin
+      totalActiveUsers,
       totalPages: Math.ceil(totalUsers / limit),
       currentPage: page,
       users,

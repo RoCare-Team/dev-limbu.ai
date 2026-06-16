@@ -1,3 +1,5 @@
+// app/api/razorpay/verify/route.js
+
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import crypto from "crypto";
@@ -8,9 +10,11 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { userId, plan, payment, platform, transactionId, productId, purchaseToken } = body;
 
-    if (platform === "ios") {
+    // ── iOS in-app purchase (unchanged) ───────────────────────────────────
+    if (body.platform === "ios") {
+      const { userId, transactionId, productId, purchaseToken } = body;
+
       if (!userId || !transactionId || !productId || !purchaseToken) {
         return NextResponse.json(
           { success: false, message: "Missing required fields" },
@@ -21,13 +25,11 @@ export async function POST(req) {
       const appleResponse = await fetch(
         "https://buy.itunes.apple.com/verifyReceipt",
         {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             "receipt-data": purchaseToken,
-            password: "975f34f776394c3ca0ebc58007ba98e4",
+            password: process.env.APPLE_IAP_SHARED_SECRET,
           }),
         }
       );
@@ -40,81 +42,90 @@ export async function POST(req) {
           message: "Wallet credited successfully",
           appleData,
         });
-      } else {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "Invalid receipt",
-            appleStatus: appleData.status,
-          },
-          { status: 400 }
-        );
       }
+
+      return NextResponse.json(
+        { success: false, message: "Invalid receipt", appleStatus: appleData.status },
+        { status: 400 }
+      );
     }
 
+    // ── Razorpay web payment ──────────────────────────────────────────────
+    const { userId, plan, payment } = body;
     const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = payment || {};
 
-    // ✅ Validate required fields
+    // Validate required fields
     if (!userId || !plan || !razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing required payment info" }),
+      return NextResponse.json(
+        { success: false, error: "Missing required payment info" },
         { status: 400 }
       );
     }
 
-    // ✅ Verify Razorpay signature
+    // Verify Razorpay signature
     const keySecret = process.env.RAZORPAY_SECRET;
-    const generated_signature = crypto
+    const generatedSignature = crypto
       .createHmac("sha256", keySecret)
-      .update(razorpay_order_id + "|" + razorpay_payment_id)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    if (generated_signature !== razorpay_signature) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid signature" }),
+    if (generatedSignature !== razorpay_signature) {
+      return NextResponse.json(
+        { success: false, error: "Invalid signature" },
         { status: 400 }
       );
     }
 
-    // ✅ Fetch existing user
-    const user = await User.findById(userId);
+    // Find user — supports both ObjectId (_id) and custom userId field
+    const user =
+      (await User.findById(userId).catch(() => null)) ||
+      (await User.findOne({ userId }));
+
     if (!user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "User not found" }),
+      return NextResponse.json(
+        { success: false, error: "User not found" },
         { status: 404 }
       );
     }
 
-    // ✅ Calculate subscription validity
-    const startDate = new Date();
-    const expiryDate = new Date();
-    expiryDate.setMonth(expiryDate.getMonth() + 1); // 1-month validity
+    // Map plan name → maxAccounts
+    const maxAccountsMap = {
+      "Basic Plan":        3,
+      "Professional Plan": 6,
+      "Premium Plan":      10,
+    };
 
-    // ✅ Update subscription details
+    // Calculate validity (1 month per billing cycle by default)
+    const startDate  = new Date();
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 1);
+
+    // Activate subscription
     user.subscription = {
       plan,
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      date: startDate,
-      expiry: expiryDate,
-      status: "active",
-      maxAccounts: plan === "premium" ? 10 : 3, // Example rule
+      paymentId:   razorpay_payment_id,
+      orderId:     razorpay_order_id,
+      date:        startDate,
+      expiry:      expiryDate,
+      status:      "active",
+      accounts:    user.subscription?.accounts ?? [],
+      maxAccounts: maxAccountsMap[plan] ?? 3,
     };
 
     await user.save({ validateBeforeSave: true });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Subscription activated successfully",
+    return NextResponse.json(
+      {
+        success:      true,
+        message:      "Subscription activated successfully",
         subscription: user.subscription,
-      }),
+      },
       { status: 200 }
     );
   } catch (error) {
     console.error("Payment verification error:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: "Server error" }),
+    return NextResponse.json(
+      { success: false, error: "Server error" },
       { status: 500 }
     );
   }

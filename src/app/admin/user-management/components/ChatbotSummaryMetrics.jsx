@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import {
@@ -23,12 +21,25 @@ const METRIC_STYLES = {
 };
 
 export const CHATBOT_METRIC_CARD_DEFS = [
-  { id: "chatsCreated", label: "Chats Created", shortLabel: "Chats Created" },
+  {
+    id: "chatsCreated",
+    label: "Chats Created",
+    shortLabel: "Chats Created",
+    showAgentLeads: true,
+  }, // 👈 sirf yahan
   { id: "gmbConnected", label: "GMB Connected", shortLabel: "GMB Connected" },
   { id: "gmbHealth", label: "GMB Health Generated", shortLabel: "GMB Health" },
   { id: "magicQr", label: "Magic QR Created", shortLabel: "Magic QR" },
-  { id: "gmbInsights", label: "GMB Insights Generated", shortLabel: "GMB Insights" },
-  { id: "websitesBuilt", label: "Websites Built", shortLabel: "Websites Built" },
+  {
+    id: "gmbInsights",
+    label: "GMB Insights Generated",
+    shortLabel: "GMB Insights",
+  },
+  {
+    id: "websitesBuilt",
+    label: "Websites Built",
+    shortLabel: "Websites Built",
+  },
   { id: "demoBooked", label: "Demo Booked", shortLabel: "Demo Booked" },
 ];
 
@@ -126,6 +137,7 @@ function MetricBlock({
   loading,
   activeCardKey,
   onSelect,
+  agentTodayLeads = null, // 👈 ADD
 }) {
   const style = METRIC_STYLES[metricId] || METRIC_STYLES.chatsCreated;
   const totalKey = `${metricId}:total`;
@@ -137,7 +149,9 @@ function MetricBlock({
       elevation={0}
       sx={{
         borderRadius: "10px",
-        border: isActive ? `2px solid ${style.color}` : `1.5px solid ${style.color}55`,
+        border: isActive
+          ? `2px solid ${style.color}`
+          : `1.5px solid ${style.color}55`,
         background: "#fff",
         overflow: "hidden",
         minWidth: 0,
@@ -200,6 +214,44 @@ function MetricBlock({
           style={style}
         />
       </Stack>
+
+      {/* 👇 Sirf agent ke liye, sirf chatsCreated card mein */}
+      {agentTodayLeads !== null && (
+        <Box
+          sx={{
+            borderTop: `2px solid ${style.color}30`,
+            py: 1.25,
+            px: 1,
+            textAlign: "center",
+            background: style.bg,
+          }}
+        >
+          <Typography
+            sx={{
+              fontSize: "10px",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.6,
+              color: style.color,
+              lineHeight: 1,
+            }}
+          >
+            My Leads
+          </Typography>
+          <Typography
+            sx={{
+              mt: 0.75,
+              fontSize: "clamp(16px, 2.2vw, 22px)",
+              fontWeight: 800,
+              lineHeight: 1.1,
+              color: "#111827",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {loading ? "…" : formatCount(agentTodayLeads)}
+          </Typography>
+        </Box>
+      )}
     </Card>
   );
 }
@@ -211,6 +263,7 @@ export default function ChatbotSummaryMetrics({
   activeCardKey = "",
   onRefresh,
   onSelectCard,
+  agentTodayLeads = null, // 👈 NEW PROP
 }) {
   return (
     <Card
@@ -314,6 +367,7 @@ export default function ChatbotSummaryMetrics({
             loading={loading}
             activeCardKey={activeCardKey}
             onSelect={onSelectCard}
+            agentTodayLeads={row.showAgentLeads ? agentTodayLeads : null} // 👈 ADD
           />
         ))}
       </Box>

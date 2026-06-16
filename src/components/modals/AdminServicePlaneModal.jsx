@@ -402,6 +402,21 @@ try {
 
       const whatsappData = await whatsappRes.json();
 
+      // 2. Invoice WhatsApp
+await fetch(
+  "/api/admin/send-invoice-whatsapp",
+  {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      revenueId: data?.revenue?._id,
+    }),
+  }
+);
+
+
       // console.log("📲 WhatsApp Response:", whatsappData);
 
       if (whatsappData.success && emailData.success) {

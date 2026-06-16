@@ -228,7 +228,7 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/users?email=${email}`);
       const data = await res.json();
 
-      console.log("🔥 USERS DATA:", data);
+      // console.log("🔥 USERS DATA:", data);
 
       if (data.success && Array.isArray(data.users)) {
         setUsers(data.users);
@@ -318,9 +318,9 @@ export default function AdminDashboard() {
       );
       const data = await res.json();
 
-      console.log("AGENT LIST:", data);
+      // console.log("AGENT LIST:", data);
 
-      console.log("AGENTS:", data);
+      // console.log("AGENTS:", data);
 
       const map = {};
 
@@ -331,7 +331,7 @@ export default function AdminDashboard() {
         map[a._id?.toString()] = a.fullName || a.name || "Unknown";
       });
 
-      console.log("FINAL AGENT MAP:", map);
+      // console.log("FINAL AGENT MAP:", map);
 
       setAgentMap(map);
     } catch (err) {
@@ -680,7 +680,7 @@ export default function AdminDashboard() {
     }, {}),
   );
 
-  console.log("FOLLOWUP AGENTS =>", followUpStats.byAgent);
+  // console.log("FOLLOWUP AGENTS =>", followUpStats.byAgent);
 
   if (loading) {
     return (
@@ -747,6 +747,7 @@ export default function AdminDashboard() {
         </button>
       </div>
 
+      
       <UserStats
         stats={dashboardStats}
         role={role} // ✅ YE ADD KAR
@@ -756,6 +757,7 @@ export default function AdminDashboard() {
         isAgent={isAgent}
         isManager={isManager}
         filterLabel={filterLabel}
+        
         todayLeadWindowLabel={todayLeadWindowLabel}
         todayUsersMetaLeads={todayUsersMetaLeads}
         todayUsersSignups={todayUsersSignups}

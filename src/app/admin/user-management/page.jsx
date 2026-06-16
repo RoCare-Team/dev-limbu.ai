@@ -2459,6 +2459,41 @@ export default function UserManagement() {
           console.error("WhatsApp template send failed:", whatsappErr);
         }
 
+        // ==============================
+// Auto Send Invoice PDF WhatsApp
+// ==============================
+try {
+  if (revenueData) {
+    const invoiceWhatsappRes = await fetch(
+      "/api/admin/send-invoice-whatsapp",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          revenueId:
+            revenueData?.revenue?._id ||
+            revenueData?._id,
+        }),
+      }
+    );
+
+    const invoiceWhatsappData =
+      await invoiceWhatsappRes.json();
+
+    console.log(
+      "📲 Invoice WhatsApp Response:",
+      invoiceWhatsappData
+    );
+  }
+} catch (err) {
+  console.error(
+    "Invoice WhatsApp failed:",
+    err
+  );
+}
+
         showToast("User plan updated successfully!", "success");
         fetchUsers();
         if (planAmount && parseFloat(planAmount) > 0) {

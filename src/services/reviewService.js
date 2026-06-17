@@ -1,3 +1,6 @@
+import { getLocalStorage, isImpersonating, makeLocationKey } from "@/utils/storage";
+
+
 const BASE_URL = "https://review.limbutech.in";
 
 /**
@@ -155,6 +158,14 @@ export const reviewService = {
    * Toggle autoReply for one connected GMB account.
    */
   async toggleAutoReply(userId, refreshToken, accountId, locations, autoReply) {
+    if (isImpersonating()) {
+      locations.forEach((loc) => {
+        const key = makeLocationKey(accountId, loc.locationId);
+        window.localStorage.setItem(key, JSON.stringify({ autoReply }));
+      });
+      return { success: true };
+    }
+
     const res = await fetch("/api/saveAutoReply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -179,6 +190,46 @@ export const reviewService = {
    * Fetch autoReply status for all connected GMB accounts of a user.
    */
   async getAutoReplySettings(userId, accountId = null) {
+    if (isImpersonating()) {
+      const normalizedAccountId = accountId
+        ? String(accountId).replace(/^accounts\//, "")
+        : null;
+      const prefix = normalizedAccountId
+        ? `autoReply_${normalizedAccountId}_`
+        : "autoReply_";
+
+      const locations = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (!key || !key.startsWith(prefix)) continue;
+        try {
+          const { autoReply } = JSON.parse(window.localStorage.getItem(key));
+          const withoutPrefix = key.replace("autoReply_", "");
+          const firstUnderscore = withoutPrefix.indexOf("_");
+          const locAccountId = withoutPrefix.substring(0, firstUnderscore);
+          const locationId = withoutPrefix.substring(firstUnderscore + 1);
+          locations.push({ accountId: locAccountId, locationId, autoReply });
+        } catch {
+          // skip
+        }
+      }
+
+      const accountsMap = {};
+      locations.forEach((loc) => {
+        if (!accountsMap[loc.accountId]) {
+          accountsMap[loc.accountId] = {
+            accountId: loc.accountId,
+            autoReply: false,
+            locations: [],
+          };
+        }
+        accountsMap[loc.accountId].locations.push(loc);
+        if (loc.autoReply) accountsMap[loc.accountId].autoReply = true;
+      });
+
+      return { success: true, accounts: Object.values(accountsMap), locations };
+    }
+
     const params = new URLSearchParams({ userId });
     if (accountId) params.append("accountId", accountId);
 
@@ -187,4 +238,6 @@ export const reviewService = {
 
     return res.json();
   },
-};
+}
+
+

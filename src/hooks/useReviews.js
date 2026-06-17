@@ -1,39 +1,40 @@
+"use client";
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { reviewService } from "@/services/reviewService";
-import { getLocalStorage } from "@/utils/storage";
+import { getLocalStorage, isImpersonating } from "@/utils/storage";
 
 const TOAST_POSITION = "top-center";
 
-const normalizeGmbAccountId = (accountId) =>
-  String(accountId || "").replace(/^accounts\//, "");
+const normalizeGmbAccountId = (id) =>
+  String(id || "").replace(/^accounts\//, "");
 
 export function useReviews(session, status) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasLoadedReviews, setHasLoadedReviews] = useState(false);
-
-  // Per-GMB-account autoReply state: { [accountId]: boolean }
   const [locationAutoReply, setLocationAutoReply] = useState({});
 
   const accessToken = session?.accessToken;
   const refreshToken = session?.refreshToken;
   const userId = session?.user?.id || session?.user?.email;
 
-  // Handle AI Reply Generation
   const handleAIReply = useCallback(
-    async (review, setLocalReply, setShowReplyInput, setGeneratingAI, isAuto = false) => {
+    async (
+      review,
+      setLocalReply,
+      setShowReplyInput,
+      setGeneratingAI,
+      isAuto = false,
+    ) => {
       try {
         if (setGeneratingAI) setGeneratingAI(true);
-
         const { name, reviewId, comment, starRating, reviewer } = review;
         const starRatingMap = { FIVE: 5, FOUR: 4, THREE: 3, TWO: 2, ONE: 1 };
         const [, accountId, , locationId] = name?.split("/") || [];
 
-        if (!accessToken) {
-          throw new Error("Session expired. Please log in again.");
-        }
+        if (!accessToken) throw new Error("Session expired.");
 
         const data = await reviewService.sendAIReply(
           accessToken,
@@ -42,269 +43,193 @@ export function useReviews(session, status) {
           reviewer?.displayName || "Anonymous",
           starRatingMap[starRating] || 5,
           comment || "No comment provided",
-          reviewId
+          reviewId,
         );
 
         if (data.status === true) {
           if (!isAuto) {
-            toast.success("AI reply sent successfully!", { duration: 3000, position: TOAST_POSITION });
+            toast.success("AI reply sent!");
             if (setShowReplyInput) setShowReplyInput(false);
             if (setLocalReply) setLocalReply("");
           }
           return true;
-        } else {
-          throw new Error("AI reply generation failed");
         }
+        throw new Error("AI reply failed");
       } catch (err) {
-        console.error("AI Reply Error:", err);
-        if (!isAuto) {
-          toast.error(err.message || "Error generating AI reply. Please try manual reply.", {
-            duration: 3000,
-            position: TOAST_POSITION,
-          });
-        }
+        if (!isAuto) toast.error(err.message);
         return false;
       } finally {
         if (setGeneratingAI) setGeneratingAI(false);
       }
     },
-    [accessToken]
+    [accessToken],
   );
 
   const fetchReviews = useCallback(
-    async (isAutoMode = false, showSuccessToast = true, selectedAccountId = null) => {
+    async (
+      isAutoMode = false,
+      showSuccessToast = true,
+      selectedLocationId = null,
+    ) => {
       try {
         setLoading(true);
-        setError(null);
-
         const locationDetailsStr = getLocalStorage("locationDetails");
-        if (!locationDetailsStr) throw new Error("LOCATION_NOT_FOUND");
-
-        let locationDetails;
-        try {
-          locationDetails =
-            typeof locationDetailsStr === "string"
-              ? JSON.parse(locationDetailsStr)
-              : locationDetailsStr;
-        } catch (e) {
-          locationDetails = locationDetailsStr;
+        
+        // --- CHANGE 1: Silent return if no location details yet ---
+        if (!locationDetailsStr) {
+            setLoading(false);
+            return; 
         }
 
-        if (!locationDetails || !Array.isArray(locationDetails) || locationDetails.length === 0) {
-          throw new Error("LOCATION_EMPTY");
+        const locationDetails =
+          typeof locationDetailsStr === "string"
+            ? JSON.parse(locationDetailsStr)
+            : locationDetailsStr;
+
+        if (!accessToken) return; // Silent return if no token
+
+        // --- FILTER LOGIC FOR SPECIFIC LOCATION ---
+        let locationsToFetch = [];
+        if (selectedLocationId && selectedLocationId !== "all") {
+          const target = locationDetails.find(
+            (l) => l.locationId === selectedLocationId,
+          );
+          if (target) locationsToFetch = [target];
+        } else {
+          locationsToFetch = locationDetails;
         }
 
-        if (!accessToken) throw new Error("AUTH_TOKEN_MISSING");
+        if (locationsToFetch.length === 0) return;
 
-        const normalizedSelectedAccountId = normalizeGmbAccountId(selectedAccountId);
-        const locationsByAccount = locationDetails.reduce((acc, loc) => {
-          const accountId = normalizeGmbAccountId(loc?.accountId);
-          if (!accountId || !loc?.locationId) return acc;
-          if (normalizedSelectedAccountId && accountId !== normalizedSelectedAccountId) return acc;
-          if (!acc[accountId]) acc[accountId] = [];
-          acc[accountId].push(loc.locationId);
+        // Grouping for API calls
+        const groups = locationsToFetch.reduce((acc, loc) => {
+          const accId = normalizeGmbAccountId(loc.accountId);
+          if (!acc[accId]) acc[accId] = [];
+          acc[accId].push(loc.locationId);
           return acc;
         }, {});
 
-        const accountEntries = Object.entries(locationsByAccount);
-
-        if (accountEntries.length === 0) throw new Error("ACCOUNT_ID_MISSING");
-
+        // API Call execution
         const allReviews = (
           await Promise.all(
-            accountEntries.map(([accountId, locationIds]) =>
-              reviewService.fetchAllReviews(accountId, locationIds, accessToken)
-            )
+            Object.entries(groups).map(([accId, locIds]) =>
+              reviewService.fetchAllReviews(accId, locIds, accessToken),
+            ),
           )
         ).flat();
 
         const sortedReviews = allReviews
-          .map((review) => ({
-            ...review,
-            _timestamp: new Date(review.createTime).getTime(),
-          }))
+          .map((r) => ({ ...r, _timestamp: new Date(r.createTime).getTime() }))
           .sort((a, b) => b._timestamp - a._timestamp);
-
-        // Auto-reply: only reply for GMB accounts where autoReply is enabled
-        if (isAutoMode) {
-          const reviewsToAutoReply = sortedReviews.filter((review) => {
-            const [, accountId] = review.name?.split("/") || [];
-            const isAutoEnabled = locationAutoReply[normalizeGmbAccountId(accountId)] === true;
-            const hasNoReply =
-              !review.reviewReply ||
-              !review.reviewReply.comment ||
-              review.reviewReply.comment.trim() === "";
-            return isAutoEnabled && hasNoReply;
-          });
-
-          if (reviewsToAutoReply.length > 0) {
-            toast.success(
-              `${reviewsToAutoReply.length} new reviews found. Generating AI replies...`,
-              { icon: "🤖" }
-            );
-            for (const review of reviewsToAutoReply) {
-              await handleAIReply(review, null, null, null, true);
-            }
-            toast.success("Auto-reply process complete. Refreshing review list.", { icon: "🔄" });
-            setTimeout(() => fetchReviews(true, false), 2000);
-          }
-        }
-
-        // Clear cache and update state
-        localStorage.setItem("cachedReviews", JSON.stringify(sortedReviews));
-        localStorage.setItem("reviewsFetchedAt", Date.now().toString());
 
         setReviews(sortedReviews);
         setHasLoadedReviews(true);
+        localStorage.setItem("cachedReviews", JSON.stringify(sortedReviews));
 
         if (showSuccessToast && !isAutoMode) {
-          if (sortedReviews.length === 0) {
-            toast.success("No reviews found for your locations", {
-              duration: 3000,
-              position: TOAST_POSITION,
-              id: "fetch-reviews-empty",
-            });
-          } else {
-            toast.success(`Successfully loaded ${sortedReviews.length} reviews`, {
-              duration: 3000,
-              position: TOAST_POSITION,
-              id: "fetch-reviews-success",
-            });
-          }
+          toast.success(`Loaded ${sortedReviews.length} reviews`);
         }
       } catch (err) {
-        console.error("Error fetching reviews:", err);
         setError(err.message);
-        setHasLoadedReviews(true);
-
-        if (!isAutoMode) {
-          let userMessage = "Unable to load reviews. Please try again.";
-          if (err.message === "LOCATION_NOT_FOUND" || err.message === "LOCATION_EMPTY") {
-            userMessage = "Please set up your business location first.";
-          } else if (err.message === "AUTH_TOKEN_MISSING") {
-            userMessage = "Session expired. Please log in again.";
-          } else if (err.message === "ACCOUNT_ID_MISSING" || err.message === "LOCATION_IDS_MISSING") {
-            userMessage = "Business information incomplete.";
-          } else if (err.message.startsWith("API_ERROR")) {
-            userMessage = "Server error. Please try again in a moment.";
-          }
-          toast.error(userMessage, { duration: 5000, position: TOAST_POSITION });
-        }
       } finally {
         setLoading(false);
       }
     },
-    [accessToken, handleAIReply, locationAutoReply]
+    [accessToken],
   );
 
-  /**
-   * Toggle autoReply for one connected GMB account.
-   */
   const handleLocationAutoReplyToggle = useCallback(
-    async (accountId) => {
-      if (!userId) {
-        toast.error("Please log in to change auto-reply settings.");
-        return;
-      }
-
+    async (accountId, locationId) => {
       const normalizedAccountId = normalizeGmbAccountId(accountId);
-      const current = locationAutoReply[normalizedAccountId] ?? false;
-      const newValue = !current;
-      const locationDetailsStr = getLocalStorage("locationDetails");
-      let accountLocations = [];
+      const locationKey = `${normalizedAccountId}_${locationId}`;
+      const currentState = locationAutoReply[locationKey] ?? false;
+      const newState = !currentState;
+
+      setLocationAutoReply((prev) => ({ ...prev, [locationKey]: newState }));
 
       try {
-        const parsed =
-          typeof locationDetailsStr === "string"
-            ? JSON.parse(locationDetailsStr)
-            : locationDetailsStr;
-        accountLocations = (Array.isArray(parsed) ? parsed : [parsed])
-          .filter((loc) => normalizeGmbAccountId(loc?.accountId) === normalizedAccountId && loc?.locationId)
-          .map((loc) => ({
-            ...loc,
-            accountId: normalizedAccountId,
-            locationId: loc.locationId,
-          }));
-      } catch (err) {
-        console.error("Error reading account locations for auto-reply:", err);
-      }
+        const raw = getLocalStorage("locationDetails");
+        const allLocations = raw ? JSON.parse(raw) : [];
 
-      // Optimistic UI update
-      setLocationAutoReply((prev) => ({ ...prev, [normalizedAccountId]: newValue }));
-
-      try {
-        await reviewService.toggleAutoReply(userId, refreshToken, normalizedAccountId, accountLocations, newValue);
-        toast.success(
-          `Auto Reply ${newValue ? "enabled" : "disabled"} for this GMB account`,
-          { duration: 2000, position: TOAST_POSITION }
+        const singleLocation = allLocations.find(
+          (loc) => loc.locationId === locationId,
         );
+
+        if (!singleLocation) throw new Error("Location not found");
+
+        const accountLocations = [
+          {
+            accountId: normalizedAccountId,
+            locationId: singleLocation.locationId,
+            title: singleLocation.title,
+            categories: singleLocation.categories,
+          },
+        ];
+
+        await reviewService.toggleAutoReply(
+          userId,
+          refreshToken,
+          normalizedAccountId,
+          accountLocations,
+          newState,
+        );
+
+        toast.success(`Auto-reply ${newState ? "enabled" : "disabled"}`, {
+          position: TOAST_POSITION,
+        });
       } catch (err) {
-        console.error("Auto reply toggle error:", err);
-        // Revert on failure
-        setLocationAutoReply((prev) => ({ ...prev, [normalizedAccountId]: current }));
-        toast.error(err.message || "Failed to update auto-reply setting.");
+        setLocationAutoReply((prev) => ({
+          ...prev,
+          [locationKey]: currentState,
+        }));
+        toast.error(err.message || "Failed to update auto-reply", {
+          position: TOAST_POSITION,
+        });
       }
     },
-    [userId, refreshToken, locationAutoReply]
+    [userId, refreshToken, locationAutoReply],
   );
 
-  // Load per-GMB-account autoReply settings from DB on mount
+  // Effect for Auto Reply Settings
   useEffect(() => {
-    if (status !== "authenticated" || !userId) return;
+    if (isImpersonating()) {
+      const stateMap = {};
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (!key || !key.startsWith("autoReply_")) continue;
+        try {
+          const { autoReply } = JSON.parse(window.localStorage.getItem(key));
+          const withoutPrefix = key.slice("autoReply_".length);
+          stateMap[withoutPrefix] = autoReply === true;
+        } catch {
+          // skip
+        }
+      }
+      setLocationAutoReply(stateMap);
+      return;
+    }
+
+    if (!userId) return;
 
     reviewService.getAutoReplySettings(userId).then((data) => {
-      if (data?.accounts?.length > 0) {
-        const map = {};
-        data.accounts.forEach((account) => {
-          map[normalizeGmbAccountId(account.accountId)] = account.autoReply ?? false;
+      if (!data?.accounts) return;
+      const stateMap = {};
+      data.accounts.forEach((acc) => {
+        const normalizedAccId = normalizeGmbAccountId(acc.accountId);
+        (acc.locations || []).forEach((loc) => {
+          stateMap[`${normalizedAccId}_${loc.locationId}`] = loc.autoReply === true;
         });
-        setLocationAutoReply(map);
-      } else if (data?.locations?.length > 0) {
-        const map = {};
-        data.locations.forEach((loc) => {
-          const accountId = normalizeGmbAccountId(loc.accountId);
-          map[accountId] = map[accountId] || loc.autoReply === true;
-        });
-        setLocationAutoReply(map);
-      }
+      });
+      setLocationAutoReply(stateMap);
     });
-  }, [status, userId]);
+  }, [userId]);
 
-  // Load cached reviews + start auto-interval
+  // --- CHANGE 2: Naya Effect jo page load hote hi reviews layega ---
   useEffect(() => {
-    const cachedStr = getLocalStorage("cachedReviews");
-    let hasCache = false;
-
-    if (cachedStr) {
-      try {
-        const parsed =
-          typeof cachedStr === "string" ? JSON.parse(cachedStr) : cachedStr;
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setReviews(parsed);
-          setHasLoadedReviews(true);
-          hasCache = true;
-        }
-      } catch (err) {
-        console.error("Error parsing cached reviews", err);
-      }
+    if (status === "authenticated" && accessToken) {
+      fetchReviews(true, false); 
     }
-
-    if (status === "authenticated" && accessToken && !hasLoadedReviews) {
-      fetchReviews(false, !hasCache);
-    }
-
-    // Auto-interval: check every 5 min, but only runs if at least one account has autoReply on
-    const hasAnyAutoReply = Object.values(locationAutoReply).some(Boolean);
-    let intervalId;
-
-    if (hasAnyAutoReply && status === "authenticated") {
-      intervalId = setInterval(() => fetchReviews(true, false), 5 * 60 * 1000);
-    }
-
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [status, accessToken, hasLoadedReviews, fetchReviews, locationAutoReply]);
+  }, [status, accessToken, fetchReviews]);
 
   return {
     reviews,

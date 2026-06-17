@@ -53,3 +53,19 @@ export const removeSessionStorage = (key) => {
     console.error(`Error removing ${key} from sessionStorage:`, error);
   }
 };
+
+// Add these at the bottom of storage.js
+
+export const isImpersonating = () => {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem("isImpersonating");
+    if (!raw) return false;
+    return JSON.parse(raw)?.isImpersonating === true;
+  } catch {
+    return false;
+  }
+};
+
+export const makeLocationKey = (accountId, locationId) =>
+  `autoReply_${String(accountId || "").replace(/^accounts\//, "")}_${locationId}`;

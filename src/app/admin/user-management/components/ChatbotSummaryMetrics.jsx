@@ -57,6 +57,7 @@ function PeriodCell({
   active,
   onSelect,
   style,
+  subCount = null, // 👈 Naya prop
 }) {
   const isToday = period === "today";
 
@@ -106,11 +107,12 @@ function PeriodCell({
       >
         {isToday ? "Today" : "Total"}
       </Typography>
+      
       <Typography
         component="p"
         sx={{
           mt: 0.75,
-          fontSize: "clamp(16px, 2.2vw, 22px)",
+          fontSize: "clamp(14px, 2vw, 20px)", // Thoda chota kiya taaki dono numbers fit ho sakein
           fontWeight: 800,
           lineHeight: 1.1,
           color: "#111827",
@@ -120,9 +122,19 @@ function PeriodCell({
           whiteSpace: "nowrap",
           width: "100%",
         }}
-        title={loading ? "" : formatCount(count)}
+        title={loading ? "" : `${formatCount(count)}${subCount !== null ? ` / ${formatCount(subCount)}` : ''}`}
       >
-        {loading ? "…" : formatCount(count)}
+        {loading ? "…" : (
+          <>
+            {formatCount(count)}
+            {/* 👇 Agar agent ka data hai toh slash ke saath dikhao */}
+            {subCount !== null && (
+              <Box component="span" sx={{ color: style.color, opacity: 0.8, fontSize: '0.85em', fontWeight: 600 }}>
+                {` / ${formatCount(subCount)}`}
+              </Box>
+            )}
+          </>
+        )}
       </Typography>
     </Box>
   );
@@ -137,8 +149,8 @@ function MetricBlock({
   loading,
   activeCardKey,
   onSelect,
-  agentTodayLeads = null, // 👈 ADD
-  role = null, // 👈 ADD
+  agentTodayLeads = null,
+  role = null,
 }) {
   const style = METRIC_STYLES[metricId] || METRIC_STYLES.chatsCreated;
   const totalKey = `${metricId}:total`;
@@ -157,7 +169,6 @@ function MetricBlock({
         overflow: "hidden",
         minWidth: 0,
         fontFamily: "var(--font-inter)",
-        "& *": { fontFamily: "var(--font-inter)" },
       }}
     >
       <Box
@@ -175,11 +186,8 @@ function MetricBlock({
             color: style.color,
             textAlign: "center",
             lineHeight: 1.25,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
             whiteSpace: "nowrap",
           }}
-          title={label}
         >
           {shortLabel || label}
         </Typography>
@@ -189,7 +197,6 @@ function MetricBlock({
         direction="row"
         sx={{
           minWidth: 0,
-          borderTop: `1px solid ${style.color}25`,
         }}
       >
         <PeriodCell
@@ -213,47 +220,10 @@ function MetricBlock({
           active={activeCardKey === todayKey}
           onSelect={onSelect}
           style={style}
+          // 👇 Sirf chatsCreated aur agent role hone par subCount pass karein
+          subCount={(metricId === "chatsCreated" && role === "agent") ? agentTodayLeads : null}
         />
       </Stack>
-
-      {/* 👇 Sirf agent ke liye, sirf chatsCreated card mein */}
-      {role === "agent" && agentTodayLeads !== null && (
-        <Box
-          sx={{
-            borderTop: `2px solid ${style.color}30`,
-            py: 1.25,
-            px: 1,
-            textAlign: "center",
-            background: style.bg,
-          }}
-        >
-          <Typography
-            sx={{
-              fontSize: "10px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: 0.6,
-              color: style.color,
-              lineHeight: 1,
-            }}
-          >
-           Today My Leads
-          </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.75,
-              fontSize: "clamp(16px, 2.2vw, 22px)",
-              fontWeight: 800,
-              lineHeight: 1.1,
-              color: "#111827",
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {loading ? "…" : formatCount(agentTodayLeads)}
-          </Typography>
-        </Box>
-      )}
     </Card>
   );
 }

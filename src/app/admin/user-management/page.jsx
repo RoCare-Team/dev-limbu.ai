@@ -3161,6 +3161,8 @@ export default function UserManagement() {
             u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
           ),
         );
+          
+
         setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
         setFollowUpDate("");

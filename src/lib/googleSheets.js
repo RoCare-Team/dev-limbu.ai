@@ -11,11 +11,16 @@ function getSheetsClient() {
       client_email: clientEmail,
       private_key: privateKeyRaw.replace(/\\n/g, "\n"),
     },
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+    scopes: [
+      "https://www.googleapis.com/auth/spreadsheets",
+    ],
   });
 
   return {
-    sheets: google.sheets({ version: "v4", auth }),
+    sheets: google.sheets({
+      version: "v4",
+      auth,
+    }),
   };
 }
 
@@ -40,4 +45,19 @@ export async function getAllSheetNames(spreadsheetId) {
   return response.data.sheets.map(
     (sheet) => sheet.properties.title
   );
+}
+
+
+export async function appendToSheet(spreadsheetId, sheetName, rows) {
+  const { sheets } = getSheetsClient();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetName}!A:Z`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    resource: {
+      values: rows,
+    },
+  });
 }

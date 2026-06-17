@@ -391,9 +391,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
 
     // AFTER:
     const metaChatbot = isMetaChatbotUser(history);
-    if (inboundCount < 2 && !metaChatbot) {
+    if (inboundCount < 1 && !metaChatbot) {
       console.log(
-        `[ensureChatbotRowsSaved] ⏭️ SKIP (inbound < 2) | phone: ${bot.phone} | waId: ${bot.user_id} | inboundCount: ${inboundCount} | totalMessages: ${messageCount}`,
+        `[ensureChatbotRowsSaved] ⏭️ SKIP (inbound < 1) | phone: ${bot.phone} | waId: ${bot.user_id} | inboundCount: ${inboundCount} | totalMessages: ${messageCount}`,
       );
       skipped++;
       continue;
@@ -1333,10 +1333,10 @@ export async function syncChatbotUsersToApp(options = {}) {
     // ✅ AFTER
     // ✅ AFTER
     const metaChatbot = isMetaChatbotUser(history); // 👈 YEH LINE ADD KARO
-    if (inboundCount < 2 && !metaChatbot) {
+    if (inboundCount < 1 && !metaChatbot) {
       // 👈 && !metaChatbot ADD KARO
       console.log(
-        `[syncChatbotUsersToApp] ⏭️ SKIP (inbound < 2) | phone: ${phone} | waId: ${waId} | inboundCount: ${inboundCount}`,
+        `[syncChatbotUsersToApp] ⏭️ SKIP (inbound < 1) | phone: ${phone} | waId: ${waId} | inboundCount: ${inboundCount}`,
       );
       skipped++;
       continue;
@@ -1873,6 +1873,7 @@ export async function getChatbotMetricUsers({
   period = "total",
   page = 1,
   limit = 70,
+  search = "",
   filterByAgent = null,
   role = null,
 } = {}) {
@@ -1911,6 +1912,19 @@ export async function getChatbotMetricUsers({
   }
 
   let users = await mapBotStageRowsToTableUsers(rows);
+
+  if (search?.trim()) {
+  const q = search.trim().toLowerCase();
+
+  users = users.filter((user) => {
+    return (
+      user.email?.toLowerCase().includes(q) ||
+      user.phoneNumber?.toLowerCase().includes(q) ||
+      user.userId?.toString().toLowerCase().includes(q) ||
+      user.name?.toLowerCase().includes(q)
+    );
+  });
+}
 
   // Filter by agent if agent is viewing
   if (role === "agent" && filterByAgent) {

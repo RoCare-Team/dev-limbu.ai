@@ -1,48 +1,48 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, useCallback } from "react";
 import Lottie from "lottie-react";
 import animationData from "../../../../src/assets/animation/Loading.json";
-
 import WhatsappModal from "../../../app/admin/user-management/components/WhatsAppTemplateModel";
+import ScraperModal from "./ScraperModal"; 
 
 export default function Page() {
   const [sheet, setSheet] = useState("Sheet1");
   const [data, setData] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [searchTerm, setSearchTerm] = useState("");
-
   const [sheets, setSheets] = useState([]);
-
-  const [selectedRows, setSelectedRows] = useState([]);
-
-  // PAGINATION
+  const [selectedRows, setSelectedRows] = useState([]); 
   const [currentPage, setCurrentPage] = useState(1);
-
   const [openWhatsappModal, setOpenWhatsappModal] = useState(false);
+  const [isScraperOpen, setIsScraperOpen] = useState(false);
+  const [sendingTemplateId, setSendingTemplateId] = useState("");
 
   const usersPerPage = 20;
 
-  const sheetRows = data.slice(1);
-  const startIndex = (currentPage - 1) * usersPerPage;
-  const endIndex = startIndex + usersPerPage;
-
-  const filteredRows = data.slice(1).filter((row) =>
-    row.some((cell) =>
-      String(cell || "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()),
-    ),
-  );
-
-  const paginatedData = filteredRows.slice(startIndex, endIndex);
-
-  const totalPages = Math.ceil(filteredRows.length / usersPerPage);
-
-  const [sendingTemplateId, setSendingTemplateId] = useState("");
+  const fetchSheetData = useCallback(() => {
+    setLoading(true);
+    fetch(`/api/admin/sheets?sheet=${sheet}`)
+      .then((res) => res.json())
+      .then((result) => {
+        const uniqueData = [];
+        const seen = new Set();
+        (result.data || []).forEach((row, index) => {
+          if (index === 0) { uniqueData.push(row); return; } 
+          const businessName = String(row[0] || "").trim().toLowerCase();
+          // Deduplication ke liye clean phone use kar rahe hain
+          const cleanPhone = String(row[2] || "").replace(/\D/g, "").replace(/^91/, "");
+          if (!cleanPhone) { uniqueData.push(row); return; }
+          const key = `${businessName}-${cleanPhone}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueData.push(row);
+          }
+        });
+        setData(uniqueData);
+      })
+      .finally(() => setLoading(false));
+  }, [sheet]);
 
   useEffect(() => {
     fetch("/api/admin/sheets-list")
@@ -50,109 +50,90 @@ export default function Page() {
       .then((result) => {
         const sortedSheets = (result.sheets || []).sort((a, b) => {
           const numA = parseInt(a.replace(/\D/g, "")) || 0;
-
           const numB = parseInt(b.replace(/\D/g, "")) || 0;
-
           return numA - numB;
         });
-
         setSheets(sortedSheets);
-
-        if (sortedSheets.length > 0) {
-          setSheet(sortedSheets[0]);
-        }
+        if (sortedSheets.length > 0) setSheet(sortedSheets[0]);
       });
   }, []);
 
   useEffect(() => {
-    setLoading(true);
+    fetchSheetData();
+  }, [fetchSheetData]);
 
-    fetch(`/api/admin/sheets?sheet=${sheet}`)
-      .then((res) => res.json())
-      .then((result) => {
-        const uniqueData = [];
+  const filteredRows = data.slice(1).filter((row) =>
+    row.some((cell) => String(cell || "").toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+  
+  const startIndex = (currentPage - 1) * usersPerPage;
+  const paginatedData = filteredRows.slice(startIndex, startIndex + usersPerPage);
+  const totalPages = Math.ceil(filteredRows.length / usersPerPage);
 
-        const seen = new Set();
-
-        (result.data || []).forEach((row, index) => {
-          // HEADER
-          if (index === 0) {
-            uniqueData.push(row);
-            return;
-          }
-
-          const businessName = String(row[0] || "")
-            .trim()
-            .toLowerCase();
-
-          const phone = String(row[2] || "")
-            .replace(/\D/g, "")
-            .replace(/^91/, "");
-
-          // IF PHONE EMPTY → KEEP ROW
-          if (!phone) {
-            uniqueData.push(row);
-            return;
-          }
-
-          const key = `${businessName}-${phone}`;
-
-          if (!seen.has(key)) {
-            seen.add(key);
-
-            uniqueData.push(row);
-          }
-        });
-
-        setData(uniqueData);
-
-        setData(uniqueData);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [sheet]);
-
-  const toggleRow = (rowIndex) => {
+  const toggleRow = (index) => {
     setSelectedRows((prev) =>
-      prev.includes(rowIndex)
-        ? prev.filter((i) => i !== rowIndex)
-        : [...prev, rowIndex],
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
     );
   };
 
-  const allRows = filteredRows;
-
   const toggleAll = () => {
-    if (selectedRows.length === allRows.length) {
+    if (selectedRows.length === filteredRows.length) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(allRows.map((_, i) => i));
+      setSelectedRows(filteredRows.map((_, i) => i));
     }
   };
 
-  const selectedUsers = data
-    .slice(1)
-    .filter((_, index) => selectedRows.includes(index));
+  // ✅ UPDATED: Payload exactly as requested
+  const handleSendTemplate = async (template) => {
+    try {
+      setSendingTemplateId(template.id);
+      const adminEmail = localStorage.getItem("email");
 
-  const headers = data[0] || [];
+      const selectedUsersPayload = filteredRows
+        .filter((_, idx) => selectedRows.includes(idx))
+        .map((row) => ({
+          name: row[0] || "User",      // Business Name
+          phone: String(row[2] || ""), // Exact string like "093190 80715"
+        }));
 
-  const phoneIndex = headers.findIndex((h) =>
-    String(h).toLowerCase().includes("phone"),
-  );
+      if (selectedUsersPayload.length === 0) {
+        alert("Please select leads first.");
+        return;
+      }
 
-  if (loading) {
+      console.log("Sending Payload:", selectedUsersPayload); // Debugging ke liye
+
+      const response = await fetch("/api/admin/user-management-template-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          users: selectedUsersPayload,
+          templateId: template.id,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert("WhatsApp Template Sent Successfully!");
+        setOpenWhatsappModal(false);
+        setSelectedRows([]);
+      } else {
+        alert(result.message || "Failed to send template");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error occurred while sending.");
+    } finally {
+      setSendingTemplateId("");
+    }
+  };
+
+  if (loading && data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-indigo-50 to-purple-50">
-        <div className="text-center">
-          <div className="w-40 h-40 mx-auto flex items-center justify-center">
-            <Lottie
-              animationData={animationData}
-              loop={true}
-              className="w-full h-full"
-            />
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <Lottie animationData={animationData} loop={true} className="w-40 h-40" />
       </div>
     );
   }
@@ -160,197 +141,91 @@ export default function Page() {
   return (
     <>
       <div className="p-6">
-        <h1 className="text-2xl font-bold mb-4">Google Sheet Data</h1>
-
-        <div className="mb-4 flex justify-end">
-          <div className="flex gap-2 w-full max-w-md">
-            <input
-              type="text"
-              placeholder="Search business, phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  setCurrentPage(1);
-                }
-              }}
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-
-            <button
-              onClick={() => setCurrentPage(1)}
-              className="rounded-xl bg-blue-600 px-5 py-3 text-white font-semibold hover:bg-blue-700"
-            >
-              Search
-            </button>
-          </div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">Google Sheet Data</h1>
+          <button 
+            onClick={() => setIsScraperOpen(true)}
+            className="bg-black text-white px-5 py-2.5 rounded-xl font-medium hover:bg-gray-800 transition flex items-center gap-2"
+          >
+            <span>➕</span> Scrape New Data
+          </button>
         </div>
 
-        {/* SHEETS */}
-        <div className="flex gap-4 mb-4 flex-wrap">
-          {sheets.map((sheetName) => (
-            <button
-              key={sheetName}
-              onClick={() => {
-                setSheet(sheetName);
-                setCurrentPage(1);
-                setSelectedRows([]);
-              }}
-              className={`px-4 py-2 rounded ${
-                sheet === sheetName ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
-            >
-              {sheetName}
-            </button>
-          ))}
+        <div className="mb-4 flex flex-col md:flex-row gap-4 justify-between items-end">
+            <div className="flex gap-4 overflow-x-auto pb-2 w-full md:w-auto">
+                {sheets.map((sheetName) => (
+                    <button
+                        key={sheetName}
+                        onClick={() => { setSheet(sheetName); setCurrentPage(1); setSelectedRows([]); }}
+                        className={`px-4 py-2 rounded-lg whitespace-nowrap transition ${sheet === sheetName ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}`}
+                    >
+                        {sheetName}
+                    </button>
+                ))}
+            </div>
+
+            <div className="flex gap-2 w-full max-w-md">
+                <input
+                    type="text"
+                    placeholder="Search business, phone..."
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    className="flex-1 rounded-xl border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+            </div>
         </div>
 
-        {/* SELECTED BAR */}
         {selectedRows.length > 0 && (
-          <div className="mb-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-2xl bg-green-600 px-6 py-4 shadow-lg">
+          <div className="mb-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 rounded-2xl bg-green-600 px-6 py-4 shadow-lg text-white">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white text-xl">
-                💬
-              </div>
-
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500 text-white text-xl">💬</div>
               <div>
                 <p className="text-sm text-green-100">Selected leads</p>
-
-                <h2 className="text-3xl font-bold text-white">
-                  {selectedRows.length}
-                </h2>
+                <h2 className="text-3xl font-bold">{selectedRows.length}</h2>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
-              <button
-                onClick={() => setOpenWhatsappModal(true)}
-                className="rounded-2xl bg-white px-6 py-3 font-semibold text-green-600 shadow hover:scale-105 transition"
-              >
-                WhatsApp
-              </button>
-
-              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-blue-600 shadow hover:scale-105 transition">
-                RCS
-              </button>
-
-              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-purple-600 shadow hover:scale-105 transition">
-                Email
-              </button>
-
-              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-orange-600 shadow hover:scale-105 transition">
-                SMS
-              </button>
+              <button onClick={() => setOpenWhatsappModal(true)} className="rounded-2xl bg-white px-6 py-3 font-semibold text-green-600 shadow hover:scale-105 transition">WhatsApp</button>
+              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-blue-600 shadow hover:scale-105 transition">RCS</button>
+              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-purple-600 shadow hover:scale-105 transition">Email</button>
+              <button className="rounded-2xl bg-white px-6 py-3 font-semibold text-orange-600 shadow hover:scale-105 transition">SMS</button>
             </div>
           </div>
         )}
 
-        {/* TABLE */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="overflow-auto max-h-[80vh]">
+          <div className="overflow-auto max-h-[70vh]">
             <table className="min-w-full border-separate border-spacing-0">
-              {/* HEADER */}
-              <thead className="sticky top-0 z-20 bg-[#f8fafc] border-b border-gray-200">
+              <thead className="sticky top-0 bg-gray-50 z-10">
                 <tr>
-                  <th className="px-6 py-4 border-b border-gray-200">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedRows.length === data.slice(1).length &&
-                        data.slice(1).length > 0
-                      }
-                      onChange={toggleAll}
-                      className="h-4 w-4 cursor-pointer"
+                  <th className="p-4 border-b text-center">
+                    <input 
+                      type="checkbox" 
+                      onChange={toggleAll} 
+                      checked={selectedRows.length === filteredRows.length && filteredRows.length > 0} 
                     />
                   </th>
-
-                  {data[0]?.map((header, index) => (
-                    <th
-                      key={index}
-                      className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap border-b border-gray-200"
-                    >
-                      {header}
-                    </th>
+                  {data[0]?.map((h, i) => (
+                    <th key={i} className="p-4 text-left text-xs font-bold uppercase text-gray-500 border-b">{h}</th>
                   ))}
                 </tr>
               </thead>
-
-              {/* BODY */}
-              <tbody className="bg-white">
+              <tbody>
                 {paginatedData.map((row, rowIndex) => {
-                  const globalIndex = startIndex + rowIndex;
-
+                  const actualIndex = startIndex + rowIndex;
                   return (
-                    <tr
-                      key={rowIndex}
-                      className="group transition-all duration-200 hover:bg-gray-50 border-b border-gray-200 shadow-[0_1px_0_0_#e5e7eb]"
-                    >
-                      <td className="px-6 py-5 border-b border-gray-200">
-                        <input
-                          type="checkbox"
-                          checked={selectedRows.includes(globalIndex)}
-                          onChange={() => toggleRow(globalIndex)}
-                          className="h-4 w-4 cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    <tr key={rowIndex} className={`hover:bg-gray-50 border-b transition ${selectedRows.includes(actualIndex) ? 'bg-blue-50' : ''}`}>
+                      <td className="p-4 border-b text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedRows.includes(actualIndex)} 
+                          onChange={() => toggleRow(actualIndex)} 
                         />
                       </td>
-
                       {row.map((cell, cellIndex) => (
-                        <td
-                          key={cellIndex}
-                          className="px-6 py-5 border-b border-gray-200 align-top"
-                        >
-                          {cellIndex === 1 ? (
-                            <details className="max-w-[240px] group/details">
-                              <summary className="list-none cursor-pointer">
-                                <div className="text-gray-700 text-sm leading-6 line-clamp-2">
-                                  {cell}
-                                </div>
-
-                                <span className="mt-1 inline-block text-xs font-medium text-blue-600 hover:underline">
-                                  See more
-                                </span>
-                              </summary>
-
-                              <div className="mt-3 rounded-xl bg-gray-50 p-3 text-sm text-gray-600 leading-6 border border-gray-200">
-                                {cell}
-                              </div>
-                            </details>
-                          ) : (
-                            <div
-                              className={`${
-                                cellIndex === 2 ||
-                                cellIndex === 4 ||
-                                cellIndex === 5
-                                  ? "whitespace-nowrap"
-                                  : "break-words max-w-[260px]"
-                              }`}
-                            >
-                              {cellIndex === 3 && cell ? (
-                                <a
-                                  href={cell}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition"
-                                >
-                                  Visit
-                                </a>
-                              ) : cellIndex === 4 ? (
-                                <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                                  ⭐ {cell}
-                                </span>
-                              ) : cellIndex === 5 ? (
-                                <span className="inline-flex rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
-                                  {cell} Reviews
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-700 leading-6">
-                                  {cellIndex === 2 && cell
-                                    ? `+91 ${cell.replace(/^0+/, "")}`
-                                    : cell}
-                                </span>
-                              )}
-                            </div>
-                          )}
+                        <td key={cellIndex} className="p-4 text-sm border-b truncate max-w-[200px]">
+                           {cell} 
                         </td>
                       ))}
                     </tr>
@@ -361,77 +236,27 @@ export default function Page() {
           </div>
         </div>
 
-        {/* PAGINATION */}
-        <div className="flex items-center justify-center gap-3 p-5 border-t border-gray-200 bg-white">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          >
-            Previous
-          </button>
-
-          <div className="text-sm font-semibold text-gray-700">
-            Page {currentPage} of {totalPages}
-          </div>
-
-          <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={currentPage === totalPages}
-            className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          >
-            Next
-          </button>
+        <div className="mt-4 flex justify-center items-center gap-4">
+           <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-4 py-2 bg-gray-100 rounded-lg disabled:opacity-50">Prev</button>
+           <span className="text-sm font-medium">Page {currentPage} of {totalPages}</span>
+           <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">Next</button>
         </div>
       </div>
 
-      <WhatsappModal
-        isOpen={openWhatsappModal}
-        setIsOpen={setOpenWhatsappModal}
+      <WhatsappModal 
+        isOpen={openWhatsappModal} 
+        setIsOpen={setOpenWhatsappModal} 
         selectedCount={selectedRows.length}
         sendingTemplateId={sendingTemplateId}
-        onSendTemplate={async (template) => {
-          try {
-            setSendingTemplateId(template.id);
+        onSendTemplate={handleSendTemplate}
+      />
 
-            const adminEmail = localStorage.getItem("email");
-
-            const usersPayload = selectedUsers.map((row) => ({
-              name: row[0] || "User",
-              phone: row[2] || "",
-            }));
-
-            const response = await fetch(
-              "/api/admin/user-management-template-whatsapp",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  adminEmail,
-                  users: usersPayload,
-                  templateId: template.id,
-                }),
-              },
-            );
-
-            const result = await response.json();
-
-            if (result.success) {
-              alert("WhatsApp Template Sent");
-            } else {
-              alert(result.message || "Failed To Send");
-            }
-          } catch (error) {
-            console.log(error);
-            alert("Failed To Send Template");
-          } finally {
-            setSendingTemplateId("");
-          }
-        }}
+      <ScraperModal 
+        isOpen={isScraperOpen} 
+        onClose={() => setIsScraperOpen(false)} 
+        sheets={sheets}
+        currentSheet={sheet}
+        onScrapeComplete={() => fetchSheetData()}
       />
     </>
   );

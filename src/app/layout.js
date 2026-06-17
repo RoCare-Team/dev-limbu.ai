@@ -104,8 +104,7 @@ export default function RootLayout({ children }) {
             j.async=true;j.src=
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;
             f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-WTLTD58F');
-;
+            })(window,document,'script','dataLayer','GTM-WCPTXKLC');
           `}
         </Script>
 
@@ -120,7 +119,6 @@ export default function RootLayout({ children }) {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-;
             fbq('init', '1388988219494781');
             fbq('track', 'PageView');
           `}
@@ -131,7 +129,7 @@ export default function RootLayout({ children }) {
         {/* ---------------- GTM (noscript) ---------------- */}
         <noscript>
           <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-WTLTD58F"
+            src="https://www.googletagmanager.com/ns.html?id=GTM-WCPTXKLC"
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}
@@ -151,8 +149,6 @@ export default function RootLayout({ children }) {
 
         <SessionProviderWrapper>
           <InitAuth />
-
-          {/* 🔥 Single source of truth for auth */}
           <ClientLayout>
             <AuthGuard>{children}</AuthGuard>
           </ClientLayout>

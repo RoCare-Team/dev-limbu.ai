@@ -599,6 +599,8 @@ const updated = await FranchiseRevenue.findByIdAndUpdate(
   { new: true }
 );
 
+// console.log("UPDATED REVENUE RECORD =>", updated);
+
   // console.log("PACKAGE UPDATE DATA", {
   //   leadId: updated?.leadId,
   //   packageStartDate,

@@ -179,36 +179,35 @@ export default function Sidebar({ children }) {
           {isOpen && (
             <div className="mb-3 px-1">
               <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2">
-                {userData?.paidPackage && (
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                        Package Plan
-                      </p>
+               {/* PACKAGE */}
+{userData?.paidPackage && (
+  <div className="flex items-center justify-between mb-2">
+    <div>
+      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+        Package Plan
+      </p>
 
-                      {/* YELLOW BG ADDED */}
-                      <p className="inline-block mt-1 px-2 py-1  rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
-                        {userData.paidPackage}
-                      </p>
-                    </div>
-                  </div>
-                )}
+      <p className="inline-block mt-1 px-2 py-1 rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
+        {userData?.paidPackage}
+      </p>
+    </div>
+  </div>
+)}
 
-                {/* SERVICE */}
-                {userData?.paidService && (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
-                        Service pLan
-                      </p>
+{/* SERVICE */}
+{userData?.paidService && (
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+        Service Plan
+      </p>
 
-                      {/* YELLOW BG ADDED */}
-                      <p className="inline-block mt-1 px-2 py-1 rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
-                        {userData.paidService}
-                      </p>
-                    </div>
-                  </div>
-                )}
+      <p className="inline-block mt-1 px-2 py-1 rounded-md bg-yellow-400 text-[10px] font-black text-slate-900 leading-tight">
+        {userData?.paidService}
+      </p>
+    </div>
+  </div>
+)}
 
                 {/* FREE USER */}
                 {!userData?.paidPackage && !userData?.paidService && (

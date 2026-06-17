@@ -1,5 +1,3 @@
-
-
 "use client";
 
 import {
@@ -23,21 +21,24 @@ export default function RevenueStats({
   todayRevenue,
   revenueUsersList,
   users,
-
+  cardFilter,
+  setCardFilter,
 }) {
-
-
-  
-
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
       {/* TOTAL Revenue USERS */}
-      <div className="bg-white rounded-2xl p-5  shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
+      <div
+        onClick={() => setCardFilter("")}
+        className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
+    ${
+      cardFilter === ""
+        ? "border-indigo-600 ring-2 ring-indigo-300"
+        : "border-gray-100"
+    }`}
+      >
         <div>
           <p className="text-sm text-gray-500">Total Revenue Users</p>
-          <h2 className="text-2xl font-bold text-dark  mt-2">
-            {totalUsers}
-          </h2>
+          <h2 className="text-2xl font-bold text-dark mt-2">{totalUsers}</h2>
         </div>
 
         <div className="bg-indigo-100 text-dark p-3 rounded-xl">
@@ -46,45 +47,70 @@ export default function RevenueStats({
       </div>
 
       {/* TODAY Revenue USERS */}
-      <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
+      <div
+        onClick={() => setCardFilter("today_users")}
+        className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
+    ${
+      cardFilter === "today_users"
+        ? "border-blue-600 ring-2 ring-blue-300"
+        : "border-gray-100"
+    }`}
+      >
         <div>
           <p className="text-sm text-gray-500">Today Revenue Users</p>
+
           <h2 className="text-2xl font-bold text-gray-700 mt-2">
             {todayUsers.length}
           </h2>
         </div>
 
-        <div className="bg-blue-100 text-da p-3 rounded-xl">
+        <div className="bg-blue-100 p-3 rounded-xl">
           <Users size={20} />
         </div>
       </div>
 
       {/* TOTAL REVENUE */}
-      <div className="bg-white rounded-2xl p-3 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between ">
+      <div
+        onClick={() => setCardFilter("")}
+        className={`bg-white rounded-2xl p-3 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
+    ${
+      cardFilter === ""
+        ? "border-blue-600 ring-2 ring-blue-300"
+        : "border-gray-100"
+    }`}
+      >
         <div>
           <p className="text-sm text-dark opacity-90">Total Revenue</p>
-       <h2 className="text-2xl text-gray-700 font-bold mt-2">
-  ₹{
-    activeView === "package"
-      ? revenueUsersList
-          .filter((r) => r.type === "user_onboard")
-          .reduce((sum, r) => sum + Number(r.amount || 0), 0)
-          .toLocaleString("en-IN")
-      : revenueUsersList
-          .filter((r) => r.type === "service")
-          .reduce((sum, r) => sum + Number(r.amount || 0), 0)
-          .toLocaleString("en-IN")
-  }
-</h2>
+
+          <h2 className="text-2xl text-gray-700 font-bold mt-2">
+            ₹
+            {activeView === "package"
+              ? revenueUsersList
+                  .filter((r) => r.type === "user_onboard")
+                  .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+                  .toLocaleString("en-IN")
+              : revenueUsersList
+                  .filter((r) => r.type === "service")
+                  .reduce((sum, r) => sum + Number(r.amount || 0), 0)
+                  .toLocaleString("en-IN")}
+          </h2>
         </div>
 
-        <div className="bg-blue-100 p-3  text-gray-700 rounded-xl backdrop-blur ml-2">
+        <div className="bg-blue-100 p-3 text-gray-700 rounded-xl backdrop-blur ml-2">
           <IndianRupee size={20} />
         </div>
       </div>
 
       {/* TODAY REVENUE */}
-      <div className="bg-white rounded-2xl p-5 shadow-md border border-gray-100 hover:shadow-lg transition flex items-center justify-between">
+      <div
+        onClick={() => setCardFilter("today_revenue")}
+        className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
+            ${
+              cardFilter === "today_revenue"
+                ? "border-purple-600 ring-2 ring-purple-300"
+                : "border-gray-100"
+            }`}
+      >
         <div>
           <p className="text-sm text-gray-500 whitespace-nowrap">
             Today Revenue
@@ -103,9 +129,14 @@ export default function RevenueStats({
       {activeView === "package" && (
         <>
           {/* BASIC */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("basic")}
+            className={`bg-indigo-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+               ${cardFilter === "basic" ? "border-indigo-500" : "border-indigo-200"}`}
+          >
             <div>
               <p className="text-sm text-gray-600">Basic Plan</p>
+
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
                   revenueUsersList.filter((r) =>
@@ -121,9 +152,14 @@ export default function RevenueStats({
           </div>
 
           {/* PROFESSIONAL */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("professional")}
+            className={`bg-blue-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+                  ${cardFilter === "professional" ? "border-blue-500" : "border-blue-200"}`}
+          >
             <div>
               <p className="text-sm text-gray-600">Professional</p>
+
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
                   revenueUsersList.filter((r) =>
@@ -137,11 +173,17 @@ export default function RevenueStats({
               <Briefcase size={24} />
             </div>
           </div>
-
           {/* PREMIUM */}
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("premium")}
+            className={`bg-purple-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+                ${
+                  cardFilter === "premium" ? "border-purple-500" : "border-purple-200"
+                }`}
+          >
             <div>
               <p className="text-sm text-gray-600">Premium</p>
+
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
                   revenueUsersList.filter((r) =>
@@ -157,28 +199,17 @@ export default function RevenueStats({
           </div>
 
           {/* TODAY EXPIRE */}
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+
+          <div
+            onClick={() => setCardFilter("today")}
+            className={`bg-orange-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+                ${cardFilter === "today" ? "border-orange-500" : "border-orange-200"}`}
+          >
             <div>
               <p className="text-sm text-gray-600">Today Expire Users</p>
 
               <h2 className="text-2xl font-bold text-orange-600 mt-2">
-                {
-                  revenueUsersList.filter((r) => {
-                    const expiry =
-                      r.userPackageExpiryDate || r.packageExpiryDate;
-
-                    if (!expiry) return false;
-
-                    const expiryDate = new Date(expiry);
-                    const today = new Date();
-
-                    return (
-                      expiryDate.getDate() === today.getDate() &&
-                      expiryDate.getMonth() === today.getMonth() &&
-                      expiryDate.getFullYear() === today.getFullYear()
-                    );
-                  }).length
-                }
+                {/* count */}
               </h2>
             </div>
 
@@ -188,7 +219,15 @@ export default function RevenueStats({
           </div>
 
           {/* NEXT 7 DAYS */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("7days")}
+            className={`bg-yellow-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+              ${
+                cardFilter === "7days"
+                  ? "border-yellow-500 ring-2 ring-yellow-300"
+                  : "border-yellow-200"
+              }`}
+          >
             <div>
               <p className="text-sm text-gray-600">Next 7 Days Expire</p>
 
@@ -219,7 +258,15 @@ export default function RevenueStats({
           </div>
 
           {/* THIS MONTH */}
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("this_month")}
+            className={`bg-blue-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+                ${
+                  cardFilter === "this_month"
+                    ? "border-blue-600 ring-2 ring-blue-300"
+                    : "border-blue-200"
+                }`}
+          >
             <div>
               <p className="text-sm text-gray-600">This Month Expire</p>
 
@@ -232,7 +279,6 @@ export default function RevenueStats({
                     if (!expiry) return false;
 
                     const expiryDate = new Date(expiry);
-
                     const today = new Date();
 
                     return (
@@ -250,7 +296,15 @@ export default function RevenueStats({
           </div>
 
           {/* EXPIRED */}
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+          <div
+            onClick={() => setCardFilter("expired")}
+            className={`bg-red-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
+              ${
+                cardFilter === "expired"
+                  ? "border-red-600 ring-2 ring-red-300"
+                  : "border-red-200"
+              }`}
+          >
             <div>
               <p className="text-sm text-gray-600">Expired Users</p>
 
@@ -275,57 +329,55 @@ export default function RevenueStats({
         </>
       )}
 
+      {activeView === "service" && (
+        <>
+          {/* ASSISTANCE */}
+          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Assistance</p>
+              <h2 className="text-2xl font-bold text-gray-700 mt-2">
+                {
+                  revenueUsersList.filter(
+                    (r) =>
+                      r.type === "service" &&
+                      r.status === "active" &&
+                      (r.paidService || r.plan || "")
+                        .toLowerCase()
+                        .includes("assistance"),
+                  ).length
+                }
+              </h2>
+            </div>
 
+            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
+              <Headphones size={24} />
+            </div>
+          </div>
 
-{activeView === "service" && (
-  <>
-    {/* ASSISTANCE */}
-    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-600">Assistance</p>
-        <h2 className="text-2xl font-bold text-gray-700 mt-2">
-          {
-            revenueUsersList.filter(
-              (r) =>
-                r.type === "service" &&
-                r.status === "active" &&
-                (r.paidService || r.plan || "")
-                  .toLowerCase()
-                  .includes("assistance")
-            ).length
-          }
-        </h2>
-      </div>
+          {/* CREATION */}
+          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Creation</p>
+              <h2 className="text-2xl font-bold text-gray-700 mt-2">
+                {
+                  revenueUsersList.filter(
+                    (r) =>
+                      r.type === "service" &&
+                      r.status === "active" &&
+                      (r.paidService || r.plan || "")
+                        .toLowerCase()
+                        .includes("creation"),
+                  ).length
+                }
+              </h2>
+            </div>
 
-      <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-        <Headphones size={24} />
-      </div>
-    </div>
-
-    {/* CREATION */}
-    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-600">Creation</p>
-        <h2 className="text-2xl font-bold text-gray-700 mt-2">
-          {
-            revenueUsersList.filter(
-              (r) =>
-                r.type === "service" &&
-                r.status === "active" &&
-                (r.paidService || r.plan || "")
-                  .toLowerCase()
-                  .includes("creation")
-            ).length
-          }
-        </h2>
-      </div>
-
-      <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-        <Settings size={24} />
-      </div>
-    </div>
-  </>
-)}
+            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
+              <Settings size={24} />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

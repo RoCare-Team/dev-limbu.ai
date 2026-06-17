@@ -28,6 +28,37 @@ const formatCurrency = (amount) => {
   return Number(amount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+export async function generateInvoicePDFBuffer(revenue) {
+  const amount = Number(revenue.amount || 0);
+
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 40,
+    bufferPages: true,
+  });
+
+  const buffers = [];
+
+  doc.on("data", buffers.push.bind(buffers));
+
+  const pdfPromise = new Promise((resolve) =>
+    doc.on("end", () => resolve(Buffer.concat(buffers)))
+  );
+
+  // yahan wahi PDF wala code aayega jo abhi GET ke andar hai
+  // revenue.leadName
+  // revenue.plan
+  // revenue.amount
+  // revenue.phone
+  // revenue.email
+  // etc...
+
+  doc.end();
+
+  return await pdfPromise;
+}
+
+
 export async function GET(req) {
   try {
     await connectDB();

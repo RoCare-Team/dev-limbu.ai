@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Bakery & Cake Shop Marketing Software | Limbu.ai",
   description: "Promote your bakery online, automate delicious posts, and collect sweet 5-star customer reviews using Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/bakery-marketing-software" },
 };
 

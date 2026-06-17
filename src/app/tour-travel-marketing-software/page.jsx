@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Tour & Travel Marketing Software | Limbu.ai",
   description: "Increase tour bookings, auto-publish travel content, and collect glowing vacation reviews with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/tour-travel-marketing-software" },
 };
 

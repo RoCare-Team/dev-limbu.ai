@@ -138,6 +138,7 @@ function MetricBlock({
   activeCardKey,
   onSelect,
   agentTodayLeads = null, // 👈 ADD
+  role = null, // 👈 ADD
 }) {
   const style = METRIC_STYLES[metricId] || METRIC_STYLES.chatsCreated;
   const totalKey = `${metricId}:total`;
@@ -216,7 +217,7 @@ function MetricBlock({
       </Stack>
 
       {/* 👇 Sirf agent ke liye, sirf chatsCreated card mein */}
-      {agentTodayLeads !== null && (
+      {role === "agent" && agentTodayLeads !== null && (
         <Box
           sx={{
             borderTop: `2px solid ${style.color}30`,
@@ -236,8 +237,9 @@ function MetricBlock({
               lineHeight: 1,
             }}
           >
-            My Leads
+           Today My Leads
           </Typography>
+
           <Typography
             sx={{
               mt: 0.75,
@@ -264,6 +266,7 @@ export default function ChatbotSummaryMetrics({
   onRefresh,
   onSelectCard,
   agentTodayLeads = null, // 👈 NEW PROP
+  role = null, // 👈 NEW PROP
 }) {
   return (
     <Card
@@ -368,6 +371,7 @@ export default function ChatbotSummaryMetrics({
             activeCardKey={activeCardKey}
             onSelect={onSelectCard}
             agentTodayLeads={row.showAgentLeads ? agentTodayLeads : null} // 👈 ADD
+            role={role} // 👈 PASS ROLE
           />
         ))}
       </Box>

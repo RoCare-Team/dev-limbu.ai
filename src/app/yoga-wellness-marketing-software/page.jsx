@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Yoga & Wellness Marketing Software | Limbu.ai",
   description: "Attract more wellness clients, automate mindful social posts, and manage center reviews with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/yoga-wellness-marketing-software" },
 };
 

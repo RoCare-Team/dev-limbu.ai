@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Pest Control Marketing Software | Limbu.ai",
   description: "Grow your pest control business with automated local SEO, 5-star customer reviews, and smart online presence management.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/pest-control-marketing-software" },
 };
 

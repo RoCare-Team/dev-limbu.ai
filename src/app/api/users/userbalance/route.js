@@ -29,22 +29,95 @@ if (!user) {
   );
 }
 
-const latestPackage = await FranchiseRevenue.findOne({
+const today = new Date();
+
+const activePackages = await FranchiseRevenue.find({
   leadId: user.userId,
   type: { $in: ["user_onboard", "plan"] },
-}).sort({ createdAt: -1 });
+  status: { $in: ["active", "user_onboard"] },
+});
 
-const latestService = await FranchiseRevenue.findOne({
+
+
+const activeServices = await FranchiseRevenue.find({
   leadId: user.userId,
   type: "service",
-}).sort({ createdAt: -1 });
+});
+
+const now = new Date();
+
+const validPackages = activePackages.filter(
+  (p) =>
+    p.packageExpiryDate &&
+    new Date(p.packageExpiryDate) >= now
+);
+
+const validServices = activeServices.filter(
+  (p) =>
+    p.packageExpiryDate &&
+    new Date(p.packageExpiryDate) >= now
+);
+
+console.log(
+  "PACKAGES =>",
+  validPackages.map((p) => ({
+    plan: p.plan,
+    type: p.type,
+    status: p.status,
+    expiry: p.packageExpiryDate,
+  }))
+);
+
+
+const uniquePackages = Object.values(
+  validPackages.reduce((acc, item) => {
+    if (
+      item.plan &&
+      (
+        !acc[item.plan] ||
+        new Date(item.createdAt) > new Date(acc[item.plan].createdAt)
+      )
+    ) {
+      acc[item.plan] = item;
+    }
+
+    return acc;
+  }, {})
+);
+
+const uniqueServices = Object.values(
+  validServices.reduce((acc, item) => {
+    if (
+      item.plan &&
+      (
+        !acc[item.plan] ||
+        new Date(item.createdAt) > new Date(acc[item.plan].createdAt)
+      )
+    ) {
+      acc[item.plan] = item;
+    }
+
+    return acc;
+  }, {})
+);
+
+
+
 
 return NextResponse.json({
   success: true,
   user: {
     ...user.toObject(),
-    paidPackage: latestPackage?.plan || "",
-    paidService: latestService?.plan || "",
+
+    activePackages: uniquePackages.map((p) => ({
+  _id: p._id,
+  plan: p.plan,
+})),
+
+activeServices: uniqueServices.map((p) => ({
+  _id: p._id,
+  plan: p.plan,
+})),
   },
 });
     }

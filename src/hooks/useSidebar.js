@@ -55,11 +55,12 @@ export function useSidebar() {
       const data = await res.json();
 
       setUserData((prev) => ({
-        ...prev,
+  ...prev,
 
-        paidPackage: data?.user?.paidPackage || "",
-        paidService: data?.user?.paidService || "",
-      }));
+  activePackages: data?.user?.activePackages || [],
+  activeServices: data?.user?.activeServices || [],
+}));
+console.log("USER PLAN DATA =>", data.user);
     }
   } catch (err) {
     console.error("Plan fetch error", err);

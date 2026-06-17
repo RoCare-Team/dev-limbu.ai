@@ -357,24 +357,32 @@ try {
   // 🔥 TODAY REVENUE
 
   const todayRevenue =
-    activeView === "package"
-      ? revenueUsersList
-          .filter((item) => {
-            // ✅ Sirf package records
-            if (item.type !== "user_onboard") return false;
-            if (item.status !== "active") return false;
-            if (!item.createdAt) return false;
+  activeView === "package"
+    ? revenueUsersList
+        .filter((item) => {
 
-            return new Date(item.createdAt).toDateString() === today;
-          })
-          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-      : serviceRows
-          .filter((item) => {
-            if (!item.createdAt) return false;
+          if (
+            item.type !== "user_onboard" &&
+            item.type !== "plan"
+          )
+            return false;
 
-            return new Date(item.createdAt).toDateString() === today;
-          })
-          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+          if (item.status !== "active") return false;
+
+          if (!item.createdAt) return false;
+
+          return (
+            new Date(item.createdAt).toDateString() === today
+          );
+        })
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+    : serviceRows
+        .filter((item) => {
+          if (!item.createdAt) return false;
+
+          return new Date(item.createdAt).toDateString() === today;
+        })
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
 
 
@@ -467,25 +475,7 @@ try {
       // console.log("📦 REVENUE LIST:", data.revenue);
 
       if (data.success) {
-
- const latestRevenue = Object.values(
-  (data.revenue || []).reduce((acc, item) => {
-    const existing = acc[item.leadId];
-
-    if (
-      !existing ||
-      new Date(item.createdAt) >
-        new Date(existing.createdAt)
-    ) {
-        acc[item.leadId] = item;
-    }
-
-    return acc;
-  }, {})
-);
-
-  setRevenueUsersList(latestRevenue);
-
+  setRevenueUsersList(data.revenue || []);
 } else {
   setRevenueUsersList([]);
 }
@@ -851,16 +841,16 @@ try {
   setEditRemarks(item.planRemarks || "");
 
   setEditStartDate(
-    item.userPackageStartDate
-      ? new Date(item.userPackageStartDate).toISOString().split("T")[0]
-      : ""
-  );
+  item.packageStartDate
+    ? new Date(item.packageStartDate).toISOString().split("T")[0]
+    : ""
+);
 
-  setEditExpiryDate(
-    item.userPackageExpiryDate
-      ? new Date(item.userPackageExpiryDate).toISOString().split("T")[0]
-      : ""
-  );
+setEditExpiryDate(
+  item.packageExpiryDate
+    ? new Date(item.packageExpiryDate).toISOString().split("T")[0]
+    : ""
+);
 
     setEditProofImage(item.paymentScreenshot || "");
 
@@ -1156,10 +1146,10 @@ const handleUpdatePackage = async () => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-                        currentPackageRows.map((r, i) => {
+                        currentPackageRows.map((r) => {
                           return (
                             <tr
-                              key={i}
+                              key={r._id}
                               className="border-t hover:bg-gray-50 transition"
                             >
                               <td className="px-4 py-4">
@@ -1202,10 +1192,8 @@ const handleUpdatePackage = async () => {
       {r.plan}
     </span>
        {/* // revnue plan  */}
-      {(r.userPackageExpiryDate || r.packageExpiryDate) &&
- new Date(
-   r.userPackageExpiryDate || r.packageExpiryDate
- ) < new Date() && (
+      {r.packageExpiryDate &&
+ new Date(r.packageExpiryDate) < new Date() && (
     <>
       <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
         Expired
@@ -1229,7 +1217,7 @@ const handleUpdatePackage = async () => {
                               <td className="px-6 py-4 text-sm text-gray-600">
                                 {r.userPackageStartDate ? (
                                   new Date(
-                                    r.userPackageStartDate,
+                                    r.packageStartDate,
                                   ).toLocaleDateString("en-IN")
                                 ) : (
                                   <span className="text-red-500">No Date</span>
@@ -1237,9 +1225,7 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(
-  r.userPackageExpiryDate || r.packageExpiryDate
-)}
+                                {formatDateIST(r.packageExpiryDate)}
                               </td>
 
                               <td className="px-6 py-4">
@@ -1462,7 +1448,7 @@ const handleUpdatePackage = async () => {
 
                                   const rawDate =
                                     u.packageStartDate ||
-                                    u.userPackageStartDate ||
+                                  
                                     u.startDate ||
                                     u.date ||
                                     u.createdAt;

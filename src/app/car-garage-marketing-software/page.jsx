@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Car Garage Marketing Software | Limbu.ai",
   description: "Get more repair jobs, manage mechanic reviews, and boost local SEO for your car garage with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/car-garage-marketing-software" },
 };
 

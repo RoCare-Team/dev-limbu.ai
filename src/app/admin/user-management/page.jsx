@@ -3740,7 +3740,8 @@ export default function UserManagement() {
                 activeCardKey={chatbotMetricFilter?.cardKey || ""}
                 onRefresh={handleRefreshWhatsAppData}
                 onSelectCard={handleChatbotMetricCardClick}
-                agentTodayLeads={agentTodayLeads}
+                agentTodayLeads={agentTodayLeads} 
+                role={role}
               />
             </Box>
           )}

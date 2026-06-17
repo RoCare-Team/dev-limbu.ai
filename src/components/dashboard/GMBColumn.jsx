@@ -237,11 +237,18 @@ const GMBColumn = React.memo(
                     digital presence.
                   </p>
                   <button
-                    onClick={() => {
-                      const userId = getLocalStorage.getItem("userId");
-                      signIn("google", {
-                        callbackUrl: `/dashboard?userId=${userId}`,
-                      });
+                    onClick={async () => {
+                      try {
+                        const userId = localStorage.getItem("userId");
+
+                        console.log("Connecting GMB...", userId);
+
+                        await signIn("google", {
+                          callbackUrl: `/dashboard?userId=${userId}`,
+                        });
+                      } catch (err) {
+                        console.error(err);
+                      }
                     }}
                     className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]"
                   >

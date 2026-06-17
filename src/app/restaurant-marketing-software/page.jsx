@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Restaurant Marketing Software | Limbu.ai",
   description: "Drive more foot traffic to your restaurant, collect 5-star diner reviews, and auto-post your menus with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/restaurant-marketing-software" },
 };
 

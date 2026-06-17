@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Handyman Marketing Software | Limbu.ai",
   description: "Get more local repair jobs, manage service reviews, and boost your handyman business with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/handyman-marketing-software" },
 };
 

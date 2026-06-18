@@ -631,10 +631,26 @@ export default function AdminDashboard() {
           })
           .reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
-        const totalRevenue = revenueList.reduce(
-          (sum, r) => sum + Number(r.amount || 0),
-          0,
-        );
+            console.log(
+  "Revenue List",
+  revenueList.map((r) => ({
+    id: r._id,
+    type: r.type,
+    plan: r.plan,
+    amount: r.amount,
+  }))
+);
+
+console.log("Total Records:", revenueList.length);
+
+        const totalRevenue = revenue
+  .filter((r) =>
+    ["user_onboard", "plan", "service"].includes(r.type)
+  )
+  .reduce(
+    (sum, r) => sum + Number(r.amount || 0),
+    0
+  );
 
         setAgentRevenue({
           today: todayRevenue,

@@ -322,7 +322,7 @@ export async function POST(req) {
       onboardedByName: admin?.fullName || franchiseName || "",
       onboardedByRole: admin?.role || "franchiseAdmin",
 
-      email: userEmail || email || "",
+      email: userEmail || "",
       phone: phone || "",
       notes: notes || "",
       planRemarks: planRemarks || "",

@@ -10,6 +10,8 @@ import {
   getDemoBookingMetricUsers,
   normalizeBookingPhone,
 } from "@/lib/demoBookings";
+import { sendLeadAssignedTemplate } from "./sendLeadAssignedTemplate";
+import { getAgentDetails, getAgentPhone } from "@/utils/agentMapper";
 
 const LIMBUBOT_ADMIN_USERS_URL =
   process.env.LIMBUBOT_ADMIN_USERS_URL ||
@@ -425,7 +427,25 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           const assignedAgentId = await assignNextAgentId();
           if (assignedAgentId) {
             setData.assignedAgentId = assignedAgentId;
-            assigned++;
+            void fetch(
+              `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/send-lead-assigned`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  destination: getAgentDetails(assignedAgentId)?.phone, // ✅ phone directly
+                  agentName: getAgentDetails(assignedAgentId)?.name || "Agent", // ✅ name directly
+                  customerName: bot.name || bot.contact?.name || "Customer",
+                  customerPhone: bot.phone,
+                  source: "Chatbot",
+                }),
+              },
+            ).catch((err) =>
+              console.error(
+                "[LeadAssignTemplate] Existing User Error:",
+                err.message,
+              ),
+            );
           }
         }
 
@@ -450,6 +470,26 @@ export async function ensureChatbotRowsSaved(botRows = []) {
       const created = await User.create(
         buildChatbotUserPayload(bot, { email, assignedAgentId }),
       );
+
+      if (assignedAgentId) {
+        void fetch(
+          `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/send-lead-assigned`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              destination: getAgentDetails(assignedAgentId)?.phone, // ✅ phone directly
+              agentName: getAgentDetails(assignedAgentId)?.name || "Agent", // ✅ name directly
+              customerName:
+                created.fullName || bot.name || bot.contact?.name || "Customer",
+              customerPhone: created.phone,
+              source: "Chatbot",
+            }),
+          },
+        ).catch((err) =>
+          console.error("[LeadAssignTemplate] New User Error:", err.message),
+        );
+      }
 
       if (metaChatbot) {
         await User.updateOne(
@@ -1914,17 +1954,17 @@ export async function getChatbotMetricUsers({
   let users = await mapBotStageRowsToTableUsers(rows);
 
   if (search?.trim()) {
-  const q = search.trim().toLowerCase();
+    const q = search.trim().toLowerCase();
 
-  users = users.filter((user) => {
-    return (
-      user.email?.toLowerCase().includes(q) ||
-      user.phoneNumber?.toLowerCase().includes(q) ||
-      user.userId?.toString().toLowerCase().includes(q) ||
-      user.name?.toLowerCase().includes(q)
-    );
-  });
-}
+    users = users.filter((user) => {
+      return (
+        user.email?.toLowerCase().includes(q) ||
+        user.phoneNumber?.toLowerCase().includes(q) ||
+        user.userId?.toString().toLowerCase().includes(q) ||
+        user.name?.toLowerCase().includes(q)
+      );
+    });
+  }
 
   // Filter by agent if agent is viewing
   if (role === "agent" && filterByAgent) {

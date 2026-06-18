@@ -2047,28 +2047,37 @@ export default function UserManagement() {
           userMobile: user.phone || user.mobileNumber,
         };
 
-        try {
-          const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+        // try {
+        //   const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
+        //     method: "POST",
+        //     headers: { "Content-Type": "application/json" },
+        //     body: JSON.stringify(payload),
+        //   });
 
-          const waData = await waRes.json();
+        //   const waData = await waRes.json();
 
-          if (!waRes.ok || !waData.success) {
-            console.error("WhatsApp send failed:", waData);
-          } else {
-            console.log("✅ WhatsApp sent successfully");
-          }
-        } catch (err) {
-          console.error("WhatsApp API error:", err);
-        }
+        //   if (!waRes.ok || !waData.success) {
+        //     console.error("WhatsApp send failed:", waData);
+        //   } else {
+        //     console.log("✅ WhatsApp sent successfully");
+        //   }
+        // } catch (err) {
+        //   console.error("WhatsApp API error:", err);
+        // }
       }
 
       // 3️⃣ Update local state immediately
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
+          user.userId === userId
+            ? { ...user, assignedAgentId: updatedAgent }
+            : user,
+        ),
+      );
+
+      // ✅ FIX: Update chatbot metric users list
+      setChatbotMetricUsers((prev) =>
+        prev.map((user) =>
           user.userId === userId
             ? { ...user, assignedAgentId: updatedAgent }
             : user,
@@ -2083,8 +2092,6 @@ export default function UserManagement() {
           unassigned: Math.max(0, (prev.unassigned || 0) - 1),
         }));
       }
-
-      // fetchUsers(true); // Optional: refresh in background if needed
     } catch (error) {
       console.error("🚨 Assignment error:", error);
       showToast("Something went wrong while assigning.", "error");
@@ -3101,7 +3108,6 @@ export default function UserManagement() {
       messageSent = await sendRemarkWhatsApp(remarksModalUser, remarkType);
     }
 
-    // Get current admin info for call tracking
     const adminId = localStorage.getItem("adminId");
     const adminName = localStorage.getItem("adminName") || "Admin";
 
@@ -3155,13 +3161,20 @@ export default function UserManagement() {
       const data = await res.json();
       if (data.success) {
         const updatedUser = data.user;
-        // Update in-memory list without full refetch
+
+        // Update normal users list
         setUsers((prev) =>
           prev.map((u) =>
             u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
           ),
         );
-          
+
+        // ✅ FIX: Update chatbot metric users list for real-time remark count
+        setChatbotMetricUsers((prev) =>
+          prev.map((u) =>
+            u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
+          ),
+        );
 
         setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
@@ -3742,7 +3755,7 @@ export default function UserManagement() {
                 activeCardKey={chatbotMetricFilter?.cardKey || ""}
                 onRefresh={handleRefreshWhatsAppData}
                 onSelectCard={handleChatbotMetricCardClick}
-                agentTodayLeads={agentTodayLeads} 
+                agentTodayLeads={agentTodayLeads}
                 role={role}
               />
             </Box>
@@ -5143,6 +5156,39 @@ export default function UserManagement() {
                                               {user.remarksHistory?.length || 0}
                                             </span>
                                           </div>
+
+                                          {/* ✅ Last remark date/time */}
+                                          {user.remarksHistory?.length > 0 &&
+                                            (() => {
+                                              const lastRemark =
+                                                user.remarksHistory[
+                                                  user.remarksHistory.length - 1
+                                                ];
+                                              const date = lastRemark?.createdAt
+                                                ? new Date(lastRemark.createdAt)
+                                                : null;
+                                              return date ? (
+                                                <div className="text-[10px] text-blue-400 font-bold mt-1">
+                                                  {date.toLocaleDateString(
+                                                    "en-IN",
+                                                    {
+                                                      day: "numeric",
+                                                      month: "short",
+                                                      year: "2-digit",
+                                                    },
+                                                  )}{" "}
+                                                  {date.toLocaleTimeString(
+                                                    "en-IN",
+                                                    {
+                                                      hour: "2-digit",
+                                                      minute: "2-digit",
+                                                      hour12: true,
+                                                    },
+                                                  )}
+                                                </div>
+                                              ) : null;
+                                            })()}
+
                                           {user.Remarks && (
                                             <div className="text-[10px] text-gray-500 truncate max-w-[150px] mt-1 italic">
                                               {user.Remarks}

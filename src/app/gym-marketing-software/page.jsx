@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Gym Marketing Software & Local SEO | Limbu.ai",
   description: "Automate gym marketing, increase memberships, and collect 5-star reviews with Limbu AI's smart software for fitness centres.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/gym-marketing-software" },
 };
 

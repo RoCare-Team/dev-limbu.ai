@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Salon Marketing Software | Limbu.ai",
   description: "Get more local salon bookings, automate your Instagram posts, and build a 5-star reputation with Limbu AI.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/salon-marketing-software" },
 };
 

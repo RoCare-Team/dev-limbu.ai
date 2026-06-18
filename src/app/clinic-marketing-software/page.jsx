@@ -4,7 +4,7 @@ import SchemaMarkup from "@/components/SchemaMarkup";
 export const metadata = {
   title: "Clinic Marketing Software for Doctors | Limbu.ai",
   description: "Boost your clinic's local SEO, manage patient reviews, and grow your medical practice with Limbu AI's automated marketing tools.",
-  robots: { index: false, follow: true },
+  robots: { index: true, follow: true },
   alternates: { canonical: "https://www.limbu.ai/clinic-marketing-software" },
 };
 

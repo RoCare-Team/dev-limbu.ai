@@ -28,6 +28,7 @@ import {
   getFranchiseUserFromStorage,
 } from "@/lib/franchiseAuth";
 import toast, { Toaster } from "react-hot-toast";
+import ScraperModal from "../../components/FrenchieseScrapeModel";
 
 const STAGES = ["Active", "Follow Up", "Inactive", "Onboard"];
 const STATUSES = ["", "Hot", "Warm", "Cold"];
@@ -56,6 +57,9 @@ export default function UserManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalLeads, setTotalLeads] = useState(0);
   const [leadStats, setLeadStats] = useState(null);
+
+  //scrape model state
+  const [isScraperOpen, setIsScraperOpen] = useState(false);
 
   // Modal state
   const [openAddModal, setOpenAddModal] = useState(false);
@@ -384,7 +388,7 @@ export default function UserManagement() {
   return (
     <>
       <div className="p-2">
-      {/* Toaster is rendered at root level below */}
+        {/* Toaster is rendered at root level below */}
 
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -412,6 +416,14 @@ export default function UserManagement() {
             >
               <span className="text-lg leading-none">+</span>
               Add Lead
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsScraperOpen(true)} // Updated this line
+              className="inline-flex items-center gap-2 rounded-lg bg-gray-950 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-800"
+            >
+              <span className="text-lg leading-none">+</span>
+              Scrape Data
             </button>
           </div>
         </div>
@@ -452,13 +464,19 @@ export default function UserManagement() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="13" className="px-5 py-10 text-center text-gray-500">
+                  <td
+                    colSpan="13"
+                    className="px-5 py-10 text-center text-gray-500"
+                  >
                     Loading...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan="13" className="px-5 py-10 text-center text-gray-500">
+                  <td
+                    colSpan="13"
+                    className="px-5 py-10 text-center text-gray-500"
+                  >
                     No users found
                   </td>
                 </tr>
@@ -753,6 +771,15 @@ export default function UserManagement() {
           showToast={showToast}
         />
       )}
+
+      <ScraperModal
+        isOpen={isScraperOpen}
+        onClose={() => setIsScraperOpen(false)}
+        onScrapeComplete={() => {
+          fetchUsers(1);
+          setIsScraperOpen(false);
+        }}
+      />
     </>
   );
 }

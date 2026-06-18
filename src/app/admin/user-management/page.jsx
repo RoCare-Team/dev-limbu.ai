@@ -3161,6 +3161,8 @@ export default function UserManagement() {
             u.userId === updatedUser.userId ? { ...u, ...updatedUser } : u,
           ),
         );
+          
+
         setRemarksHistory(updatedUser.remarksHistory || []);
         setRemarksInput("");
         setFollowUpDate("");
@@ -3740,7 +3742,8 @@ export default function UserManagement() {
                 activeCardKey={chatbotMetricFilter?.cardKey || ""}
                 onRefresh={handleRefreshWhatsAppData}
                 onSelectCard={handleChatbotMetricCardClick}
-                agentTodayLeads={agentTodayLeads}
+                agentTodayLeads={agentTodayLeads} 
+                role={role}
               />
             </Box>
           )}

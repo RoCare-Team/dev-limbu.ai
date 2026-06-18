@@ -151,10 +151,17 @@ export async function GET(req) {
         .sort({ createdAt: -1 })
         .lean();
 
-      totalRevenue = revenueData.reduce(
-        (sum, rev) => sum + (rev.amount || 0),
-        0,
-      );
+      totalRevenue = revenueData
+  .filter(
+    (rev) =>
+      rev.type === "user_onboard" ||
+      rev.type === "plan" ||
+      rev.type === "service"
+  )
+  .reduce(
+    (sum, rev) => sum + Number(rev.amount || 0),
+    0
+  );
 
       userOnboardRevenue = revenueData
         .filter((rev) => rev.type === "user_onboard")

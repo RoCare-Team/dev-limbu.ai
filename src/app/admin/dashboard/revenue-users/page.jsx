@@ -445,16 +445,20 @@ try {
     return t;
   };
 
-  const formatDateIST = (dateStr) => {
-    if (!dateStr) return "No Date";
+ const formatDateIST = (dateStr) => {
+  if (!dateStr) return "No Date";
 
-    return new Date(dateStr).toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  const d = new Date(dateStr);
+
+  if (isNaN(d.getTime())) return "No Date";
+
+  return d.toLocaleDateString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
 
   const fetchRevenueUsers = async () => {
     setLoadingRevenueUsers(true);
@@ -989,9 +993,23 @@ const handleUpdatePackage = async () => {
   }
 };
   // paginatedPackageRows filter
-  const paginatedPackageRows = finalFilteredData.filter(
-  (r) => r.type === "user_onboard" || r.type === "plan"
-);
+  const paginatedPackageRows = finalFilteredData
+  .filter(
+    (r) => r.type === "user_onboard" || r.type === "plan"
+  )
+  .sort(
+  (a, b) =>
+    new Date(
+      b.packageStartDate ||
+      b.userPackageStartDate ||
+      b.createdAt
+    ) -
+    new Date(
+      a.packageStartDate ||
+      a.userPackageStartDate ||
+      a.createdAt
+    )
+)
 
   const currentPackageRows = paginatedPackageRows.slice(
     (currentPage - 1) * rowsPerPage,
@@ -1192,8 +1210,9 @@ const handleUpdatePackage = async () => {
       {r.plan}
     </span>
        {/* // revnue plan  */}
-      {r.packageExpiryDate &&
- new Date(r.packageExpiryDate) < new Date() && (
+      {
+  (r.userPackageExpiryDate || r.packageExpiryDate) &&
+  new Date(r.userPackageExpiryDate || r.packageExpiryDate) < new Date() && (
     <>
       <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
         Expired
@@ -1206,7 +1225,8 @@ const handleUpdatePackage = async () => {
         Revenue Plan
       </button>
     </>
-)}
+  )
+}
   </div>
 </td>
 
@@ -1215,18 +1235,19 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {r.userPackageStartDate ? (
-                                  new Date(
-                                    r.packageStartDate,
-                                  ).toLocaleDateString("en-IN")
-                                ) : (
-                                  <span className="text-red-500">No Date</span>
-                                )}
-                              </td>
+  {formatDateIST(
+    r.packageStartDate ||
+    r.userPackageStartDate ||
+    r.createdAt
+  )}
+</td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(r.packageExpiryDate)}
-                              </td>
+  {formatDateIST(
+    r.packageExpiryDate ||
+    r.userPackageExpiryDate
+  )}
+</td>
 
                               <td className="px-6 py-4">
                                 <div className="flex gap-2">

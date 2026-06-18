@@ -43,7 +43,7 @@ const FranchiseRevenueSchema = new mongoose.Schema(
     notes: { type: String, default: "" },
     planRemarks: { type: String, default: "" },
     packageStartDate: { type: Date, default: null },
-    packageExpiryDate: { type: String, default: "" },
+    packageExpiryDate: { type: Date, default: null },
     plan: { type: String, default: "" },
     planApprovalStatus: {
       type: String,

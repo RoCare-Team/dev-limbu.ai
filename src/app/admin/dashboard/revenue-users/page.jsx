@@ -16,6 +16,9 @@ import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditPackageModal from "./components/EditPackageModal";
 import EditServiceModal from "./components/EditServiceModal";
 
+import RenewPlanModal from "./components/RenewPlanModal";
+import RenewServiceModal from "./components/RenewServiceModal";
+
 export default function RevenueUsersPage() {
   // "package" | "service"
 
@@ -33,7 +36,7 @@ export default function RevenueUsersPage() {
   const [invoiceUrls, setInvoiceUrls] = useState({});
   const [sendingEmailId, setSendingEmailId] = useState(null);
 
-  // card filter 
+  // card filter
   const [cardFilter, setCardFilter] = useState("");
 
   //service
@@ -56,8 +59,8 @@ export default function RevenueUsersPage() {
   const [editPlan, setEditPlan] = useState("");
   const [editRemarks, setEditRemarks] = useState("");
   const [editProofImage, setEditProofImage] = useState(null);
-   const [editStartDate, setEditStartDate] = useState("");
-const [editExpiryDate, setEditExpiryDate] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editExpiryDate, setEditExpiryDate] = useState("");
 
   // service delete edit modal
   const [editServiceModal, setEditServiceModal] = useState(false);
@@ -67,10 +70,8 @@ const [editExpiryDate, setEditExpiryDate] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editServiceStartDate, setEditServiceStartDate] = useState("");
-const [editServiceExpiryDate, setEditServiceExpiryDate] = useState("");
-const [editServiceProofImage, setEditServiceProofImage] = useState(null);
-
- 
+  const [editServiceExpiryDate, setEditServiceExpiryDate] = useState("");
+  const [editServiceProofImage, setEditServiceProofImage] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -89,19 +90,32 @@ const [editServiceProofImage, setEditServiceProofImage] = useState(null);
   const [selectedPackageRows, setSelectedPackageRows] = useState([]);
   const [selectedServiceRows, setSelectedServiceRows] = useState([]);
 
-   // revenue plan 
+  // revenue plan package
   const [showRenewModal, setShowRenewModal] = useState(false);
-const [renewUser, setRenewUser] = useState(null);
+  const [renewUser, setRenewUser] = useState(null);
 
+  const [renewPlan, setRenewPlan] = useState("");
+  const [renewAmount, setRenewAmount] = useState("");
+  const [renewStartDate, setRenewStartDate] = useState("");
+  const [renewExpiryDate, setRenewExpiryDate] = useState("");
+  const [renewScreenshot, setRenewScreenshot] = useState(null);
+  const [renewRemarks, setRenewRemarks] = useState("");
 
-const [renewPlan, setRenewPlan] = useState("");
-const [renewAmount, setRenewAmount] = useState("");
-const [renewStartDate, setRenewStartDate] = useState("");
-const [renewExpiryDate, setRenewExpiryDate] = useState("");
-const [renewScreenshot, setRenewScreenshot] = useState(null);
-const [renewRemarks, setRenewRemarks] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
 
-const [savingPlan, setSavingPlan] = useState(false);
+  //  REVENUE PLAN SERVICE ==============
+  const [showRenewServiceModal, setShowRenewServiceModal] = useState(false);
+  const [renewServiceUser, setRenewServiceUser] = useState(null);
+
+  const [renewServicePlan, setRenewServicePlan] = useState("");
+  const [renewServiceAmount, setRenewServiceAmount] = useState("");
+  const [renewServiceStartDate, setRenewServiceStartDate] = useState("");
+  const [renewServiceExpiryDate, setRenewServiceExpiryDate] = useState("");
+  const [renewServiceScreenshot, setRenewServiceScreenshot] = useState(null);
+  const [renewServiceRemarks, setRenewServiceRemarks] = useState("");
+
+  const [savingService, setSavingService] = useState(false);
+  const [expandedNotes, setExpandedNotes] = useState({});
 
   // Current active selection
   const selectedRows =
@@ -139,161 +153,261 @@ const [savingPlan, setSavingPlan] = useState(false);
     );
   };
 
+  // REVNUE PLAN PACKAGE
   const openRenewModal = (user) => {
-  setRenewUser(user);
+    setRenewUser(user);
 
-  setRenewPlan(user.plan || "");
-  setRenewAmount(user.amount || "");
+    setRenewPlan(user.plan || "");
+    setRenewAmount(user.amount || "");
 
-  setRenewStartDate("");
-  setRenewExpiryDate("");
-  setRenewScreenshot(null);
+    setRenewStartDate("");
+    setRenewExpiryDate("");
+    setRenewScreenshot(null);
 
-  setShowRenewModal(true);
-};
+    setShowRenewModal(true);
+  };
 
-const handleRenewPlan = async () => {
-  if (!renewPlan) return alert("Enter plan");
-  if (!renewAmount) return alert("Enter amount");
-  if (!renewStartDate) return alert("Select start date");
-  if (!renewExpiryDate) return alert("Select expiry date");
+  const handleRenewPlan = async () => {
+    if (!renewPlan) return alert("Enter plan");
+    if (!renewAmount) return alert("Enter amount");
+    if (!renewStartDate) return alert("Select start date");
+    if (!renewExpiryDate) return alert("Select expiry date");
 
-  try {
+    try {
+      setSavingPlan(true);
 
-     setSavingPlan(true);
-    
-    let screenshotUrl = "";
+      let screenshotUrl = "";
 
-if (renewScreenshot) {
-  const uploadFormData = new FormData();
+      if (renewScreenshot) {
+        const uploadFormData = new FormData();
 
-  uploadFormData.append(
-    "file",
-    renewScreenshot
-  );
+        uploadFormData.append("file", renewScreenshot);
 
-  const uploadResult =
-    await uploadToS3Action(uploadFormData);
+        const uploadResult = await uploadToS3Action(uploadFormData);
 
-  console.log(
-    "UPLOAD RESULT =>",
-    uploadResult
-  );
+        console.log("UPLOAD RESULT =>", uploadResult);
 
-  if (uploadResult?.success) {
-    screenshotUrl = uploadResult.url;
-  }
-}
+        if (uploadResult?.success) {
+          screenshotUrl = uploadResult.url;
+        }
+      }
 
-    // Agar screenshot upload API baad me lagani ho to yahan handle karenge
+      // Agar screenshot upload API baad me lagani ho to yahan handle karenge
 
-    const res = await fetch("/api/franchise-revenue", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        // Old user info
-        leadId: renewUser?.leadId,
-        leadName: renewUser?.leadName,
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Old user info
+          leadId: renewUser?.leadId,
+          leadName: renewUser?.leadName,
 
-        email: renewUser?.email || "",
-        phone: renewUser?.phone || "",
+          email: renewUser?.email || "",
+          phone: renewUser?.phone || "",
 
-        franchiseId: renewUser?.franchiseId || null,
-        franchiseName: renewUser?.franchiseName || null,
+          franchiseId: renewUser?.franchiseId || null,
+          franchiseName: renewUser?.franchiseName || null,
 
-        onboardedBy: renewUser?.onboardedBy || null,
-        onboardedByName: renewUser?.onboardedByName || "",
-        onboardedByRole: renewUser?.onboardedByRole || "",
+          onboardedBy: renewUser?.onboardedBy || null,
+          onboardedByName: renewUser?.onboardedByName || "",
+          onboardedByRole: renewUser?.onboardedByRole || "",
 
-        // New Plan
-        plan: renewPlan,
-        amount: Number(renewAmount),
+          // New Plan
+          plan: renewPlan,
+          amount: Number(renewAmount),
 
-        packageStartDate: renewStartDate,
-        packageExpiryDate: renewExpiryDate,
+          packageStartDate: renewStartDate,
+          packageExpiryDate: renewExpiryDate,
 
-        paymentScreenshot: screenshotUrl,
-        screenshot: screenshotUrl,
-        planRemarks: renewRemarks,
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+          planRemarks: renewRemarks,
 
-        notes: `Plan renewed from ${renewUser?.plan || "Old Plan"} to ${renewPlan}`,
+          notes: `Plan renewed from ${renewUser?.plan || "Old Plan"} to ${renewPlan}`,
 
-        // Important
-        type: "plan",
-        status: "active",
-        bookingSource: "manual-upload",
-      }),
-    });
+          // Important
+          type: "plan",
+          status: "active",
+          bookingSource: "manual-upload",
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
+      // ==============================
+      // Send WhatsApp Template
+      // ==============================
+      try {
+        const whatsappRes = await fetch("/api/admin/package-booking-template", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: renewUser?.phone || "",
 
-    // ==============================
-// Send WhatsApp Template
-// ==============================
-try {
-  const whatsappRes = await fetch(
-    "/api/admin/package-booking-template",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone: renewUser?.phone || "",
+            firstName: renewUser?.leadName || renewUser?.name || "Customer",
 
-        firstName:
-          renewUser?.leadName ||
-          renewUser?.name ||
-          "Customer",
+            planName: renewPlan,
+            amount: renewAmount || "0",
 
-        planName: renewPlan,
-        amount: renewAmount || "0",
+            startDate: renewStartDate || "-",
+            expiryDate: renewExpiryDate || "-",
+          }),
+        });
 
-        startDate: renewStartDate || "-",
-        expiryDate: renewExpiryDate || "-",
-      }),
+        const whatsappData = await whatsappRes.json();
+
+        console.log("Revenue WhatsApp Template Response:", whatsappData);
+      } catch (err) {
+        console.error("Revenue WhatsApp template failed:", err);
+      }
+
+      // console.log("RENEW API RESPONSE =>", data);
+
+      if (data.success) {
+        alert("Plan Renew Successfully");
+
+        setShowRenewModal(false);
+
+        setRenewUser(null);
+        setRenewPlan("");
+        setRenewAmount("");
+        setRenewStartDate("");
+        setRenewExpiryDate("");
+        setRenewScreenshot(null);
+
+        fetchRevenueUsers();
+      } else {
+        alert(data.message || "Failed to renew plan");
+      }
+    } catch (err) {
+      console.error("RENEW PLAN ERROR =>", err);
+      alert("Something went wrong");
     }
-  );
+  };
 
-  const whatsappData = await whatsappRes.json();
+  // REVENUE PLAN SERVICE
+  const openRenewServiceModal = (user) => {
+    console.log("USER =>", user);
 
-  console.log(
-    "Revenue WhatsApp Template Response:",
-    whatsappData
-  );
-} catch (err) {
-  console.error(
-    "Revenue WhatsApp template failed:",
-    err
-  );
-}
+    setRenewServiceUser(user);
 
-    // console.log("RENEW API RESPONSE =>", data);
+    setRenewServicePlan(user.plan || "");
+    setRenewServiceAmount(user.amount || "");
 
-    if (data.success) {
-      alert("Plan Renew Successfully");
+    setRenewServiceStartDate("");
+    setRenewServiceExpiryDate("");
+    setRenewServiceScreenshot(null);
+    setRenewServiceRemarks("");
 
-      setShowRenewModal(false);
+    setShowRenewServiceModal(true);
+  };
 
-      setRenewUser(null);
-      setRenewPlan("");
-      setRenewAmount("");
-      setRenewStartDate("");
-      setRenewExpiryDate("");
-      setRenewScreenshot(null);
+  const handleRenewService = async () => {
+    if (!renewServicePlan) return alert("Enter service");
+    if (!renewServiceAmount) return alert("Enter amount");
+    if (!renewServiceStartDate) return alert("Select start date");
+    if (!renewServiceExpiryDate) return alert("Select expiry date");
 
-      fetchRevenueUsers();
-    } else {
-      alert(data.message || "Failed to renew plan");
+    try {
+      setSavingService(true);
+
+      let screenshotUrl = "";
+
+      if (renewServiceScreenshot) {
+        const uploadFormData = new FormData();
+
+        uploadFormData.append("file", renewServiceScreenshot);
+
+        const uploadResult = await uploadToS3Action(uploadFormData);
+
+        if (uploadResult?.success) {
+          screenshotUrl = uploadResult.url;
+        }
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          leadId: renewServiceUser?.leadId,
+          leadName: renewServiceUser?.leadName,
+
+          email: renewServiceUser?.email || renewServiceUser?.userEmail || "",
+          phone: renewServiceUser?.phone || renewServiceUser?.mobile || "",
+
+          plan: renewServicePlan,
+          amount: Number(renewServiceAmount),
+
+          packageStartDate: renewServiceStartDate,
+          packageExpiryDate: renewServiceExpiryDate,
+
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+
+          notes: `Service renewed from ${renewServiceUser?.plan} to ${renewServicePlan}`,
+
+          planRemarks: renewServiceRemarks,
+
+          type: "service",
+          status: "active",
+          bookingSource: "manual-upload",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        try {
+          const whatsappRes = await fetch(
+            "/api/admin/service-booking-template",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                userId: data.revenue._id,
+                startDate: renewServiceStartDate,
+                expiryDate: renewServiceExpiryDate,
+              }),
+            },
+          );
+
+          const whatsappData = await whatsappRes.json();
+
+          console.log("📲 Service Template Response:", whatsappData);
+        } catch (err) {
+          console.error("Service Template Failed:", err);
+        }
+        alert("Service Renew Successfully");
+
+        setShowRenewServiceModal(false);
+
+        setRenewServiceUser(null);
+        setRenewServicePlan("");
+        setRenewServiceAmount("");
+        setRenewServiceStartDate("");
+        setRenewServiceExpiryDate("");
+        setRenewServiceScreenshot(null);
+        setRenewServiceRemarks("");
+
+        fetchRevenueUsers();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.log(err);
+      alert("Something went wrong");
+    } finally {
+      setSavingService(false);
     }
-  } catch (err) {
-    console.error("RENEW PLAN ERROR =>", err);
-    alert("Something went wrong");
-  }
-};
+  };
 
   // refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -346,10 +460,7 @@ try {
       ? revenueUsersList
           .filter((item) => {
             // ✅ Sirf package records
-            return (
-  item.type === "user_onboard" ||
-  item.type === "plan"
-);
+            return item.type === "user_onboard" || item.type === "plan";
           })
           .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
       : serviceRows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -360,9 +471,11 @@ try {
     activeView === "package"
       ? revenueUsersList
           .filter((item) => {
-            // ✅ Sirf package records
-            if (item.type !== "user_onboard") return false;
+            if (item.type !== "user_onboard" && item.type !== "plan")
+              return false;
+
             if (item.status !== "active") return false;
+
             if (!item.createdAt) return false;
 
             return new Date(item.createdAt).toDateString() === today;
@@ -375,8 +488,6 @@ try {
             return new Date(item.createdAt).toDateString() === today;
           })
           .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-
 
   // service package
 
@@ -456,9 +567,9 @@ try {
       const role = localStorage.getItem("role");
 
       const params = new URLSearchParams({
-  email,
-  role,
-});
+        email,
+        role,
+      });
 
       const res = await fetch(`/api/franchise-revenue?${params}`);
       const data = await res.json();
@@ -467,28 +578,10 @@ try {
       // console.log("📦 REVENUE LIST:", data.revenue);
 
       if (data.success) {
-
- const latestRevenue = Object.values(
-  (data.revenue || []).reduce((acc, item) => {
-    const existing = acc[item.leadId];
-
-    if (
-      !existing ||
-      new Date(item.createdAt) >
-        new Date(existing.createdAt)
-    ) {
-        acc[item.leadId] = item;
-    }
-
-    return acc;
-  }, {})
-);
-
-  setRevenueUsersList(latestRevenue);
-
-} else {
-  setRevenueUsersList([]);
-}
+        setRevenueUsersList(data.revenue || []);
+      } else {
+        setRevenueUsersList([]);
+      }
     } catch (err) {
       console.error(err);
       setRevenueUsersList([]);
@@ -623,7 +716,7 @@ try {
   };
 
   const handleSendInvoiceWhatsApp = async (user) => {
-     console.log("Sending invoice for:", user);
+    console.log("Sending invoice for:", user);
     try {
       const res = await fetch("/api/admin/send-invoice-whatsapp", {
         method: "POST",
@@ -636,7 +729,7 @@ try {
       });
 
       const data = await res.json();
-       console.log("API Response:", data);
+      console.log("API Response:", data);
 
       if (data.success) {
         alert("Invoice sent successfully on WhatsApp");
@@ -649,7 +742,6 @@ try {
     }
   };
 
-  
   const handleSendInvoiceEmail = async (r) => {
     try {
       setSendingEmailId(r._id);
@@ -753,80 +845,78 @@ try {
     return matchSearch && matchPlan && matchStatus && matchExpiry;
   });
 
- const finalFilteredData = filteredData.filter((item) => {
-  if (!cardFilter) return true;
+  const finalFilteredData = filteredData.filter((item) => {
+    if (!cardFilter) return true;
 
-  const plan = item.plan?.toLowerCase() || "";
+    const plan = item.plan?.toLowerCase() || "";
 
-  switch (cardFilter) {
-    case "basic":
-      return plan.includes("basic");
+    switch (cardFilter) {
+      case "basic":
+        return plan.includes("basic");
 
-    case "professional":
-      return plan.includes("professional");
+      case "professional":
+        return plan.includes("professional");
 
-    case "premium":
-      return plan.includes("premium");
+      case "premium":
+        return plan.includes("premium");
 
-    case "today_users":
-      return (
-        item.createdAt &&
-        new Date(item.createdAt).toDateString() ===
-          new Date().toDateString()
-      );
+      case "today_users":
+        return (
+          item.createdAt &&
+          new Date(item.createdAt).toDateString() === new Date().toDateString()
+        );
 
-    case "today_revenue":
-      return (
-        item.createdAt &&
-        new Date(item.createdAt).toDateString() ===
-          new Date().toDateString() &&
-        Number(item.amount || 0) > 0
-      );
+      case "today_revenue":
+        return (
+          item.createdAt &&
+          new Date(item.createdAt).toDateString() ===
+            new Date().toDateString() &&
+          Number(item.amount || 0) > 0
+        );
 
-    case "today":
-      return (
-        new Date(
-          item.userPackageExpiryDate || item.packageExpiryDate
-        ).toDateString() === new Date().toDateString()
-      );
+      case "today":
+        return (
+          new Date(
+            item.userPackageExpiryDate || item.packageExpiryDate,
+          ).toDateString() === new Date().toDateString()
+        );
 
-    case "7days": {
-      const expiry = new Date(
-        item.userPackageExpiryDate || item.packageExpiryDate
-      );
+      case "7days": {
+        const expiry = new Date(
+          item.userPackageExpiryDate || item.packageExpiryDate,
+        );
 
-      const today = new Date();
-      const next7 = new Date();
+        const today = new Date();
+        const next7 = new Date();
 
-      next7.setDate(today.getDate() + 7);
+        next7.setDate(today.getDate() + 7);
 
-      return expiry >= today && expiry <= next7;
+        return expiry >= today && expiry <= next7;
+      }
+
+      case "this_month": {
+        const expiry = new Date(
+          item.userPackageExpiryDate || item.packageExpiryDate,
+        );
+
+        const today = new Date();
+
+        return (
+          expiry.getMonth() === today.getMonth() &&
+          expiry.getFullYear() === today.getFullYear()
+        );
+      }
+
+      case "expired":
+        return (
+          new Date(item.userPackageExpiryDate || item.packageExpiryDate) <
+          new Date()
+        );
+
+      default:
+        return true;
     }
-
-    case "this_month": {
-      const expiry = new Date(
-        item.userPackageExpiryDate || item.packageExpiryDate
-      );
-
-      const today = new Date();
-
-      return (
-        expiry.getMonth() === today.getMonth() &&
-        expiry.getFullYear() === today.getFullYear()
-      );
-    }
-
-    case "expired":
-      return (
-        new Date(
-          item.userPackageExpiryDate || item.packageExpiryDate
-        ) < new Date()
-      );
-
-    default:
-      return true;
-  }
-});
+  });
 
   // reshresh
   const handleRefresh = async () => {
@@ -844,69 +934,68 @@ try {
   // package handle edit
 
   const handleEdit = (item) => {
-  setEditData(item);
+    setEditData(item);
 
-  setEditPlan(item.plan || "");
-  setEditAmount(item.amount || "");
-  setEditRemarks(item.planRemarks || "");
+    setEditPlan(item.plan || "");
+    setEditAmount(item.amount || "");
+    setEditRemarks(item.planRemarks || "");
 
-  setEditStartDate(
-    item.userPackageStartDate
-      ? new Date(item.userPackageStartDate).toISOString().split("T")[0]
-      : ""
-  );
+    setEditStartDate(
+      item.packageStartDate
+        ? new Date(item.packageStartDate).toISOString().split("T")[0]
+        : "",
+    );
 
-  setEditExpiryDate(
-    item.userPackageExpiryDate
-      ? new Date(item.userPackageExpiryDate).toISOString().split("T")[0]
-      : ""
-  );
+    setEditExpiryDate(
+      item.packageExpiryDate
+        ? new Date(item.packageExpiryDate).toISOString().split("T")[0]
+        : "",
+    );
 
     setEditProofImage(item.paymentScreenshot || "");
 
-
-  setEditModal(true);
-};
+    setEditModal(true);
+  };
 
   // package handle delte
-const handleUpdatePackage = async () => {
-  try {
-    setUpdating(true);
+  const handleUpdatePackage = async () => {
+    try {
+      setUpdating(true);
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    formData.append("id", editData._id);
-    formData.append("plan", editPlan);
-    formData.append("amount", editAmount);
-    formData.append("planRemarks", editRemarks);
+      formData.append("id", editData._id);
+      formData.append("plan", editPlan);
+      formData.append("amount", editAmount);
+      formData.append("planRemarks", editRemarks);
 
-    formData.append("packageStartDate", editStartDate);
-    formData.append("packageExpiryDate", editExpiryDate);
+      formData.append("packageStartDate", editStartDate);
+      formData.append("packageExpiryDate", editExpiryDate);
 
-    if (editProofImage instanceof File) {
-      formData.append("paymentScreenshot", editProofImage);
+      if (editProofImage instanceof File) {
+        formData.append("paymentScreenshot", editProofImage);
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditModal(false);
+        fetchRevenueUsers();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setUpdating(false);
     }
-
-    const res = await fetch("/api/franchise-revenue", {
-      method: "PUT",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setEditModal(false);
-      fetchRevenueUsers();
-    } else {
-      alert(data.message);
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Something went wrong");
-  } finally {
-    setUpdating(false);
-  }
-};
+  };
 
   //  delte user tabe
 
@@ -958,50 +1047,47 @@ const handleUpdatePackage = async () => {
   };
 
   const updateService = async () => {
-  try {
-    setUpdatingService(true);
+    try {
+      setUpdatingService(true);
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    formData.append("id", selectedService?._id);
-    formData.append("type", "service");
+      formData.append("id", selectedService?._id);
+      formData.append("type", "service");
 
-    formData.append("amount", editAmount);
-    formData.append("notes", editNotes);
+      formData.append("amount", editAmount);
+      formData.append("notes", editNotes);
 
-    formData.append("packageStartDate", editServiceStartDate);
-    formData.append("packageExpiryDate", editServiceExpiryDate);
+      formData.append("packageStartDate", editServiceStartDate);
+      formData.append("packageExpiryDate", editServiceExpiryDate);
 
-    if (editServiceProofImage instanceof File) {
-      formData.append(
-        "paymentScreenshot",
-        editServiceProofImage
-      );
+      if (editServiceProofImage instanceof File) {
+        formData.append("paymentScreenshot", editServiceProofImage);
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditServiceModal(false);
+        fetchRevenueUsers();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingService(false);
     }
-
-    const res = await fetch("/api/franchise-revenue", {
-      method: "PUT",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setEditServiceModal(false);
-      fetchRevenueUsers();
-    } else {
-      alert(data.message);
-    }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setUpdatingService(false);
-  }
-};
+  };
   // paginatedPackageRows filter
   const paginatedPackageRows = finalFilteredData.filter(
-  (r) => r.type === "user_onboard" || r.type === "plan"
-);
+    (r) => r.type === "user_onboard" || r.type === "plan",
+  );
 
   const currentPackageRows = paginatedPackageRows.slice(
     (currentPage - 1) * rowsPerPage,
@@ -1022,17 +1108,17 @@ const handleUpdatePackage = async () => {
 
         {/* ===== STATS ===== */}
 
-        <RevenueStats 
-  activeView={activeView}
-  totalUsers={totalUsers}
-  todayUsers={todayUsers}
-  totalRevenue={totalRevenue}
-  todayRevenue={todayRevenue}
-  revenueUsersList={revenueUsersList}
-  users={users}
-  cardFilter={cardFilter}
-  setCardFilter={setCardFilter}
-/>
+        <RevenueStats
+          activeView={activeView}
+          totalUsers={totalUsers}
+          todayUsers={todayUsers}
+          totalRevenue={totalRevenue}
+          todayRevenue={todayRevenue}
+          revenueUsersList={revenueUsersList}
+          users={users}
+          cardFilter={cardFilter}
+          setCardFilter={setCardFilter}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -1156,10 +1242,10 @@ const handleUpdatePackage = async () => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-                        currentPackageRows.map((r, i) => {
+                        currentPackageRows.map((r) => {
                           return (
                             <tr
-                              key={i}
+                              key={r._id}
                               className="border-t hover:bg-gray-50 transition"
                             >
                               <td className="px-4 py-4">
@@ -1196,31 +1282,30 @@ const handleUpdatePackage = async () => {
                                 </div>
                               </td>
 
-                         <td className="px-6 py-4">
-  <div className="flex flex-col gap-1">
-    <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs w-fit">
-      {r.plan}
-    </span>
-       {/* // revnue plan  */}
-      {(r.userPackageExpiryDate || r.packageExpiryDate) &&
- new Date(
-   r.userPackageExpiryDate || r.packageExpiryDate
- ) < new Date() && (
-    <>
-      <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
-        Expired
-      </span>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs w-fit">
+                                    {r.plan}
+                                  </span>
+                                  {/* // revnue plan  */}
+                                  {r.packageExpiryDate &&
+                                    new Date(r.packageExpiryDate) <
+                                      new Date() && (
+                                      <>
+                                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
+                                          Expired
+                                        </span>
 
-      <button
-        onClick={() => openRenewModal(r)}
-        className="bg-indigo-600 text-white px-1 py-1 rounded text-xs mt-2"
-      >
-        Revenue Plan
-      </button>
-    </>
-)}
-  </div>
-</td>
+                                        <button
+                                          onClick={() => openRenewModal(r)}
+                                          className="bg-indigo-600 text-white px-1 py-1 rounded text-xs mt-2"
+                                        >
+                                          Revenue Plan
+                                        </button>
+                                      </>
+                                    )}
+                                </div>
+                              </td>
 
                               <td className="px-6 py-4 font-semibold text-green-600">
                                 ₹{r.amount}
@@ -1229,7 +1314,7 @@ const handleUpdatePackage = async () => {
                               <td className="px-6 py-4 text-sm text-gray-600">
                                 {r.userPackageStartDate ? (
                                   new Date(
-                                    r.userPackageStartDate,
+                                    r.packageStartDate,
                                   ).toLocaleDateString("en-IN")
                                 ) : (
                                   <span className="text-red-500">No Date</span>
@@ -1237,9 +1322,7 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(
-  r.userPackageExpiryDate || r.packageExpiryDate
-)}
+                                {formatDateIST(r.packageExpiryDate)}
                               </td>
 
                               <td className="px-6 py-4">
@@ -1294,20 +1377,23 @@ const handleUpdatePackage = async () => {
                               {/* 🔥 EXPIRY */}
 
                               <td className="px-6 py-4">
-                              <button
-  onClick={() => {
-    console.log("SCREENSHOT =>", r.paymentScreenshot);
+                                <button
+                                  onClick={() => {
+                                    console.log(
+                                      "SCREENSHOT =>",
+                                      r.paymentScreenshot,
+                                    );
 
-    if (r.paymentScreenshot) {
-      setFullViewImage(r.paymentScreenshot);
-    } else {
-      alert("No screenshot found");
-    }
-  }}
-  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
->
-  View Proof
-</button>
+                                    if (r.paymentScreenshot) {
+                                      setFullViewImage(r.paymentScreenshot);
+                                    } else {
+                                      alert("No screenshot found");
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                                >
+                                  View Proof
+                                </button>
                               </td>
 
                               <td className="px-6 py-4 text-sm">
@@ -1315,12 +1401,13 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4 text-sm">
-                                 {r.planRemarks || r.remarks || "-"}
+                                {r.planRemarks || r.remarks || "-"}
                               </td>
 
                               {role === "superAdmin" && (
                                 <td className="px-6 py-4 align-top text-sm">
-                                  {r?.type === "user_onboard" || r?.type === "plan" ? (
+                                  {r?.type === "user_onboard" ||
+                                  r?.type === "plan" ? (
                                     (() => {
                                       const st = r.planApprovalStatus;
 
@@ -1442,9 +1529,36 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4">
-                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                                  {u.paidService || u.plan || "No Service"}
-                                </span>
+                                <div className="flex flex-col gap-2">
+                                  {/* Service Name */}
+                                  <div
+                                    className="bg-purple-100 text-purple-700 px-3 py-2 rounded-xl text-xs font-medium
+      max-w-[180px] truncate cursor-pointer"
+                                    title={u.paidService || u.plan}
+                                  >
+                                    {u.paidService || u.plan || "No Service"}
+                                  </div>
+
+                                  {/* Expired */}
+                                  {u.packageExpiryDate &&
+                                    new Date(u.packageExpiryDate) <
+                                      new Date() && (
+                                      <>
+                                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
+                                          Expired
+                                        </span>
+
+                                        <button
+                                          onClick={() =>
+                                            openRenewServiceModal(u)
+                                          }
+                                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-xs w-fit"
+                                        >
+                                          Revenue Service
+                                        </button>
+                                      </>
+                                    )}
+                                </div>
                               </td>
 
                               <td className="px-6 py-4">
@@ -1462,7 +1576,6 @@ const handleUpdatePackage = async () => {
 
                                   const rawDate =
                                     u.packageStartDate ||
-                                    u.userPackageStartDate ||
                                     u.startDate ||
                                     u.date ||
                                     u.createdAt;
@@ -1529,13 +1642,12 @@ const handleUpdatePackage = async () => {
                                     </button>
                                   )}
 
-                                    <button
-                                         onClick={() => handleSendInvoiceWhatsApp(u)}
-                                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-                                      >
-                                         Send Invoice
-                                    </button>
-                                
+                                  <button
+                                    onClick={() => handleSendInvoiceWhatsApp(u)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Send Invoice
+                                  </button>
                                 </div>
                               </td>
 
@@ -1553,8 +1665,49 @@ const handleUpdatePackage = async () => {
                                 </button>
                               </td>
 
-                              <td className="px-6 py-4">
-                                {u.notes || u.remarks || u.Remarks || "-"}
+                              <td className="px-4 py-3">
+                                {(() => {
+                                  const words = (u.notes || "").split(" ");
+                                  const isExpanded = expandedNotes[u._id];
+
+                                  return (
+                                    <div className="max-w-[180px] text-sm text-gray-700">
+                                      {isExpanded ? (
+                                        <>
+                                          {u.notes}
+                                          <button
+                                            onClick={() =>
+                                              setExpandedNotes((prev) => ({
+                                                ...prev,
+                                                [u._id]: false,
+                                              }))
+                                            }
+                                            className="text-blue-600 ml-1 font-semibold"
+                                          >
+                                            Less
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {words.slice(0, 2).join(" ")}
+                                          {words.length > 2 && (
+                                            <button
+                                              onClick={() =>
+                                                setExpandedNotes((prev) => ({
+                                                  ...prev,
+                                                  [u._id]: true,
+                                                }))
+                                              }
+                                              className="text-blue-600 ml-1 font-semibold"
+                                            >
+                                              ...More
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </td>
 
                               <td className="px-6 py-4 align-top text-sm">
@@ -1615,18 +1768,24 @@ const handleUpdatePackage = async () => {
                                         u.notes ?? u.remarks ?? u.Remarks ?? "",
                                       );
                                       setEditServiceStartDate(
-  u.packageStartDate
-    ? new Date(u.packageStartDate).toISOString().split("T")[0]
-    : ""
-);
+                                        u.packageStartDate
+                                          ? new Date(u.packageStartDate)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : "",
+                                      );
 
-setEditServiceExpiryDate(
-  u.packageExpiryDate
-    ? new Date(u.packageExpiryDate).toISOString().split("T")[0]
-    : ""
-);
+                                      setEditServiceExpiryDate(
+                                        u.packageExpiryDate
+                                          ? new Date(u.packageExpiryDate)
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : "",
+                                      );
 
-setEditServiceProofImage(u.paymentScreenshot || "");
+                                      setEditServiceProofImage(
+                                        u.paymentScreenshot || "",
+                                      );
                                       setEditServiceModal(true);
                                     }}
                                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
@@ -1668,47 +1827,41 @@ setEditServiceProofImage(u.paymentScreenshot || "");
 
         {/* // package edit moada */}
         <EditPackageModal
-  editModal={editModal}
-  setEditModal={setEditModal}
-  editPlan={editPlan}
-  setEditPlan={setEditPlan}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editRemarks={editRemarks}
-  setEditRemarks={setEditRemarks}
-  editStartDate={editStartDate}
-  setEditStartDate={setEditStartDate}
-  editExpiryDate={editExpiryDate}
-  setEditExpiryDate={setEditExpiryDate}
-  handleUpdatePackage={handleUpdatePackage}
-   editProofImage={editProofImage}
-  setEditProofImage={setEditProofImage}
-    updating={updating}
-  
-/>
+          editModal={editModal}
+          setEditModal={setEditModal}
+          editPlan={editPlan}
+          setEditPlan={setEditPlan}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editRemarks={editRemarks}
+          setEditRemarks={setEditRemarks}
+          editStartDate={editStartDate}
+          setEditStartDate={setEditStartDate}
+          editExpiryDate={editExpiryDate}
+          setEditExpiryDate={setEditExpiryDate}
+          handleUpdatePackage={handleUpdatePackage}
+          editProofImage={editProofImage}
+          setEditProofImage={setEditProofImage}
+          updating={updating}
+        />
         {/* // service modal */}
 
         <EditServiceModal
-  editServiceModal={editServiceModal}
-  setEditServiceModal={setEditServiceModal}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editNotes={editNotes}
-  setEditNotes={setEditNotes}
-
-  editServiceStartDate={editServiceStartDate}
-  setEditServiceStartDate={setEditServiceStartDate}
-
-  editServiceExpiryDate={editServiceExpiryDate}
-  setEditServiceExpiryDate={setEditServiceExpiryDate}
-
-  editServiceProofImage={editServiceProofImage}
-  setEditServiceProofImage={setEditServiceProofImage}
-
-  updateService={updateService}
-   updatingService={updatingService}
-  
-/>
+          editServiceModal={editServiceModal}
+          setEditServiceModal={setEditServiceModal}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editNotes={editNotes}
+          setEditNotes={setEditNotes}
+          editServiceStartDate={editServiceStartDate}
+          setEditServiceStartDate={setEditServiceStartDate}
+          editServiceExpiryDate={editServiceExpiryDate}
+          setEditServiceExpiryDate={setEditServiceExpiryDate}
+          editServiceProofImage={editServiceProofImage}
+          setEditServiceProofImage={setEditServiceProofImage}
+          updateService={updateService}
+          updatingService={updatingService}
+        />
 
         {/* // Delete modal */}
 
@@ -1725,86 +1878,44 @@ setEditServiceProofImage(u.paymentScreenshot || "");
           setFullViewImage={setFullViewImage}
         />
       </div>
+      
 
-      {showRenewModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white w-[450px] rounded-xl p-6 shadow-xl">
-
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold">
-          Renew Revenue Plan
-        </h2>
-
-        <button
-          onClick={() => setShowRenewModal(false)}
-          className="text-gray-500 text-xl"
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="space-y-4">
-
-        <input
-  type="text"
-  value={renewPlan}
-  onChange={(e) => setRenewPlan(e.target.value)}
-  placeholder="Plan Name"
-  className="w-full border rounded-lg p-2"
+      <RenewPlanModal
+  showRenewModal={showRenewModal}
+  setShowRenewModal={setShowRenewModal}
+  renewPlan={renewPlan}
+  setRenewPlan={setRenewPlan}
+  renewAmount={renewAmount}
+  setRenewAmount={setRenewAmount}
+  renewStartDate={renewStartDate}
+  setRenewStartDate={setRenewStartDate}
+  renewExpiryDate={renewExpiryDate}
+  setRenewExpiryDate={setRenewExpiryDate}
+  setRenewScreenshot={setRenewScreenshot}
+  renewRemarks={renewRemarks}
+  setRenewRemarks={setRenewRemarks}
+  handleRenewPlan={handleRenewPlan}
+  savingPlan={savingPlan}
 />
 
-       <input
-  type="number"
-  value={renewAmount}
-  onChange={(e) => setRenewAmount(e.target.value)}
-  placeholder="Amount"
-  className="w-full border rounded-lg p-2"
+<RenewServiceModal
+  showRenewServiceModal={showRenewServiceModal}
+  setShowRenewServiceModal={setShowRenewServiceModal}
+  renewServicePlan={renewServicePlan}
+  setRenewServicePlan={setRenewServicePlan}
+  renewServiceAmount={renewServiceAmount}
+  setRenewServiceAmount={setRenewServiceAmount}
+  renewServiceStartDate={renewServiceStartDate}
+  setRenewServiceStartDate={setRenewServiceStartDate}
+  renewServiceExpiryDate={renewServiceExpiryDate}
+  setRenewServiceExpiryDate={setRenewServiceExpiryDate}
+  setRenewServiceScreenshot={setRenewServiceScreenshot}
+  renewServiceRemarks={renewServiceRemarks}
+  setRenewServiceRemarks={setRenewServiceRemarks}
+  handleRenewService={handleRenewService}
+  savingService={savingService}
 />
-
-        <input
-  type="date"
-  value={renewStartDate}
-  onChange={(e) => setRenewStartDate(e.target.value)}
-  className="w-full border rounded-lg p-2"
-/>
-        
-        
-        <input
-  type="date"
-  value={renewExpiryDate}
-  onChange={(e) => setRenewExpiryDate(e.target.value)}
-  className="w-full border rounded-lg p-2"
-/>
-
-        <input
-  type="file"
-  onChange={(e) => setRenewScreenshot(e.target.files[0])}
-  className="w-full border rounded-lg p-2"
-/>
-
-<textarea
-  value={renewRemarks}
-  onChange={(e) => setRenewRemarks(e.target.value)}
-  placeholder="Remarks"
-  className="w-full border rounded-lg p-2"
-/>
-
-        <button
-  onClick={handleRenewPlan}
-  disabled={savingPlan}
-  className={`w-full py-2 rounded-lg text-white ${
-    savingPlan
-      ? "bg-indigo-400 cursor-not-allowed"
-      : "bg-indigo-600 hover:bg-indigo-700"
-  }`}
->
-  {savingPlan ? "Saving..." : "Save Plan"}
-</button>
-
-      </div>
-    </div>
-  </div>
-)}
+     
 
       <div className="flex justify-center items-center gap-2 ">
         {/* PREV BUTTON */}

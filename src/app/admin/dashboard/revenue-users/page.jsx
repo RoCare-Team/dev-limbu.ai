@@ -1533,7 +1533,7 @@ export default function RevenueUsersPage() {
                                   {/* Service Name */}
                                   <div
                                     className="bg-purple-100 text-purple-700 px-3 py-2 rounded-xl text-xs font-medium
-      max-w-[180px] truncate cursor-pointer"
+                                     max-w-[180px] truncate cursor-pointer"
                                     title={u.paidService || u.plan}
                                   >
                                     {u.paidService || u.plan || "No Service"}
@@ -1878,44 +1878,42 @@ export default function RevenueUsersPage() {
           setFullViewImage={setFullViewImage}
         />
       </div>
-      
 
       <RenewPlanModal
-  showRenewModal={showRenewModal}
-  setShowRenewModal={setShowRenewModal}
-  renewPlan={renewPlan}
-  setRenewPlan={setRenewPlan}
-  renewAmount={renewAmount}
-  setRenewAmount={setRenewAmount}
-  renewStartDate={renewStartDate}
-  setRenewStartDate={setRenewStartDate}
-  renewExpiryDate={renewExpiryDate}
-  setRenewExpiryDate={setRenewExpiryDate}
-  setRenewScreenshot={setRenewScreenshot}
-  renewRemarks={renewRemarks}
-  setRenewRemarks={setRenewRemarks}
-  handleRenewPlan={handleRenewPlan}
-  savingPlan={savingPlan}
-/>
+        showRenewModal={showRenewModal}
+        setShowRenewModal={setShowRenewModal}
+        renewPlan={renewPlan}
+        setRenewPlan={setRenewPlan}
+        renewAmount={renewAmount}
+        setRenewAmount={setRenewAmount}
+        renewStartDate={renewStartDate}
+        setRenewStartDate={setRenewStartDate}
+        renewExpiryDate={renewExpiryDate}
+        setRenewExpiryDate={setRenewExpiryDate}
+        setRenewScreenshot={setRenewScreenshot}
+        renewRemarks={renewRemarks}
+        setRenewRemarks={setRenewRemarks}
+        handleRenewPlan={handleRenewPlan}
+        savingPlan={savingPlan}
+      />
 
-<RenewServiceModal
-  showRenewServiceModal={showRenewServiceModal}
-  setShowRenewServiceModal={setShowRenewServiceModal}
-  renewServicePlan={renewServicePlan}
-  setRenewServicePlan={setRenewServicePlan}
-  renewServiceAmount={renewServiceAmount}
-  setRenewServiceAmount={setRenewServiceAmount}
-  renewServiceStartDate={renewServiceStartDate}
-  setRenewServiceStartDate={setRenewServiceStartDate}
-  renewServiceExpiryDate={renewServiceExpiryDate}
-  setRenewServiceExpiryDate={setRenewServiceExpiryDate}
-  setRenewServiceScreenshot={setRenewServiceScreenshot}
-  renewServiceRemarks={renewServiceRemarks}
-  setRenewServiceRemarks={setRenewServiceRemarks}
-  handleRenewService={handleRenewService}
-  savingService={savingService}
-/>
-     
+      <RenewServiceModal
+        showRenewServiceModal={showRenewServiceModal}
+        setShowRenewServiceModal={setShowRenewServiceModal}
+        renewServicePlan={renewServicePlan}
+        setRenewServicePlan={setRenewServicePlan}
+        renewServiceAmount={renewServiceAmount}
+        setRenewServiceAmount={setRenewServiceAmount}
+        renewServiceStartDate={renewServiceStartDate}
+        setRenewServiceStartDate={setRenewServiceStartDate}
+        renewServiceExpiryDate={renewServiceExpiryDate}
+        setRenewServiceExpiryDate={setRenewServiceExpiryDate}
+        setRenewServiceScreenshot={setRenewServiceScreenshot}
+        renewServiceRemarks={renewServiceRemarks}
+        setRenewServiceRemarks={setRenewServiceRemarks}
+        handleRenewService={handleRenewService}
+        savingService={savingService}
+      />
 
       <div className="flex justify-center items-center gap-2 ">
         {/* PREV BUTTON */}

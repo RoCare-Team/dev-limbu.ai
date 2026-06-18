@@ -23,6 +23,7 @@ import jwt from "jsonwebtoken";
 
 // ye custom schema banane ke liye (settingschema)
 import mongoose from "mongoose";
+import { getAgentDetails, getAgentPhone } from "@/utils/agentMapper";
 
 // ye token sighn karne ka secret key || important prodution me kabhi hardcoded secret nahi rakhte agr same secret sabko pata ho koi bhi fake token bana sakta he
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
@@ -260,6 +261,28 @@ export async function POST(req) {
           endDate: null,
         },
       });
+
+      if (assignedAgentId) {
+        const agentPhone = getAgentPhone(assignedAgentId);
+        const agentName = getAgentDetails(assignedAgentId)?.name || "Agent";
+        if (agentPhone) {
+          // Notification bhej rahe hain
+          void fetch(
+  `${process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/send-lead-assigned`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                destination: agentPhone,
+                agentName: agentName,
+                customerName: user.fullName,
+                customerPhone: user.phone,
+                source: "App Signup",
+              }),
+            },
+          ).catch((e) => console.log("Notify Error:", e.message));
+        }
+      }
 
       void runWelcomeBonusForUserId(user.userId).catch((err) =>
         console.error("runWelcomeBonusForUserId", err),

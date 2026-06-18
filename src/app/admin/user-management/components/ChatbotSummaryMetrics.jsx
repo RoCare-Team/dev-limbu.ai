@@ -107,7 +107,7 @@ function PeriodCell({
       >
         {isToday ? "Today" : "Total"}
       </Typography>
-      
+
       <Typography
         component="p"
         sx={{
@@ -117,20 +117,34 @@ function PeriodCell({
           lineHeight: 1.1,
           color: "#111827",
           fontVariantNumeric: "tabular-nums",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+          // overflow: "hidden",
+          // textOverflow: "ellipsis",
+          // whiteSpace: "nowrap",
           width: "100%",
         }}
-        title={loading ? "" : `${formatCount(count)}${subCount !== null ? ` / ${formatCount(subCount)}` : ''}`}
+        title={
+          loading
+            ? ""
+            : `${formatCount(count)}${subCount !== null ? ` / ${formatCount(subCount)}` : ""}`
+        }
       >
-        {loading ? "…" : (
+        {loading ? (
+          "…"
+        ) : (
           <>
             {formatCount(count)}
             {/* 👇 Agar agent ka data hai toh slash ke saath dikhao */}
             {subCount !== null && (
-              <Box component="span" sx={{ color: style.color, opacity: 0.8, fontSize: '0.85em', fontWeight: 600 }}>
-                {` / ${formatCount(subCount)}`}
+              <Box
+                component="span"
+                sx={{
+                  color: style.color,
+                  opacity: 0.8,
+                  fontSize: "0.6em",
+                  fontWeight: 600,
+                }}
+              >
+                {` + ${formatCount(subCount)} My Leads`}
               </Box>
             )}
           </>
@@ -221,7 +235,11 @@ function MetricBlock({
           onSelect={onSelect}
           style={style}
           // 👇 Sirf chatsCreated aur agent role hone par subCount pass karein
-          subCount={(metricId === "chatsCreated" && role === "agent") ? agentTodayLeads : null}
+          subCount={
+            metricId === "chatsCreated" && role === "agent"
+              ? agentTodayLeads
+              : null
+          }
         />
       </Stack>
     </Card>

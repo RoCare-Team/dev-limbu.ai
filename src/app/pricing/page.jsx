@@ -25,6 +25,11 @@ const AccountSetupSection = lazy(
 const ServiceBookingModal = lazy(
   () => import("@/components/modals/ServiceBookingModal"),
 );
+
+const WhatsappPlansSection = lazy(
+  () => import("@/components/sections/WhatsappPlansSection"),
+);
+
 const ScrollToTop = lazy(() => import("@/components/ui/ScrollToTop"));
 
 // ── Skeleton ──
@@ -82,8 +87,8 @@ export default function PricingPage() {
   const subscriptionPlans = [
     {
       title: "Basic Plan",
-      basePrice: 2500,
-      totalAmount: 2950,
+      basePrice: 3500,
+      totalAmount: 4130,
       basePosts: 15,
       baseCitations: 5,
       staticFeatures: [
@@ -103,14 +108,17 @@ export default function PricingPage() {
       basePrice: 7500,
       totalAmount: 8850,
       basePosts: 45,
-      baseCitations: 15,
+      baseCitations: 20,
       staticFeatures: [
         "Review Reply Management",
-        "Magic Qr Code Generation",
-        "Insights Dashboard",
+        "Custom QR Code Generation",
+        "Business Insights Dashboard",
         "Category Addition & Optimization",
         "Website Builder",
-        "Add Professional Services",
+        "Professional Services Integration",
+        "10 Agent Access",
+        "WhatsApp Workflow Automation",
+        "10 AI-Generated Reels per Month",
       ],
       description: "Perfect for brands focused on automation and maximum reach",
       popular: true,
@@ -126,10 +134,14 @@ export default function PricingPage() {
       baseCitations: 12,
       staticFeatures: [
         "Review Reply Management",
-        "Magic Qr Code Generation",
-        "Insights Dashboard",
-        "Category Addition & Optimization",
-        "website Builder",
+        "Custom QR Code Generation",
+        "Business Insights Dashboard",
+        "Category Setup & Optimization",
+        "Business Website Builder",
+        "WhatsApp API Integration",
+        "Multi-Agent Support (Up to 5 Agents)",
+        "Data Scraper (1,000 Leads / Month)",
+        "4 AI-Generated Reels per Month",
       ],
       description: "Best for growing businesses looking for better visibility",
       color: "bg-neutral-600",
@@ -235,6 +247,7 @@ export default function PricingPage() {
         "Meta Tags Optimization",
         "Basic Technical SEO",
         "Monthly Report",
+        "5-7 Target Keyword",
       ],
       description: "Perfect for small websites starting SEO",
       color: "bg-neutral-500",
@@ -247,6 +260,8 @@ export default function PricingPage() {
         "Backlink Building",
         "Competitor Analysis",
         "Bi-Weekly Reports",
+        "15 Target Keywoord",
+        "4 Seo Friendly Blogs",
       ],
       popular: true,
       color: "bg-neutral-600",
@@ -255,7 +270,8 @@ export default function PricingPage() {
       title: "Advanced SEO",
       basePrice: 15999,
       staticFeatures: [
-        "Advanced 45-Page SEO",
+        "25 Target keyword",
+        "10 Seo Friendly  Blog",
         "Complete SEO Strategy",
         "High Quality Backlinks",
         "Technical Optimization",
@@ -295,6 +311,26 @@ export default function PricingPage() {
         "Creative strategy",
         "Copywriting",
       ],
+    },
+  ];
+
+  const whatsappPlans = [
+    {
+      title: "Whatsapp Automation Plan",
+      basePrice: 15000,
+      totalAmount: 5899,
+      description: "Complete WhatsApp automation solution for businesses",
+      staticFeatures: [
+        "Unlimited AI Agents ",
+        "No Setup Cost",
+        "No Markup Of Utility/Marketing Messages",
+        "Flow Builder",
+        "Lead Scrapper(500 Lead/month)",
+        "Webhooks/Api",
+      ],
+      color: "bg-green-600",
+      textColor: "text-green-600",
+      borderColor: "border-green-200",
     },
   ];
 
@@ -574,6 +610,13 @@ export default function PricingPage() {
           />
         </Suspense>
       </div>
+
+      <Suspense fallback={<SectionSkeleton />}>
+        <WhatsappPlansSection
+          plans={whatsappPlans}
+          handlePlanClick={handlePlanClick}
+        />
+      </Suspense>
 
       <Suspense fallback={null}>
         <FooterSection />

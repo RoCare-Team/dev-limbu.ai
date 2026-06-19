@@ -16,6 +16,9 @@ import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditPackageModal from "./components/EditPackageModal";
 import EditServiceModal from "./components/EditServiceModal";
 
+import RenewPlanModal from "./components/RenewPlanModal";
+import RenewServiceModal from "./components/RenewServiceModal";
+
 export default function RevenueUsersPage() {
   // "package" | "service"
 
@@ -33,7 +36,7 @@ export default function RevenueUsersPage() {
   const [invoiceUrls, setInvoiceUrls] = useState({});
   const [sendingEmailId, setSendingEmailId] = useState(null);
 
-  // card filter 
+  // card filter
   const [cardFilter, setCardFilter] = useState("");
 
   //service
@@ -56,8 +59,8 @@ export default function RevenueUsersPage() {
   const [editPlan, setEditPlan] = useState("");
   const [editRemarks, setEditRemarks] = useState("");
   const [editProofImage, setEditProofImage] = useState(null);
-   const [editStartDate, setEditStartDate] = useState("");
-const [editExpiryDate, setEditExpiryDate] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editExpiryDate, setEditExpiryDate] = useState("");
 
   // service delete edit modal
   const [editServiceModal, setEditServiceModal] = useState(false);
@@ -67,10 +70,8 @@ const [editExpiryDate, setEditExpiryDate] = useState("");
   const [editAmount, setEditAmount] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editServiceStartDate, setEditServiceStartDate] = useState("");
-const [editServiceExpiryDate, setEditServiceExpiryDate] = useState("");
-const [editServiceProofImage, setEditServiceProofImage] = useState(null);
-
- 
+  const [editServiceExpiryDate, setEditServiceExpiryDate] = useState("");
+  const [editServiceProofImage, setEditServiceProofImage] = useState(null);
 
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -88,20 +89,63 @@ const [editServiceProofImage, setEditServiceProofImage] = useState(null);
   // ===============================
   const [selectedPackageRows, setSelectedPackageRows] = useState([]);
   const [selectedServiceRows, setSelectedServiceRows] = useState([]);
+  const [selectedServicePlan, setSelectedServicePlan] = useState({});
 
-   // revenue plan 
+  // revenue plan
   const [showRenewModal, setShowRenewModal] = useState(false);
-const [renewUser, setRenewUser] = useState(null);
+  const [renewUser, setRenewUser] = useState(null);
 
+  const [renewPlan, setRenewPlan] = useState("");
+  const [renewAmount, setRenewAmount] = useState("");
+  const [renewStartDate, setRenewStartDate] = useState("");
+  const [renewExpiryDate, setRenewExpiryDate] = useState("");
+  const [renewScreenshot, setRenewScreenshot] = useState(null);
+  const [renewRemarks, setRenewRemarks] = useState("");
 
-const [renewPlan, setRenewPlan] = useState("");
-const [renewAmount, setRenewAmount] = useState("");
-const [renewStartDate, setRenewStartDate] = useState("");
-const [renewExpiryDate, setRenewExpiryDate] = useState("");
-const [renewScreenshot, setRenewScreenshot] = useState(null);
-const [renewRemarks, setRenewRemarks] = useState("");
+  const [renewDuration, setRenewDuration] = useState("monthly");
 
-const [savingPlan, setSavingPlan] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [selectedPackagePlan, setSelectedPackagePlan] = useState({});
+
+  const revenuePlans = [
+    {
+      name: "Basic Plan",
+      monthly: 3500,
+    },
+    {
+      name: "Professional Plan",
+      monthly: 5500,
+    },
+    {
+      name: "Premium Plan",
+      monthly: 7500,
+    },
+  ];
+
+  // REVENUE SERVICE  PLAN
+
+  const [showRenewServiceModal, setShowRenewServiceModal] = useState(false);
+  const [renewServiceUser, setRenewServiceUser] = useState(null);
+
+  const [renewServiceName, setRenewServiceName] = useState("");
+  const [renewServiceAmount, setRenewServiceAmount] = useState("");
+  const [renewServiceStartDate, setRenewServiceStartDate] = useState("");
+  const [renewServiceExpiryDate, setRenewServiceExpiryDate] = useState("");
+  const [renewServiceScreenshot, setRenewServiceScreenshot] = useState(null);
+  const [renewServiceRemarks, setRenewServiceRemarks] = useState("");
+
+  const [savingServicePlan, setSavingServicePlan] = useState(false);
+
+  const servicePlans = [
+    {
+      name: "GMB Assistance & Update Plan",
+      amount: 2500,
+    },
+    {
+      name: "GMB Creation & Management Plan",
+      amount: 3000,
+    },
+  ];
 
   // Current active selection
   const selectedRows =
@@ -124,7 +168,7 @@ const [savingPlan, setSavingPlan] = useState(false);
     if (checked) {
       const allIds =
         activeView === "package"
-          ? filteredData.map((r) => r._id)
+          ? groupedFilteredPackageRows.map((u) => u.leadId)
           : users.map((u) => u._id);
 
       setSelectedRows(allIds);
@@ -140,160 +184,228 @@ const [savingPlan, setSavingPlan] = useState(false);
   };
 
   const openRenewModal = (user) => {
-  setRenewUser(user);
+    setRenewUser(user);
 
-  setRenewPlan(user.plan || "");
-  setRenewAmount(user.amount || "");
+    setRenewPlan(user.plan || "");
+    setRenewAmount(user.amount || "");
 
-  setRenewStartDate("");
-  setRenewExpiryDate("");
-  setRenewScreenshot(null);
+    setRenewStartDate("");
+    setRenewExpiryDate("");
+    setRenewScreenshot(null);
 
-  setShowRenewModal(true);
-};
+    setShowRenewModal(true);
+  };
 
-const handleRenewPlan = async () => {
-  if (!renewPlan) return alert("Enter plan");
-  if (!renewAmount) return alert("Enter amount");
-  if (!renewStartDate) return alert("Select start date");
-  if (!renewExpiryDate) return alert("Select expiry date");
+  const handleRenewPlan = async () => {
+    if (!renewPlan) return alert("Enter plan");
+    if (!renewAmount) return alert("Enter amount");
+    if (!renewStartDate) return alert("Select start date");
+    if (!renewExpiryDate) return alert("Select expiry date");
 
-  try {
+    try {
+      setSavingPlan(true);
 
-     setSavingPlan(true);
-    
-    let screenshotUrl = "";
+      let screenshotUrl = "";
 
-if (renewScreenshot) {
-  const uploadFormData = new FormData();
+      if (renewScreenshot) {
+        const uploadFormData = new FormData();
 
-  uploadFormData.append(
-    "file",
-    renewScreenshot
-  );
+        uploadFormData.append("file", renewScreenshot);
 
-  const uploadResult =
-    await uploadToS3Action(uploadFormData);
+        const uploadResult = await uploadToS3Action(uploadFormData);
 
-  console.log(
-    "UPLOAD RESULT =>",
-    uploadResult
-  );
+        console.log("UPLOAD RESULT =>", uploadResult);
 
-  if (uploadResult?.success) {
-    screenshotUrl = uploadResult.url;
-  }
-}
+        if (uploadResult?.success) {
+          screenshotUrl = uploadResult.url;
+        }
+      }
 
-    // Agar screenshot upload API baad me lagani ho to yahan handle karenge
+      // Agar screenshot upload API baad me lagani ho to yahan handle karenge
 
-    const res = await fetch("/api/franchise-revenue", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        // Old user info
-        leadId: renewUser?.leadId,
-        leadName: renewUser?.leadName,
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Old user info
+          leadId: renewUser?.leadId,
+          leadName: renewUser?.leadName,
 
-        email: renewUser?.email || "",
-        phone: renewUser?.phone || "",
+          email: renewUser?.email || "",
+          phone: renewUser?.phone || "",
 
-        franchiseId: renewUser?.franchiseId || null,
-        franchiseName: renewUser?.franchiseName || null,
+          franchiseId: renewUser?.franchiseId || null,
+          franchiseName: renewUser?.franchiseName || null,
 
-        onboardedBy: renewUser?.onboardedBy || null,
-        onboardedByName: renewUser?.onboardedByName || "",
-        onboardedByRole: renewUser?.onboardedByRole || "",
+          onboardedBy: renewUser?.onboardedBy || null,
+          onboardedByName: renewUser?.onboardedByName || "",
+          onboardedByRole: renewUser?.onboardedByRole || "",
 
-        // New Plan
-        plan: renewPlan,
-        amount: Number(renewAmount),
+          // New Plan
+          plan: renewPlan,
+          amount: Number(renewAmount),
 
-        packageStartDate: renewStartDate,
-        packageExpiryDate: renewExpiryDate,
+          packageStartDate: renewStartDate,
+          packageExpiryDate: renewExpiryDate,
 
-        paymentScreenshot: screenshotUrl,
-        screenshot: screenshotUrl,
-        planRemarks: renewRemarks,
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+          planRemarks: renewRemarks,
 
-        notes: `Plan renewed from ${renewUser?.plan || "Old Plan"} to ${renewPlan}`,
+          notes: `Plan renewed from ${renewUser?.plan || "Old Plan"} to ${renewPlan}`,
 
-        // Important
-        type: "plan",
-        status: "active",
-        bookingSource: "manual-upload",
-      }),
+          // Important
+          type: "plan",
+          status: "active",
+          bookingSource: "manual-upload",
+        }),
+      });
+
+      const data = await res.json();
+
+      // ==============================
+      // Send WhatsApp Template
+      // ==============================
+      try {
+        const whatsappRes = await fetch("/api/admin/package-booking-template", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            phone: renewUser?.phone || "",
+
+            firstName: renewUser?.leadName || renewUser?.name || "Customer",
+
+            planName: renewPlan,
+            amount: renewAmount || "0",
+
+            startDate: renewStartDate || "-",
+            expiryDate: renewExpiryDate || "-",
+          }),
+        });
+
+        const whatsappData = await whatsappRes.json();
+
+        console.log("Revenue WhatsApp Template Response:", whatsappData);
+      } catch (err) {
+        console.error("Revenue WhatsApp template failed:", err);
+      }
+
+      // console.log("RENEW API RESPONSE =>", data);
+
+      if (data.success) {
+        alert("Plan Renew Successfully");
+
+        setShowRenewModal(false);
+
+        setRenewUser(null);
+        setRenewPlan("");
+        setRenewAmount("");
+        setRenewStartDate("");
+        setRenewExpiryDate("");
+        setRenewScreenshot(null);
+
+        fetchRevenueUsers();
+      } else {
+        alert(data.message || "Failed to renew plan");
+      }
+    } catch (err) {
+      console.error("RENEW PLAN ERROR =>", err);
+      alert("Something went wrong");
+    }
+  };
+
+  // REVENUE SERVICE  PLAN
+
+  const openRenewServiceModal = (user) => {
+    console.log("OPEN SERVICE USER =>", user);
+
+    setRenewServiceUser({
+      ...user,
+      email: user.email || "",
+      phone: user.phone || "",
     });
 
-    const data = await res.json();
+    setRenewServiceName(user.plan || "");
+    setRenewServiceAmount(user.amount || "");
 
+    setRenewServiceStartDate("");
+    setRenewServiceExpiryDate("");
+    setRenewServiceScreenshot(null);
 
-    // ==============================
-// Send WhatsApp Template
-// ==============================
-try {
-  const whatsappRes = await fetch(
-    "/api/admin/package-booking-template",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone: renewUser?.phone || "",
+    setShowRenewServiceModal(true);
+  };
 
-        firstName:
-          renewUser?.leadName ||
-          renewUser?.name ||
-          "Customer",
+  const handleRenewService = async () => {
+    console.log("RENEW SERVICE USER =>", renewServiceUser);
 
-        planName: renewPlan,
-        amount: renewAmount || "0",
+    try {
+      setSavingServicePlan(true);
 
-        startDate: renewStartDate || "-",
-        expiryDate: renewExpiryDate || "-",
-      }),
+      let screenshotUrl = "";
+
+      if (renewServiceScreenshot) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", renewServiceScreenshot);
+
+        const uploadResult = await uploadToS3Action(uploadFormData);
+
+        if (uploadResult?.success) {
+          screenshotUrl = uploadResult.url;
+        }
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          leadId: renewServiceUser?.leadId,
+          leadName: renewServiceUser?.leadName,
+
+          email: renewServiceUser?.email || "",
+          phone: renewServiceUser?.phone || "",
+
+          franchiseId: renewServiceUser?.franchiseId || null,
+          franchiseName: renewServiceUser?.franchiseName || null,
+
+          amount: Number(renewServiceAmount),
+
+          plan: renewServiceName,
+
+          packageStartDate: renewServiceStartDate,
+          packageExpiryDate: renewServiceExpiryDate,
+
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+
+          notes: renewServiceRemarks,
+
+          type: "service",
+          status: "active",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Service Renew Successfully");
+
+        setShowRenewServiceModal(false);
+
+        fetchRevenueUsers();
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setSavingServicePlan(false);
     }
-  );
-
-  const whatsappData = await whatsappRes.json();
-
-  console.log(
-    "Revenue WhatsApp Template Response:",
-    whatsappData
-  );
-} catch (err) {
-  console.error(
-    "Revenue WhatsApp template failed:",
-    err
-  );
-}
-
-    // console.log("RENEW API RESPONSE =>", data);
-
-    if (data.success) {
-      alert("Plan Renew Successfully");
-
-      setShowRenewModal(false);
-
-      setRenewUser(null);
-      setRenewPlan("");
-      setRenewAmount("");
-      setRenewStartDate("");
-      setRenewExpiryDate("");
-      setRenewScreenshot(null);
-
-      fetchRevenueUsers();
-    } else {
-      alert(data.message || "Failed to renew plan");
-    }
-  } catch (err) {
-    console.error("RENEW PLAN ERROR =>", err);
-    alert("Something went wrong");
-  }
-};
+  };
 
   // refresh
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -305,8 +417,59 @@ try {
       (item.status === "active" || item.status === "user_onboard"), // ✅ dono status
   );
 
+  const groupedPackageRows = Object.values(
+    packageRows.reduce((acc, item) => {
+      const key = item.leadId;
+
+      if (!acc[key]) {
+        acc[key] = {
+          leadId: item.leadId,
+          leadName: item.leadName,
+          email: item.email || "",
+          phone: item.phone || "",
+          franchiseName: item.franchiseName || "",
+          plans: [],
+        };
+      }
+
+      acc[key].plans.push(item);
+
+      return acc;
+    }, {}),
+  );
+
   const serviceRows = revenueUsersList.filter(
     (item) => item.type === "service",
+  );
+
+  const groupedServiceRows = Object.values(
+    serviceRows.reduce((acc, item) => {
+      const key = item.leadId;
+
+      if (!acc[key]) {
+        acc[key] = {
+          leadId: item.leadId,
+          leadName: item.leadName,
+          email: item.email || "",
+          phone: item.phone || "",
+          franchiseName: item.franchiseName || "",
+          plans: [],
+        };
+      }
+
+      // agar current item me email hai to update kar do
+      if (item.email) {
+        acc[key].email = item.email;
+      }
+
+      if (item.phone) {
+        acc[key].phone = item.phone;
+      }
+
+      acc[key].plans.push(item);
+
+      return acc;
+    }, {}),
   );
 
   const today = new Date().toDateString();
@@ -346,10 +509,7 @@ try {
       ? revenueUsersList
           .filter((item) => {
             // ✅ Sirf package records
-            return (
-  item.type === "user_onboard" ||
-  item.type === "plan"
-);
+            return item.type === "user_onboard" || item.type === "plan";
           })
           .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
       : serviceRows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -357,43 +517,35 @@ try {
   // 🔥 TODAY REVENUE
 
   const todayRevenue =
-  activeView === "package"
-    ? revenueUsersList
-        .filter((item) => {
+    activeView === "package"
+      ? revenueUsersList
+          .filter((item) => {
+            if (item.type !== "user_onboard" && item.type !== "plan")
+              return false;
 
-          if (
-            item.type !== "user_onboard" &&
-            item.type !== "plan"
-          )
-            return false;
+            if (item.status !== "active") return false;
 
-          if (item.status !== "active") return false;
+            if (!item.createdAt) return false;
 
-          if (!item.createdAt) return false;
+            return new Date(item.createdAt).toDateString() === today;
+          })
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      : serviceRows
+          .filter((item) => {
+            if (!item.createdAt) return false;
 
-          return (
-            new Date(item.createdAt).toDateString() === today
-          );
-        })
-        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-    : serviceRows
-        .filter((item) => {
-          if (!item.createdAt) return false;
-
-          return new Date(item.createdAt).toDateString() === today;
-        })
-        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-
-
+            return new Date(item.createdAt).toDateString() === today;
+          })
+          .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // service package
 
-  const assistanceUsers = users.filter(
-    (u) => u.paidService && u.paidService.toLowerCase().includes("assistance"),
+  const assistanceUsers = serviceRows.filter((item) =>
+    item.plan?.toLowerCase().includes("assistance"),
   ).length;
 
-  const creationUsers = users.filter(
-    (u) => u.paidService && u.paidService.toLowerCase().includes("creation"),
+  const creationUsers = serviceRows.filter((item) =>
+    item.plan?.toLowerCase().includes("creation"),
   ).length;
 
   // service plane
@@ -445,20 +597,20 @@ try {
     return t;
   };
 
- const formatDateIST = (dateStr) => {
-  if (!dateStr) return "No Date";
+  const formatDateIST = (dateStr) => {
+    if (!dateStr) return "No Date";
 
-  const d = new Date(dateStr);
+    const d = new Date(dateStr);
 
-  if (isNaN(d.getTime())) return "No Date";
+    if (isNaN(d.getTime())) return "No Date";
 
-  return d.toLocaleDateString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
+    return d.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
 
   const fetchRevenueUsers = async () => {
     setLoadingRevenueUsers(true);
@@ -468,9 +620,9 @@ try {
       const role = localStorage.getItem("role");
 
       const params = new URLSearchParams({
-  email,
-  role,
-});
+        email,
+        role,
+      });
 
       const res = await fetch(`/api/franchise-revenue?${params}`);
       const data = await res.json();
@@ -479,10 +631,10 @@ try {
       // console.log("📦 REVENUE LIST:", data.revenue);
 
       if (data.success) {
-  setRevenueUsersList(data.revenue || []);
-} else {
-  setRevenueUsersList([]);
-}
+        setRevenueUsersList(data.revenue || []);
+      } else {
+        setRevenueUsersList([]);
+      }
     } catch (err) {
       console.error(err);
       setRevenueUsersList([]);
@@ -617,7 +769,7 @@ try {
   };
 
   const handleSendInvoiceWhatsApp = async (user) => {
-     console.log("Sending invoice for:", user);
+    console.log("Sending invoice for:", user);
     try {
       const res = await fetch("/api/admin/send-invoice-whatsapp", {
         method: "POST",
@@ -630,7 +782,7 @@ try {
       });
 
       const data = await res.json();
-       console.log("API Response:", data);
+      console.log("API Response:", data);
 
       if (data.success) {
         alert("Invoice sent successfully on WhatsApp");
@@ -643,7 +795,6 @@ try {
     }
   };
 
-  
   const handleSendInvoiceEmail = async (r) => {
     try {
       setSendingEmailId(r._id);
@@ -747,80 +898,101 @@ try {
     return matchSearch && matchPlan && matchStatus && matchExpiry;
   });
 
- const finalFilteredData = filteredData.filter((item) => {
-  if (!cardFilter) return true;
+  const finalFilteredData = filteredData.filter((item) => {
+    if (!cardFilter) return true;
 
-  const plan = item.plan?.toLowerCase() || "";
+    const plan = item.plan?.toLowerCase() || "";
 
-  switch (cardFilter) {
-    case "basic":
-      return plan.includes("basic");
+    switch (cardFilter) {
+      case "basic":
+        return plan.includes("basic");
 
-    case "professional":
-      return plan.includes("professional");
+      case "professional":
+        return plan.includes("professional");
 
-    case "premium":
-      return plan.includes("premium");
+      case "premium":
+        return plan.includes("premium");
 
-    case "today_users":
-      return (
-        item.createdAt &&
-        new Date(item.createdAt).toDateString() ===
-          new Date().toDateString()
-      );
+      case "today_users":
+        return (
+          item.createdAt &&
+          new Date(item.createdAt).toDateString() === new Date().toDateString()
+        );
 
-    case "today_revenue":
-      return (
-        item.createdAt &&
-        new Date(item.createdAt).toDateString() ===
-          new Date().toDateString() &&
-        Number(item.amount || 0) > 0
-      );
+      case "today_revenue":
+        return (
+          item.createdAt &&
+          new Date(item.createdAt).toDateString() ===
+            new Date().toDateString() &&
+          Number(item.amount || 0) > 0
+        );
 
-    case "today":
-      return (
-        new Date(
-          item.userPackageExpiryDate || item.packageExpiryDate
-        ).toDateString() === new Date().toDateString()
-      );
+      case "today":
+        return (
+          new Date(
+            item.userPackageExpiryDate || item.packageExpiryDate,
+          ).toDateString() === new Date().toDateString()
+        );
 
-    case "7days": {
-      const expiry = new Date(
-        item.userPackageExpiryDate || item.packageExpiryDate
-      );
+      case "7days": {
+        const expiry = new Date(
+          item.userPackageExpiryDate || item.packageExpiryDate,
+        );
 
-      const today = new Date();
-      const next7 = new Date();
+        const today = new Date();
+        const next7 = new Date();
 
-      next7.setDate(today.getDate() + 7);
+        next7.setDate(today.getDate() + 7);
 
-      return expiry >= today && expiry <= next7;
+        return expiry >= today && expiry <= next7;
+      }
+
+      case "this_month": {
+        const expiry = new Date(
+          item.userPackageExpiryDate || item.packageExpiryDate,
+        );
+
+        const today = new Date();
+
+        return (
+          expiry.getMonth() === today.getMonth() &&
+          expiry.getFullYear() === today.getFullYear()
+        );
+      }
+
+      case "expired":
+        return (
+          new Date(item.userPackageExpiryDate || item.packageExpiryDate) <
+          new Date()
+        );
+
+      default:
+        return true;
     }
+  });
 
-    case "this_month": {
-      const expiry = new Date(
-        item.userPackageExpiryDate || item.packageExpiryDate
-      );
+  const groupedFilteredPackageRows = Object.values(
+    finalFilteredData
+      .filter((item) => item.type === "user_onboard" || item.type === "plan")
+      .reduce((acc, item) => {
+        const key = item.leadId;
 
-      const today = new Date();
+        if (!acc[key]) {
+          acc[key] = {
+            leadId: item.leadId,
+            leadName: item.leadName,
+            email: item.email || "",
+            phone: item.phone || "",
+            franchiseName: item.franchiseName || "",
+            plans: [],
+          };
+        }
 
-      return (
-        expiry.getMonth() === today.getMonth() &&
-        expiry.getFullYear() === today.getFullYear()
-      );
-    }
+        acc[key].plans.push(item);
 
-    case "expired":
-      return (
-        new Date(
-          item.userPackageExpiryDate || item.packageExpiryDate
-        ) < new Date()
-      );
-
-    default:
-      return true;
-  }
-});
+        return acc;
+      }, {}),
+  );
 
   // reshresh
   const handleRefresh = async () => {
@@ -838,69 +1010,68 @@ try {
   // package handle edit
 
   const handleEdit = (item) => {
-  setEditData(item);
+    setEditData(item);
 
-  setEditPlan(item.plan || "");
-  setEditAmount(item.amount || "");
-  setEditRemarks(item.planRemarks || "");
+    setEditPlan(item.plan || "");
+    setEditAmount(item.amount || "");
+    setEditRemarks(item.planRemarks || "");
 
-  setEditStartDate(
-  item.packageStartDate
-    ? new Date(item.packageStartDate).toISOString().split("T")[0]
-    : ""
-);
+    setEditStartDate(
+      item.packageStartDate
+        ? new Date(item.packageStartDate).toISOString().split("T")[0]
+        : "",
+    );
 
-setEditExpiryDate(
-  item.packageExpiryDate
-    ? new Date(item.packageExpiryDate).toISOString().split("T")[0]
-    : ""
-);
+    setEditExpiryDate(
+      item.packageExpiryDate
+        ? new Date(item.packageExpiryDate).toISOString().split("T")[0]
+        : "",
+    );
 
     setEditProofImage(item.paymentScreenshot || "");
 
-
-  setEditModal(true);
-};
+    setEditModal(true);
+  };
 
   // package handle delte
-const handleUpdatePackage = async () => {
-  try {
-    setUpdating(true);
+  const handleUpdatePackage = async () => {
+    try {
+      setUpdating(true);
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    formData.append("id", editData._id);
-    formData.append("plan", editPlan);
-    formData.append("amount", editAmount);
-    formData.append("planRemarks", editRemarks);
+      formData.append("id", editData._id);
+      formData.append("plan", editPlan);
+      formData.append("amount", editAmount);
+      formData.append("planRemarks", editRemarks);
 
-    formData.append("packageStartDate", editStartDate);
-    formData.append("packageExpiryDate", editExpiryDate);
+      formData.append("packageStartDate", editStartDate);
+      formData.append("packageExpiryDate", editExpiryDate);
 
-    if (editProofImage instanceof File) {
-      formData.append("paymentScreenshot", editProofImage);
+      if (editProofImage instanceof File) {
+        formData.append("paymentScreenshot", editProofImage);
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditModal(false);
+        fetchRevenueUsers();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    } finally {
+      setUpdating(false);
     }
-
-    const res = await fetch("/api/franchise-revenue", {
-      method: "PUT",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setEditModal(false);
-      fetchRevenueUsers();
-    } else {
-      alert(data.message);
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Something went wrong");
-  } finally {
-    setUpdating(false);
-  }
-};
+  };
 
   //  delte user tabe
 
@@ -952,71 +1123,51 @@ const handleUpdatePackage = async () => {
   };
 
   const updateService = async () => {
-  try {
-    setUpdatingService(true);
+    try {
+      setUpdatingService(true);
 
-    const formData = new FormData();
+      const formData = new FormData();
 
-    formData.append("id", selectedService?._id);
-    formData.append("type", "service");
+      formData.append("id", selectedService?._id);
+      formData.append("type", "service");
 
-    formData.append("amount", editAmount);
-    formData.append("notes", editNotes);
+      formData.append("amount", editAmount);
+      formData.append("notes", editNotes);
 
-    formData.append("packageStartDate", editServiceStartDate);
-    formData.append("packageExpiryDate", editServiceExpiryDate);
+      formData.append("packageStartDate", editServiceStartDate);
+      formData.append("packageExpiryDate", editServiceExpiryDate);
 
-    if (editServiceProofImage instanceof File) {
-      formData.append(
-        "paymentScreenshot",
-        editServiceProofImage
-      );
+      if (editServiceProofImage instanceof File) {
+        formData.append("paymentScreenshot", editServiceProofImage);
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setEditServiceModal(false);
+        fetchRevenueUsers();
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUpdatingService(false);
     }
-
-    const res = await fetch("/api/franchise-revenue", {
-      method: "PUT",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setEditServiceModal(false);
-      fetchRevenueUsers();
-    } else {
-      alert(data.message);
-    }
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setUpdatingService(false);
-  }
-};
+  };
   // paginatedPackageRows filter
-  const paginatedPackageRows = finalFilteredData
-  .filter(
-    (r) => r.type === "user_onboard" || r.type === "plan"
-  )
-  .sort(
-  (a, b) =>
-    new Date(
-      b.packageStartDate ||
-      b.userPackageStartDate ||
-      b.createdAt
-    ) -
-    new Date(
-      a.packageStartDate ||
-      a.userPackageStartDate ||
-      a.createdAt
-    )
-)
 
-  const currentPackageRows = paginatedPackageRows.slice(
+  const paginatedGroupedPackageRows = groupedFilteredPackageRows.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage,
   );
 
-  const totalPages = Math.ceil(paginatedPackageRows.length / rowsPerPage);
+  const totalPages = Math.ceil(groupedFilteredPackageRows.length / rowsPerPage);
 
   return (
     <>
@@ -1030,17 +1181,19 @@ const handleUpdatePackage = async () => {
 
         {/* ===== STATS ===== */}
 
-        <RevenueStats 
-  activeView={activeView}
-  totalUsers={totalUsers}
-  todayUsers={todayUsers}
-  totalRevenue={totalRevenue}
-  todayRevenue={todayRevenue}
-  revenueUsersList={revenueUsersList}
-  users={users}
-  cardFilter={cardFilter}
-  setCardFilter={setCardFilter}
-/>
+        <RevenueStats
+          activeView={activeView}
+          totalUsers={totalUsers}
+          todayUsers={todayUsers}
+          totalRevenue={totalRevenue}
+          todayRevenue={todayRevenue}
+          revenueUsersList={revenueUsersList}
+          users={users}
+          cardFilter={cardFilter}
+          setCardFilter={setCardFilter}
+          assistanceUsers={assistanceUsers}
+          creationUsers={creationUsers}
+        />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -1164,107 +1317,140 @@ const handleUpdatePackage = async () => {
                     <tbody>
                       {/* 📦 PACKAGE VIEW (OLD DESIGN BACK) */}
                       {activeView === "package" &&
-                        currentPackageRows.map((r) => {
+                        paginatedGroupedPackageRows.map((u) => {
+                          const sortedPlans = [...u.plans].sort(
+                            (a, b) =>
+                              new Date(b.packageStartDate || b.createdAt) -
+                              new Date(a.packageStartDate || a.createdAt),
+                          );
+
+                          const currentPlan =
+                            sortedPlans.find(
+                              (p) => p._id === selectedPackagePlan[u.leadId],
+                            ) || sortedPlans[0];
+
                           return (
                             <tr
-                              key={r._id}
+                              key={u.leadId}
                               className="border-t hover:bg-gray-50 transition"
                             >
                               <td className="px-4 py-4">
                                 <input
                                   type="checkbox"
-                                  checked={selectedRows.includes(r.leadId)}
-                                  onChange={() => handleSelectRow(r.leadId)}
+                                  checked={selectedRows.includes(u.leadId)}
+                                  onChange={() => handleSelectRow(u.leadId)}
                                   className="w-4 h-4 accent-indigo-600"
                                 />
                               </td>
 
                               <td className="px-6 py-4">
-                                <div className="font-semibold text-gray-900">
-                                  {r.leadName}
+                                <div className="font-bold text-gray-800 text-sm">
+                                  {u.leadName}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  ID: {r.leadId}
+                                  ID: {u.leadId}
                                 </div>
 
                                 {/* ✅ franchiseId hai toh hi dikhao */}
-                                {r.franchiseId && (
+                                {currentPlan.franchiseId && (
                                   <div className="text-xs font-medium text-indigo-600">
-                                    Franchise: {r.franchiseId}
+                                    Franchise: {currentPlan.franchiseId}
                                   </div>
                                 )}
-                                {r.franchiseName && (
+                                {u.franchiseName && (
                                   <div className="text-xs text-purple-600">
-                                    {r.franchiseName}
+                                    {u.franchiseName}
                                   </div>
                                 )}
 
                                 <div className="text-xs text-gray-500">
-                                  UTR: {r.utrNumber || "N/A"}
+                                  UTR: {currentPlan.utrNumber || "N/A"}
                                 </div>
                               </td>
 
-                         <td className="px-6 py-4">
-  <div className="flex flex-col gap-1">
-    <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-xs w-fit">
-      {r.plan}
-    </span>
-       {/* // revnue plan  */}
-      {
-  (r.userPackageExpiryDate || r.packageExpiryDate) &&
-  new Date(r.userPackageExpiryDate || r.packageExpiryDate) < new Date() && (
-    <>
-      <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
-        Expired
-      </span>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <select
+                                    value={
+                                      selectedPackagePlan[u.leadId] ||
+                                      currentPlan._id
+                                    }
+                                    onChange={(e) =>
+                                      setSelectedPackagePlan((prev) => ({
+                                        ...prev,
+                                        [u.leadId]: e.target.value,
+                                      }))
+                                    }
+                                    className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs font-semibold"
+                                  >
+                                    {sortedPlans.map((p) => (
+                                      <option key={p._id} value={p._id}>
+                                        {p.plan}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {/* // revnue plan  */}
+                                  {(currentPlan.userPackageExpiryDate ||
+                                    currentPlan.packageExpiryDate) &&
+                                    new Date(
+                                      currentPlan.userPackageExpiryDate ||
+                                        currentPlan.packageExpiryDate,
+                                    ) < new Date() && (
+                                      <>
+                                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
+                                          Expired
+                                        </span>
 
-      <button
-        onClick={() => openRenewModal(r)}
-        className="bg-indigo-600 text-white px-1 py-1 rounded text-xs mt-2"
-      >
-        Revenue Plan
-      </button>
-    </>
-  )
-}
-  </div>
-</td>
+                                        <button
+                                          onClick={() =>
+                                            openRenewModal(currentPlan)
+                                          }
+                                          className="bg-indigo-600 text-white px-1 py-1 rounded text-xs mt-2"
+                                        >
+                                          Revenue Plan
+                                        </button>
+                                      </>
+                                    )}
+                                </div>
+                              </td>
 
                               <td className="px-6 py-4 font-semibold text-green-600">
-                                ₹{r.amount}
+                                ₹{currentPlan.amount}
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-  {formatDateIST(
-    r.packageStartDate ||
-    r.userPackageStartDate ||
-    r.createdAt
-  )}
-</td>
+                                {formatDateIST(
+                                  currentPlan.packageStartDate ||
+                                    currentPlan.userPackageStartDate ||
+                                    currentPlan.createdAt,
+                                )}
+                              </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-  {formatDateIST(
-    r.packageExpiryDate ||
-    r.userPackageExpiryDate
-  )}
-</td>
+                                {formatDateIST(
+                                  currentPlan.packageExpiryDate ||
+                                    currentPlan.userPackageExpiryDate,
+                                )}
+                              </td>
 
                               <td className="px-6 py-4">
                                 <div className="flex gap-2">
                                   {/* PDF Download */}
                                   <button
-                                    onClick={() => handleDownloadInvoice(r)}
+                                    onClick={() =>
+                                      handleDownloadInvoice(currentPlan)
+                                    }
                                     className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
                                   >
                                     PDF Download
                                   </button>
 
                                   {/* View PDF */}
-                                  {invoiceUrls[r._id] && (
+                                  {invoiceUrls[currentPlan._id] && (
                                     <button
                                       onClick={() =>
                                         window.open(
-                                          invoiceUrls[r._id],
+                                          invoiceUrls[currentPlan._id],
                                           "_blank",
                                         )
                                       }
@@ -1275,13 +1461,17 @@ const handleUpdatePackage = async () => {
                                   )}
 
                                   {/* Send Email */}
-                                  {invoiceUrls[r._id] && (
+                                  {invoiceUrls[currentPlan._id] && (
                                     <button
-                                      onClick={() => handleSendInvoiceEmail(r)}
-                                      disabled={sendingEmailId === r._id}
+                                      onClick={() =>
+                                        handleSendInvoiceEmail(currentPlan)
+                                      }
+                                      disabled={
+                                        sendingEmailId === currentPlan._id
+                                      }
                                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
                                     >
-                                      {sendingEmailId === r._id
+                                      {sendingEmailId === currentPlan._id
                                         ? "Sending..."
                                         : "Send Email"}
                                     </button>
@@ -1290,7 +1480,9 @@ const handleUpdatePackage = async () => {
                                   {/* Send WhatsApp - ONLY after download */}
 
                                   <button
-                                    onClick={() => handleSendInvoiceWhatsApp(r)}
+                                    onClick={() =>
+                                      handleSendInvoiceWhatsApp(currentPlan)
+                                    }
                                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
                                   >
                                     Send Invoice
@@ -1301,35 +1493,43 @@ const handleUpdatePackage = async () => {
                               {/* 🔥 EXPIRY */}
 
                               <td className="px-6 py-4">
-                              <button
-  onClick={() => {
-    console.log("SCREENSHOT =>", r.paymentScreenshot);
+                                <button
+                                  onClick={() => {
+                                    console.log(
+                                      "SCREENSHOT =>",
+                                      currentPlan.paymentScreenshot,
+                                    );
 
-    if (r.paymentScreenshot) {
-      setFullViewImage(r.paymentScreenshot);
-    } else {
-      alert("No screenshot found");
-    }
-  }}
-  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
->
-  View Proof
-</button>
+                                    if (currentPlan.paymentScreenshot) {
+                                      setFullViewImage(
+                                        currentPlan.paymentScreenshot,
+                                      );
+                                    } else {
+                                      alert("No screenshot found");
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
+                                >
+                                  View Proof
+                                </button>
                               </td>
 
                               <td className="px-6 py-4 text-sm">
-                                {r.notes || "-"}
+                                {currentPlan.notes || "-"}
                               </td>
 
                               <td className="px-6 py-4 text-sm">
-                                 {r.planRemarks || r.remarks || "-"}
+                                {currentPlan.planRemarks ||
+                                  currentPlan.remarks ||
+                                  "-"}
                               </td>
 
                               {role === "superAdmin" && (
                                 <td className="px-6 py-4 align-top text-sm">
-                                  {r?.type === "user_onboard" || r?.type === "plan" ? (
+                                  {currentPlan?.type === "user_onboard" ||
+                                  currentPlan?.type === "plan" ? (
                                     (() => {
-                                      const st = r.planApprovalStatus;
+                                      const st = currentPlan.planApprovalStatus;
 
                                       if (st === "approved") {
                                         return (
@@ -1348,7 +1548,8 @@ const handleUpdatePackage = async () => {
                                       }
 
                                       const busy =
-                                        approvalBusyId === String(r._id);
+                                        approvalBusyId ===
+                                        String(currentPlan._id);
 
                                       return (
                                         <div className="flex flex-col gap-2">
@@ -1356,7 +1557,7 @@ const handleUpdatePackage = async () => {
                                             disabled={busy}
                                             onClick={() =>
                                               handleOnboardApproval(
-                                                r,
+                                                currentPlan,
                                                 "approved",
                                               )
                                             }
@@ -1369,7 +1570,7 @@ const handleUpdatePackage = async () => {
                                             disabled={busy}
                                             onClick={() =>
                                               handleOnboardApproval(
-                                                r,
+                                                currentPlan,
                                                 "rejected",
                                               )
                                             }
@@ -1389,7 +1590,7 @@ const handleUpdatePackage = async () => {
                               <td className="px-6 py-4 align-middle">
                                 <div className="flex justify-center items-center gap-2">
                                   <button
-                                    onClick={() => handleEdit(r)}
+                                    onClick={() => handleEdit(currentPlan)}
                                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
                                   >
                                     Edit
@@ -1397,7 +1598,7 @@ const handleUpdatePackage = async () => {
 
                                   <button
                                     onClick={() => {
-                                      setSelectedId(r._id);
+                                      setSelectedId(currentPlan._id);
                                       setDeleteType("package");
                                       setDeleteModal(true);
                                     }}
@@ -1414,51 +1615,98 @@ const handleUpdatePackage = async () => {
                       {/* =================🛠 SERVICE VIEW ================================*/}
 
                       {activeView === "service" &&
-                        serviceRows.map((u, i) => {
+                        groupedServiceRows.map((u, i) => {
+                          const sortedPlans = [...u.plans].sort(
+                            (a, b) =>
+                              new Date(b.packageStartDate || b.createdAt) -
+                              new Date(a.packageStartDate || a.createdAt),
+                          );
+
+                          const currentPlan =
+                            sortedPlans.find(
+                              (p) => p._id === selectedServicePlan[u.leadId],
+                            ) || sortedPlans[0];
                           // console.log("FULL SERVICE ROW", u);
 
                           return (
                             <tr
                               key={i}
-                              className="border-t hover:bg-gray-50 transition"
+                              className="border-b border-gray-100 hover:bg-indigo-50 transition-all duration-200"
                             >
                               <td className="px-6 py-4">
-                                <div className="font-semibold text-gray-900">
-                                  {u.name ||
-                                    u.fullName ||
-                                    u.leadName ||
-                                    "No Name"}
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-gray-800 text-sm">
+                                    {u.name ||
+                                      u.fullName ||
+                                      u.leadName ||
+                                      "No Name"}
+                                  </span>
+
+                                  <span className="text-xs text-gray-500 mt-1">
+                                    {currentPlan.email || u.email || "No Email"}
+                                  </span>
+
+                                  {u.franchiseName && (
+                                    <span className="text-[11px] text-indigo-600 mt-1">
+                                      {u.franchiseName}
+                                    </span>
+                                  )}
                                 </div>
-
-                                <div className="text-xs text-gray-500">
-                                  {u.email}
-                                </div>
-
-                                {/* Franchise Info */}
-                                {u.franchiseId && (
-                                  <div className="text-xs font-medium text-indigo-600">
-                                    Franchise: {u.franchiseId}
-                                  </div>
-                                )}
-
-                                {u.franchiseName && (
-                                  <div className="text-xs text-purple-600">
-                                    {u.franchiseName}
-                                  </div>
-                                )}
                               </td>
 
                               <td className="px-6 py-4">
-                                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
-                                  {u.paidService || u.plan || "No Service"}
+                                <div className="flex flex-col gap-1">
+                                  <select
+                                    value={
+                                      selectedServicePlan[u.leadId] ||
+                                      currentPlan._id
+                                    }
+                                    onChange={(e) =>
+                                      setSelectedServicePlan((prev) => ({
+                                        ...prev,
+                                        [u.leadId]: e.target.value,
+                                      }))
+                                    }
+                                    className="bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 text-xs font-semibold text-indigo-700 shadow-sm"
+                                  >
+                                    {sortedPlans.map((p) => (
+                                      <option key={p._id} value={p._id}>
+                                        {p.plan}
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  {currentPlan.packageExpiryDate &&
+                                    new Date(currentPlan.packageExpiryDate) <
+                                      new Date() && (
+                                      <>
+                                        <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
+                                          Expired
+                                        </span>
+
+                                        {/* {console.log("CURRENT PLAN =>", currentPlan)} */}
+                                        <button
+                                          onClick={() =>
+                                            openRenewServiceModal(currentPlan)
+                                          }
+                                          className="inline-block w-fit bg-indigo-600 text-white px-3 py-1 rounded text-xs mt-2"
+                                        >
+                                          Revenue Service
+                                        </button>
+                                      </>
+                                    )}
+                                </div>
+                              </td>
+
+                              <td className="px-6 py-4">
+                                {currentPlan.planDuration || "monthly"}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-bold">
+                                  ₹{currentPlan.amount}
                                 </span>
                               </td>
-
-                              <td className="px-6 py-4">
-                                {u.planDuration || "monthly"}
-                              </td>
-
-                              <td className="px-6 py-4">{u.amount}</td>
 
                               {/* START DATE */}
                               {/* START DATE */}
@@ -1468,8 +1716,7 @@ const handleUpdatePackage = async () => {
                                   // userPackageStartDate = "2026-05-07T00:00:00.000Z"
 
                                   const rawDate =
-                                    u.packageStartDate ||
-                                  
+                                    currentPlan.packageStartDate ||
                                     u.startDate ||
                                     u.date ||
                                     u.createdAt;
@@ -1492,9 +1739,9 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4">
-                                {u.packageExpiryDate
+                                {currentPlan.packageExpiryDate
                                   ? new Date(
-                                      u.packageExpiryDate,
+                                      currentPlan.packageExpiryDate,
                                     ).toLocaleDateString("en-IN")
                                   : "No Date"}
                               </td>
@@ -1503,18 +1750,20 @@ const handleUpdatePackage = async () => {
                                 <div className="flex gap-2">
                                   {/* PDF Download */}
                                   <button
-                                    onClick={() => handleDownloadInvoice(u)}
+                                    onClick={() =>
+                                      handleDownloadInvoice(currentPlan)
+                                    }
                                     className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs"
                                   >
                                     PDF Download
                                   </button>
 
                                   {/* View PDF */}
-                                  {invoiceUrls[u._id] && (
+                                  {invoiceUrls[currentPlan._id] && (
                                     <button
                                       onClick={() =>
                                         window.open(
-                                          invoiceUrls[u._id],
+                                          invoiceUrls[currentPlan._id],
                                           "_blank",
                                         )
                                       }
@@ -1524,25 +1773,30 @@ const handleUpdatePackage = async () => {
                                     </button>
                                   )}
 
-                                  {invoiceUrls[u._id] && (
+                                  {invoiceUrls[currentPlan._id] && (
                                     <button
-                                      onClick={() => handleSendInvoiceEmail(u)}
-                                      disabled={sendingEmailId === u._id}
+                                      onClick={() =>
+                                        handleSendInvoiceEmail(currentPlan)
+                                      }
+                                      disabled={
+                                        sendingEmailId === currentPlan._id
+                                      }
                                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
                                     >
-                                      {sendingEmailId === u._id
+                                      {sendingEmailId === currentPlan._id
                                         ? "Sending..."
                                         : "Send Email"}
                                     </button>
                                   )}
 
-                                    <button
-                                         onClick={() => handleSendInvoiceWhatsApp(u)}
-                                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
-                                      >
-                                         Send Invoice
-                                    </button>
-                                
+                                  <button
+                                    onClick={() =>
+                                      handleSendInvoiceWhatsApp(currentPlan)
+                                    }
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-xs"
+                                  >
+                                    Send Invoice
+                                  </button>
                                 </div>
                               </td>
 
@@ -1551,7 +1805,9 @@ const handleUpdatePackage = async () => {
                               <td className="px-6 py-4">
                                 <button
                                   onClick={() =>
-                                    setFullViewImage(u.paymentScreenshot)
+                                    setFullViewImage(
+                                      currentPlan.paymentScreenshot,
+                                    )
                                   }
                                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold
                                  bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition whitespace-nowrap"
@@ -1561,12 +1817,16 @@ const handleUpdatePackage = async () => {
                               </td>
 
                               <td className="px-6 py-4">
-                                {u.notes || u.remarks || u.Remarks || "-"}
+                                {currentPlan.notes ??
+                                  currentPlan.remarks ??
+                                  currentPlan.Remarks ??
+                                  "-"}
                               </td>
 
                               <td className="px-6 py-4 align-top text-sm">
                                 {(() => {
-                                  const st = u.planApprovalStatus || "pending";
+                                  const st =
+                                    currentPlan.planApprovalStatus || "pending";
 
                                   if (st === "approved") {
                                     return (
@@ -1584,14 +1844,18 @@ const handleUpdatePackage = async () => {
                                     );
                                   }
 
-                                  const busy = approvalBusyId === String(u._id);
+                                  const busy =
+                                    approvalBusyId === String(currentPlan._id);
 
                                   return (
                                     <div className="flex flex-wrap gap-2">
                                       <button
                                         disabled={busy}
                                         onClick={() =>
-                                          handleServiceApproval(u, "approved")
+                                          handleServiceApproval(
+                                            currentPlan,
+                                            "approved",
+                                          )
                                         }
                                         className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white"
                                       >
@@ -1601,7 +1865,10 @@ const handleUpdatePackage = async () => {
                                       <button
                                         disabled={busy}
                                         onClick={() =>
-                                          handleServiceApproval(u, "rejected")
+                                          handleServiceApproval(
+                                            currentPlan,
+                                            "rejected",
+                                          )
                                         }
                                         className="rounded-lg border px-3 py-1.5 text-xs"
                                       >
@@ -1616,24 +1883,37 @@ const handleUpdatePackage = async () => {
                                 <div className="flex justify-center items-center gap-2">
                                   <button
                                     onClick={() => {
-                                      setSelectedService(u);
-                                      setEditAmount(u.amount || "");
+                                      setSelectedService(currentPlan);
+                                      setEditAmount(currentPlan.amount || "");
                                       setEditNotes(
-                                        u.notes ?? u.remarks ?? u.Remarks ?? "",
+                                        currentPlan.notes ??
+                                          currentPlan.remarks ??
+                                          currentPlan.Remarks ??
+                                          "",
                                       );
                                       setEditServiceStartDate(
-  u.packageStartDate
-    ? new Date(u.packageStartDate).toISOString().split("T")[0]
-    : ""
-);
+                                        currentPlan.packageStartDate
+                                          ? new Date(
+                                              currentPlan.packageStartDate,
+                                            )
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : "",
+                                      );
 
-setEditServiceExpiryDate(
-  u.packageExpiryDate
-    ? new Date(u.packageExpiryDate).toISOString().split("T")[0]
-    : ""
-);
+                                      setEditServiceExpiryDate(
+                                        currentPlan.packageExpiryDate
+                                          ? new Date(
+                                              currentPlan.packageExpiryDate,
+                                            )
+                                              .toISOString()
+                                              .split("T")[0]
+                                          : "",
+                                      );
 
-setEditServiceProofImage(u.paymentScreenshot || "");
+                                      setEditServiceProofImage(
+                                        currentPlan.paymentScreenshot || "",
+                                      );
                                       setEditServiceModal(true);
                                     }}
                                     className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs"
@@ -1643,7 +1923,7 @@ setEditServiceProofImage(u.paymentScreenshot || "");
 
                                   <button
                                     onClick={() => {
-                                      setSelectedId(u._id); // 👈 temporarily
+                                      setSelectedId(currentPlan._id); // 👈 temporarily
                                       setDeleteModal(true);
                                       setDeleteType("service");
                                     }}
@@ -1675,47 +1955,41 @@ setEditServiceProofImage(u.paymentScreenshot || "");
 
         {/* // package edit moada */}
         <EditPackageModal
-  editModal={editModal}
-  setEditModal={setEditModal}
-  editPlan={editPlan}
-  setEditPlan={setEditPlan}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editRemarks={editRemarks}
-  setEditRemarks={setEditRemarks}
-  editStartDate={editStartDate}
-  setEditStartDate={setEditStartDate}
-  editExpiryDate={editExpiryDate}
-  setEditExpiryDate={setEditExpiryDate}
-  handleUpdatePackage={handleUpdatePackage}
-   editProofImage={editProofImage}
-  setEditProofImage={setEditProofImage}
-    updating={updating}
-  
-/>
+          editModal={editModal}
+          setEditModal={setEditModal}
+          editPlan={editPlan}
+          setEditPlan={setEditPlan}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editRemarks={editRemarks}
+          setEditRemarks={setEditRemarks}
+          editStartDate={editStartDate}
+          setEditStartDate={setEditStartDate}
+          editExpiryDate={editExpiryDate}
+          setEditExpiryDate={setEditExpiryDate}
+          handleUpdatePackage={handleUpdatePackage}
+          editProofImage={editProofImage}
+          setEditProofImage={setEditProofImage}
+          updating={updating}
+        />
         {/* // service modal */}
 
         <EditServiceModal
-  editServiceModal={editServiceModal}
-  setEditServiceModal={setEditServiceModal}
-  editAmount={editAmount}
-  setEditAmount={setEditAmount}
-  editNotes={editNotes}
-  setEditNotes={setEditNotes}
-
-  editServiceStartDate={editServiceStartDate}
-  setEditServiceStartDate={setEditServiceStartDate}
-
-  editServiceExpiryDate={editServiceExpiryDate}
-  setEditServiceExpiryDate={setEditServiceExpiryDate}
-
-  editServiceProofImage={editServiceProofImage}
-  setEditServiceProofImage={setEditServiceProofImage}
-
-  updateService={updateService}
-   updatingService={updatingService}
-  
-/>
+          editServiceModal={editServiceModal}
+          setEditServiceModal={setEditServiceModal}
+          editAmount={editAmount}
+          setEditAmount={setEditAmount}
+          editNotes={editNotes}
+          setEditNotes={setEditNotes}
+          editServiceStartDate={editServiceStartDate}
+          setEditServiceStartDate={setEditServiceStartDate}
+          editServiceExpiryDate={editServiceExpiryDate}
+          setEditServiceExpiryDate={setEditServiceExpiryDate}
+          editServiceProofImage={editServiceProofImage}
+          setEditServiceProofImage={setEditServiceProofImage}
+          updateService={updateService}
+          updatingService={updatingService}
+        />
 
         {/* // Delete modal */}
 
@@ -1733,85 +2007,50 @@ setEditServiceProofImage(u.paymentScreenshot || "");
         />
       </div>
 
-      {showRenewModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-    <div className="bg-white w-[450px] rounded-xl p-6 shadow-xl">
+      {/* // REVENUE  PLAN  */}
+      <RenewPlanModal
+        showRenewModal={showRenewModal}
+        setShowRenewModal={setShowRenewModal}
+        renewPlan={renewPlan}
+        setRenewPlan={setRenewPlan}
+        renewAmount={renewAmount}
+        setRenewAmount={setRenewAmount}
+        renewStartDate={renewStartDate}
+        setRenewStartDate={setRenewStartDate}
+        renewExpiryDate={renewExpiryDate}
+        setRenewExpiryDate={setRenewExpiryDate}
+        renewScreenshot={renewScreenshot}
+        setRenewScreenshot={setRenewScreenshot}
+        renewRemarks={renewRemarks}
+        setRenewRemarks={setRenewRemarks}
+        handleRenewPlan={handleRenewPlan}
+        savingPlan={savingPlan}
+        revenuePlans={revenuePlans}
+        renewDuration={renewDuration}
+        setRenewDuration={setRenewDuration}
+      />
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-bold">
-          Renew Revenue Plan
-        </h2>
+      {/* // REVENUE SERVICE  PLAN  */}
 
-        <button
-          onClick={() => setShowRenewModal(false)}
-          className="text-gray-500 text-xl"
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="space-y-4">
-
-        <input
-  type="text"
-  value={renewPlan}
-  onChange={(e) => setRenewPlan(e.target.value)}
-  placeholder="Plan Name"
-  className="w-full border rounded-lg p-2"
-/>
-
-       <input
-  type="number"
-  value={renewAmount}
-  onChange={(e) => setRenewAmount(e.target.value)}
-  placeholder="Amount"
-  className="w-full border rounded-lg p-2"
-/>
-
-        <input
-  type="date"
-  value={renewStartDate}
-  onChange={(e) => setRenewStartDate(e.target.value)}
-  className="w-full border rounded-lg p-2"
-/>
-        
-        
-        <input
-  type="date"
-  value={renewExpiryDate}
-  onChange={(e) => setRenewExpiryDate(e.target.value)}
-  className="w-full border rounded-lg p-2"
-/>
-
-        <input
-  type="file"
-  onChange={(e) => setRenewScreenshot(e.target.files[0])}
-  className="w-full border rounded-lg p-2"
-/>
-
-<textarea
-  value={renewRemarks}
-  onChange={(e) => setRenewRemarks(e.target.value)}
-  placeholder="Remarks"
-  className="w-full border rounded-lg p-2"
-/>
-
-        <button
-  onClick={handleRenewPlan}
-  disabled={savingPlan}
-  className={`w-full py-2 rounded-lg text-white ${
-    savingPlan
-      ? "bg-indigo-400 cursor-not-allowed"
-      : "bg-indigo-600 hover:bg-indigo-700"
-  }`}
->
-  {savingPlan ? "Saving..." : "Save Plan"}
-</button>
-
-      </div>
-    </div>
-  </div>
-)}
+      <RenewServiceModal
+        showRenewServiceModal={showRenewServiceModal}
+        setShowRenewServiceModal={setShowRenewServiceModal}
+        renewServiceName={renewServiceName}
+        setRenewServiceName={setRenewServiceName}
+        renewServiceAmount={renewServiceAmount}
+        setRenewServiceAmount={setRenewServiceAmount}
+        renewServiceStartDate={renewServiceStartDate}
+        setRenewServiceStartDate={setRenewServiceStartDate}
+        renewServiceExpiryDate={renewServiceExpiryDate}
+        setRenewServiceExpiryDate={setRenewServiceExpiryDate}
+        renewServiceScreenshot={renewServiceScreenshot}
+        setRenewServiceScreenshot={setRenewServiceScreenshot}
+        renewServiceRemarks={renewServiceRemarks}
+        setRenewServiceRemarks={setRenewServiceRemarks}
+        handleRenewService={handleRenewService}
+        savingServicePlan={savingServicePlan}
+        servicePlans={servicePlans}
+      />
 
       <div className="flex justify-center items-center gap-2 ">
         {/* PREV BUTTON */}

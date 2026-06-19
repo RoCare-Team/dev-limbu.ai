@@ -10,7 +10,7 @@ import FranchiseRevenue from "@/models/FranchiseRevenue";
 import Admin from "@/models/Admin";
 import User from "@/models/User";
 import { generateInvoicePDFBuffer } from "@/app/api/admin/invoice-tax/route"; // ✅ new
-import { uploadToS3 } from "@/utils/s3Config"; 
+import { uploadToS3 } from "@/utils/s3Config";
 
 export async function GET(req) {
   try {
@@ -152,16 +152,13 @@ export async function GET(req) {
         .lean();
 
       totalRevenue = revenueData
-  .filter(
-    (rev) =>
-      rev.type === "user_onboard" ||
-      rev.type === "plan" ||
-      rev.type === "service"
-  )
-  .reduce(
-    (sum, rev) => sum + Number(rev.amount || 0),
-    0
-  );
+        .filter(
+          (rev) =>
+            rev.type === "user_onboard" ||
+            rev.type === "plan" ||
+            rev.type === "service",
+        )
+        .reduce((sum, rev) => sum + Number(rev.amount || 0), 0);
 
       userOnboardRevenue = revenueData
         .filter((rev) => rev.type === "user_onboard")
@@ -433,8 +430,6 @@ export async function PATCH(req) {
 
     let screenshotUrl = null;
 
-
-
     const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
       revenueId,
       { status },
@@ -462,191 +457,180 @@ export async function PATCH(req) {
   }
 }
 
-  export async function PUT(req) {
-    try {
-      await dbConnect();
+export async function PUT(req) {
+  try {
+    await dbConnect();
 
-      
-      const formData = await req.formData();
+    const formData = await req.formData();
 
-      const id = formData.get("id");
-      const plan = formData.get("plan");
-      const amount = formData.get("amount");
-      const planRemarks = formData.get("planRemarks");
-      const packageStartDate = formData.get("packageStartDate");
-      const packageExpiryDate = formData.get("packageExpiryDate");
-      const paymentScreenshot = formData.get("paymentScreenshot");
+    const id = formData.get("id");
+    const plan = formData.get("plan");
+    const amount = formData.get("amount");
+    const planRemarks = formData.get("planRemarks");
+    const packageStartDate = formData.get("packageStartDate");
+    const packageExpiryDate = formData.get("packageExpiryDate");
+    const paymentScreenshot = formData.get("paymentScreenshot");
 
-      const type = formData.get("type");
-      const gstNumber = formData.get("gstNumber");
-      const notes = formData.get("notes");
+    const type = formData.get("type");
+    const gstNumber = formData.get("gstNumber");
+    const notes = formData.get("notes");
 
-      if (!id) {
+    if (!id) {
+      return NextResponse.json(
+        { success: false, message: "ID required" },
+        { status: 400 },
+      );
+    }
+
+    // ========================
+    // 🔥 SERVICE UPDATE
+    // ========================
+
+    if (type === "service") {
+      let screenshotUrl = null;
+
+      if (
+        paymentScreenshot &&
+        typeof paymentScreenshot === "object" &&
+        paymentScreenshot.name
+      ) {
+        const bytes = await paymentScreenshot.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+
+        const uploadResult = await uploadToS3(
+          buffer,
+          paymentScreenshot.name,
+          paymentScreenshot.type,
+        );
+
+        if (uploadResult?.success) {
+          screenshotUrl = uploadResult.url;
+        }
+      }
+
+      const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
+        id,
+        {
+          ...(amount !== undefined && {
+            amount: Number(amount) || 0,
+          }),
+
+          ...(notes !== undefined && { notes }),
+          ...(notes !== undefined && { remarks: notes }),
+
+          ...(packageStartDate && {
+            packageStartDate: new Date(packageStartDate),
+          }),
+
+          ...(packageExpiryDate && {
+            packageExpiryDate: new Date(packageExpiryDate),
+          }),
+
+          ...(screenshotUrl && {
+            paymentScreenshot: screenshotUrl,
+            screenshot: screenshotUrl,
+          }),
+        },
+        { new: true },
+      );
+
+      if (!updatedRevenue) {
         return NextResponse.json(
-          { success: false, message: "ID required" },
-          { status: 400 },
+          {
+            success: false,
+            message: "Service record not found",
+          },
+          { status: 404 },
         );
       }
 
-      // ========================
-      // 🔥 SERVICE UPDATE
-      // ========================
-
-      if (type === "service") {
-
-  let screenshotUrl = null;
-
-  if (
-    paymentScreenshot &&
-    typeof paymentScreenshot === "object" &&
-    paymentScreenshot.name
-  ) {
-    const bytes = await paymentScreenshot.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    const uploadResult = await uploadToS3(
-      buffer,
-      paymentScreenshot.name,
-      paymentScreenshot.type
-    );
-
-    if (uploadResult?.success) {
-      screenshotUrl = uploadResult.url;
+      return NextResponse.json({
+        success: true,
+        message: "Service updated successfully",
+        revenue: updatedRevenue,
+      });
     }
-  }
 
-  const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
-    id,
-    {
-      ...(amount !== undefined && {
-        amount: Number(amount) || 0,
-      }),
+    // ========================
+    // 📦 PACKAGE UPDATE
+    // ========================
 
-      ...(notes !== undefined && { notes }),
-      ...(notes !== undefined && { remarks: notes }),
+    let screenshotUrl = null;
 
-      ...(packageStartDate && {
-        packageStartDate: new Date(packageStartDate),
-      }),
+    if (
+      paymentScreenshot &&
+      typeof paymentScreenshot === "object" &&
+      paymentScreenshot.name
+    ) {
+      const bytes = await paymentScreenshot.arrayBuffer();
+      const buffer = Buffer.from(bytes);
 
-      ...(packageExpiryDate && {
-        packageExpiryDate: new Date(packageExpiryDate),
-      }),
-
-      ...(screenshotUrl && {
-        paymentScreenshot: screenshotUrl,
-        screenshot: screenshotUrl,
-      }),
-    },
-    { new: true }
-  );
-
-  if (!updatedRevenue) {
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Service record not found",
-      },
-      { status: 404 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: "Service updated successfully",
-    revenue: updatedRevenue,
-  });
-}
-
-      // ========================
-// 📦 PACKAGE UPDATE
-// ========================
-
-let screenshotUrl = null;
-
-if (
-  paymentScreenshot &&
-  typeof paymentScreenshot === "object" &&
-  paymentScreenshot.name
-) {
-  const bytes = await paymentScreenshot.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  const uploadResult = await uploadToS3(
-    buffer,
-    paymentScreenshot.name,
-    paymentScreenshot.type
-  );
-
-  if (uploadResult?.success) {
-    screenshotUrl = uploadResult.url;
-  }
-}
-
-const updated = await FranchiseRevenue.findByIdAndUpdate(
-  id,
-  {
-    ...(plan && { plan }),
-    ...(amount && { amount }),
-    ...(planRemarks && { planRemarks }),
-
-    ...(screenshotUrl && {
-      paymentScreenshot: screenshotUrl,
-      screenshot: screenshotUrl,
-    }),
-
-    ...(packageStartDate && {
-      packageStartDate: new Date(packageStartDate),
-    }),
-
-    ...(packageExpiryDate && {
-      packageExpiryDate: new Date(packageExpiryDate),
-    }),
-  },
-  { new: true }
-);
-
-// console.log("UPDATED REVENUE RECORD =>", updated);
-
-  // console.log("PACKAGE UPDATE DATA", {
-  //   leadId: updated?.leadId,
-  //   packageStartDate,
-  //   packageExpiryDate,
-  // });
-
-  // 🔥 USER COLLECTION UPDATE
-  if (updated?.leadId) {
-    await User.findOneAndUpdate(
-      { userId: updated.leadId },
-      {
-        $set: {
-          packageStartDate: packageStartDate
-            ? new Date(packageStartDate)
-            : null,
-
-          packageExpiryDate: packageExpiryDate
-            ? new Date(packageExpiryDate)
-            : null,
-        },
-      }
-    );
-
-    console.log("USER DATE UPDATED", updated.leadId);
-  }
-
-  return NextResponse.json({
-    success: true,
-    revenue: updated,
-  });
-
-    } catch (err) {
-      return NextResponse.json(
-        { success: false, message: err.message },
-        { status: 500 },
+      const uploadResult = await uploadToS3(
+        buffer,
+        paymentScreenshot.name,
+        paymentScreenshot.type,
       );
+
+      if (uploadResult?.success) {
+        screenshotUrl = uploadResult.url;
+      }
     }
+
+    const updated = await FranchiseRevenue.findByIdAndUpdate(
+      id,
+      {
+        ...(plan && { plan }),
+        ...(amount && { amount }),
+        ...(planRemarks && { planRemarks }),
+
+        ...(screenshotUrl && {
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+        }),
+
+        ...(packageStartDate && {
+          packageStartDate: new Date(packageStartDate),
+        }),
+
+        ...(packageExpiryDate && {
+          packageExpiryDate: new Date(packageExpiryDate),
+        }),
+      },
+      { new: true },
+    );
+
+    // 🔥 USER COLLECTION UPDATE
+    if (updated?.leadId) {
+      await User.findOneAndUpdate(
+        { userId: updated.leadId },
+        {
+          $set: {
+            packageStartDate: packageStartDate
+              ? new Date(packageStartDate)
+              : null,
+
+            packageExpiryDate: packageExpiryDate
+              ? new Date(packageExpiryDate)
+              : null,
+          },
+        },
+      );
+
+      console.log("USER DATE UPDATED", updated.leadId);
+    }
+
+    return NextResponse.json({
+      success: true,
+      revenue: updated,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 },
+    );
   }
-  // ==================
+}
+// ==================
 // DELETE: DELETE REVENUE ENTRY
 // ==================
 

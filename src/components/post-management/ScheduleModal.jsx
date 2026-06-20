@@ -13,6 +13,7 @@ import {
   Check,
   Image as ImageIcon,
   Video,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -83,6 +84,7 @@ const ScheduleModal = React.memo(
     const [eventTitle, setEventTitle] = useState("");
     const [eventStartDate, setEventStartDate] = useState("");
     const [eventEndDate, setEventEndDate] = useState("");
+    const [locationSearch, setLocationSearch] = useState("");
 
     const hasImageAsset = useMemo(() => Boolean(postImageUrl(post)), [post]);
     const hasVideoAsset = useMemo(() => postHasVideoAsset(post), [post]);
@@ -395,6 +397,22 @@ const ScheduleModal = React.memo(
       () => availableLocations.filter((loc) => loc.isVerified),
       [availableLocations],
     );
+
+    const filteredLocations = useMemo(() => {
+      if (!locationSearch.trim()) return availableLocations;
+      const q = locationSearch.toLowerCase();
+      return availableLocations.filter((loc) => {
+        const fields = [
+          loc.title,
+          loc.locationName,
+          loc.storeName,
+          loc.name,
+          loc.locality,
+          loc.address,
+        ];
+        return fields.some((field) => field && field.toLowerCase().includes(q));
+      });
+    }, [availableLocations, locationSearch]);
 
     if (!isOpen) return null;
 
@@ -844,7 +862,27 @@ const ScheduleModal = React.memo(
                       </button>
                     </div>
 
-                    {availableLocations.map((loc) => {
+                    {/* Location Search */}
+                    <div className="relative mb-3">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={locationSearch}
+                        onChange={(e) => setLocationSearch(e.target.value)}
+                        placeholder="Search by business name or address..."
+                        className="w-full pl-10 pr-9 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-[#EAB308] transition-colors"
+                      />
+                      {locationSearch && (
+                        <button
+                          onClick={() => setLocationSearch("")}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {filteredLocations.map((loc) => {
                       const isVerified = loc.isVerified;
                       const isSelected = selectedGmb.includes(loc.id);
                       return (
@@ -888,6 +926,15 @@ const ScheduleModal = React.memo(
                         </div>
                       );
                     })}
+                    {filteredLocations.length === 0 &&
+                      availableLocations.length > 0 && (
+                        <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
+                          <Search className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                          <p className="text-slate-500 font-medium">
+                            No locations match "{locationSearch}".
+                          </p>
+                        </div>
+                      )}
                     {availableLocations.length === 0 && (
                       <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
                         <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-3" />

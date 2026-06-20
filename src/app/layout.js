@@ -6,71 +6,24 @@ import { Inter } from "next/font/google";
 import AuthGuard from "../components/AuthGuard";
 import InitAuth from "@/components/InitAuth";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata = {
   title: "AI GMB Marketing Automation Tool | Limbu.ai",
-  description:
-    "Automate Google Business, Facebook, and Instagram with Limbu.ai. Manage reviews, posts, messages & insights — all in one AI-powered dashboard.",
-  keywords: [
-    "Google My Business automation",
-    "GMB management tool",
-    "AI GMB posts",
-    "Google Business Profile optimization",
-    "review management software",
-    "local SEO tools",
-    "auto-reply reviews",
-    "GMB insights dashboard",
-    "business growth automation",
-    "limbu.ai",
-  ],
-  robots: {
-    index: true,
-    follow: true,
-  },
-  alternates: {
-    canonical: "https://www.limbu.ai",
-  },
-  icons: {
-    icon: "/images/bg-logo.png",
-  },
-  other: {
-    "google-site-verification":
-      "zll2ej9beWSYpmxgi_jEum9kGdOTL5ftMV8NdbXJfN0",
-  },
+  description: "Automate Google Business, Facebook, and Instagram with Limbu.ai.",
+  keywords: ["Google My Business automation", "GMB management tool", "limbu.ai"],
+  robots: { index: true, follow: true },
+  alternates: { canonical: "https://www.limbu.ai" },
+  icons: { icon: "/images/bg-logo.png" },
+  other: { "google-site-verification": "zll2ej9beWSYpmxgi_jEum9kGdOTL5ftMV8NdbXJfN0" },
 };
 
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: "Limbu.ai",
-  alternateName: "Limbu AI",
   url: "https://www.limbu.ai",
-  logo: {
-    "@type": "ImageObject",
-    url: "https://www.limbu.ai/images/bg-logo.png",
-  },
-  contactPoint: {
-    "@type": "ContactPoint",
-    telephone: "+91-9289344726",
-    contactType: "customer support",
-    email: "info@limbu.ai",
-    availableLanguage: ["English", "Hindi"],
-  },
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Gurugram",
-    addressRegion: "Haryana",
-    addressCountry: "IN",
-  },
-  sameAs: [
-    "https://www.facebook.com/limbuai",
-    "https://www.instagram.com/limbuai",
-    "https://www.linkedin.com/company/limbuai",
-  ],
+  logo: "https://www.limbu.ai/images/bg-logo.png",
 };
 
 const webSiteSchema = {
@@ -78,14 +31,13 @@ const webSiteSchema = {
   "@type": "WebSite",
   name: "Limbu.ai",
   url: "https://www.limbu.ai",
-  description:
-    "AI-powered marketing automation for local businesses on Google, Facebook & Instagram",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       <head>
+        {/* JSON-LD Schemas */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
@@ -94,21 +46,19 @@ export default function RootLayout({ children }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
         />
-        {/* ---------------- Google Tag Manager ---------------- */}
+
+        {/* Google Tag Manager - Using Next.js Script Component */}
         <Script id="gtm-script" strategy="afterInteractive">
           {`
-            (function(w,d,s,l,i){w[l]=w[l]||[];
-            w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
-            var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
-            j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;
-            f.parentNode.insertBefore(j,f);
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-WCPTXKLC');
           `}
         </Script>
 
-        {/* ---------------- Facebook Pixel ---------------- */}
+        {/* Facebook Pixel - Using Next.js Script Component */}
         <Script id="fb-pixel" strategy="afterInteractive">
           {`
             !function(f,b,e,v,n,t,s)
@@ -125,8 +75,8 @@ export default function RootLayout({ children }) {
         </Script>
       </head>
 
-      <body className={`${inter.variable} antialiased`}>
-        {/* ---------------- GTM (noscript) ---------------- */}
+      <body className={`${inter.variable} antialiased`} suppressHydrationWarning>
+        {/* GTM (noscript) */}
         <noscript>
           <iframe
             src="https://www.googletagmanager.com/ns.html?id=GTM-WCPTXKLC"
@@ -136,7 +86,7 @@ export default function RootLayout({ children }) {
           />
         </noscript>
 
-        {/* ---------------- Facebook Pixel (noscript) ---------------- */}
+        {/* Facebook Pixel (noscript) */}
         <noscript>
           <img
             height="1"

@@ -3954,6 +3954,7 @@ export default function UserManagement() {
                     <MenuItem value="Follow Up">Follow Up</MenuItem>
                     <MenuItem value="Inactive">Inactive</MenuItem>
                     <MenuItem value="Onboard">Onboard</MenuItem>
+                    <MenuItem value="Expired"> Expired Onboard Plan </MenuItem>
                   </Select>
                 </FormControl>
               </Box>

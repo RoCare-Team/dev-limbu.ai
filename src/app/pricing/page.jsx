@@ -626,7 +626,7 @@ export default function PricingPage() {
       <Suspense fallback={null}>
         <ServiceBookingModal
           showServiceModal={showServiceModal}
-          setShowServiceModal={setShowServiceModal}
+          setShowServiceModal={setShowServiceModal} 
           selectedPlan={selectedPlan}
           bookingSuccess={bookingSuccess}
           /* If logged in, form is hidden — pass null so modal knows */

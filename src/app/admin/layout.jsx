@@ -193,7 +193,7 @@ export default function AdminLayout({ children }) {
               icon: <Users size={16} />,
             },
             {
-              name: "jobs Leads",
+              name: "Jobs Leads",
               href: "/admin/job-applications",
               icon: <Users size={16} />,
             },

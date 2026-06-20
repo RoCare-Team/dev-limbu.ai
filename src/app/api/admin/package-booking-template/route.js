@@ -80,7 +80,7 @@ export async function POST(req) {
       },
     };
 
-    console.log("WhatsApp Payload plan template:", payload);
+    // console.log("WhatsApp Payload plan template:", payload);
 
     // Send to WhatsApp API
     const response = await fetch(AISENSY_URL, {

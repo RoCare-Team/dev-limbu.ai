@@ -417,6 +417,7 @@ export default function RevenueUsersPage() {
       (item.status === "active" || item.status === "user_onboard"), // ✅ dono status
   );
 
+
   const groupedPackageRows = Object.values(
     packageRows.reduce((acc, item) => {
       const key = item.leadId;
@@ -437,6 +438,8 @@ export default function RevenueUsersPage() {
       return acc;
     }, {}),
   );
+
+  const totalPlans = packageRows.length;
 
   const serviceRows = revenueUsersList.filter(
     (item) => item.type === "service",

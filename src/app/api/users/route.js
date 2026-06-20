@@ -895,15 +895,45 @@ export async function GET(req) {
     }
 
     /* 4. Lead Stage */
-    if (leadStage && leadStage !== "All") {
-      if (leadStage === "Active") {
-        query = addMatchCondition(query, {
-          leadStage: { $in: ["Active", "", null] },
-        });
-      } else {
-        query = addMatchCondition(query, { leadStage });
-      }
-    }
+    /* 4. Lead Stage */
+if (leadStage && leadStage !== "All") {
+
+  if (leadStage === "Active") {
+
+    query = addMatchCondition(query, {
+      leadStage: { $in: ["Active", "", null] },
+    });
+
+  } else if (leadStage === "Expired") {
+
+    const today = new Date();
+
+    query = addMatchCondition(query, {
+      $or: [
+        // Package expired
+        {
+          packageExpiryDate: {
+            $exists: true,
+            $lt: today,
+          },
+        },
+
+        // Service expired
+        {
+          planExpiry: {
+            $exists: true,
+            $lt: today,
+          },
+        },
+      ],
+    });
+
+  } else {
+
+    query = addMatchCondition(query, { leadStage });
+
+  }
+}
 
     /* 5. Source */
     const sourceMatch = getSourceMatch(source);

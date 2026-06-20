@@ -23,6 +23,7 @@ import {
   Wand,
   BarChart3,
   X,
+  MapPin,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 
@@ -100,6 +101,11 @@ export default function Sidebar({ children }) {
         text: "Keyword Planner",
         icon: <KeyRound size={18} />,
         path: "/keyword-planner",
+      },
+      {
+        text: "Local Rank Tracker",
+        icon: <MapPin size={18} />,
+        path: "/keyword-ranker",
       },
       { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {

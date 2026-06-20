@@ -7,6 +7,7 @@ import {
   Wallet,
   Zap,
   ShieldAlert,
+  Search,
 } from "lucide-react";
 
 const LocationSelectionModal = ({
@@ -29,6 +30,7 @@ const LocationSelectionModal = ({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [eventTitle, setEventTitle] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleCheckmarkChange = (option) => {
     if (option === "video") {
@@ -108,8 +110,26 @@ const LocationSelectionModal = ({
     }
   };
 
+  // ── Search filtering (business name / title / locality / address) ──
+  const matchesSearch = (location) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    const fields = [
+      location.title,
+      location.name,
+      location.locality,
+      location.address,
+    ];
+    return fields.some(
+      (field) => field && field.toLowerCase().includes(q),
+    );
+  };
+
   const verifiedLocations = locations.filter((loc) => loc.isVerified);
   const unverifiedLocations = locations.filter((loc) => !loc.isVerified);
+
+  const filteredVerifiedLocations = verifiedLocations.filter(matchesSearch);
+  const filteredUnverifiedLocations = unverifiedLocations.filter(matchesSearch);
 
   const isPostAction = title.toLowerCase().includes("post");
   const totalCost = selectedLocations.length * 20;
@@ -360,11 +380,39 @@ const LocationSelectionModal = ({
 
           {/* Locations List */}
           <div className="space-y-3">
-            <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em] ml-2">
-              Available Locations
-            </p>
+            <div className="flex items-center justify-between ml-2 mr-1">
+              <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em]">
+                Available Locations
+              </p>
+              <p className="text-[10px] font-black text-black/20 uppercase tracking-[0.2em]">
+                {filteredVerifiedLocations.length} of {verifiedLocations.length}
+              </p>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-black/30"
+              />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by business name or address..."
+                className="w-full pl-11 pr-10 py-3.5 bg-white border border-black/[0.06] rounded-2xl text-sm font-medium text-slate-700 outline-none focus:border-lemon-hover transition-all shadow-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-slate-400 hover:text-black hover:bg-slate-100 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             <div className="space-y-2">
-              {verifiedLocations.map((location) => (
+              {filteredVerifiedLocations.map((location) => (
                 <div
                   key={location.id}
                   onClick={() => toggleLocation(location.id)}
@@ -408,12 +456,20 @@ const LocationSelectionModal = ({
                 </div>
               ))}
 
-              {unverifiedLocations.length > 0 && (
+              {searchQuery && filteredVerifiedLocations.length === 0 && (
+                <div className="p-8 text-center">
+                  <p className="text-xs font-bold text-black/30 uppercase tracking-widest">
+                    No locations match "{searchQuery}"
+                  </p>
+                </div>
+              )}
+
+              {filteredUnverifiedLocations.length > 0 && (
                 <div className="pt-6">
                   <p className="text-[10px] font-black text-red-400 uppercase tracking-[0.2em] mb-3 ml-2">
                     Unverified (Locked)
                   </p>
-                  {unverifiedLocations.map((location) => (
+                  {filteredUnverifiedLocations.map((location) => (
                     <div
                       key={location.id}
                       className="p-5 rounded-3xl border-2 border-dashed border-black/5 bg-slate-50 opacity-50 cursor-not-allowed mb-2"

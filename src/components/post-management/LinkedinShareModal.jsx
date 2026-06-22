@@ -94,8 +94,14 @@ export default function LinkedinShareModal({
                         </div>
                       )}
                       <div className="text-left flex-1 min-w-0">
-                        <p className="font-bold text-sm text-slate-800 truncate">{page.pageName}</p>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">{page.type}</p>
+                        <p className="font-bold text-sm text-slate-800 truncate">
+                          {page.pageName || page.localizedName}
+                        </p>
+                        {page.vanityName ? (
+                          <p className="text-[10px] text-slate-500 truncate">@{page.vanityName}</p>
+                        ) : (
+                          <p className="text-[10px] text-slate-500 uppercase tracking-widest">{page.type}</p>
+                        )}
                       </div>
                     </button>
                   ))}

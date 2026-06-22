@@ -155,7 +155,7 @@ export async function GET(req) {
     const baseUrl = resolveOAuthRedirectOrigin(req);
     // ⚠️ Hardcoded for local testing — switch back to `${baseUrl}/api/linkedin/callback`
     // before deploying, and keep it identical to the login route's redirectUri.
-    const redirectUri = `http://localhost:3000/api/linkedin/callback`;
+    const redirectUri = `https://limbu.ai/api/linkedin/callback`;
 
     const clientId = process.env.LINKEDIN_CLIENT_ID;
     const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
@@ -210,7 +210,8 @@ export async function GET(req) {
     }
 
     // Step 4: redirect back to the dashboard (adjust path to your actual success screen)
-    const successUrl = new URL("/dashboard/integrations/linkedin/success", baseUrl);
+    const successUrl = new URL("/dashboard", "https://limbu.ai");
+
     successUrl.searchParams.set("count", String(profiles.length));
     successUrl.searchParams.set("pageName", profiles[0]?.pageName || "");
 

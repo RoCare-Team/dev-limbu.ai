@@ -64,7 +64,7 @@ export async function GET(req) {
      */
     const baseUrl = resolveOAuthRedirectOrigin(req);
 
-    const redirectUri = `http://localhost:3000/api/linkedin/callback`;
+    const redirectUri = `https://limbu.ai/api/linkedin/callback`;
 
     /**
      * LinkedIn app for page/organization connections.

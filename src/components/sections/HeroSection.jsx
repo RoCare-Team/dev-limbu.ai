@@ -19,7 +19,11 @@ const clientLogos = [
   { name: "Solution", src: "/images/clients/solution1.jpeg" },
   { name: "Inpect", src: "/images/clients/ispect1.jpeg" },
   { name: "zion1", src: "/images/clients/zoin2.jpeg" },
-  { name: "Get-well", src: "/images/clients/Get-well.jpeg" }
+  { name: "Get-well", src: "/images/clients/Get-well.jpeg" },
+  { name: "star", src: "/images/clients/star.jpeg" },
+  { name: "bhatia", src: "/images/clients/bhatia.jpeg" },
+  { name: "om-plaza", src: "/images/clients/om-plaza.jpeg" },
+
 ];
 
 export default function HeroSection() {

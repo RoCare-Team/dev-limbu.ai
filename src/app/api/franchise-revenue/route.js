@@ -348,7 +348,16 @@ export async function POST(req) {
 
     await newRevenue.save();
 
+    let updatedRevenue = newRevenue;
+
     // ✅ Invoice generate + S3 upload
+
+    console.log({
+  ...newRevenue.toObject(),
+  userEmail: userEmail || "",
+  userPhone: phone || "",
+});
+
     try {
       const invoiceBuffer = await generateInvoicePDFBuffer({
         ...newRevenue.toObject(),
@@ -363,10 +372,21 @@ export async function POST(req) {
       );
 
       if (s3Result.success) {
-        await FranchiseRevenue.findByIdAndUpdate(newRevenue._id, {
-          invoiceUrl: s3Result.url,
-        });
-      }
+  await FranchiseRevenue.findByIdAndUpdate(
+    newRevenue._id,
+    {
+      invoiceUrl: s3Result.url,
+    },
+    { new: true }
+  );
+}
+
+updatedRevenue = await FranchiseRevenue.findById(
+  newRevenue._id
+).lean();
+
+// console.log("INVOICE URL =>", updatedRevenue?.invoiceUrl);
+
     } catch (invoiceErr) {
       console.error("Invoice generation/upload failed:", invoiceErr);
       // ✅ Revenue save hogi, invoice fail ho to bhi crash nahi hoga
@@ -390,10 +410,10 @@ export async function POST(req) {
     );
 
     return NextResponse.json({
-      success: true,
-      message: "Revenue added successfully",
-      revenue: newRevenue,
-    });
+  success: true,
+  message: "Revenue added successfully",
+  revenue: updatedRevenue,
+});
   } catch (error) {
     console.error("Revenue Add Error:", error);
     return NextResponse.json(

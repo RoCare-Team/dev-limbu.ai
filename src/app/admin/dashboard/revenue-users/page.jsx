@@ -265,25 +265,25 @@ export default function RevenueUsersPage() {
 
       const data = await res.json();
 
+      // console.log("Invoice URL:", data.revenue?.invoiceUrl);
+
       // ==============================
       // Send WhatsApp Template
       // ==============================
       try {
-        const whatsappRes = await fetch("/api/admin/package-booking-template", {
+        const whatsappRes = await fetch("/api/admin/revenue-plan-template", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
             phone: renewUser?.phone || "",
-
-            firstName: renewUser?.leadName || renewUser?.name || "Customer",
-
+            firstName: renewUser?.leadName || "Customer",
             planName: renewPlan,
-            amount: renewAmount || "0",
-
-            startDate: renewStartDate || "-",
-            expiryDate: renewExpiryDate || "-",
+            amount: renewAmount,
+            startDate: renewStartDate,
+            expiryDate: renewExpiryDate,
+            invoiceUrl: data.revenue.invoiceUrl,
           }),
         });
 
@@ -392,6 +392,28 @@ export default function RevenueUsersPage() {
 
       const data = await res.json();
 
+      try {
+  const whatsappRes = await fetch("/api/admin/revenue-service-template", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      phone: renewServiceUser?.phone || "",
+      firstName: renewServiceUser?.leadName || "Customer",
+      serviceName: renewServiceName,
+      amount: renewServiceAmount,
+      invoiceUrl: data.revenue?.invoiceUrl,
+    }),
+  });
+
+  const whatsappData = await whatsappRes.json();
+
+  console.log("Service WhatsApp Response:", whatsappData);
+} catch (err) {
+  console.error("Service WhatsApp template failed:", err);
+}
+
       if (data.success) {
         alert("Service Renew Successfully");
 
@@ -416,7 +438,6 @@ export default function RevenueUsersPage() {
       (item.type === "user_onboard" || item.type === "plan") && // ✅ "plan" bhi add
       (item.status === "active" || item.status === "user_onboard"), // ✅ dono status
   );
-
 
   const groupedPackageRows = Object.values(
     packageRows.reduce((acc, item) => {

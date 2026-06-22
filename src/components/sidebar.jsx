@@ -105,7 +105,7 @@ export default function Sidebar({ children }) {
       {
         text: "Local Rank Tracker",
         icon: <MapPin size={18} />,
-        path: "/keyword-ranker",
+        path: "/local-rank-tracker",
       },
       { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {

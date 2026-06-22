@@ -2364,11 +2364,16 @@ export default function PostManagementPage() {
                 // The modal passes the newly edited text inside `post.linkedinDescription`
                 let text = post.linkedinDescription || post.liDescription || "";
 
+                const selectedPage = linkedinPages.find(
+                  (p) => p.pageId === pageId,
+                );
+
                 const result = await publishLinkedinPost({
                   text,
                   mediaUrl,
                   mediaType,
                   pageId,
+                  pageName: selectedPage?.pageName || "",
                 });
 
                 if (result && result.success) {

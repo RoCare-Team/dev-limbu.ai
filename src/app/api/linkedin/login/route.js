@@ -20,10 +20,14 @@ export async function GET(req) {
     const waReturnRaw = url.searchParams.get("wa_return");
 
     /**
-     * NEW
-     * profile | page
+     * Page-only connections. No profile scope branching anymore.
      */
-    const connectionType = url.searchParams.get("type") || "profile";
+    const connectionType = "page";
+
+    /**
+     * Page/organization scopes only
+     */
+    const scope = "r_organization_social w_organization_social rw_organization_admin";
 
     /**
      * Resolve dashboard user from phone
@@ -60,24 +64,12 @@ export async function GET(req) {
      */
     const baseUrl = resolveOAuthRedirectOrigin(req);
 
-    const redirectUri = `${baseUrl}/api/linkedin/callback`;
+    const redirectUri = `https://limbu.ai/api/linkedin/callback`;
 
     /**
-     * Different Credentials
-     * Profile vs Page
+     * LinkedIn app for page/organization connections.
      */
-    const clientId =
-      connectionType === "page"
-        ? process.env.MANNU_LINKEDIN_CLIENT_ID
-        : process.env.LINKEDIN_CLIENT_ID;
-
-    /**
-     * Different Scopes
-     */
-    const scope =
-      connectionType === "page"
-        ? "openid profile email w_organization_social" // removed r_organization_social
-        : "openid profile email w_member_social";
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
 
     /**
      * OAuth State

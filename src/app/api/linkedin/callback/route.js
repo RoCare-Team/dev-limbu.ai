@@ -1,393 +1,250 @@
-import axios from "axios";
 import { NextResponse } from "next/server";
-
-import dbConnect from "@/lib/dbConnect";
-import LinkedinProfile from "@/models/LinkedinProfile";
-
-import {
-  parseYoutubeLinkedinOAuthState,
-  linkedinSuccessRedirect,
-  linkedinErrorRedirect,
-} from "@/lib/chatbotPlatformOAuthState";
-
+import dbConnect from "@/lib/dbConnect"; // ⚠️ adjust to your actual db-connect helper path/name
+import LinkedinProfile from "@/models/LinkedinProfile"; // ⚠️ adjust path if your model lives elsewhere
 import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
-export async function GET(req) {
+/**
+ * Decoding the `state` param.
+ *
+ * Confirmed from the actual generated auth URL: buildYoutubeLinkedinStatePayload()
+ * encodes state as plain JSON.stringify(payload) — NOT base64. So we just
+ * URL-decode + JSON.parse directly.
+ */
+function decodeStatePayload(stateRaw) {
   try {
-    await dbConnect();
+    return JSON.parse(decodeURIComponent(stateRaw));
+  } catch (err) {
+    console.error("Failed to decode LinkedIn OAuth state:", err);
+    return null;
+  }
+}
 
-    const url = new URL(req.url);
+async function exchangeCodeForToken({ code, redirectUri, clientId, clientSecret }) {
+  const res = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+    }),
+  });
 
-    const code = url.searchParams.get("code");
-    const stateParam = url.searchParams.get("state");
+  const data = await res.json();
+  if (!res.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || "Token exchange failed");
+  }
+  return data; // { access_token, expires_in, refresh_token?, scope }
+}
 
-    const baseUrl = resolveOAuthRedirectOrigin(req);
+const LINKEDIN_API_HEADERS = (accessToken) => ({
+  Authorization: `Bearer ${accessToken}`,
+  "X-Restli-Protocol-Version": "2.0.0",
+});
 
-    /**
-     * Parse OAuth State
-     */
-    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
+/**
+ * All organization URNs the user administers, via organizationAcls.
+ * Requires w_organization_social / rw_organization_admin scopes on the token.
+ * A single account can administer multiple pages, so we return every URN.
+ */
+async function fetchAdminOrganizationUrns(accessToken) {
+  const url =
+    "https://api.linkedin.com/v2/organizationAcls" +
+    "?q=roleAssignee" +
+    "&role=ADMINISTRATOR" +
+    "&state=APPROVED";
 
-    const userId = parsed.userId;
+  const res = await fetch(url, { headers: LINKEDIN_API_HEADERS(accessToken) });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Failed to fetch LinkedIn organizations");
 
-    const isMobile = parsed.mobile;
+  const urns = (data?.elements || [])
+    .map((el) => el.organizationalTarget || el.organization)
+    .filter(Boolean);
 
-    /**
-     * NEW
-     * profile | page
-     */
-    const connectionType = parsed.connectionType || "profile";
+  // De-duplicate in case the same org is returned more than once.
+  return [...new Set(urns)];
+}
 
-    /**
-     * Validation
-     */
-    if (!code || !userId) {
+/**
+ * Full details for a single organization, including localizedName, vanityName
+ * and a resolved logo image URL.
+ */
+async function fetchOrganizationDetails(accessToken, orgUrn) {
+  const orgId = String(orgUrn).split(":").pop();
+
+  const url =
+    `https://api.linkedin.com/v2/organizations/${orgId}` +
+    "?projection=(id,localizedName,vanityName,logoV2(original~:playableStreams))";
+
+  const res = await fetch(url, { headers: LINKEDIN_API_HEADERS(accessToken) });
+  const data = await res.json();
+
+  // Don't fail the whole connection if one org lookup misbehaves.
+  if (!res.ok) {
+    console.error("LinkedIn org details fetch failed:", orgUrn, data?.message);
+    return {
+      pageId: `urn:li:organization:${orgId}`,
+      orgId,
+      pageName: "LinkedIn Page",
+      localizedName: "",
+      vanityName: "",
+      image: "",
+      email: "",
+    };
+  }
+
+  const logo =
+    data?.logoV2?.["original~"]?.elements?.[0]?.identifiers?.[0]?.identifier || "";
+
+  const localizedName = data?.localizedName || "";
+
+  return {
+    pageId: `urn:li:organization:${data?.id ?? orgId}`,
+    orgId: String(data?.id ?? orgId),
+    pageName: localizedName || "LinkedIn Page",
+    localizedName,
+    vanityName: data?.vanityName || "",
+    image: logo,
+    email: "",
+  };
+}
+
+/**
+ * Every page the account administers, with names + logos resolved.
+ */
+async function fetchOrganizationProfiles(accessToken) {
+  const urns = await fetchAdminOrganizationUrns(accessToken);
+  if (!urns.length) {
+    throw new Error("No LinkedIn organization found for this account.");
+  }
+
+  return Promise.all(urns.map((urn) => fetchOrganizationDetails(accessToken, urn)));
+}
+
+export async function GET(req) {
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  const stateRaw = url.searchParams.get("state");
+  const errorParam = url.searchParams.get("error");
+
+  // Decode state up-front so every exit path knows whether this is a mobile-app
+  // flow (mobile=true). If so we deeplink back into the app instead of the website.
+  const state = decodeStatePayload(stateRaw) || {};
+  const isMobile = state.mobile === true;
+
+  try {
+    if (errorParam) {
       if (isMobile) {
         return NextResponse.redirect(
-          `limbuai://linkedin-error?error=missing_params`,
+          `limbuai://linkedin-error?error=${encodeURIComponent(errorParam)}`,
         );
       }
-
-      return NextResponse.redirect(
-        linkedinErrorRedirect(parsed, "missing_params", baseUrl),
+      return NextResponse.json(
+        { error: `LinkedIn OAuth denied: ${errorParam}` },
+        { status: 400 },
       );
     }
 
-    /**
-     * Source
-     */
-    const connectionSource = parsed.source === "chatbot" ? "chatbot" : "manual";
-
-    const tagPhone =
-      parsed.source === "chatbot" && parsed.phone ? parsed.phone : "";
-
-    /**
-     * Different Credentials
-     */
-    const clientId =
-      connectionType === "page"
-        ? process.env.MANNU_LINKEDIN_CLIENT_ID
-        : process.env.LINKEDIN_CLIENT_ID;
-
-    const clientSecret =
-      connectionType === "page"
-        ? process.env.MANNU_LINKEDIN_CLIENT_SECRET
-        : process.env.LINKEDIN_CLIENT_SECRET;
-
-    /**
-     * Exchange Token
-     */
-    const tokenRes = await axios.post(
-      "https://www.linkedin.com/oauth/v2/accessToken",
-
-      new URLSearchParams({
-        grant_type: "authorization_code",
-
-        code,
-
-        client_id: clientId,
-
-        client_secret: clientSecret,
-
-        redirect_uri: `${baseUrl}/api/linkedin/callback`,
-      }),
-
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      },
-    );
-
-    const { access_token, expires_in } = tokenRes.data;
-
-    const expiresAt = new Date(Date.now() + expires_in * 1000);
-
-    /**
-     * =====================================================
-     * PROFILE FLOW
-     * =====================================================
-     */
-    if (connectionType === "profile") {
-      let personUrn = "";
-
-      let personName = "LinkedIn User";
-
-      let profilePicture = "";
-
-      let email = "";
-
-      try {
-        /**
-         * Fetch Profile
-         */
-        const meRes = await axios.get(
-          "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))",
-
-          {
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-            },
-          },
-        );
-
-        const meData = meRes.data;
-
-        personUrn = meData.id;
-
-        personName = `${meData.localizedFirstName || ""} ${
-          meData.localizedLastName || ""
-        }`.trim();
-
-        /**
-         * Profile Image
-         */
-        const displayImage = meData.profilePicture?.["displayImage~"];
-
-        if (
-          displayImage &&
-          displayImage.elements &&
-          displayImage.elements.length > 0
-        ) {
-          profilePicture =
-            displayImage.elements[displayImage.elements.length - 1]
-              .identifiers[0].identifier;
-        }
-
-        /**
-         * Email
-         */
-        try {
-          const emailRes = await axios.get(
-            "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
-
-            {
-              headers: {
-                Authorization: `Bearer ${access_token}`,
-              },
-            },
-          );
-
-          const emailElements = emailRes.data.elements;
-
-          if (emailElements && emailElements.length > 0) {
-            email = emailElements[0]["handle~"]?.emailAddress || "";
-          }
-        } catch (emailErr) {
-          console.log("Could not fetch LinkedIn email.");
-        }
-      } catch (meErr) {
-        /**
-         * Fallback userinfo endpoint
-         */
-        console.log(
-          "Fallback to /v2/userinfo",
-          meErr.response?.data || meErr.message,
-        );
-
-        const profileRes = await axios.get(
-          "https://api.linkedin.com/v2/userinfo",
-
-          {
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-            },
-          },
-        );
-
-        personUrn = profileRes.data.sub;
-
-        personName = profileRes.data.name || "LinkedIn User";
-
-        profilePicture = profileRes.data.picture || "";
-
-        email = profileRes.data.email || "";
+    if (!code || !stateRaw) {
+      if (isMobile) {
+        return NextResponse.redirect(`limbuai://linkedin-error?error=missing_params`);
       }
-
-      /**
-       * Save Profile
-       */
-      if (personUrn) {
-        await LinkedinProfile.findOneAndUpdate(
-          {
-            userId,
-            pageId: `urn:li:person:${personUrn}`,
-          },
-
-          {
-            userId,
-
-            pageId: `urn:li:person:${personUrn}`,
-
-            pageName: `${personName} (Profile)`,
-
-            image: profilePicture,
-
-            email,
-
-            pageAccessToken: access_token,
-
-            pageTokenExpiresAt: expiresAt,
-
-            platform: "linkedin",
-
-            type: "profile",
-
-            connectionSource,
-
-            phone: tagPhone || "",
-          },
-
-          {
-            upsert: true,
-            new: true,
-          },
-        );
-      }
-    }
-
-    /**
-     * =====================================================
-     * PAGE FLOW
-     * =====================================================
-     */
-    if (connectionType === "page") {
-      try {
-        /**
-         * Fetch Organizations
-         */
-        const orgsRes = await axios.get(
-          "https://api.linkedin.com/v2/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED",
-
-          {
-            headers: {
-              Authorization: `Bearer ${access_token}`,
-            },
-          },
-        );
-
-        const elements = orgsRes.data.elements || [];
-
-        /**
-         * Save Each Organization
-         */
-        for (const el of elements) {
-          const orgUrn = el.organization;
-
-          const orgId = orgUrn.split(":").pop();
-
-          let orgName = `Company Page (${orgId})`;
-
-          let orgLogo = "";
-
-          /**
-           * Fetch Organization Details
-           */
-          try {
-            const orgDetailRes = await axios.get(
-              `https://api.linkedin.com/v2/organizations/${orgId}?projection=(id,localizedName,logoV2(original~:playableStreams))`,
-
-              {
-                headers: {
-                  Authorization: `Bearer ${access_token}`,
-                },
-              },
-            );
-
-            orgName = orgDetailRes.data.localizedName || orgName;
-
-            const logoV2 = orgDetailRes.data.logoV2?.["original~"];
-
-            if (logoV2 && logoV2.elements && logoV2.elements.length > 0) {
-              orgLogo = logoV2.elements[0].identifiers[0].identifier;
-            }
-          } catch (orgDetailErr) {
-            console.log(
-              `Failed to fetch organization ${orgId}`,
-              orgDetailErr.response?.data || orgDetailErr.message,
-            );
-          }
-
-          /**
-           * Save Organization
-           */
-          await LinkedinProfile.findOneAndUpdate(
-            {
-              userId,
-              pageId: orgUrn,
-            },
-
-            {
-              userId,
-
-              pageId: orgUrn,
-
-              pageName: orgName,
-
-              image: orgLogo,
-
-              pageAccessToken: access_token,
-
-              pageTokenExpiresAt: expiresAt,
-
-              platform: "linkedin",
-
-              type: "organization",
-
-              connectionSource,
-
-              phone: tagPhone || "",
-            },
-
-            {
-              upsert: true,
-              new: true,
-            },
-          );
-        }
-      } catch (err) {
-        console.log(
-          "Could not fetch LinkedIn organizations.",
-          err.response?.data || err.message,
-        );
-      }
-    }
-
-    /**
-     * Mobile Redirect
-     */
-    if (isMobile) {
-      return NextResponse.redirect(
-        `limbuai://linkedin-success?status=connected&type=${connectionType}`,
+      return NextResponse.json(
+        { error: "Missing code or state from LinkedIn callback" },
+        { status: 400 },
       );
     }
 
-    /**
-     * Web Redirect
-     */
-    return NextResponse.redirect(linkedinSuccessRedirect(parsed, baseUrl));
-  } catch (err) {
-    console.error(
-      "LINKEDIN CALLBACK ERROR:",
-      err.response?.data || err.message,
-    );
+    if (!state.userId) {
+      if (isMobile) {
+        return NextResponse.redirect(`limbuai://linkedin-error?error=invalid_state`);
+      }
+      return NextResponse.json({ error: "Invalid or unreadable state param" }, { status: 400 });
+    }
+
+    const { userId, source = "", phoneRaw = "" } = state;
 
     const baseUrl = resolveOAuthRedirectOrigin(req);
+    // ⚠️ Hardcoded for local testing — switch back to `${baseUrl}/api/linkedin/callback`
+    // before deploying, and keep it identical to the login route's redirectUri.
+    const redirectUri = `https://limbu.ai/api/linkedin/callback`;
 
-    const stateParam = new URL(req.url).searchParams.get("state");
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
 
-    const parsed = parseYoutubeLinkedinOAuthState(stateParam);
-
-    const isMobile = parsed.mobile;
-
-    if (isMobile) {
-      return NextResponse.redirect(
-        `limbuai://linkedin-error?error=oauth_failed`,
+    if (!clientId || !clientSecret) {
+      return NextResponse.json(
+        { error: "LinkedIn client credentials are not configured on the server" },
+        { status: 500 },
       );
     }
 
-    return NextResponse.redirect(
-      linkedinErrorRedirect(parsed, "oauth_failed", baseUrl),
+    // Step 1: exchange the code for an access token
+    const tokenData = await exchangeCodeForToken({ code, redirectUri, clientId, clientSecret });
+    const { access_token, expires_in } = tokenData;
+
+    // Step 2: every page/organization the account administers
+    const profiles = await fetchOrganizationProfiles(access_token);
+
+    // Step 3: persist each page (multiple pages per account supported)
+    await dbConnect();
+
+    const tokenExpiresAt = new Date(Date.now() + (expires_in || 0) * 1000);
+    const connectionSource = source === "chatbot" ? "chatbot" : "manual";
+
+    const ops = profiles.map((p) => ({
+      updateOne: {
+        filter: { userId, pageId: p.pageId },
+        update: {
+          $set: {
+            userId,
+            pageId: p.pageId,
+            orgId: p.orgId,
+            pageName: p.pageName,
+            localizedName: p.localizedName,
+            vanityName: p.vanityName,
+            image: p.image,
+            email: p.email || "",
+            pageAccessToken: access_token,
+            pageTokenExpiresAt: tokenExpiresAt,
+            platform: "linkedin",
+            type: "organization",
+            phone: phoneRaw || "",
+            connectionSource,
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    if (ops.length) {
+      await LinkedinProfile.bulkWrite(ops);
+    }
+
+    // Step 4: redirect back — mobile app deeplink for app flows, website otherwise.
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://linkedin-success?status=connected&count=${profiles.length}`,
+      );
+    }
+
+    const successUrl = new URL("/dashboard", "https://limbu.ai");
+
+    successUrl.searchParams.set("count", String(profiles.length));
+    successUrl.searchParams.set("pageName", profiles[0]?.pageName || "");
+
+    return NextResponse.redirect(successUrl.toString());
+  } catch (error) {
+    console.error("LinkedIn Callback Route Error:", error);
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://linkedin-error?error=unknown`);
+    }
+    return NextResponse.json(
+      { error: error.message || "Failed to complete LinkedIn authentication" },
+      { status: 500 },
     );
   }
 }

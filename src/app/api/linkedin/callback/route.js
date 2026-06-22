@@ -125,13 +125,23 @@ async function fetchOrganizationProfiles(accessToken) {
 }
 
 export async function GET(req) {
-  try {
-    const url = new URL(req.url);
-    const code = url.searchParams.get("code");
-    const stateRaw = url.searchParams.get("state");
-    const errorParam = url.searchParams.get("error");
+  const url = new URL(req.url);
+  const code = url.searchParams.get("code");
+  const stateRaw = url.searchParams.get("state");
+  const errorParam = url.searchParams.get("error");
 
+  // Decode state up-front so every exit path knows whether this is a mobile-app
+  // flow (mobile=true). If so we deeplink back into the app instead of the website.
+  const state = decodeStatePayload(stateRaw) || {};
+  const isMobile = state.mobile === true;
+
+  try {
     if (errorParam) {
+      if (isMobile) {
+        return NextResponse.redirect(
+          `limbuai://linkedin-error?error=${encodeURIComponent(errorParam)}`,
+        );
+      }
       return NextResponse.json(
         { error: `LinkedIn OAuth denied: ${errorParam}` },
         { status: 400 },
@@ -139,14 +149,19 @@ export async function GET(req) {
     }
 
     if (!code || !stateRaw) {
+      if (isMobile) {
+        return NextResponse.redirect(`limbuai://linkedin-error?error=missing_params`);
+      }
       return NextResponse.json(
         { error: "Missing code or state from LinkedIn callback" },
         { status: 400 },
       );
     }
 
-    const state = decodeStatePayload(stateRaw);
-    if (!state || !state.userId) {
+    if (!state.userId) {
+      if (isMobile) {
+        return NextResponse.redirect(`limbuai://linkedin-error?error=invalid_state`);
+      }
       return NextResponse.json({ error: "Invalid or unreadable state param" }, { status: 400 });
     }
 
@@ -209,7 +224,13 @@ export async function GET(req) {
       await LinkedinProfile.bulkWrite(ops);
     }
 
-    // Step 4: redirect back to the dashboard (adjust path to your actual success screen)
+    // Step 4: redirect back — mobile app deeplink for app flows, website otherwise.
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://linkedin-success?status=connected&count=${profiles.length}`,
+      );
+    }
+
     const successUrl = new URL("/dashboard", "https://limbu.ai");
 
     successUrl.searchParams.set("count", String(profiles.length));
@@ -218,6 +239,9 @@ export async function GET(req) {
     return NextResponse.redirect(successUrl.toString());
   } catch (error) {
     console.error("LinkedIn Callback Route Error:", error);
+    if (isMobile) {
+      return NextResponse.redirect(`limbuai://linkedin-error?error=unknown`);
+    }
     return NextResponse.json(
       { error: error.message || "Failed to complete LinkedIn authentication" },
       { status: 500 },

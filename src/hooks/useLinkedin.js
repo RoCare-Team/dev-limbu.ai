@@ -125,7 +125,7 @@ export function useLinkedin(router, searchParams) {
    * Publish LinkedIn Post
    */
   const publishLinkedinPost = useCallback(
-    async ({ text, mediaUrl = "", mediaType = "", pageId }) => {
+    async ({ text, mediaUrl = "", mediaType = "", pageId, pageName = "" }) => {
       const activeId = getActiveUserId();
 
       if (!activeId) {
@@ -166,7 +166,11 @@ export function useLinkedin(router, searchParams) {
         const data = await response.json();
 
         if (data.success) {
-          toast.success("Posted to LinkedIn successfully!");
+          toast.success(
+            pageName
+              ? `Posted to LinkedIn (${pageName}) successfully!`
+              : "Posted to LinkedIn successfully!",
+          );
 
           return {
             success: true,

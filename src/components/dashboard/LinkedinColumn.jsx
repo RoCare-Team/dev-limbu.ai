@@ -42,24 +42,14 @@ const LinkedinColumn = React.memo(
               )}
             </div>
 
-            {/* Right Buttons */}
+            {/* Right Button - single Connect action */}
             <div className="flex items-center gap-3 flex-wrap">
-              {/* Connect Profile */}
               <button
-                onClick={() => connectLinkedin("profile")}
+                onClick={() => connectLinkedin("page")}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-white font-bold text-[10px] uppercase tracking-wider hover:bg-blue-600 transition-all shadow-sm"
               >
                 <Plus className="w-4 h-4" />
-                Connect Profile
-              </button>
-
-              {/* Connect Page */}
-              <button
-                onClick={() => connectLinkedin("page")}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-yellow-400 text-black font-bold text-[10px] uppercase tracking-wider hover:bg-yellow-500 transition-all shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                Connect Page
+                Connect LinkedIn Page
               </button>
             </div>
           </div>
@@ -178,24 +168,13 @@ const LinkedinColumn = React.memo(
                 directly from your dashboard.
               </p>
 
-              {/* Buttons */}
-              <div className="flex items-center justify-center gap-4 flex-wrap">
-                {/* Profile */}
-                <button
-                  onClick={() => connectLinkedin("profile")}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
-                >
-                  Connect Profile
-                </button>
-
-                {/* Page */}
-                <button
-                  onClick={() => connectLinkedin("page")}
-                  className="bg-yellow-400 hover:bg-yellow-500 text-black px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
-                >
-                  Connect Page
-                </button>
-              </div>
+              {/* Single Connect button */}
+              <button
+                onClick={() => connectLinkedin("page")}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
+              >
+                Connect LinkedIn Page
+              </button>
             </div>
           )}
         </div>

@@ -44,7 +44,7 @@ export async function POST(req) {
       instructions: typeof instructions === "string" ? instructions : "",
     };
 
-    console.log("Sending payload to n8n:", payload);
+    // console.log("Sending payload to n8n:", payload);
 
     const n8nResponse = await fetch(
       "https://assets-image.limbutech.in/generate-ad",

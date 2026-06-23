@@ -756,9 +756,11 @@ export default function PostManagementPage() {
         });
 
         const deductOk =
-          walletRes?.message === "Wallet updated" ||
-          walletRes?.success === true ||
-          walletRes?.status === "success";
+  walletRes?.message === "Wallet updated" ||
+  walletRes?.message === "Wallet debited" ||
+  walletRes?.success === true ||
+  walletRes?.status === "success" ||
+  walletRes?.ok === true;
 
         if (!deductOk || walletRes?.error) {
           console.error("Coin deduction failed after save:", walletRes);

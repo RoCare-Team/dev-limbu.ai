@@ -293,7 +293,7 @@ export async function POST(req) {
     await dbConnect();
     const body = await req.json();
 
-    console.log("Received POST /api/post-status with body:", body);
+    // console.log("Received POST /api/post-status with body:", body);
 
     // Bulk counts
     if (Array.isArray(body.userIds)) {
@@ -475,20 +475,7 @@ export async function PUT(req) {
       mediaStatus,
     } = await req.json();
 
-    console.log("Received PUT /api/post-status with body:", {
-      id,
-      status,
-      scheduledDate,
-      userId,
-      description,
-      gmbDescription,
-      fbDescription,
-      igDescription,
-      liDescription,
-      piDescription,
-      ytDescription,
-      reason,
-    })
+   
 
     // ✅ FIX: status optional karo — sirf id aur userId required
     if (!id || !userId) {

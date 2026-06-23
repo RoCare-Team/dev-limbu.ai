@@ -25,7 +25,7 @@ import {
 
 const MAP_CONTAINER_STYLE = {
   width: "100%",
-  height: "65vh",
+  height: "80vh",
   borderRadius: "24px",
 };
 const RADIUS_METERS = 1400;
@@ -85,6 +85,8 @@ export default function RankTrackerPage() {
   const [activePoint, setActivePoint] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
 
+  const [gridSize, setGridSize] = useState("5x5");
+
   const mapRef = useRef(null);
   const suggestionRef = useRef(null);
 
@@ -139,11 +141,17 @@ export default function RankTrackerPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setShowSuggestions(false);
-    setActivePoint(null);
-    await fetchRanks({ keyword, city, businessName });
-  };
+  e.preventDefault();
+  setShowSuggestions(false);
+  setActivePoint(null);
+
+  await fetchRanks({
+    keyword,
+    city,
+    businessName,
+    gridSize,
+  });
+};
 
   const makeIcon = (color, big) => {
     if (!isLoaded || !window.google) return undefined;
@@ -308,6 +316,22 @@ export default function RankTrackerPage() {
           </div>
 
           <div className="space-y-2">
+  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+    Grid Size
+  </label>
+
+  <select
+    value={gridSize}
+    onChange={(e) => setGridSize(e.target.value)}
+    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold"
+  >
+    <option value="1x1">1 × 1</option>
+    <option value="3x3">3 × 3</option>
+    <option value="5x5">5 × 5</option>
+  </select>
+</div>
+
+          <div className="space-y-2">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
               City
             </label>
@@ -362,7 +386,7 @@ export default function RankTrackerPage() {
       {/* Map Section */}
       <div className="relative overflow-hidden rounded-[40px] border-[12px] border-white shadow-2xl bg-slate-50">
         {!isLoaded ? (
-          <div className="flex h-[65vh] items-center justify-center">
+          <div className="flex h-[80vh] items-center justify-center">
             <div className="flex flex-col items-center gap-4">
               <Loader2 className="animate-spin text-yellow-500" size={48} />
               <p className="text-slate-400 font-bold animate-pulse">

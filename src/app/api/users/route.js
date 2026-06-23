@@ -824,22 +824,38 @@ export async function GET(req) {
 
       const todayMatch = { createdAt: { $gte: startDate, $lte: endDate } };
 
-      const [todayUsersCount, todayBySource, todayMetaLeads, todaySignups] =
-        await Promise.all([
-          User.countDocuments(todayMatch),
-          User.aggregate([
-            { $match: todayMatch },
-            { $group: { _id: "$source", count: { $sum: 1 } } },
-          ]),
-          User.countDocuments({
-            ...todayMatch,
-            $or: [
-              { source: { $in: META_LEAD_SOURCES } },
-              { leadTags: { $in: META_LEAD_TAG_KEYS } },
-            ],
-          }),
-          User.countDocuments({ ...todayMatch, source: "signup" }),
-        ]);
+      const [
+        todayUsersCount,
+        todayBySource,
+        todayMetaLeads,
+        todaySignups,
+        todayChatbotLeads,
+      ] = await Promise.all([
+        User.countDocuments(todayMatch),
+
+        User.aggregate([
+          { $match: todayMatch },
+          { $group: { _id: "$source", count: { $sum: 1 } } },
+        ]),
+
+        User.countDocuments({
+          ...todayMatch,
+          $or: [
+            { source: { $in: META_LEAD_SOURCES } },
+            { leadTags: { $in: META_LEAD_TAG_KEYS } },
+          ],
+        }),
+
+        User.countDocuments({
+          ...todayMatch,
+          source: "signup",
+        }),
+
+        User.countDocuments({
+          ...todayMatch,
+          source: "chatbot",
+        }),
+      ]);
 
       const sourceBreakdown = {};
       todayBySource.forEach((item) => {
@@ -851,6 +867,7 @@ export async function GET(req) {
         todayUsersCount,
         todayMetaLeads,
         todaySignups,
+        todayChatbotLeads,
         sourceBreakdown,
         todayWindow: { calendarDate, timeZone, displayLabel },
       });
@@ -896,44 +913,37 @@ export async function GET(req) {
 
     /* 4. Lead Stage */
     /* 4. Lead Stage */
-if (leadStage && leadStage !== "All") {
+    if (leadStage && leadStage !== "All") {
+      if (leadStage === "Active") {
+        query = addMatchCondition(query, {
+          leadStage: { $in: ["Active", "", null] },
+        });
+      } else if (leadStage === "Expired") {
+        const today = new Date();
 
-  if (leadStage === "Active") {
+        query = addMatchCondition(query, {
+          $or: [
+            // Package expired
+            {
+              packageExpiryDate: {
+                $exists: true,
+                $lt: today,
+              },
+            },
 
-    query = addMatchCondition(query, {
-      leadStage: { $in: ["Active", "", null] },
-    });
-
-  } else if (leadStage === "Expired") {
-
-    const today = new Date();
-
-    query = addMatchCondition(query, {
-      $or: [
-        // Package expired
-        {
-          packageExpiryDate: {
-            $exists: true,
-            $lt: today,
-          },
-        },
-
-        // Service expired
-        {
-          planExpiry: {
-            $exists: true,
-            $lt: today,
-          },
-        },
-      ],
-    });
-
-  } else {
-
-    query = addMatchCondition(query, { leadStage });
-
-  }
-}
+            // Service expired
+            {
+              planExpiry: {
+                $exists: true,
+                $lt: today,
+              },
+            },
+          ],
+        });
+      } else {
+        query = addMatchCondition(query, { leadStage });
+      }
+    }
 
     /* 5. Source */
     const sourceMatch = getSourceMatch(source);

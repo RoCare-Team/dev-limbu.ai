@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
-const WEBHOOK_URL = "https://n8n.limbutech.in/webhook/keyword-rank-checker";
+const API_URL = "/api/local-rank";
 
 /**
  * Normalizes a raw grid point from the webhook into something the map can use directly.
@@ -32,7 +32,7 @@ export function useRankTracker() {
   const [error, setError] = useState(null);
   const [lastQuery, setLastQuery] = useState(null);
 
-  const fetchRanks = useCallback(async ({ keyword, city, businessName }) => {
+  const fetchRanks = useCallback(async ({ keyword, city, businessName, gridSize, }) => {
     if (!keyword || !city || !businessName) {
       toast.error("Keyword, city and business name are all required.");
       return;
@@ -42,30 +42,38 @@ export function useRankTracker() {
     setError(null);
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([
-          {
-            keyword,
-            city,
-            bussiness_name: businessName,
-          },
-        ]),
-      });
+      const res = await fetch(API_URL, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify([
+    {
+      keyword,
+      city,
+      bussiness_name: businessName,
+       grid_size: gridSize,
+    },
+  ]),
+});
 
       if (!res.ok) {
         throw new Error(`Webhook returned ${res.status}`);
       }
 
-      const data = await res.json();
+      const result = await res.json();
 
-      // Webhook can return either a bare array of grid points, or { data: [...] }
-      const rawPoints = Array.isArray(data) ? data : data?.data;
+if (!result.success) {
+  throw new Error(result.message || "Failed to fetch data");
+}
 
-      if (!Array.isArray(rawPoints)) {
-        throw new Error("Unexpected response shape from webhook");
-      }
+const rawPoints = Array.isArray(result.data)
+  ? result.data
+  : result.data?.data;
+
+if (!Array.isArray(rawPoints)) {
+  throw new Error("Unexpected response shape from API");
+}
 
       const normalized = rawPoints.map((p) => normalizePoint(p));
       setGridPoints(normalized);

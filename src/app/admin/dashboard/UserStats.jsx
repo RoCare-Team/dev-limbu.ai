@@ -89,6 +89,7 @@ export default function UserStats({
   todayLeadWindowLabel,
   todayUsersMetaLeads,
   todayUsersSignups,
+  todayUsersChatbotLeads,
   todayUsersCount,
 
   fetchRevenueUsers,
@@ -215,6 +216,7 @@ export default function UserStats({
                   <p className="text-xs font-bold text-teal-700 uppercase tracking-wide mb-2">
                     Users Today
                   </p>
+
                   {(role === "superAdmin" ||
                     role === "admin" ||
                     role === "superfranchiseAdmin") &&
@@ -227,12 +229,24 @@ export default function UserStats({
                           {todayUsersMetaLeads}
                         </span>
                       </div>
+
                       <div className="flex justify-between text-xs">
                         <span className="text-teal-600 font-medium">Sign:</span>
                         <span className="font-bold text-teal-900">
                           {todayUsersSignups}
                         </span>
                       </div>
+
+                      {/* 👇 New */}
+                      <div className="flex justify-between text-xs">
+                        <span className="text-teal-600 font-medium">
+                          Chatbot:
+                        </span>
+                        <span className="font-bold text-teal-900">
+                          {todayUsersChatbotLeads || 0}
+                        </span>
+                      </div>
+
                       <div className="border-t border-teal-300 pt-1 mt-1 flex justify-between text-xs">
                         <span className="text-teal-700 font-bold">Total:</span>
                         <span className="font-bold text-teal-900">
@@ -246,8 +260,9 @@ export default function UserStats({
                     </p>
                   )}
                 </div>
-                <div className="w-10 h-10 bg-teal-200 rounded-lg flex items-center justify-center shrink-0">
-                  <User className="text-teal-700" size={20} />
+
+                <div className="w-8 h-8 bg-teal-200  rounded-lg flex items-center justify-center shrink-0">
+                  <User className="text-teal-700" size={15} />
                 </div>
               </div>
             </div>

@@ -53,6 +53,7 @@ export default function AdminDashboard() {
   const [todayUsersCount, setTodayUsersCount] = useState(0);
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
   const [todayUsersSignups, setTodayUsersSignups] = useState(0);
+  const [todayUsersChatbotLeads, setTodayUsersChatbotLeads] = useState(0);
   const [userGrowth, setUserGrowth] = useState([]);
   const [agentLeads, setAgentLeads] = useState([]); // today's leads per agent
   const [todayTotal, setTodayTotal] = useState(0);
@@ -211,6 +212,7 @@ export default function AdminDashboard() {
         setTodayUsersCount(data.todayUsersCount || 0);
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
         setTodayUsersSignups(data.todaySignups || 0);
+        setTodayUsersChatbotLeads(data.todayChatbotLeads || 0);
       }
     } catch (err) {
       console.error(err);
@@ -761,6 +763,8 @@ export default function AdminDashboard() {
         todayLeadWindowLabel={todayLeadWindowLabel}
         todayUsersMetaLeads={todayUsersMetaLeads}
         todayUsersSignups={todayUsersSignups}
+        todayUsersChatbotLeads={todayUsersChatbotLeads}
+
         todayUsersCount={todayUsersCount}
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}

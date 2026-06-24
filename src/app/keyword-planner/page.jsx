@@ -7,7 +7,9 @@ import {
   ArrowLeft,
   Sparkles,
   Target,
-  Database
+  Database,
+  MapPin,
+  ChevronDown
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import Link from "next/link";
@@ -28,7 +30,12 @@ export default function KeywordPage() {
     isSaving,
     searchKeywords,
     addKeyword,
-    deleteKeyword
+    deleteKeyword,
+    // 👇 NEW: location data + selector
+    allLocations,
+    selectedLocationId,
+    selectedLocation,
+    handleLocationChange,
   } = useKeywordPlanner();
 
   const handleShowToast = useCallback((message, type) => {
@@ -75,12 +82,44 @@ export default function KeywordPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* 👇 NEW: Location Selector — jaise MagicQR mein hai */}
+              {allLocations.length > 0 && (
+                <div className="relative">
+                  <div className="flex items-center gap-2 pl-3 pr-2 py-2 rounded-full border border-black/10 bg-white">
+                    <MapPin className="w-3.5 h-3.5 text-lemon-hover shrink-0" />
+                    <select
+                      value={selectedLocationId}
+                      onChange={(e) => handleLocationChange(e.target.value)}
+                      className="appearance-none bg-transparent text-[10px] font-bold text-black uppercase tracking-wide outline-none pr-4 max-w-[160px] truncate cursor-pointer"
+                    >
+                      {allLocations.map((loc) => (
+                        <option key={loc.locationId} value={loc.locationId}>
+                          {loc.title} {loc.locality ? `- ${loc.locality}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 pointer-events-none" />
+                  </div>
+                </div>
+              )}
+
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-lemon-glow/20 bg-lemon-glow/10">
                 <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-lemon-hover" />
                 <span className="text-[8px] font-bold uppercase text-lemon-hover tracking-widest">Live Search Active</span>
               </div>
             </div>
           </div>
+
+          {/* 👇 NEW: Active location ka clear indication, taaki user ko pata rahe kis location ke liye save ho rahe hai */}
+          {selectedLocation && (
+            <div className="mt-3 flex items-center gap-2 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              <span>Saving keywords for:</span>
+              <span className="text-black bg-lemon-glow/10 px-2 py-0.5 rounded-full">
+                {selectedLocation.title}
+                {selectedLocation.locality ? ` — ${selectedLocation.locality}` : ""}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

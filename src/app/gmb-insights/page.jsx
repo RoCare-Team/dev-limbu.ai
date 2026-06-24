@@ -13,6 +13,8 @@ import {
   AlertCircle,
   Globe,
   Loader2,
+  Search,
+  X,
 } from "lucide-react";
 import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
@@ -21,12 +23,12 @@ import { getLocalStorage } from "@/utils/storage";
 import { fetchLocationInsights } from "@/utils/fetchLocationInsights";
 import { fetchSearchKeywords } from "@/utils/fetchSearchKeywords";
 
-
 export default function GmbInsightsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const [locations, setLocations] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [showInsightsModal, setShowInsightsModal] = useState(false);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [searchKeywordsLoading, setSearchKeywordsLoading] = useState(false);
@@ -155,6 +157,16 @@ export default function GmbInsightsPage() {
     }
   };
 
+  // Search logic
+  const filteredLocations = locations.filter((location) => {
+    const query = searchQuery.toLowerCase();
+    return (
+      location.title?.toLowerCase().includes(query) ||
+      location.address?.toLowerCase().includes(query) ||
+      location.locality?.toLowerCase().includes(query)
+    );
+  });
+
   // Loading state
   if (status === "loading" || (status === "authenticated" && loading)) {
     return (
@@ -200,8 +212,9 @@ export default function GmbInsightsPage() {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8">
-        {/* Page Header */}
+        {/* Page Header with Inline Search Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          {/* Left Side: Back Button & Title */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
@@ -216,83 +229,127 @@ export default function GmbInsightsPage() {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Analyze Local Search Performance</p>
             </div>
           </div>
+
+          {/* Right Side: Search Bar (Only shown if locations exist) */}
+          {locations.length > 0 && (
+            <div className="relative w-full md:max-w-xs lg:max-w-md">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-slate-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search locations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-11 pr-10 py-3.5 bg-white border border-black/5 rounded-2xl text-xs font-bold uppercase tracking-wider text-black placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yellow-400/50 transition-all shadow-sm"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-black transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Locations Grid */}
+        {/* Locations Content */}
         {locations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {locations.map((location, idx) => (
-              <div
-                key={idx}
-                className={`group bg-white rounded-3xl border border-black/5 p-6 sm:p-8 transition-all duration-500 shadow-sm ${
-                  location.isVerified
-                    ? 'hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-black/5 cursor-pointer'
-                    : 'opacity-60 cursor-not-allowed'
-                }`}
-                onClick={() => location.isVerified && handleViewInsights(location)}
-              >
-                {/* Header: Logo & Badge */}
-                <div className="flex items-start justify-between mb-6">
-                   <div className="p-3 bg-slate-50 rounded-2xl border border-black/5 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
-                     <Building2 className="w-6 h-6" />
-                   </div>
-                   {location.isVerified ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-widest border border-green-100">
-                      <Star className="w-3 h-3 fill-green-700" />
-                      Verified
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest border border-red-100">
-                      <AlertCircle className="w-3 h-3" />
-                      Unverified
-                    </span>
-                  )}
-                </div>
-
-                {/* Body */}
-                <div className="mb-8">
-                  <h3 className="font-black text-base text-black uppercase tracking-tight mb-2 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
-                    {location.title}
-                  </h3>
-                  <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest mb-4">
-                    <MapPin className="w-3 h-3" />
-                    <span className="truncate">{location.address}</span>
-                  </div>
-                  {location.locality && (
-                    <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-black/5 inline-block">
-                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{location.locality}</p>
+          <div>
+            {filteredLocations.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredLocations.map((location, idx) => (
+                  <div
+                    key={idx}
+                    className={`group bg-white rounded-3xl border border-black/5 p-6 sm:p-8 transition-all duration-500 shadow-sm ${
+                      location.isVerified
+                        ? 'hover:border-yellow-400/50 hover:shadow-2xl hover:shadow-black/5 cursor-pointer'
+                        : 'opacity-60 cursor-not-allowed'
+                    }`}
+                    onClick={() => location.isVerified && handleViewInsights(location)}
+                  >
+                    {/* Header: Logo & Badge */}
+                    <div className="flex items-start justify-between mb-6">
+                       <div className="p-3 bg-slate-50 rounded-2xl border border-black/5 group-hover:bg-yellow-400 group-hover:text-black transition-colors">
+                         <Building2 className="w-6 h-6" />
+                       </div>
+                       {location.isVerified ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-widest border border-green-100">
+                          <Star className="w-3 h-3 fill-green-700" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 text-red-700 text-[10px] font-black uppercase tracking-widest border border-red-100">
+                          <AlertCircle className="w-3 h-3" />
+                          Unverified
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* Details */}
-                <div className="space-y-3 mb-8 border-t border-black/5 pt-6">
-                  {location.websiteUrl && (
-                    <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
-                      <Globe className="w-4 h-4 text-black opacity-30" />
-                      <span className="truncate group-hover:text-yellow-600 transition-colors">
-                        {location.websiteUrl.replace(/^https?:\/\//, '')}
-                      </span>
+                    {/* Body */}
+                    <div className="mb-8">
+                      <h3 className="font-black text-base text-black uppercase tracking-tight mb-2 leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+                        {location.title}
+                      </h3>
+                      <div className="flex items-center gap-2 text-slate-400 font-bold text-[11px] uppercase tracking-widest mb-4">
+                        <MapPin className="w-3 h-3" />
+                        <span className="truncate">{location.address}</span>
+                      </div>
+                      {location.locality && (
+                        <div className="bg-slate-50 px-3 py-1.5 rounded-lg border border-black/5 inline-block">
+                           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{location.locality}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
-                    <TrendingUp className="w-4 h-4 text-black opacity-30" />
-                    <span>Real-time Analytics Ready</span>
-                  </div>
-                </div>
 
-                {/* Footer Action */}
+                    {/* Details */}
+                    <div className="space-y-3 mb-8 border-t border-black/5 pt-6">
+                      {location.websiteUrl && (
+                        <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                          <Globe className="w-4 h-4 text-black opacity-30" />
+                          <span className="truncate group-hover:text-yellow-600 transition-colors">
+                            {location.websiteUrl.replace(/^https?:\/\//, '')}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                        <TrendingUp className="w-4 h-4 text-black opacity-30" />
+                        <span>Real-time Analytics Ready</span>
+                      </div>
+                    </div>
+
+                    {/* Footer Action */}
+                    <button
+                      disabled={!location.isVerified}
+                      className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl group-hover:scale-[1.02]"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      {location.isVerified ? 'View Insights ↗' : 'Locked'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* No matching locations view */
+              <div className="bg-white border border-black/5 rounded-[2.5rem] p-12 text-center max-w-md mx-auto shadow-xl shadow-black/5">
+                <Search className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                <h4 className="font-black text-black uppercase tracking-tight mb-2">No Matching Locations</h4>
+                <p className="text-slate-400 font-bold text-xs mb-6">
+                  We couldn't find any locations matching "{searchQuery}".
+                </p>
                 <button
-                  disabled={!location.isVerified}
-                  className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl group-hover:scale-[1.02]"
+                  onClick={() => setSearchQuery("")}
+                  className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-black rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
                 >
-                  <BarChart3 className="w-4 h-4" />
-                  {location.isVerified ? 'View Insights ↗' : 'Locked'}
+                  Clear Search
                 </button>
               </div>
-            ))}
+            )}
           </div>
         ) : (
+          /* Empty State if no locations exist */
           <div className="bg-white border border-black/5 rounded-[2.5rem] p-12 sm:p-20 text-center max-w-2xl mx-auto shadow-2xl shadow-black/5">
             <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-8 border border-black/5">
               <Building2 className="w-10 h-10 text-slate-200" />

@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
+import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
 import GoLiveButton from "@/components/GoLiveButton";
 import {
   Edit,
@@ -21,8 +22,63 @@ import {
   Building2,
   Sparkles,
   Globe,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Youtube,
+  Twitter,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+
+// ✅ Default social platforms shown in the editor (title + icon + empty link, hidden by default)
+const SOCIAL_PLATFORMS = [
+  { key: "instagram", title: "Instagram" },
+  { key: "facebook", title: "Facebook" },
+  { key: "linkedin", title: "LinkedIn" },
+  { key: "youtube", title: "YouTube" },
+  { key: "twitter", title: "Twitter / X" },
+];
+
+const SOCIAL_ICONS = {
+  instagram: Instagram,
+  facebook: Facebook,
+  linkedin: Linkedin,
+  youtube: Youtube,
+  twitter: Twitter,
+};
+
+// ✅ Build a complete socialLinks object (all platforms) so it always persists
+const buildSocialLinksObject = (aiContent) => {
+  const saved = aiContent?.socialLinks || {};
+  const obj = {};
+  SOCIAL_PLATFORMS.forEach((p) => {
+    obj[p.key] = {
+      title: saved[p.key]?.title || p.title,
+      url: saved[p.key]?.url || "",
+      show:
+        typeof saved[p.key]?.show === "boolean" ? saved[p.key].show : false,
+    };
+  });
+  return obj;
+};
+
+// ✅ Return aiContent guaranteed to contain a full socialLinks object
+const withSocialLinks = (aiContent) => ({
+  ...(aiContent || {}),
+  socialLinks: buildSocialLinksObject(aiContent),
+});
+
+// ✅ Merge any saved socialLinks with the default platform list (array for editor)
+const getSocialLinks = (aiContent) => {
+  const saved = aiContent?.socialLinks || {};
+  return SOCIAL_PLATFORMS.map((p) => ({
+    key: p.key,
+    title: saved[p.key]?.title || p.title,
+    url: saved[p.key]?.url || "",
+    show:
+      typeof saved[p.key]?.show === "boolean" ? saved[p.key].show : false,
+  }));
+};
 
 // ✅ Consistent Slug Generator (business name + locality only)
 const createSlug = (title = "", locality = "") => {
@@ -209,7 +265,7 @@ export default function BuildWebsitePage() {
           if (data && (data.business || data.site?.business)) {
             const siteData = data.site || data;
             setBusiness(siteData.business);
-            setAiContent(siteData.aiContent);
+            setAiContent(withSocialLinks(siteData.aiContent));
             setMediaImages(siteData.mediaImages || []);
             setCurrentSlug(siteData.slug || slug);
           }
@@ -248,7 +304,8 @@ export default function BuildWebsitePage() {
         body: JSON.stringify({
           slug: slugToSave,
           business,
-          aiContent,
+          aiContent: withSocialLinks(aiContent),
+          schemaData: buildLocalBusinessSchema(business, aiContent, slugToSave),
           mediaImages,
           userId: siteOwnerId,
           phone: chatbotPhone || undefined,
@@ -301,6 +358,29 @@ export default function BuildWebsitePage() {
       ...prev,
       customSections: prev.customSections.filter((_, i) => i !== index),
     }));
+  };
+
+  // ✅ Update a social link field (url / show / title) for a platform
+  const updateSocialLink = (key, field, value) => {
+    setAiContent((prev) => {
+      const prevSocial = prev?.socialLinks || {};
+      const platform = SOCIAL_PLATFORMS.find((p) => p.key === key);
+      return {
+        ...prev,
+        socialLinks: {
+          ...prevSocial,
+          [key]: {
+            title: prevSocial[key]?.title || platform?.title || key,
+            url: prevSocial[key]?.url || "",
+            show:
+              typeof prevSocial[key]?.show === "boolean"
+                ? prevSocial[key].show
+                : false,
+            [field]: value,
+          },
+        },
+      };
+    });
   };
 
   // ✅ Generate Website
@@ -364,6 +444,8 @@ export default function BuildWebsitePage() {
         throw new Error(aiData?.error || "AI generation failed"); 
       }
 
+      // Ensure socialLinks object always exists so it is editable + saved
+      aiData.content = withSocialLinks(aiData.content);
       setAiContent(aiData.content);
 
       // 3️⃣ Fetch Google Media
@@ -437,6 +519,11 @@ export default function BuildWebsitePage() {
             slug: slugToUse,
             business: businessData,
             aiContent: aiData.content, 
+            schemaData: buildLocalBusinessSchema(
+              businessData,
+              aiData.content,
+              slugToUse
+            ),
             mediaImages: images,
             userId: siteOwnerId,
             phone: chatbotPhone || undefined,
@@ -459,6 +546,9 @@ export default function BuildWebsitePage() {
       setLoading(false);
     }
   };
+
+  const socialLinks = getSocialLinks(aiContent);
+  const activeSocialLinks = socialLinks.filter((s) => s.show && s.url);
 
   const validMediaImages = mediaImages.filter(Boolean);
   const heroImage =
@@ -1412,6 +1502,80 @@ export default function BuildWebsitePage() {
           </div>
         )}
 
+        {/* SOCIAL LINKS EDITOR (edit mode only) */}
+        {isEditing && (
+          <section className="py-16 px-6 bg-gray-50 border-y border-gray-200">
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-8">
+                <span
+                  className="font-semibold text-sm uppercase tracking-wider mb-2 block"
+                  style={{ color: colorTheme.primary.hex || "#3b82f6" }}
+                >
+                  Social Media
+                </span>
+                <h2 className="text-3xl font-bold text-gray-900">
+                  Social Links
+                </h2>
+                <p className="text-gray-500 mt-2">
+                  Add your profile links and choose which ones show on the live
+                  website.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {socialLinks.map((social) => {
+                  const Icon = SOCIAL_ICONS[social.key];
+                  return (
+                    <div
+                      key={social.key}
+                      className="flex flex-col sm:flex-row sm:items-center gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3 sm:w-40 shrink-0">
+                        {Icon && (
+                          <span className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700">
+                            <Icon className="w-5 h-5" />
+                          </span>
+                        )}
+                        <span className="font-semibold text-gray-800">
+                          {social.title}
+                        </span>
+                      </div>
+
+                      <input
+                        type="url"
+                        value={social.url}
+                        onChange={(e) =>
+                          updateSocialLink(social.key, "url", e.target.value)
+                        }
+                        placeholder={`https://${social.key}.com/yourbusiness`}
+                        className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition text-sm"
+                      />
+
+                      <label className="flex items-center gap-2 cursor-pointer select-none sm:w-28 shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={social.show}
+                          onChange={(e) =>
+                            updateSocialLink(
+                              social.key,
+                              "show",
+                              e.target.checked
+                            )
+                          }
+                          className="w-5 h-5 rounded accent-blue-600 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-gray-600">
+                          {social.show ? "Visible" : "Hidden"}
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* CONTACT FORM SECTION */}
        <section className="py-32 px-6 bg-gradient-to-b from-white to-gray-50">
   <div className="max-w-6xl mx-auto">
@@ -1526,14 +1690,33 @@ export default function BuildWebsitePage() {
       {/* ===== START: APNA EXISTING FORM YAHAN PASTE KAREIN ===== */}
       <form
         className="space-y-6"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          const formData = new FormData(e.target);
+          const formEl = e.target;
+          const formData = new FormData(formEl);
           const name = formData.get("name");
           const phone = formData.get("phone");
           const email = formData.get("email");
           const service = formData.get("service");
           const message = formData.get("message");
+
+          // ✅ Save the contact-form lead to the database
+          try {
+            await fetch("/api/website-leads", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                slug: currentSlug,
+                name,
+                phone,
+                email,
+                service,
+                message,
+              }),
+            });
+          } catch (leadErr) {
+            console.error("Lead save error:", leadErr);
+          }
 
           const whatsappMessage = `Hi! I'm interested in your services.%0A%0AName: ${name}%0APhone: ${phone}%0AEmail: ${email}%0AService: ${service}%0AMessage: ${message}`;
           const whatsappUrl = `${getWhatsAppLink(
@@ -1541,6 +1724,7 @@ export default function BuildWebsitePage() {
           )}&text=${whatsappMessage}`;
 
           window.open(whatsappUrl, "_blank");
+          formEl.reset();
         }}
       >
         <div>
@@ -1800,6 +1984,27 @@ export default function BuildWebsitePage() {
           customer satisfaction. Contact us today for expert support and
           personalized solutions.                   
         </p>
+
+        {/* Social Links */}
+        {activeSocialLinks.length > 0 && (
+          <div className="flex items-center gap-3 mt-6">
+            {activeSocialLinks.map((social) => {
+              const Icon = SOCIAL_ICONS[social.key];
+              return (
+                <a
+                  key={social.key}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={social.title}
+                  className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center text-white transition-all transform hover:scale-110"
+                >
+                  {Icon && <Icon className="w-5 h-5" />}
+                </a>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Quick Contact */}

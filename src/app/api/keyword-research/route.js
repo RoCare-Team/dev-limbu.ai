@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
+import { generateUniversalSlug } from "@/utils/slugify";
 
 /* -------------------- SCHEMA -------------------- */
 const KeywordSchema = new mongoose.Schema(
   {
     userId: { type: String, required: true, index: true },
     keyword: { type: String, required: true, trim: true },
+    slug: { type: String, trim: true, index: true },
     source: { type: String, default: "google" },
     volume: { type: Number },
     competition: { type: String },
@@ -71,7 +73,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const { userId, keyword, volume, competition } = await req.json();
+    const { userId, keyword, slug: clientSlug, volume, competition } = await req.json();
 
     if (!userId || !keyword) {
       return NextResponse.json(
@@ -80,9 +82,12 @@ export async function POST(req) {
       );
     }
 
+    const slug = clientSlug || generateUniversalSlug({ title: keyword });
+
     const saved = await Keyword.create({
       userId,
       keyword,
+      slug,
       source: "google",
       volume,
       competition,

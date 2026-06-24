@@ -4,6 +4,7 @@ import fetch from "node-fetch";
 import User from "@/models/User";
 import MetaSync from "@/models/MetaSync";
 import Admin from "@/models/Admin";
+import MetaLeadFranchises from "@/models/MetaLeadFranchises";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
@@ -12,6 +13,7 @@ import {
   META_DEFAULT_FORM_ID,
   META_FORM_SYNC_IDS,
   META_LEAD_TAG_KEYS,
+  META_FRANCHISE_FORM_ID,
 } from "@/lib/metaFormLeadsConfig";
 
 export const dynamic = "force-dynamic";
@@ -209,6 +211,166 @@ function isToday(date) {
     date.getMonth() === now.getMonth() &&
     date.getFullYear() === now.getFullYear()
   );
+}
+
+/* ================= FRANCHISE ROUND ROBIN ================= */
+async function getNextFranchiseAdminId(
+  franchiseAdmins = [],
+  roundRobinKey = "metaFranchiseLeadRR",
+) {
+  if (!franchiseAdmins.length) return null;
+
+  const rrDoc = await bumpAgentRoundRobin(Setting, roundRobinKey);
+  let rrValue = parseInt(rrDoc?.value, 10);
+  if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
+
+  const index = rrValue % franchiseAdmins.length;
+  const adminId = franchiseAdmins[index]._id;
+  console.log(
+    `[MetaSync-Franchise] Round-robin assigned franchiseAdmin index: ${index} | adminId: ${adminId}`,
+  );
+  return adminId;
+}
+
+/* ================= SYNC FRANCHISE FORM (→ MetaLeadFranchises) ================= */
+async function syncFranchiseFormLeads({ formId, franchiseAdmins }) {
+  console.log(
+    `\n========== [MetaSync-Franchise] START — FormID: ${formId} — ${new Date().toISOString()} ==========`,
+  );
+
+  let inserted = 0;
+  let assigned = 0;
+  let skipped = 0;
+  let totalFetched = 0;
+  let pagesFetched = 0;
+  let lastCursor = null;
+
+  let nextUrl = `https://graph.facebook.com/v24.0/${formId}/leads?limit=${LIMIT}&access_token=${META_ACCESS_TOKEN}`;
+
+  while (nextUrl) {
+    const res = await fetch(nextUrl);
+    const json = await res.json();
+
+    if (!res.ok) {
+      const msg =
+        json?.error?.message ||
+        json?.error?.error_user_msg ||
+        `Graph API error (${res.status})`;
+      console.error("[MetaSync-Franchise] Graph API Error:", msg, json?.error);
+      return {
+        ok: false,
+        error: msg,
+        graphError: json?.error || null,
+        status: 502,
+      };
+    }
+
+    pagesFetched++;
+    const leads = json.data || [];
+    totalFetched += leads.length;
+    console.log(`[MetaSync-Franchise] Page ${pagesFetched} — ${leads.length} leads fetched from Meta`);
+
+    if (json.paging?.cursors?.after) {
+      lastCursor = json.paging.cursors.after;
+    }
+
+    for (const lead of leads) {
+      const fields = lead.field_data || [];
+
+      const alreadySynced = await MetaLeadFranchises.findOne({ leadId: lead.id }).select("_id");
+      if (alreadySynced) {
+        skipped++;
+        continue;
+      }
+
+      const fullName =
+        getFieldByAliases(fields, ["full_name", "full name", "name", "your_name"]) ||
+        "Franchise Lead";
+      const email = extractEmailFromFields(fields);
+      const phone = getFieldByAliases(fields, [
+        "phone_number",
+        "phone",
+        "mobile",
+        "mobile_number",
+        "contact_number",
+        "whatsapp_number",
+      ]);
+      const city = getFieldByAliases(fields, ["city", "location", "area", "district"]);
+      const occupation = getFieldByAliases(fields, [
+        "what_is_your_current_occupation?",
+        "occupation",
+        "current_occupation",
+      ]);
+      const startTime = getFieldByAliases(fields, [
+        "when_do_you_want_to_start?",
+        "start_time",
+      ]);
+      const investment = getFieldByAliases(fields, [
+        "mention_investment_rang",
+        "investment",
+        "investment_range",
+      ]);
+      const verified = getFieldByAliases(fields, ["phone_number_verified"]) === "true";
+
+      let assignedFranchiseAdminId = null;
+      if (franchiseAdmins.length > 0) {
+        assignedFranchiseAdminId = await getNextFranchiseAdminId(franchiseAdmins);
+        if (assignedFranchiseAdminId) assigned++;
+      }
+
+      await MetaLeadFranchises.create({
+        leadId: lead.id,
+        formId,
+        fullName,
+        email,
+        phone,
+        city,
+        occupation,
+        startTime,
+        investment,
+        verified,
+        createdTime: parseMetaCreatedAt(lead.created_time),
+        source: "meta",
+        status: "Active",
+        lead_quality: "None",
+        assignedFranchiseAdminId,
+        remarks: [],
+      });
+
+      console.log(
+        `[MetaSync-Franchise] ✅ INSERTED — leadId: ${lead.id} | Name: "${fullName}" | Email: "${email}" | Phone: "${phone}" | franchiseAdminId: ${assignedFranchiseAdminId || "Unassigned"}`,
+      );
+      inserted++;
+    }
+
+    nextUrl = json.paging?.next || null;
+  }
+
+  await MetaSync.updateOne(
+    { formId },
+    { lastAfterCursor: lastCursor, lastSyncedAt: new Date() },
+    { upsert: true },
+  );
+
+  console.log(
+    `========== [MetaSync-Franchise] END form ${formId} — inserted: ${inserted} | assigned: ${assigned} | skipped: ${skipped} | totalFetched: ${totalFetched} ==========\n`,
+  );
+
+  return {
+    ok: true,
+    formId,
+    leadTags: ["franchise-lead"],
+    stats: {
+      pagesFetched,
+      totalFetched,
+      inserted,
+      updated: 0,
+      assigned,
+      skipped,
+      todayInsertedCount: 0,
+      todayInsertedLeads: [],
+    },
+  };
 }
 
 /* ================= SYNC ONE FORM ================= */
@@ -466,6 +628,9 @@ export async function GET(req) {
     const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
     console.log(`[MetaSync] Active agents for round-robin: ${activeAgents.length}`);
 
+    const franchiseAdmins = await Admin.find({ role: "franchiseAdmin", isActive: true }).sort({ createdAt: 1, _id: 1 });
+    console.log(`[MetaSync] Active franchiseAdmins for round-robin: ${franchiseAdmins.length}`);
+
     const syncAll = searchParams.get("syncAll") === "1";
     const formIdsParam = searchParams.get("formIds");
     const requestedFormId =
@@ -496,12 +661,17 @@ export async function GET(req) {
     const formResults = [];
     const formErrors = [];
     for (const formId of formIds) {
-      const formConfig = getMetaFormConfig(formId);
-      const result = await syncMetaFormLeads({
-        formId,
-        activeAgents,
-        formConfig,
-      });
+      let result;
+      if (formId === META_FRANCHISE_FORM_ID) {
+        result = await syncFranchiseFormLeads({ formId, franchiseAdmins });
+      } else {
+        const formConfig = getMetaFormConfig(formId);
+        result = await syncMetaFormLeads({
+          formId,
+          activeAgents,
+          formConfig,
+        });
+      }
       if (!result.ok) {
         formErrors.push({
           formId,

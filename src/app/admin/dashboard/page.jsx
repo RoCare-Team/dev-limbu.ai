@@ -764,7 +764,6 @@ export default function AdminDashboard() {
         todayUsersMetaLeads={todayUsersMetaLeads}
         todayUsersSignups={todayUsersSignups}
         todayUsersChatbotLeads={todayUsersChatbotLeads}
-
         todayUsersCount={todayUsersCount}
         showRevenueUsersModal={showRevenueUsersModal}
         fetchRevenueUsers={fetchRevenueUsers}

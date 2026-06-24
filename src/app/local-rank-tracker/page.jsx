@@ -94,6 +94,23 @@ export default function RankTrackerPage() {
   const gridPoints = useMemo(() => rawGridPoints, [rawGridPoints]);
 
   useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        suggestionRef.current &&
+        !suggestionRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
     const stored = localStorage.getItem("locationDetails");
     if (stored) {
       try {
@@ -141,17 +158,17 @@ export default function RankTrackerPage() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setShowSuggestions(false);
-  setActivePoint(null);
+    e.preventDefault();
+    setShowSuggestions(false);
+    setActivePoint(null);
 
-  await fetchRanks({
-    keyword,
-    city,
-    businessName,
-    gridSize,
-  });
-};
+    await fetchRanks({
+      keyword,
+      city,
+      businessName,
+      gridSize,
+    });
+  };
 
   const makeIcon = (color, big) => {
     if (!isLoaded || !window.google) return undefined;
@@ -261,7 +278,10 @@ export default function RankTrackerPage() {
       <div className="bg-white rounded-[32px] border border-slate-200 p-8 shadow-sm">
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6"
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: "1fr 100px 1fr 1fr 180px",
+          }}
         >
           <div className="space-y-2 relative" ref={suggestionRef}>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
@@ -315,21 +335,21 @@ export default function RankTrackerPage() {
             )}
           </div>
 
-          <div className="space-y-2">
-  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-    Grid Size
-  </label>
+          <div className="space-y-2 w-[100px]">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+              Grid Size
+            </label>
 
-  <select
-    value={gridSize}
-    onChange={(e) => setGridSize(e.target.value)}
-    className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold"
-  >
-    <option value="1x1">1 × 1</option>
-    <option value="3x3">3 × 3</option>
-    <option value="5x5">5 × 5</option>
-  </select>
-</div>
+            <select
+              value={gridSize}
+              onChange={(e) => setGridSize(e.target.value)}
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold"
+            >
+              <option value="1x1">1 × 1</option>
+              <option value="3x3">3 × 3</option>
+              <option value="5x5">5 × 5</option>
+            </select>
+          </div>
 
           <div className="space-y-2">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">

@@ -13,6 +13,8 @@ import NavBar from "@/components/websiteNavbar";
 import { headers } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import WebsiteFooter from "@/components/WebsiteFooter";
+import WebsiteLeadForm from "@/components/WebsiteLeadForm";
+import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
 
 /* ================================
    Helper: WhatsApp link
@@ -105,11 +107,22 @@ export default async function SitePage({ params }) {
     { label: "Contact", href: "#contact" },
   ];
 
+  // ✅ SEO: LocalBusiness JSON-LD (use saved schema, else generate on the fly)
+  const schemaData =
+    siteData.schemaData || buildLocalBusinessSchema(business, aiContent, slug);
+
   return (
     <div
       className="font-sans text-gray-800 min-h-screen bg-white"
       style={{ "--primary": primary, "--secondary": secondary }}
     >
+      {/* ── SEO: schema.org structured data ── */}
+      {schemaData && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }}
+        />
+      )}
       {/* ── NavBar ── */}
       <NavBar
         title={business?.title}
@@ -621,45 +634,12 @@ export default async function SitePage({ params }) {
               <h3 className="text-3xl font-black text-gray-900 mb-10">
                 Inquiry Form
               </h3>
-              <div className="space-y-6">
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white transition-all outline-none"
-                  style={{ "--tw-ring-color": primary }}
-                />
-                <div className="grid md:grid-cols-2 gap-6">
-                  <input
-                    type="tel"
-                    placeholder="Phone"
-                    className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white outline-none"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    className="w-full px-6 py-5 bg-gray-50  border-1 rounded-2xl focus:bg-white outline-none"
-                  />
-                </div>
-                <select className="w-full px-6 py-5 bg-gray-50 border-2  rounded-2xl focus:bg-white outline-none appearance-none">
-                  <option>Select Service</option>
-                  {aiContent.services?.map((s, i) => (
-                    <option key={i} value={s.title}>
-                      {s.title}
-                    </option>
-                  ))}
-                </select>
-                <textarea
-                  rows={4}
-                  placeholder="Your Requirements..."
-                  className="w-full px-6 py-5 bg-gray-50 border-2 rounded-2xl focus:bg-white outline-none resize-none"
-                />
-                <button
-                  className="w-full py-6 rounded-2xl text-white font-black text-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-xl"
-                  style={{ backgroundColor: primary }}
-                >
-                  Submit Requirement
-                </button>
-              </div>
+              <WebsiteLeadForm
+                slug={slug}
+                services={aiContent.services || []}
+                whatsappUrl={getWhatsAppLink(primaryPhone)}
+                primary={primary}
+              />
             </div>
           </div>
         </div>

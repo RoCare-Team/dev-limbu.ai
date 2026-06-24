@@ -10,6 +10,7 @@ import {
   resolveSiteUserId,
   resolvePrimaryPhoneForSite,
 } from "@/lib/resolveSiteUserId";
+import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
 
 export function slugifyFromBusiness(business) {
   const title = business?.title || "";
@@ -40,6 +41,7 @@ export async function upsertPublishSite(body) {
     type,
     phone,
     email,
+    schemaData,
   } = body ?? {};
 
   if (!business || !aiContent) {
@@ -117,6 +119,13 @@ export async function upsertPublishSite(body) {
       Array.isArray(mediaImages) && mediaImages.length > 0
         ? mediaImages.filter(Boolean).slice(0, 13)
         : (existingSite.mediaImages || []).filter(Boolean).slice(0, 13);
+    existingSite.schemaData =
+      schemaData ||
+      buildLocalBusinessSchema(businessForSave, aiContent, existingSite.slug);
+    // Object/Mixed fields need markModified so Mongoose persists the change
+    existingSite.markModified("schemaData");
+    existingSite.markModified("aiContent");
+    existingSite.markModified("business");
     existingSite.isPublished = true;
     existingSite.updatedAt = new Date();
     if (locationId) existingSite.locationId = locationId;
@@ -169,6 +178,9 @@ export async function upsertPublishSite(body) {
     slug: finalSlug,
     business: businessForSave,
     aiContent,
+    schemaData:
+      schemaData ||
+      buildLocalBusinessSchema(businessForSave, aiContent, finalSlug),
     mediaImages:
       Array.isArray(mediaImages) && mediaImages.length > 0
         ? mediaImages.filter(Boolean).slice(0, 13)

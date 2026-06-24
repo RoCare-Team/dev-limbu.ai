@@ -25,6 +25,7 @@ export default function CustomerReviewPage() {
   const [aiReviews, setAiReviews] = useState([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [copyingIndex, setCopyingIndex] = useState(null);
+  const [slug, setSlug] = useState("");
 
   /**
    * Must run synchronously inside the user's tap (before any await) or iOS Safari blocks pop-ups.
@@ -49,6 +50,8 @@ export default function CustomerReviewPage() {
       setLoading(false);
       return;
     }
+
+    setSlug(slug);
 
     // Fetch business data from API using slug
     fetchBusinessDataBySlug(slug);
@@ -109,6 +112,7 @@ export default function CustomerReviewPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        keepalive: true,
       });
 
       if (!response.ok) {
@@ -132,19 +136,14 @@ export default function CustomerReviewPage() {
       }
       setRedirecting(true);
       try {
-        const res = await fetch("/api/reviews/generate-ai-review", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            business,
-            primaryCategory,
-            additionalCategories,
-            locality,
-            address,
-          }),
-        });
+        const slugValue = slug || params?.bussiness || "";
+        const res = await fetch(
+          `/api/reviews/pool?slug=${encodeURIComponent(
+            slugValue
+          )}&business_name=${encodeURIComponent(business)}`
+        );
         const data = await res.json();
-        if (data.reviews && Array.isArray(data.reviews)) {
+        if (data.success && Array.isArray(data.reviews) && data.reviews.length) {
           setAiReviews(data.reviews);
           setShowReviewModal(true);
         } else {
@@ -195,6 +194,19 @@ export default function CustomerReviewPage() {
     return false;
   };
 
+  // Rotate a copied review on the server so the same text is never shown again.
+  const rotateReview = (key) => {
+    const slugValue = slug || params?.bussiness || "";
+    if (!slugValue || !key) return;
+    // keepalive: true → request still completes even if the page navigates to Google.
+    fetch("/api/reviews/consume", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: slugValue, key }),
+      keepalive: true,
+    }).catch((e) => console.error("Review rotate failed", e));
+  };
+
   // Copy first, then open Google — opening a new tab first often breaks clipboard on mobile.
   const handleCopyAndRedirect = async (review, index) => {
     if (!reviewUri) {
@@ -202,21 +214,22 @@ export default function CustomerReviewPage() {
       return;
     }
 
+    const reviewText = review?.text || "";
+
     setCopyingIndex(index);
     try {
-      if (!copyTextToClipboardSync(review)) {
-        await copyTextToClipboardAsync(review);
+      if (!copyTextToClipboardSync(reviewText)) {
+        await copyTextToClipboardAsync(reviewText);
       }
+      // Fire rotation + DB save BEFORE opening Google, so navigating away
+      // (especially same-tab on mobile) doesn't cancel these requests.
+      rotateReview(review?.key);
+      saveReviewToDB({
+        name: customerName,
+        rating,
+        feedback: reviewText,
+      }).catch((e) => console.error("Save review failed", e));
       openGoogleReviewNow(reviewUri);
-      try {
-        await saveReviewToDB({
-          name: customerName,
-          rating,
-          feedback: review,
-        });
-      } catch (e) {
-        console.error("Save review failed", e);
-      }
       setShowReviewModal(false);
       setShowSuccess(true);
     } finally {
@@ -307,7 +320,7 @@ max-h-[38vh] md:max-h-[48vh]
       >
         {aiReviews.map((review, idx) => (
           <li
-            key={idx}
+            key={review?.key || idx}
             className="
               border border-gray-100 rounded-xl
               p-3 md:p-4
@@ -316,7 +329,7 @@ max-h-[38vh] md:max-h-[48vh]
             "
           >
             <p className="text-[11px] md:text-xs text-gray-600 leading-relaxed mb-2 md:mb-3">
-              {review}
+              {review?.text}
             </p>
 
             <button

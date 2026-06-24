@@ -41,6 +41,25 @@ function isMetaLeadSourceFilter(source) {
   ].includes(normalized);
 }
 
+/** User.source values that count as real-estate leads. */
+const REAL_ESTATE_LEAD_SOURCES = ["Real estate leads"];
+/** Stored `User.leadTags` values that count as real-estate leads. */
+const REAL_ESTATE_LEAD_TAG_KEYS = ["real-estate-lead"];
+
+function isRealEstateLeadSourceFilter(source) {
+  const normalized = String(source || "")
+    .trim()
+    .toLowerCase();
+  return [
+    "real estate leads",
+    "real-estate leads",
+    "real estate lead",
+    "real-estate-lead",
+    "real estate",
+    "realestate",
+  ].includes(normalized);
+}
+
 function getSourceMatch(source) {
   if (!source || source === "All") return null;
 
@@ -49,6 +68,18 @@ function getSourceMatch(source) {
       $or: [
         { source: { $in: META_LEAD_SOURCES } },
         { leadTags: { $in: META_LEAD_TAG_KEYS } },
+      ],
+    };
+  }
+
+  // Real-estate leads are stored either with source "Real estate leads"
+  // (survey form) or source "Meta Lead" + leadTags ["real-estate-lead"]
+  // (real-estate Meta forms). Match both so the filter returns all of them.
+  if (isRealEstateLeadSourceFilter(source)) {
+    return {
+      $or: [
+        { source: { $in: REAL_ESTATE_LEAD_SOURCES } },
+        { leadTags: { $in: REAL_ESTATE_LEAD_TAG_KEYS } },
       ],
     };
   }

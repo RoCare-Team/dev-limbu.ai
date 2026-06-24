@@ -1,9 +1,7 @@
-
-
 "use client";
 
 import React from "react";
-import { Bot, MessageCircle, RefreshCw, User, X } from "lucide-react";
+import { Bot, MessageCircle, RefreshCw, User, X, LayoutTemplate } from "lucide-react";
 
 const formatChatTime = (value) => {
   if (!value) return "";
@@ -17,6 +15,101 @@ const formatChatTime = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+// Try to parse message content as a WhatsApp-style template object.
+// Returns the parsed template object if valid, otherwise null.
+const parseTemplateContent = (raw) => {
+  if (!raw || typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && (parsed.__type === "template" || parsed.body || parsed.buttons)) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+// Renders text with \n converted into actual line breaks,
+// and bolds/emoji preserved as-is (WhatsApp doesn't use markdown bold here,
+// so we just keep the raw characters but ensure real line breaks).
+const TextWithBreaks = ({ text, className = "" }) => {
+  if (!text) return null;
+  const lines = String(text).split("\\n").join("\n").split("\n");
+  return (
+    <p className={`whitespace-pre-wrap break-words ${className}`}>
+      {lines.map((line, i) => (
+        <React.Fragment key={i}>
+          {line}
+          {i < lines.length - 1 && <br />}
+        </React.Fragment>
+      ))}
+    </p>
+  );
+};
+
+const TemplateBubble = ({ template, isUser }) => {
+  const {
+    template_name,
+    header_type,
+    header_content,
+    body,
+    footer,
+    buttons = [],
+  } = template;
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      {/* Template label */}
+      <div className="flex items-center gap-1.5 border-b border-slate-100 bg-slate-50 px-3 py-1.5">
+        <LayoutTemplate size={12} className="text-indigo-500" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+          Template{template_name ? ` · ${template_name}` : ""}
+        </span>
+      </div>
+
+      {/* Header (if text header) */}
+      {header_type === "TEXT" && header_content ? (
+        <div className="px-4 pt-3">
+          <p className="text-sm font-bold text-slate-900">{header_content}</p>
+        </div>
+      ) : null}
+
+      {/* Body */}
+      {body ? (
+        <div className="px-4 py-3">
+          <TextWithBreaks text={body} className="text-sm leading-relaxed text-slate-800" />
+        </div>
+      ) : null}
+
+      {/* Footer */}
+      {footer ? (
+        <div className="px-4 pb-2">
+          <p className="text-xs text-slate-400">{footer}</p>
+        </div>
+      ) : null}
+
+      {/* Buttons */}
+      {Array.isArray(buttons) && buttons.length > 0 && (
+        <div className="border-t border-slate-100">
+          {buttons.map((btn, i) => (
+            <button
+              key={`${btn?.text || "btn"}-${i}`}
+              type="button"
+              disabled
+              className="flex w-full items-center justify-center gap-1.5 border-b border-slate-50 px-4 py-2.5 text-sm font-semibold text-indigo-600 last:border-b-0 hover:bg-indigo-50/50"
+            >
+              {btn?.text || "Button"}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default function ChatHistoryModal({
@@ -96,6 +189,8 @@ export default function ChatHistoryModal({
             <div className="space-y-3">
               {history.map((item, index) => {
                 const isUser = item?.role === "user";
+                const template = parseTemplateContent(item?.content);
+
                 return (
                   <div
                     key={`${item?.time || "chat"}-${index}`}
@@ -106,34 +201,57 @@ export default function ChatHistoryModal({
                         <Bot size={15} />
                       </div>
                     )}
-                    <div
-                      className={`max-w-[82%] rounded-2xl px-4 py-3 shadow-sm ${
-                        isUser
-                          ? "rounded-tr-md bg-indigo-600 text-white"
-                          : "rounded-tl-md border border-slate-200 bg-white text-slate-800"
-                      }`}
-                    >
-                      <div className="mb-1 flex items-center gap-1.5">
-                        {isUser && <User size={12} />}
-                        <span
-                          className={`text-[10px] font-black uppercase tracking-widest ${
-                            isUser ? "text-indigo-100" : "text-slate-400"
+
+                    <div className={`max-w-[82%] ${template ? "" : "shadow-sm"}`}>
+                      {template ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 px-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                              {isUser ? "User" : "Assistant"}
+                            </span>
+                          </div>
+                          <TemplateBubble template={template} isUser={isUser} />
+                          <p
+                            className={`px-1 text-[10px] font-semibold text-slate-400 ${
+                              isUser ? "text-right" : "text-left"
+                            }`}
+                          >
+                            {formatChatTime(item?.time)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          className={`rounded-2xl px-4 py-3 shadow-sm ${
+                            isUser
+                              ? "rounded-tr-md bg-indigo-600 text-white"
+                              : "rounded-tl-md border border-slate-200 bg-white text-slate-800"
                           }`}
                         >
-                          {isUser ? "User" : "Assistant"}
-                        </span>
-                      </div>
-                      <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
-                        {item?.content || ""}
-                      </p>
-                      <p
-                        className={`mt-2 text-right text-[10px] font-semibold ${
-                          isUser ? "text-indigo-100" : "text-slate-400"
-                        }`}
-                      >
-                        {formatChatTime(item?.time)}
-                      </p>
+                          <div className="mb-1 flex items-center gap-1.5">
+                            {isUser && <User size={12} />}
+                            <span
+                              className={`text-[10px] font-black uppercase tracking-widest ${
+                                isUser ? "text-indigo-100" : "text-slate-400"
+                              }`}
+                            >
+                              {isUser ? "User" : "Assistant"}
+                            </span>
+                          </div>
+                          <TextWithBreaks
+                            text={item?.content || ""}
+                            className="text-sm leading-relaxed"
+                          />
+                          <p
+                            className={`mt-2 text-right text-[10px] font-semibold ${
+                              isUser ? "text-indigo-100" : "text-slate-400"
+                            }`}
+                          >
+                            {formatChatTime(item?.time)}
+                          </p>
+                        </div>
+                      )}
                     </div>
+
                     {isUser && (
                       <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-800 text-white">
                         <User size={15} />

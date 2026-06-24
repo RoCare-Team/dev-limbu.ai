@@ -1,13 +1,73 @@
 "use client";
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
+import { generateUniversalSlug } from "@/utils/slugify";
 
 export function useKeywordPlanner() {
   const [suggestions, setSuggestions] = useState([]);
   const [saved, setSaved] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(null);
+
+  // 👇 NEW: same as useMagicQR — load locations from localStorage
+  const [allLocations, setAllLocations] = useState([]);
+  const [selectedLocationId, setSelectedLocationId] = useState("");
+
+  useEffect(() => {
+    const raw = getLocalStorage("locationDetails");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAllLocations(parsed);
+          setSelectedLocationId(parsed[0].locationId);
+        }
+      } catch (e) {
+        console.error("localStorage parse error", e);
+      }
+    }
+  }, []);
+
+  // 👇 NEW: same derived logic as useMagicQR
+  const selectedLocation = useMemo(() => {
+    return (
+      allLocations.find((loc) => loc.locationId === selectedLocationId) ||
+      allLocations[0] ||
+      null
+    );
+  }, [allLocations, selectedLocationId]);
+
+  // 👇 NEW: user manually location switch kar sake, jaise MagicQR mein
+  const handleLocationChange = useCallback((locationId) => {
+    setSelectedLocationId(locationId);
+  }, []);
+
+  // 👇 NEW: exact same helper functions copied from useMagicQR
+  const getLocationIdentifier = (location) => {
+    return (location?.locationId || location?.name || "").toString();
+  };
+
+  const buildUniqueReviewSlug = useCallback((location, locations) => {
+    if (!location) return "";
+
+    const baseSlug = generateUniversalSlug(location);
+    if (!baseSlug) return "";
+
+    const currentId = getLocationIdentifier(location);
+    const conflict = (locations || []).some((loc) => {
+      const locId = getLocationIdentifier(loc);
+      if (!loc || !locId || locId === currentId) return false;
+      return generateUniversalSlug(loc) === baseSlug;
+    });
+
+    if (!conflict) {
+      return baseSlug;
+    }
+
+    const idPart = currentId.substring(0, 5);
+    return `${baseSlug}-${idPart}`;
+  }, []);
 
   const fetchSavedKeywords = useCallback(async () => {
     const userId = getLocalStorage("userId");
@@ -55,21 +115,17 @@ export function useKeywordPlanner() {
           competition: item.keywordIdeaMetrics?.competition,
           competitionIndex: item.keywordIdeaMetrics?.competitionIndex,
         }));
-        
-        // Sort suggestions by popularity (volume) in descending order
+
         mappedSuggestions.sort((a, b) => b.volume - a.volume);
-        
         setSuggestions(mappedSuggestions);
       } else if (data.success) {
         const generatedSuggestions = data.keywords.map((k) =>
-            typeof k === "string"
-              ? { keyword: k, volume: Math.floor(Math.random() * 5000) + 100 }
-              : k,
+          typeof k === "string"
+            ? { keyword: k, volume: Math.floor(Math.random() * 5000) + 100 }
+            : k,
         );
-        
-        // Sort fallback suggestions by popularity as well
+
         generatedSuggestions.sort((a, b) => b.volume - a.volume);
-        
         setSuggestions(generatedSuggestions);
       }
     } catch (error) {
@@ -84,14 +140,18 @@ export function useKeywordPlanner() {
     setIsSaving(keywordData.keyword);
     const userId = getLocalStorage("userId");
 
-    // OPTIMISTIC UPDATE: Turant list mein add kar do
+    // 👇 FIX: exact same slug generation as useMagicQR's reviewUrl
+    // Jo bhi location currently SELECTED hai, usi ke basis par slug banega
+    const slug = buildUniqueReviewSlug(selectedLocation, allLocations);
+
     const tempKeyword = {
       _id: "temp_" + Date.now(),
       keyword: keywordData.keyword,
+      slug,
       volume: keywordData.volume,
       competition: keywordData.competition
     };
-    setSaved(prev => [tempKeyword, ...prev]); // Add to top
+    setSaved(prev => [tempKeyword, ...prev]);
 
     try {
       const res = await fetch("/api/keyword-research", {
@@ -100,6 +160,7 @@ export function useKeywordPlanner() {
         body: JSON.stringify({
           userId,
           keyword: keywordData.keyword,
+          slug,
           volume: keywordData.volume,
           competition: keywordData.competition,
         }),
@@ -108,24 +169,21 @@ export function useKeywordPlanner() {
 
       if (data.success && data.data) {
         toast.success(`'${keywordData.keyword}' saved to your list`);
-        // Silently replace the temp item with the real database item
         setSaved(prev => prev.map(k => k._id === tempKeyword._id ? data.data : k));
       } else {
-        // Error aane par revert kar do
         setSaved(prev => prev.filter(k => k._id !== tempKeyword._id));
         toast.error(data.error || "Failed to save. Try again.");
       }
     } catch (error) {
       console.error("Failed to add keyword:", error);
-      // Error aane par revert kar do
       setSaved(prev => prev.filter(k => k._id !== tempKeyword._id));
       toast.error("Something went wrong while saving.");
     } finally {
       setIsSaving(null);
     }
-  }, []);
+  }, [selectedLocation, allLocations, buildUniqueReviewSlug]);
+
   const deleteKeyword = useCallback(async (id) => {
-    // OPTIMISTIC UPDATE: Turant list se hata do
     setSaved(prev => prev.filter(item => item._id !== id));
 
     try {
@@ -136,7 +194,6 @@ export function useKeywordPlanner() {
       if (data.success) {
         toast.success("Keyword removed from your list");
       } else {
-        // Fail hone par wapas laane ke liye list fetch karlo
         fetchSavedKeywords();
       }
     } catch (error) {
@@ -156,9 +213,7 @@ export function useKeywordPlanner() {
   );
 
   const sortedSaved = useMemo(() => {
-    // Keep them in the order they were inserted, or based on a real timestamp 
-    // Rather than alphabetical sorting of IDs which breaks when temp ID changes to Mongo ID
-    return saved; // They are already added sequentially via setSaved
+    return saved;
   }, [saved]);
 
   return {
@@ -169,6 +224,11 @@ export function useKeywordPlanner() {
     isSaving,
     searchKeywords,
     addKeyword,
-    deleteKeyword
+    deleteKeyword,
+    // 👇 NEW exports — page mein location selector banane ke liye
+    allLocations,
+    selectedLocationId,
+    selectedLocation,
+    handleLocationChange,
   };
 }

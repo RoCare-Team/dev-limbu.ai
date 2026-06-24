@@ -28,7 +28,8 @@ function createSlug(str) {
 
 export async function GET(req, context) {
   try {
-    let slug = context?.params?.slug;
+    const params = await context?.params;
+    let slug = params?.slug;
 
     if (!slug) {
       const pathname = req.nextUrl.pathname;

@@ -11,6 +11,9 @@ const SiteSchema = new mongoose.Schema({
 
   aiContent: { type: Object, required: true },
 
+  /** schema.org LocalBusiness JSON-LD object injected on the live page for SEO */
+  schemaData: { type: Object, default: null },
+
   mediaImages: { type: [String], default: [] },
 
   isPublished: { type: Boolean, default: true },

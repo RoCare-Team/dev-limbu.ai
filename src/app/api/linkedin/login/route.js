@@ -11,7 +11,7 @@ import { buildYoutubeLinkedinStatePayload } from "@/lib/chatbotPlatformOAuthStat
  *   local : APP_ORIGIN=http://localhost:3000
  *   prod  : APP_ORIGIN=https://limbu.ai
  */
-const APP_ORIGIN = process.env.APP_ORIGIN || "http://localhost:3000";
+const APP_ORIGIN = process.env.APP_ORIGIN || "https://limbu.ai";
 
 export async function GET(req) {
   try {

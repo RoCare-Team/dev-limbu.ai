@@ -161,7 +161,7 @@ export async function GET(req) {
   const isMobile = state.mobile === true;
 
   // Origin to redirect back to (localhost in dev, limbu.ai in prod).
-  const baseUrl = "http://localhost:3000";
+  const baseUrl = "https://limbu.ai";
 
   // User-facing error exit: mobile deeplink for app flows, otherwise redirect
   // back to /dashboard with an error reason the UI can turn into a toast.

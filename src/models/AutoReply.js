@@ -6,6 +6,7 @@ const LocationSchema = new mongoose.Schema(
     locationId: { type: String, required: true },
     title: { type: String },
     categories: { type: mongoose.Schema.Types.Mixed },
+    autoReply: { type: Boolean, default: false },
   },
   { _id: false }
 );

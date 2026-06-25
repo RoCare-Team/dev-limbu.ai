@@ -130,8 +130,14 @@ export async function GET(request) {
     }
 
     let limit = plan.planDetails?.limit ?? 0;
-    if (!limit && plan.userRef) {
-      const u = await User.findById(plan.userRef).select('paidPackage planDuration').lean();
+    if (!limit) {
+      let u = null;
+      if (plan.userRef) {
+        u = await User.findById(plan.userRef).select('paidPackage planDuration').lean().catch(() => null);
+      }
+      if (!u && plan.userId) {
+        u = await User.findOne({ userId: plan.userId }).select('paidPackage planDuration').lean().catch(() => null);
+      }
       if (u) limit = getPlanPostLimit(u.paidPackage, u.planDuration);
     }
     const postsUsed = plan.planDetails?.postsUsed ?? 0;

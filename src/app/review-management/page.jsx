@@ -22,9 +22,7 @@ const REVIEWS_PER_PAGE = 5;
 const MAX_VISIBLE_PAGE_BUTTONS = 10;
 const ALL_LOCATIONS = "all";
 
-
-
-// Helper to extract location ID from GMB review name: accounts/{acc}/locations/{loc}/reviews/{rev}
+// Helper to extract location ID from GMB review name
 const getReviewLocationId = (review) => review?.name?.split("/")?.[3];
 
 const isUnrepliedReview = (review) =>
@@ -47,20 +45,23 @@ export default function DashboardPage() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLocationId, setSelectedLocationId] = useState(ALL_LOCATIONS);
-  const [locationSearch, setLocationSearch] = useState("");
+  
+  // Safe Client-side only states
+  const [locationOptions, setLocationOptions] = useState([]);
+  const [searchInput, setSearchInput] = useState("All Locations");
   const [showLocationOptions, setShowLocationOptions] = useState(false);
   const [reviewStatusFilter, setReviewStatusFilter] = useState("all");
 
-  // Get ALL individual locations from localStorage
-  const locationOptions = useMemo(() => {
+  // Fetch individual locations from localStorage safely on mount (Next.js Hydration safe)
+  useEffect(() => {
     try {
       const raw = localStorage.getItem("locationDetails");
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [parsed];
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setLocationOptions(Array.isArray(parsed) ? parsed : [parsed]);
+      }
     } catch (err) {
       console.error("Error reading locations:", err);
-      return [];
     }
   }, []);
 
@@ -72,13 +73,21 @@ export default function DashboardPage() {
     return found ? found.title : "Selected Location";
   }, [locationOptions, selectedLocationId]);
 
+  // Keep search input in sync with the selection label
+  useEffect(() => {
+    setSearchInput(selectedLocationLabel);
+  }, [selectedLocationLabel]);
+
+  // Filter locations safely (handling potential null/undefined values)
   const filteredLocationOptions = useMemo(() => {
-    const query = locationSearch.trim().toLowerCase();
+    const query = searchInput.trim().toLowerCase();
     if (!query) return locationOptions;
-    return locationOptions.filter((loc) =>
-      `${loc.title} ${loc.locality}`.toLowerCase().includes(query),
-    );
-  }, [locationOptions, locationSearch]);
+    return locationOptions.filter((loc) => {
+      const title = (loc.title || "").toLowerCase();
+      const locality = (loc.locality || "").toLowerCase();
+      return title.includes(query) || locality.includes(query);
+    });
+  }, [locationOptions, searchInput]);
 
   // Filter reviews by the UI-selected location
   const locationFilteredReviews = useMemo(() => {
@@ -133,14 +142,25 @@ export default function DashboardPage() {
   const handleSelectLocation = useCallback(
     (locId) => {
       setSelectedLocationId(locId);
-      setLocationSearch("");
       setShowLocationOptions(false);
       setCurrentPage(1);
-      // Fetch specifically for this location
       fetchReviews(false, true, locId === ALL_LOCATIONS ? null : locId);
     },
     [fetchReviews],
   );
+
+  const handleInputFocus = () => {
+    setShowLocationOptions(true);
+    setSearchInput(""); // Clear on focus so user can see all options right away
+  };
+
+  const handleInputBlur = () => {
+    // Timeout gives onClick enough time to trigger on dropdown items before closing
+    setTimeout(() => {
+      setShowLocationOptions(false);
+      setSearchInput(selectedLocationLabel); // Restore current label if selection was not changed
+    }, 200);
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -185,19 +205,10 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
                   <input
-                    value={
-                      showLocationOptions
-                        ? locationSearch
-                        : selectedLocationLabel
-                    }
-                    onChange={(e) => setLocationSearch(e.target.value)}
-                    onFocus={() => {
-                      setLocationSearch("");
-                      setShowLocationOptions(true);
-                    }}
-                    onBlur={() =>
-                      setTimeout(() => setShowLocationOptions(false), 200)
-                    }
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
                     placeholder="Search Location..."
                     className="h-10 w-full rounded-xl border border-black/10 bg-white pl-9 pr-3 text-[10px] font-black uppercase tracking-wider text-slate-700 outline-none focus:border-lemon-hover"
                   />
@@ -215,11 +226,8 @@ export default function DashboardPage() {
                     >
                       <span>All Locations</span>
                     </button>
-                    {filteredLocationOptions.map((loc) => {
-                      const locCount = reviews.filter(
-                        (r) => getReviewLocationId(r) === loc.locationId,
-                      ).length;
-                      return (
+                    {filteredLocationOptions.length > 0 ? (
+                      filteredLocationOptions.map((loc) => (
                         <button
                           key={loc.locationId}
                           onMouseDown={(e) => e.preventDefault()}
@@ -237,8 +245,12 @@ export default function DashboardPage() {
                             {loc.locality || "No Locality"}
                           </span>
                         </button>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-left text-[10px] font-bold text-slate-400 uppercase">
+                        No Locations Found
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -68,6 +68,25 @@ const CRON_TIME_TOLERANCE_MIN = Math.min(
   Math.max(5, Number(process.env.AUTOMATION_CRON_TOLERANCE_MINUTES) || 15)
 );
 
+// ─── User resolver ────────────────────────────────────────────────────────────
+
+/**
+ * Resolve the plan's User by Mongo _id (userRef) OR by USR-format userId.
+ * Older plans may not have userRef set, so falling back to userId prevents the
+ * cron from treating a valid package as expired (which would wrongly skip and
+ * deactivate the plan).
+ */
+async function resolvePlanUser(userRef, userId, projection) {
+  if (userRef) {
+    const byRef = await User.findById(userRef).select(projection).lean().catch(() => null);
+    if (byRef) return byRef;
+  }
+  if (userId) {
+    return User.findOne({ userId }).select(projection).lean().catch(() => null);
+  }
+  return null;
+}
+
 // ─── Token helper ─────────────────────────────────────────────────────────────
 
 /**
@@ -109,8 +128,12 @@ async function refreshGoogleToken(refreshToken, planId) {
 // ─── GMB posting ──────────────────────────────────────────────────────────────
 
 /**
- * Calls /api/post-to-gmb with the EXACT same payload the manual frontend sends:
+ * Calls /api/gmb/publish — the SAME working endpoint the manual frontend uses
+ * (postToGmbAction). The legacy /api/post-to-gmb path pointed at a dead n8n
+ * webhook whose host no longer resolves, which is why cron posts failed with
+ * "fetch failed". Payload shape matches the manual post:
  *   account, locationData, output, description, accessToken, checkmark
+ * `skipDbUpdate` is set because this cron manages PostStatus itself.
  * Returns { ok, httpStatus, data }
  */
 async function postToGmb({ account, locationData, imageUrl, description, accessToken }) {
@@ -122,6 +145,7 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     description,
     accessToken: accessToken || '',
     checkmark:   'post',
+    skipDbUpdate: true,
   };
 
   console.log('[CRON] 📮 postToGmb payload (exact same as manual post):', JSON.stringify({
@@ -135,24 +159,56 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
   }, null, 2));
 
   try {
-    const res  = await fetch(`${BASE_URL}/api/post-to-gmb`, {
+    const res  = await fetch(`${BASE_URL}/api/gmb/publish`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
-      console.log('[CRON] 📮 post-to-gmb HTTP status:', res.status);
+      console.log('[CRON] 📮 gmb/publish HTTP status:', res.status);
 
       const text = await res.text();
-      console.log('[CRON] 📮 post-to-gmb FULL raw response:', text.slice(0, 12000));
+      console.log('[CRON] 📮 gmb/publish FULL raw response:', text.slice(0, 12000));
 
       let data;
     try   { data = text ? JSON.parse(text) : {}; }
     catch { data = { raw: text }; }
 
-    return { ok: res.ok && data?.ok !== false, httpStatus: res.status, data, rawBody: text };
+    // /api/gmb/publish wraps the upstream response as { ok, data: { success, fail, succeeded, failed, total } }.
+    // HTTP 200 with a non-empty `fail` list (e.g. expired OAuth token) is NOT a real success,
+    // so inspect the per-location results instead of trusting the outer ok flag.
+    const publishData = data && typeof data.data === 'object' && data.data ? data.data : {};
+    const successList = Array.isArray(publishData.success) ? publishData.success : [];
+    const failList = Array.isArray(publishData.fail) ? publishData.fail : [];
+    const succeeded = Number(publishData.succeeded) || successList.length;
+    const failed = Number(publishData.failed) || failList.length;
+    const httpOk = res.ok && data?.ok !== false;
+    const hasFailures = failed > 0;
+    const hasSuccess = succeeded > 0;
+    // Real success: transport ok, no failures, and either an explicit success or no per-location lists at all.
+    const reallyOk =
+      httpOk && !hasFailures && (hasSuccess || (successList.length === 0 && failList.length === 0));
+
+    const failMessages = failList
+      .map((f) => String(f?.error || f?.message || ''))
+      .join(' | ');
+    const authError =
+      [401, 403].includes(res.status) ||
+      /invalid authentication|unauthenticated|oauth 2|invalid_grant|access token|login cookie|permission/i.test(
+        failMessages
+      );
+
+    return {
+      ok: reallyOk,
+      httpStatus: res.status,
+      authError,
+      succeeded,
+      failed,
+      data,
+      rawBody: text,
+    };
   } catch (err) {
     console.error('[CRON] ❌ postToGmb EXCEPTION:', err.message);
-    return { ok: false, httpStatus: 500, data: err.message, rawBody: '' };
+    return { ok: false, httpStatus: 500, authError: false, data: err.message, rawBody: '' };
   }
 }
 
@@ -349,8 +405,8 @@ export async function GET(request) {
     } = plan;
 
     let { limit = 0, postsUsed = 0 } = planDetails;
-    if (!limit && userRef) {
-      const u = await User.findById(userRef).select('paidPackage planDuration packageExpiryDate').lean();
+    if (!limit) {
+      const u = await resolvePlanUser(userRef, userId, 'paidPackage planDuration packageExpiryDate');
       if (u) {
         const computed = getPlanPostLimit(u.paidPackage, u.planDuration);
         const fallback = Math.max((keywords || []).length, 1);
@@ -412,10 +468,8 @@ export async function GET(request) {
 
     if (endDate && zonedYmdString(runNow, tz) > zonedYmdString(endDate, tz)) {
       let pkgExp = null;
-      if (userRef) {
-        const uPkg = await User.findById(userRef).select('packageExpiryDate').lean();
-        if (uPkg?.packageExpiryDate) pkgExp = new Date(uPkg.packageExpiryDate);
-      }
+      const uPkg = await resolvePlanUser(userRef, userId, 'packageExpiryDate');
+      if (uPkg?.packageExpiryDate) pkgExp = new Date(uPkg.packageExpiryDate);
       if (pkgExp && pkgExp.getTime() > runNow.getTime()) {
         await AutomationPlan.updateOne({ _id: planId }, { $set: { endDate: pkgExp } });
         plan.endDate = pkgExp;
@@ -713,12 +767,15 @@ export async function GET(request) {
       log(`GMB attempt 1`, {
         ok: gmbResult.ok,
         httpStatus: gmbResult.httpStatus,
+        authError: gmbResult.authError,
+        succeeded: gmbResult.succeeded,
+        failed: gmbResult.failed,
         parsedResponse: gmbResult.data,
         rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 12000),
       });
 
-      if (!gmbResult.ok && [401, 403].includes(gmbResult.httpStatus) && storedRefreshToken) {
-        log(`⚠ Token expired (HTTP ${gmbResult.httpStatus}) — refreshing using refreshToken and retrying…`);
+      if (!gmbResult.ok && (gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && storedRefreshToken) {
+        log(`⚠ Google auth rejected (httpStatus=${gmbResult.httpStatus} authError=${gmbResult.authError}) — refreshing using refreshToken and retrying…`);
         try {
           accessToken = await refreshGoogleToken(storedRefreshToken, planId);
           log(`✓ New accessToken obtained (length=${accessToken.length}) — retrying GMB post`);

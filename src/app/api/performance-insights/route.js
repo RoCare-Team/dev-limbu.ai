@@ -56,13 +56,16 @@ export async function POST(request) {
       endDate: normalizedEndDate.toISOString(),
     });
 
-    // ✅ Fix: sirf locationId + reportMonth + reportYear + userId se dhundho
-    // dateRange exact match hata do — wahi duplicate ka root cause hai
+    // ✅ Fix: exact date range bhi key mein add karo. Dates ko UTC-midnight pe
+    // normalize karte hain (upar) isliye same range = update, alag range = naya
+    // record. Isse same mahine ki alag custom ranges overwrite nahi hoti.
     const existingQuery = {
       locationId,
       reportMonth,
       reportYear,
       userId: session.user.id || session.user.email,
+      "dateRange.startDate": normalizedStartDate,
+      "dateRange.endDate": normalizedEndDate,
     };
 
     console.log("🔍 existingQuery:", existingQuery);
@@ -167,8 +170,10 @@ export async function GET(request) {
     const reportYear = searchParams.get("reportYear");
     const city = searchParams.get("city");
     const locality = searchParams.get("locality");
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
-    console.log("📥 GET params:", { locationId, reportMonth, reportYear, city, locality });
+    console.log("📥 GET params:", { locationId, reportMonth, reportYear, city, locality, startDate, endDate });
 
     // ✅ reportMonth + reportYear = exact date period identifier
     let query = { userId: session.user.id || session.user.email };
@@ -178,6 +183,19 @@ export async function GET(request) {
     if (reportYear)  query.reportYear  = parseInt(reportYear); // 2026
     if (city)        query.city        = city;
     if (locality)    query.locality    = locality;
+
+    // ✅ FIX: exact date range se match karo — warna same mahine ki alag-alag
+    // custom ranges aapas mein collide karke stale data dikhati hain.
+    if (startDate && endDate) {
+      const ns = new Date(startDate);
+      const ne = new Date(endDate);
+      if (!isNaN(ns.getTime()) && !isNaN(ne.getTime())) {
+        ns.setUTCHours(0, 0, 0, 0);
+        ne.setUTCHours(0, 0, 0, 0);
+        query["dateRange.startDate"] = ns;
+        query["dateRange.endDate"] = ne;
+      }
+    }
 
     console.log("🔍 Final Query:", query);
 

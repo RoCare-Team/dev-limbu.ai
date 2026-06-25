@@ -580,7 +580,7 @@ export default function PostManagementPage() {
         const data = res.data || {};
 
         // ✅ FIX: pi_des bhi add kiya
-        const { gmb_des, fb_des, ig_des, li_des, pi_des } =
+        const { gmb_des, fb_des, ig_des, li_des, pin_des, pin_title } =
           normalizePlatformDescriptions({
             ...res,
             ...data,
@@ -590,7 +590,8 @@ export default function PostManagementPage() {
           fb_des,
           ig_des,
           li_des,
-          pi_des,
+          pin_des,
+          pin_title,
         });
 
         const saved = await savePostAction({
@@ -601,7 +602,8 @@ export default function PostManagementPage() {
           fbDescription: fb_des,
           igDescription: ig_des,
           liDescription: li_des,
-          piDescription: pi_des, // 👈 ADDED
+          piDescription: pin_des, // 👈 ADDED
+          pinTitle: pin_title, // 👈 ADDED
           logoUrl: data.logoUrl,
           status: "pending",
           promat: prompt,
@@ -709,7 +711,7 @@ export default function PostManagementPage() {
         const data = res.success ? res.data : res;
 
         // ✅ FIX: console.log AFTER destructure, pi_des bhi add
-        const { gmb_des, fb_des, ig_des, li_des, pin_des, yt_des } =
+        const { gmb_des, fb_des, ig_des, li_des, pin_des, pin_title, yt_des } =
           normalizePlatformDescriptions({
             ...res,
             ...data,
@@ -720,6 +722,7 @@ export default function PostManagementPage() {
           ig_des,
           li_des,
           pin_des,
+          pin_title,
           yt_des,
         });
 
@@ -735,6 +738,7 @@ export default function PostManagementPage() {
 
           // ✅ Pinterest
           piDescription: pin_des,
+          pinTitle: pin_title,
 
           // ✅ YouTube
           ytDescription: yt_des,
@@ -2040,10 +2044,13 @@ export default function PostManagementPage() {
               selectedMediaForAction?.coverImageUrl ||
               socialState.postToPinterest?.aiOutput
             }
-            onPost={async (post, boardId, coverImageUrl) => {
+            defaultTitle={bussinessTitle || "Pinterest Post"}
+            defaultLink={availableLocations[0]?.websiteUrl || ""}
+            onPost={async (post, boardId, coverImageUrl, edited = {}) => {
               const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
 
               let description =
+                edited.description ||
                 post.piDescription ||
                 post.pinterestDescription ||
                 post.description ||
@@ -2058,11 +2065,11 @@ export default function PostManagementPage() {
               const finalCoverImageUrl = post.aiOutput || coverImageUrl;
 
               const result = await publishPin({
-                title: bussinessTitle || "Pinterest Post",
+                title: edited.title || bussinessTitle || "Pinterest Post",
                 description,
                 boardId,
                 mediaUrl,
-                link: availableLocations[0]?.websiteUrl || "",
+                link: edited.link || availableLocations[0]?.websiteUrl || "",
                 coverImageUrl: finalCoverImageUrl,
               });
 

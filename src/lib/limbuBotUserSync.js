@@ -10,7 +10,6 @@ import {
   getDemoBookingMetricUsers,
   normalizeBookingPhone,
 } from "@/lib/demoBookings";
-import { sendLeadAssignedTemplate } from "./sendLeadAssignedTemplate";
 import { getAgentDetails, getAgentPhone } from "@/utils/agentMapper";
 
 const LIMBUBOT_ADMIN_USERS_URL =
@@ -35,9 +34,67 @@ const WHATSAPP_EXTERNAL_API_KEY =
 const HISTORY_TIMEOUT_MS = 8_000;
 const STAGE_BATCH_SIZE = 25;
 const FETCH_TIMEOUT_MS = 10_000;
-const PAGE_FETCH_CONCURRENCY = 8;
+const PAGE_FETCH_CONCURRENCY = 4;
 const SNAPSHOT_KEY = "default";
 const SNAPSHOT_TTL_MS = 10 * 60 * 1000;
+
+// Retry/backoff settings for upstream WhatsApp API calls
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+const DEFAULT_MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 500;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * fetch() wrapper with timeout + exponential backoff (with jitter).
+ * Retries on network/timeout errors and on retryable HTTP statuses
+ * (429/500/502/503/504). Returns the final Response (caller checks .ok).
+ */
+async function fetchWithRetry(
+  url,
+  options = {},
+  {
+    retries = DEFAULT_MAX_RETRIES,
+    baseDelayMs = RETRY_BASE_DELAY_MS,
+    timeoutMs = FETCH_TIMEOUT_MS,
+  } = {},
+) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (RETRYABLE_STATUS.has(res.status) && attempt < retries) {
+        // Drain body so the socket can be reused before retrying.
+        await res.text().catch(() => {});
+        const delay =
+          baseDelayMs * 2 ** attempt + Math.floor(Math.random() * 200);
+        await sleep(delay);
+        continue;
+      }
+
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        const delay =
+          baseDelayMs * 2 ** attempt + Math.floor(Math.random() * 200);
+        await sleep(delay);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (lastErr) throw lastErr;
+  // Should be unreachable; kept for type-safety.
+  throw new Error("fetchWithRetry: exhausted retries without a response");
+}
 
 // Simple in-process TTL cache
 let _limbuBotCache = null;
@@ -1038,11 +1095,14 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
     url.searchParams.set("page", String(page));
     url.searchParams.set("limit", String(limit));
 
-    const pageRes = await fetch(url, {
-      headers: whatsappHeaders(),
-      cache: "no-store",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
+    const pageRes = await fetchWithRetry(
+      url,
+      {
+        headers: whatsappHeaders(),
+        cache: "no-store",
+      },
+      { retries: DEFAULT_MAX_RETRIES, timeoutMs: FETCH_TIMEOUT_MS },
+    );
 
     if (!pageRes.ok) {
       const text = await pageRes.text().catch(() => "");
@@ -1054,12 +1114,15 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
     return pageRes.json();
   };
 
+  const extractContacts = (pageData) =>
+    Array.isArray(pageData?.contacts)
+      ? pageData.contacts
+      : Array.isArray(pageData?.users)
+        ? pageData.users
+        : [];
+
   const firstData = await fetchPage(1);
-  const contacts = Array.isArray(firstData?.contacts)
-    ? [...firstData.contacts]
-    : Array.isArray(firstData?.users)
-      ? [...firstData.users]
-      : [];
+  const contacts = [...extractContacts(firstData)];
   const pagination = firstData?.pagination || {};
   const pageLimit = Number(pagination.limit) || 50;
   const totalPages = Math.max(1, Number(pagination.total_pages) || 1);
@@ -1067,6 +1130,11 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
   // console.log(
   //   `[fetchLimbuBotAdminUsers] 📄 Total pages: ${totalPages} | Page limit: ${pageLimit} | Total contacts: ${pagination.total || "?"}`,
   // );
+
+  // Fault-tolerant pagination: one failing page must NOT blow up the whole
+  // fetch. We use allSettled, collect what succeeds, and re-try the failures
+  // once (sequentially, gently) so a transient upstream 500 doesn't 500 us.
+  const failedPages = [];
 
   for (let start = 2; start <= totalPages; start += PAGE_FETCH_CONCURRENCY) {
     const pageNumbers = [];
@@ -1077,16 +1145,34 @@ export async function fetchLimbuBotAdminUsers({ bypassCache = false } = {}) {
     ) {
       pageNumbers.push(page);
     }
-    const pageResults = await Promise.all(
+
+    const settled = await Promise.allSettled(
       pageNumbers.map((page) => fetchPage(page, pageLimit)),
     );
-    for (const pageData of pageResults) {
-      const pageContacts = Array.isArray(pageData?.contacts)
-        ? pageData.contacts
-        : Array.isArray(pageData?.users)
-          ? pageData.users
-          : [];
-      contacts.push(...pageContacts);
+
+    settled.forEach((outcome, idx) => {
+      if (outcome.status === "fulfilled") {
+        contacts.push(...extractContacts(outcome.value));
+      } else {
+        failedPages.push(pageNumbers[idx]);
+        console.error(
+          `[fetchLimbuBotAdminUsers] ⚠️ page ${pageNumbers[idx]} failed:`,
+          outcome.reason?.message || outcome.reason,
+        );
+      }
+    });
+  }
+
+  // Gentle sequential re-try for any pages that failed all in-call retries.
+  for (const page of failedPages) {
+    try {
+      const pageData = await fetchPage(page, pageLimit);
+      contacts.push(...extractContacts(pageData));
+    } catch (err) {
+      console.error(
+        `[fetchLimbuBotAdminUsers] ❌ page ${page} permanently failed (skipped):`,
+        err.message,
+      );
     }
   }
 
@@ -1568,11 +1654,14 @@ export async function fetchLimbuBotHistory(userId) {
     const url = new URL(LIMBUBOT_HISTORY_BASE);
     url.searchParams.set("phone", phone);
 
-    const res = await fetch(url, {
-      headers: whatsappHeaders(),
-      cache: "no-store",
-      signal: AbortSignal.timeout(HISTORY_TIMEOUT_MS),
-    });
+    const res = await fetchWithRetry(
+      url,
+      {
+        headers: whatsappHeaders(),
+        cache: "no-store",
+      },
+      { retries: 2, timeoutMs: HISTORY_TIMEOUT_MS },
+    );
     if (!res.ok) return [];
     const data = await res.json().catch(() => ({}));
     if (Array.isArray(data?.history)) return data.history;

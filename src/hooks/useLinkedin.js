@@ -75,6 +75,36 @@ export function useLinkedin(router, searchParams) {
 
       router.replace("/dashboard");
     }
+
+    // Error from the OAuth callback (e.g. no organization page found)
+    if (searchParams?.get("linkedin") === "error" && !toastShownRef.current) {
+      toastShownRef.current = true;
+
+      const reason = searchParams?.get("reason");
+
+      let errorMsg;
+      switch (reason) {
+        case "no_organization":
+          errorMsg =
+            "No LinkedIn Company Page found. You must be an admin of a LinkedIn Page to connect.";
+          break;
+        case "oauth_denied":
+          errorMsg = "LinkedIn connection was cancelled.";
+          break;
+        case "token_expired":
+          errorMsg = "LinkedIn session expired. Please try connecting again.";
+          break;
+        case "missing_params":
+        case "invalid_state":
+        case "connection_failed":
+        default:
+          errorMsg = "Couldn't connect LinkedIn. Please try again.";
+      }
+
+      toast.error(errorMsg, { duration: 6000 });
+
+      router.replace("/dashboard");
+    }
   }, [fetchLinkedinPages, searchParams, router]);
 
   /**

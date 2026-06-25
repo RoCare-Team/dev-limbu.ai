@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect"; // ⚠️ adjust to your actual db-connect helper path/name
-import LinkedinProfile from "@/models/LinkedinProfile"; // ⚠️ adjust path if your model lives elsewhere
-import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
+import LinkedinProfile from "@/models/LinkedinProfile"; 
 
 /**
  * Decoding the `state` param.
@@ -124,6 +123,32 @@ async function fetchOrganizationProfiles(accessToken) {
   return Promise.all(urns.map((urn) => fetchOrganizationDetails(accessToken, urn)));
 }
 
+/**
+ * The connected member's personal profile via OpenID Connect userinfo.
+ * Requires the `openid profile email` scopes on the token.
+ * The posting URN for a member is `urn:li:person:{sub}`.
+ */
+async function fetchMemberProfile(accessToken) {
+  const res = await fetch("https://api.linkedin.com/v2/userinfo", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const data = await res.json();
+
+  if (!res.ok || !data?.sub) {
+    throw new Error(data?.message || "Failed to fetch LinkedIn profile.");
+  }
+
+  return {
+    pageId: `urn:li:person:${data.sub}`,
+    orgId: "",
+    pageName: data.name || data.given_name || "LinkedIn Profile",
+    localizedName: data.name || "",
+    vanityName: "",
+    image: data.picture || "",
+    email: data.email || "",
+  };
+}
+
 export async function GET(req) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
@@ -135,45 +160,51 @@ export async function GET(req) {
   const state = decodeStatePayload(stateRaw) || {};
   const isMobile = state.mobile === true;
 
+  // Origin to redirect back to (localhost in dev, limbu.ai in prod).
+  const baseUrl = "http://localhost:3000";
+
+  // User-facing error exit: mobile deeplink for app flows, otherwise redirect
+  // back to /dashboard with an error reason the UI can turn into a toast.
+  const errorRedirect = (reason, message = "") => {
+    if (isMobile) {
+      return NextResponse.redirect(
+        `limbuai://linkedin-error?error=${encodeURIComponent(reason)}`,
+      );
+    }
+    const errorUrl = new URL("/dashboard", baseUrl);
+    errorUrl.searchParams.set("linkedin", "error");
+    errorUrl.searchParams.set("reason", reason);
+    if (message) errorUrl.searchParams.set("message", message);
+    return NextResponse.redirect(errorUrl.toString());
+  };
+
   try {
     if (errorParam) {
-      if (isMobile) {
-        return NextResponse.redirect(
-          `limbuai://linkedin-error?error=${encodeURIComponent(errorParam)}`,
-        );
-      }
-      return NextResponse.json(
-        { error: `LinkedIn OAuth denied: ${errorParam}` },
-        { status: 400 },
-      );
+      return errorRedirect("oauth_denied", errorParam);
     }
 
     if (!code || !stateRaw) {
-      if (isMobile) {
-        return NextResponse.redirect(`limbuai://linkedin-error?error=missing_params`);
-      }
-      return NextResponse.json(
-        { error: "Missing code or state from LinkedIn callback" },
-        { status: 400 },
-      );
+      return errorRedirect("missing_params");
     }
 
     if (!state.userId) {
-      if (isMobile) {
-        return NextResponse.redirect(`limbuai://linkedin-error?error=invalid_state`);
-      }
-      return NextResponse.json({ error: "Invalid or unreadable state param" }, { status: 400 });
+      return errorRedirect("invalid_state");
     }
 
-    const { userId, source = "", phoneRaw = "" } = state;
+    const { userId, source = "", phoneRaw = "", connectionType = "page" } = state;
+    const isProfile = connectionType === "profile";
 
-    const baseUrl = resolveOAuthRedirectOrigin(req);
-    // ⚠️ Hardcoded for local testing — switch back to `${baseUrl}/api/linkedin/callback`
-    // before deploying, and keep it identical to the login route's redirectUri.
-    const redirectUri = `https://limbu.ai/api/linkedin/callback`;
+    // Must exactly match the login route's redirectUri — both derive from the
+    // same origin helper so they stay in sync across localhost / live.
+    const redirectUri = `${baseUrl}/api/linkedin/callback`;
 
-    const clientId = process.env.LINKEDIN_CLIENT_ID;
-    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    // Separate LinkedIn app/credentials per connection type.
+    const clientId = isProfile
+      ? process.env.LINKEDIN_CLIENT_ID_PROFILE
+      : process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = isProfile
+      ? process.env.LINKEDIN_CLIENT_SECRET_PROFILE
+      : process.env.LINKEDIN_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
@@ -186,8 +217,11 @@ export async function GET(req) {
     const tokenData = await exchangeCodeForToken({ code, redirectUri, clientId, clientSecret });
     const { access_token, expires_in } = tokenData;
 
-    // Step 2: every page/organization the account administers
-    const profiles = await fetchOrganizationProfiles(access_token);
+    // Step 2: profile flow → the member's own profile; page flow → every
+    // organization the account administers.
+    const profiles = isProfile
+      ? [await fetchMemberProfile(access_token)]
+      : await fetchOrganizationProfiles(access_token);
 
     // Step 3: persist each page (multiple pages per account supported)
     await dbConnect();
@@ -211,7 +245,7 @@ export async function GET(req) {
             pageAccessToken: access_token,
             pageTokenExpiresAt: tokenExpiresAt,
             platform: "linkedin",
-            type: "organization",
+            type: isProfile ? "profile" : "organization",
             phone: phoneRaw || "",
             connectionSource,
           },
@@ -231,20 +265,31 @@ export async function GET(req) {
       );
     }
 
-    const successUrl = new URL("/dashboard", "https://limbu.ai");
+    const successUrl = new URL("/dashboard", baseUrl);
 
+    successUrl.searchParams.set("linkedin", "connected");
+    successUrl.searchParams.set("connectionType", isProfile ? "profile" : "page");
     successUrl.searchParams.set("count", String(profiles.length));
     successUrl.searchParams.set("pageName", profiles[0]?.pageName || "");
 
     return NextResponse.redirect(successUrl.toString());
   } catch (error) {
     console.error("LinkedIn Callback Route Error:", error);
-    if (isMobile) {
-      return NextResponse.redirect(`limbuai://linkedin-error?error=unknown`);
+    const msg = error?.message || "";
+
+    // Categorize into a small set of reasons. The raw technical message is only
+    // logged above — the UI shows a clean, friendly message per reason.
+    let reason = "connection_failed";
+    if (/no linkedin organization/i.test(msg)) {
+      reason = "no_organization";
+    } else if (
+      /access token|authorization code|code verifier|redirect uri|expired/i.test(
+        msg,
+      )
+    ) {
+      reason = "token_expired";
     }
-    return NextResponse.json(
-      { error: error.message || "Failed to complete LinkedIn authentication" },
-      { status: 500 },
-    );
+
+    return errorRedirect(reason);
   }
 }

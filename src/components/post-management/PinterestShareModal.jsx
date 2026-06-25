@@ -10,6 +10,8 @@ export default function PinterestShareModal({
   onPost,
   onCreateBoard,
   coverImageUrl,
+  defaultTitle = "",
+  defaultLink = "",
 }) {
   const [selectedBoardId, setSelectedBoardId] = useState(null);
   const [selectedProfileId, setSelectedProfileId] = useState(null);
@@ -20,25 +22,52 @@ export default function PinterestShareModal({
   const [isCreatingBoard, setIsCreatingBoard] = useState(false);
   const [publishError, setPublishError] = useState("");
 
+  // Editable pin fields (modal remounts on open, so lazy init from post/props is safe)
+  const [pinTitle, setPinTitle] = useState(
+    () => post?.pinTitle || defaultTitle || "",
+  );
+  const [pinDescription, setPinDescription] = useState(
+    () =>
+      post?.piDescription ||
+      post?.pinterestDescription ||
+      post?.description ||
+      post?.fbDescription ||
+      "",
+  );
+  const [pinLink, setPinLink] = useState(() => defaultLink || "");
+
   if (!isOpen || !post) return null;
 
   const handlePublish = async () => {
-    if (!selectedBoardId) return;
+    if (!selectedBoardId) {
+      setPublishError("Please select a board to publish your pin.");
+      return;
+    }
 
     setIsPublishing(true);
     setPublishError("");
 
-    const result = await onPost(post, selectedBoardId, coverImageUrl);
+    const result = await onPost(post, selectedBoardId, coverImageUrl, {
+      title: pinTitle.trim(),
+      description: pinDescription.trim(),
+      link: pinLink.trim(),
+    });
 
     if (result && !result.success) {
       setPublishError(result.error || "An unknown error occurred while publishing to Pinterest.");
+    } else if (result?.success) {
+      // Optionally close modal or give success feedback
+      onClose(); // Close on successful publish
     }
 
     setIsPublishing(false);
   };
 
   const handleCreateBoard = async () => {
-    if (!selectedProfileId || !newBoardName.trim() || !onCreateBoard) return;
+    if (!selectedProfileId || !newBoardName.trim() || !onCreateBoard) {
+      setPublishError("Please select a profile and enter a board name.");
+      return;
+    }
 
     setIsCreatingBoard(true);
     setPublishError("");
@@ -54,6 +83,8 @@ export default function PinterestShareModal({
       setNewBoardName("");
       setNewBoardDescription("");
       setShowCreateBoard(false);
+      // Clear error if creation was successful
+      setPublishError("");
     } else {
       setPublishError(result?.error || "Unable to create Pinterest board.");
     }
@@ -63,186 +94,264 @@ export default function PinterestShareModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="bg-white rounded-3xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
 
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
           <div>
             <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
               <img src="/social-icon/pinterest-icon.png" alt="Pinterest" className="w-5 h-5 object-contain" />
               Share to Pinterest
             </h2>
             <p className="text-xs font-medium text-slate-500 mt-1">
-              Select or create a board to pin your post
+              Select or create a board and customize your pin details
             </p>
           </div>
           <button
             onClick={onClose}
-            disabled={isPublishing}
+            disabled={isPublishing || isCreatingBoard}
             className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-full transition-colors disabled:opacity-50"
           >
             <XCircle size={24} />
           </button>
         </div>
 
-        {/* Board Selection List */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll">
-          {pinterestProfiles.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm font-medium text-slate-500 mb-4">
-                No Pinterest accounts connected.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCreateBoard((prev) => !prev);
-                  setPublishError("");
-                  if (!selectedProfileId && pinterestProfiles[0]?.pinterestUserId) {
-                    setSelectedProfileId(pinterestProfiles[0].pinterestUserId);
-                  }
-                }}
-                disabled={isPublishing || isCreatingBoard}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#E60023]/30 bg-[#E60023]/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-[#E60023] transition-all hover:bg-[#E60023]/10 disabled:opacity-50"
-              >
-                <PlusCircle size={16} />
-                Create New Board
-              </button>
+        {/* Main Content Area: Left (Boards) and Right (Pin Details) */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left Column: Board Selection and Creation */}
+          <div className="w-2/5 p-6 overflow-y-auto custom-scroll border-r border-slate-100 flex flex-col gap-6">
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-600">
+              Select a Board
+            </h3>
 
-              {showCreateBoard && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                  <select
-                    value={selectedProfileId || ""}
-                    onChange={(e) => setSelectedProfileId(e.target.value)}
-                    disabled={isCreatingBoard}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
-                  >
-                    <option value="" disabled>
-                      Choose Pinterest account
-                    </option>
-                    {pinterestProfiles.map((profile) => (
-                      <option key={profile.pinterestUserId} value={profile.pinterestUserId}>
-                        @{profile.username || profile.pinterestUserId}
+            {pinterestProfiles.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sm font-medium text-slate-500 mb-4">
+                  No Pinterest accounts connected.
+                </p>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateBoard((prev) => !prev);
+                    setPublishError("");
+                    if (!selectedProfileId && pinterestProfiles[0]?.pinterestUserId) {
+                      setSelectedProfileId(pinterestProfiles[0].pinterestUserId);
+                    }
+                  }}
+                  disabled={isPublishing || isCreatingBoard}
+                  className="w-full flex items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#E60023]/30 bg-[#E60023]/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-[#E60023] transition-all hover:bg-[#E60023]/10 disabled:opacity-50"
+                >
+                  <PlusCircle size={16} />
+                  Create New Board
+                </button>
+
+                {showCreateBoard && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    <select
+                      value={selectedProfileId || ""}
+                      onChange={(e) => {
+                        setSelectedProfileId(e.target.value);
+                        setPublishError(""); // Clear error when profile changes
+                      }}
+                      disabled={isCreatingBoard}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
+                    >
+                      <option value="" disabled>
+                        Choose Pinterest account
                       </option>
-                    ))}
-                  </select>
+                      {pinterestProfiles.map((profile) => (
+                        <option key={profile.pinterestUserId} value={profile.pinterestUserId}>
+                          @{profile.username || profile.pinterestUserId}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={newBoardName}
+                      onChange={(e) => {
+                        setNewBoardName(e.target.value);
+                        setPublishError(""); // Clear error when board name changes
+                      }}
+                      disabled={isCreatingBoard}
+                      placeholder="Board name"
+                      maxLength={50} // Pinterest board name max length
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
+                    />
+                    <textarea
+                      value={newBoardDescription}
+                      onChange={(e) => setNewBoardDescription(e.target.value)}
+                      disabled={isCreatingBoard}
+                      placeholder="Description (optional)"
+                      rows={2}
+                      maxLength={500} // Pinterest board description max length
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-[#E60023]"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateBoard}
+                      disabled={!selectedProfileId || !newBoardName.trim() || isCreatingBoard}
+                      className="w-full rounded-xl bg-slate-900 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isCreatingBoard && <Loader2 size={14} className="animate-spin" />}
+                      {isCreatingBoard ? "Creating..." : "Create Board"}
+                    </button>
+                  </div>
+                )}
+
+                {pinterestProfiles.map((profile) => (
+                  <div key={profile.pinterestUserId} className="space-y-3">
+                    <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
+                      {profile.profileImage ? (
+                        <img src={profile.profileImage} alt={profile.username} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500">
+                          {profile.username?.charAt(0)?.toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-sm font-bold text-slate-800">@{profile.username}</span>
+                    </div>
+
+                    {profile.boards && profile.boards.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-2 pl-2">
+                        {profile.boards.map((board) => (
+                          <label
+                            key={board.boardId}
+                            className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedBoardId === board.boardId
+                                ? "border-[#E60023] bg-[#E60023]/5"
+                                : "border-slate-200 hover:border-[#E60023]/30 hover:bg-slate-50"
+                              }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1">
+                                <p className={`text-sm font-bold ${selectedBoardId === board.boardId ? "text-[#E60023]" : "text-slate-700"}`}>
+                                  {board.boardName}
+                                </p>
+                                {/* <p className="text-[10px] text-slate-500 mt-0.5">ID: {board.boardId}</p> */}
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedBoardId === board.boardId
+                                ? "border-[#E60023] bg-[#E60023]"
+                                : "border-slate-300"
+                              }`}>
+                              {selectedBoardId === board.boardId && <CheckCircle size={12} className="text-white" />}
+                            </div>
+                            <input
+                              type="radio"
+                              name="pinterestBoard"
+                              value={board.boardId}
+                              checked={selectedBoardId === board.boardId}
+                              onChange={() => {
+                                setSelectedBoardId(board.boardId);
+                                setSelectedProfileId(profile.pinterestUserId);
+                                setPublishError(""); // Clear error when board changes
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 italic pl-2">No boards found for this profile.</p>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Right Column: Editable Pin Details and Publish Action */}
+          <div className="w-3/5 flex flex-col">
+            <div className="p-6 space-y-4 flex-1 overflow-y-auto custom-scroll">
+              <h3 className="text-sm font-black uppercase tracking-widest text-slate-600">
+                Pin Details
+              </h3>
+              {/* Editable Pin Details */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                <div>
+                  <label htmlFor="pin-title" className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    Pin Title
+                  </label>
                   <input
-                    value={newBoardName}
-                    onChange={(e) => setNewBoardName(e.target.value)}
-                    disabled={isCreatingBoard}
-                    placeholder="Board name"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023]"
+                    id="pin-title"
+                    value={pinTitle}
+                    onChange={(e) => setPinTitle(e.target.value)}
+                    disabled={isPublishing}
+                    placeholder="Enter an engaging title for your pin"
+                    maxLength={100}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none focus:border-[#E60023] disabled:opacity-60"
                   />
+                  <p className="mt-1 text-right text-[10px] font-medium text-slate-400">
+                    {pinTitle.length}/100
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="pin-description" className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    Description
+                  </label>
                   <textarea
-                    value={newBoardDescription}
-                    onChange={(e) => setNewBoardDescription(e.target.value)}
-                    disabled={isCreatingBoard}
-                    placeholder="Description (optional)"
-                    rows={2}
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-[#E60023]"
+                    id="pin-description"
+                    value={pinDescription}
+                    onChange={(e) => setPinDescription(e.target.value)}
+                    disabled={isPublishing}
+                    placeholder="Tell people what your pin is about"
+                    rows={4}
+                    maxLength={500} // Pinterest description max length (often cited as 500 characters)
+                    className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-[#E60023] disabled:opacity-60"
                   />
-                  <button
-                    type="button"
-                    onClick={handleCreateBoard}
-                    disabled={!selectedProfileId || !newBoardName.trim() || isCreatingBoard}
-                    className="w-full rounded-xl bg-slate-900 px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {isCreatingBoard && <Loader2 size={14} className="animate-spin" />}
-                    {isCreatingBoard ? "Creating..." : "Create Board"}
-                  </button>
+                  <p className="mt-1 text-right text-[10px] font-medium text-slate-400">
+                    {pinDescription.length}/500
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="pin-link" className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    Visit URL (Destination Link)
+                  </label>
+                  <input
+                    id="pin-link"
+                    value={pinLink}
+                    onChange={(e) => setPinLink(e.target.value)}
+                    disabled={isPublishing}
+                    placeholder="https://example.com (optional)"
+                    type="url"
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium text-slate-700 outline-none focus:border-[#E60023] disabled:opacity-60"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Actions & Errors */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3 shrink-0">
+              {publishError && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium border border-red-100">
+                  <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                  <span>{publishError}</span>
                 </div>
               )}
 
-              {pinterestProfiles.map((profile) => (
-                <div key={profile.pinterestUserId} className="space-y-3">
-                  <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                    {profile.profileImage ? (
-                      <img src={profile.profileImage} alt={profile.username} className="w-8 h-8 rounded-full" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-500">
-                        {profile.username?.charAt(0)?.toUpperCase()}
-                      </div>
-                    )}
-                    <span className="text-sm font-bold text-slate-800">@{profile.username}</span>
-                  </div>
-
-                  {profile.boards && profile.boards.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-2 pl-2">
-                      {profile.boards.map((board) => (
-                        <label
-                          key={board.boardId}
-                          className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedBoardId === board.boardId
-                            ? "border-[#E60023] bg-[#E60023]/5"
-                            : "border-slate-200 hover:border-[#E60023]/30 hover:bg-slate-50"
-                            }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1">
-                              <p className={`text-sm font-bold ${selectedBoardId === board.boardId ? "text-[#E60023]" : "text-slate-700"}`}>
-                                {board.boardName}
-                              </p>
-                              <p className="text-[10px] text-slate-500 mt-0.5">ID: {board.boardId}</p>
-                            </div>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedBoardId === board.boardId
-                            ? "border-[#E60023] bg-[#E60023]"
-                            : "border-slate-300"
-                            }`}>
-                            {selectedBoardId === board.boardId && <CheckCircle size={12} className="text-white" />}
-                          </div>
-                          <input
-                            type="radio"
-                            name="pinterestBoard"
-                            value={board.boardId}
-                            checked={selectedBoardId === board.boardId}
-                            onChange={() => {
-                              setSelectedBoardId(board.boardId);
-                              setSelectedProfileId(profile.pinterestUserId);
-                              setPublishError("");
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-500 italic pl-2">No boards found for this profile.</p>
-                  )}
-                </div>
-              ))}
+              <button
+                onClick={handlePublish}
+                disabled={!selectedBoardId || isPublishing}
+                className="w-full py-4 bg-[#E60023] text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-lg shadow-[#E60023]/20 hover:bg-[#c5001f] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isPublishing ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Image
+                    src="/social-icon/pinterest-icon.png"
+                    width={16}
+                    height={16}
+                    className="object-contain"
+                    alt="Pinterest"
+                  />
+                )}
+                {isPublishing ? "Publishing..." : "Create Pin on Pinterest"}
+              </button>
             </div>
-          )}
-        </div>
-
-        {/* Actions & Errors */}
-        <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-          {publishError && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium border border-red-100">
-              <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <span>{publishError}</span>
-            </div>
-          )}
-
-          <button
-            onClick={handlePublish}
-            disabled={!selectedBoardId || isPublishing}
-            className="w-full py-4 bg-[#E60023] text-white rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-lg shadow-[#E60023]/20 hover:bg-[#c5001f] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {isPublishing ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Image
-                src="/social-icon/pinterest-icon.png"
-                width={16}
-                height={16}
-                className="object-contain"
-                alt="Pinterest"
-              />
-            )}
-            {isPublishing ? "Publishing..." : "Create Pin on Pinterest"}
-          </button>
+          </div>
         </div>
       </div>
     </div>

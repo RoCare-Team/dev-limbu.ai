@@ -46,30 +46,42 @@ function originFromRequestUrl(req) {
 }
 
 export function resolveOAuthRedirectOrigin(req) {
-  const configuredBase = trimOrigin(process.env.BASE_URL);
-  if (configuredBase) {
-    try {
-      if (!isLoopbackHostname(new URL(configuredBase).hostname)) return configuredBase;
-    } catch {
-      /* malformed BASE_URL — fall through */
-    }
-  }
-
   const headers = req?.headers;
 
+  // 1. The ACTUAL public host this request arrived on (proxy-aware). This is the
+  //    "same URI the user is on" — always prefer it so the redirect matches the
+  //    live domain instead of a possibly-stale env value.
   const forwarded = originFromHostAndProto(
     headers?.get("x-forwarded-host"),
     headers?.get("x-forwarded-proto"),
   );
   if (forwarded) return forwarded;
 
+  // 2. Plain Host header (non-loopback).
+  const fromHostHeader = originFromHostAndProto(
+    headers?.get("host"),
+    headers?.get("x-forwarded-proto"),
+  );
+  if (fromHostHeader) return fromHostHeader;
+
+  // 3. Origin parsed from the request URL (non-loopback).
   const fromUrl = originFromRequestUrl(req);
   if (fromUrl) {
     try {
-      const hostname = new URL(fromUrl).hostname;
-      if (!isLoopbackHostname(hostname)) return fromUrl;
+      if (!isLoopbackHostname(new URL(fromUrl).hostname)) return fromUrl;
     } catch {
       /* ignore */
+    }
+  }
+
+  // 4. Explicitly configured origins (only used when the request host is
+  //    unavailable, e.g. background jobs without an incoming request).
+  const configuredBase = trimOrigin(process.env.BASE_URL);
+  if (configuredBase) {
+    try {
+      if (!isLoopbackHostname(new URL(configuredBase).hostname)) return configuredBase;
+    } catch {
+      /* malformed BASE_URL — fall through */
     }
   }
 
@@ -88,9 +100,7 @@ export function resolveOAuthRedirectOrigin(req) {
     return `https://${vercel}`;
   }
 
-  const fromHostHeader = originFromHostAndProto(headers?.get("host"), headers?.get("x-forwarded-proto"));
-  if (fromHostHeader) return fromHostHeader;
-
+  // 5. Local dev fallback (loopback allowed here as a last resort).
   const fallbackLocal = originFromRequestUrl(req);
   if (fallbackLocal) return fallbackLocal;
 

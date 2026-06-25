@@ -42,7 +42,7 @@ const LinkedinColumn = React.memo(
               )}
             </div>
 
-            {/* Right Button - single Connect action */}
+            {/* Right Buttons - connect page or profile */}
             <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => connectLinkedin("page")}
@@ -50,6 +50,13 @@ const LinkedinColumn = React.memo(
               >
                 <Plus className="w-4 h-4" />
                 Connect LinkedIn Page
+              </button>
+              <button
+                onClick={() => connectLinkedin("profile")}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-yellow-400 font-bold text-[10px] uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Connect LinkedIn Profile
               </button>
             </div>
           </div>
@@ -168,13 +175,21 @@ const LinkedinColumn = React.memo(
                 directly from your dashboard.
               </p>
 
-              {/* Single Connect button */}
-              <button
-                onClick={() => connectLinkedin("page")}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
-              >
-                Connect LinkedIn Page
-              </button>
+              {/* Connect buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  onClick={() => connectLinkedin("page")}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
+                >
+                  Connect LinkedIn Page
+                </button>
+                <button
+                  onClick={() => connectLinkedin("profile")}
+                  className="bg-black hover:bg-slate-800 text-yellow-400 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm transition-all hover:scale-105"
+                >
+                  Connect LinkedIn Profile
+                </button>
+              </div>
             </div>
           )}
         </div>

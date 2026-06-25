@@ -40,15 +40,29 @@ export async function POST(req) {
   }
 
   try {
-    const accountLocations = Array.isArray(locations)
+    // Locations being toggled in this request (carry the per-location autoReply state)
+    const incomingLocations = Array.isArray(locations)
       ? locations
           .filter((loc) => loc?.locationId)
           .map((loc) => ({
             ...loc,
             accountId: normalizeGmbAccountId(loc.accountId || accountId),
             locationId: loc.locationId,
+            autoReply,
           }))
       : [];
+
+    // Merge incoming locations into an existing set, updating matches and
+    // preserving the per-location autoReply of locations not in this request.
+    const mergeLocations = (existing = []) => {
+      const byId = new Map(
+        (existing || []).map((loc) => [loc.locationId, { ...loc }])
+      );
+      incomingLocations.forEach((loc) => {
+        byId.set(loc.locationId, { ...(byId.get(loc.locationId) || {}), ...loc });
+      });
+      return Array.from(byId.values());
+    };
 
     // Check if user record exists
     let record = await AutoReply.findOne({ userId });
@@ -58,8 +72,8 @@ export async function POST(req) {
       record = await AutoReply.create({
         userId,
         refreshToken,
-        accounts: [{ accountId, autoReply, locations: accountLocations }],
-        locations: accountLocations,
+        accounts: [{ accountId, autoReply, locations: incomingLocations }],
+        locations: incomingLocations,
         autoReply,
         updatedAt: new Date(),
       });
@@ -73,16 +87,28 @@ export async function POST(req) {
         (acc) => normalizeGmbAccountId(acc.accountId) === accountId
       );
       if (accountIndex > -1) {
-        record.accounts[accountIndex].autoReply = autoReply;
-        record.accounts[accountIndex].locations = accountLocations;
+        const mergedAccountLocations = mergeLocations(
+          record.accounts[accountIndex].locations
+        );
+        record.accounts[accountIndex].locations = mergedAccountLocations;
+        // Account-level flag = ON if any of its locations have auto-reply ON (legacy compat)
+        record.accounts[accountIndex].autoReply = mergedAccountLocations.some(
+          (loc) => loc.autoReply === true
+        );
+        record.markModified("accounts");
       } else {
-        record.accounts.push({ accountId, autoReply, locations: accountLocations });
+        record.accounts.push({ accountId, autoReply, locations: incomingLocations });
       }
 
       const otherLocations = (record.locations || []).filter(
         (loc) => normalizeGmbAccountId(loc.accountId) !== accountId
       );
-      record.locations = [...otherLocations, ...accountLocations];
+      const sameAccountLocations = mergeLocations(
+        (record.locations || []).filter(
+          (loc) => normalizeGmbAccountId(loc.accountId) === accountId
+        )
+      );
+      record.locations = [...otherLocations, ...sameAccountLocations];
       record.autoReply = record.accounts.some((acc) => acc.autoReply === true);
       record.updatedAt = new Date();
       await record.save();
@@ -135,16 +161,24 @@ export async function GET(req) {
       ? accounts.filter((acc) => normalizeGmbAccountId(acc.accountId) === accountId)
       : accounts;
 
-    const locations = filteredAccounts.flatMap((acc) =>
-      (acc.locations || []).map((loc) => ({
+    // Resolve per-location autoReply, falling back to the account-level flag for
+    // legacy records where locations were stored without their own autoReply field.
+    const resolveLocationAutoReply = (loc, acc) =>
+      typeof loc.autoReply === "boolean" ? loc.autoReply : acc.autoReply === true;
+
+    const accountsWithLocationFlags = filteredAccounts.map((acc) => ({
+      ...acc,
+      locations: (acc.locations || []).map((loc) => ({
         ...loc,
-        autoReply: acc.autoReply,
-      }))
-    );
+        autoReply: resolveLocationAutoReply(loc, acc),
+      })),
+    }));
+
+    const locations = accountsWithLocationFlags.flatMap((acc) => acc.locations);
 
     return NextResponse.json({
       success: true,
-      accounts: filteredAccounts,
+      accounts: accountsWithLocationFlags,
       locations,
       updatedAt: record.updatedAt,
     });

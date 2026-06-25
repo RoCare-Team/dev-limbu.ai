@@ -369,6 +369,7 @@ export async function POST(req) {
       igDescription,
         liDescription,   // 👈 ADDED
         piDescription,   // 👈 ADDED
+        pinTitle,        // 👈 ADDED
         ytDescription,
       whenPosted,
       mediaType,
@@ -407,6 +408,7 @@ export async function POST(req) {
       igDescription,
       liDescription,   // 👈 ADDED
       piDescription,   // 👈 ADDED
+      pinTitle,        // 👈 ADDED
       ytDescription,
       promat,
       ...(initialWhenPosted ? { whenPosted: initialWhenPosted } : {}),
@@ -453,6 +455,7 @@ export async function PUT(req) {
       igDescription,
       liDescription,
       piDescription,
+      pinTitle,
       ytDescription,
       reason,
       locations,
@@ -559,6 +562,7 @@ export async function PUT(req) {
     if (typeof igDescription === "string") updateData.igDescription = igDescription;
     if (typeof liDescription === "string") updateData.liDescription = liDescription;   // ✅
     if (typeof piDescription === "string") updateData.piDescription = piDescription;   // ✅
+    if (typeof pinTitle === "string") updateData.pinTitle = pinTitle;   // ✅
     if (typeof ytDescription === "string") updateData.ytDescription = ytDescription;
     if (checkmark !== undefined && checkmark !== null) updateData.checkmark = checkmark;
     if (typeof videoOutput === "string" && videoOutput.trim()) updateData.videoOutput = videoOutput.trim();

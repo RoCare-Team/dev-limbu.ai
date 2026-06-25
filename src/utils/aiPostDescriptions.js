@@ -6,6 +6,7 @@ export function normalizePlatformDescriptions(raw) {
       ig_des: "",
       li_des: "",
       pin_des: "",
+      pin_title: "",
       yt_des: "",
     };
   }
@@ -30,6 +31,7 @@ export function normalizePlatformDescriptions(raw) {
         ig_des: "",
         li_des: "",
         pin_des: "",
+        pin_title: "",
         yt_des: "",
       };
     }
@@ -96,6 +98,15 @@ export function normalizePlatformDescriptions(raw) {
       "pi_description",
       "pinterest_description",
       "pinterestDescription",
+    ),
+
+    // ✅ Pinterest title
+    pin_title: pick(
+      "pin_title",
+      "pinTitle",
+      "PIN_title",
+      "pinterest_title",
+      "pinterestTitle",
     ),
 
     // ✅ YouTube

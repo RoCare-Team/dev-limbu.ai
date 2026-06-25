@@ -9,7 +9,10 @@ import {
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
-import { listUsersForChatbotChatDay } from "@/lib/limbuBotUserSync";
+import {
+  listUsersForChatbotChatDay,
+  fetchLimbuBotAdminUsers,
+} from "@/lib/limbuBotUserSync";
 import { META_LEAD_TAG_KEYS } from "@/lib/metaFormLeadsConfig";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
@@ -224,6 +227,13 @@ async function fetchLimbuBotHistory(userId) {
   }
 }
 
+/** Last-10-digit phone for a User doc (for matching against bot rows). */
+function phoneFromUserDoc(user = {}) {
+  let phone = String(user.phone || user.mobileNumber || "").replace(/\D/g, "");
+  if (phone.length > 10) phone = phone.slice(-10);
+  return phone;
+}
+
 async function getConversationStageUserIds(baseQuery, conversationStage) {
   const normalizedStage = String(conversationStage || "")
     .trim()
@@ -236,45 +246,58 @@ async function getConversationStageUserIds(baseQuery, conversationStage) {
     )
     .lean();
 
+  // Pull ALL WhatsApp conversations in ONE cached, paginated bulk call.
+  // The /contacts endpoint already returns each contact's messages inline,
+  // so we never need a per-user history request here. That per-user fan-out
+  // was the cause of the request storm + upstream 500s.
+  const historyByWaId = new Map();
+  const historyByPhone = new Map();
+  try {
+    const { users: botUsers } = await fetchLimbuBotAdminUsers();
+    for (const bot of botUsers || []) {
+      const history = Array.isArray(bot.history) ? bot.history : [];
+      if (bot.user_id) historyByWaId.set(String(bot.user_id), history);
+      if (bot.phone) historyByPhone.set(String(bot.phone), history);
+    }
+  } catch (err) {
+    // Degrade gracefully: without history we can still match DB-derived
+    // stages (e.g. "GMB connected") instead of failing the whole request.
+    console.error(
+      "[conversationStage] bulk contacts fetch failed:",
+      err.message,
+    );
+  }
+
   const matchedIds = [];
-  const chunkSize = 25;
 
-  for (let i = 0; i < candidates.length; i += chunkSize) {
-    const chunk = candidates.slice(i, i + chunkSize);
-    const matches = await Promise.all(
-      chunk.map(async (user) => {
-        const historyUserId = getLimbuBotHistoryUserId(user);
-        const history =
-          historyUserId && historyUserId !== "wa_"
-            ? await fetchLimbuBotHistory(historyUserId)
-            : [];
-        const steps =
-          getConversationStageFromHistory(history, user).steps || [];
-        const hasHistory = Array.isArray(history) && history.length > 0;
-        const connected = hasGmbConnected(user);
-        const hasStage = steps.some(
-          (step) => String(step || "").toLowerCase() === normalizedStage,
-        );
+  for (const user of candidates) {
+    const historyUserId = getLimbuBotHistoryUserId(user);
+    const history =
+      (historyUserId && historyUserId !== "wa_"
+        ? historyByWaId.get(historyUserId)
+        : null) ||
+      historyByPhone.get(phoneFromUserDoc(user)) ||
+      [];
 
-        if (normalizedStage === "gmb connected") {
-          return connected || hasStage;
-        }
-
-        if (normalizedStage === "initial conversation") {
-          return hasHistory && hasStage;
-        }
-
-        if (normalizedStage === "no activity") {
-          return !hasHistory && !connected;
-        }
-
-        return hasStage;
-      }),
+    const steps = getConversationStageFromHistory(history, user).steps || [];
+    const hasHistory = Array.isArray(history) && history.length > 0;
+    const connected = hasGmbConnected(user);
+    const hasStage = steps.some(
+      (step) => String(step || "").toLowerCase() === normalizedStage,
     );
 
-    matches.forEach((matched, index) => {
-      if (matched) matchedIds.push(chunk[index].userId);
-    });
+    let matched;
+    if (normalizedStage === "gmb connected") {
+      matched = connected || hasStage;
+    } else if (normalizedStage === "initial conversation") {
+      matched = hasHistory && hasStage;
+    } else if (normalizedStage === "no activity") {
+      matched = !hasHistory && !connected;
+    } else {
+      matched = hasStage;
+    }
+
+    if (matched) matchedIds.push(user.userId);
   }
 
   return matchedIds;

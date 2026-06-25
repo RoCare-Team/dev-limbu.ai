@@ -23,6 +23,42 @@ export const dynamic = 'force-dynamic';
 
 const GMB_BASE = GMB_BUSINESS_INFORMATION_V1_BASE;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Google returns these when it's momentarily busy — safe to retry.
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+async function fetchWithRetry(url, options, { retries = 3, baseDelayMs = 600 } = {}) {
+  let last;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    let res, text;
+    try {
+      res = await fetch(url, options);
+      text = await res.text();
+    } catch (e) {
+      last = { ok: false, status: 0, data: { error: { message: `Network error: ${e.message}` } } };
+      if (attempt < retries) {
+        await sleep(baseDelayMs * 2 ** attempt + Math.random() * 200);
+        continue;
+      }
+      return last;
+    }
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { raw: text };
+    }
+    const result = { ok: res.ok, status: res.status, data };
+    if (res.ok || !RETRYABLE_STATUSES.has(res.status) || attempt === retries) {
+      return result;
+    }
+    last = result;
+    await sleep(baseDelayMs * 2 ** attempt + Math.random() * 200);
+  }
+  return last;
+}
+
 async function resolveAccessToken(session, accountId, email, bodyToken) {
   const fromBody = typeof bodyToken === 'string' ? bodyToken.trim() : '';
   if (fromBody) return fromBody;
@@ -34,13 +70,16 @@ async function resolveAccessToken(session, accountId, email, bodyToken) {
 
 function normalizePhone(raw) {
   if (raw == null) return '';
-  let s = String(raw).trim().replace(/\s/g, '');
+  let s = String(raw).trim();
   if (!s) return '';
-  const digits = s.replace(/\D/g, '');
+  const hadPlus = s.startsWith('+');
+  let digits = s.replace(/\D/g, '');
   if (!digits) return '';
-  if (s.startsWith('+')) return `+${digits}`;
-  if (digits.length === 10) return `+91${digits}`;
-  return `+${digits}`;
+  if (hadPlus) return `+${digits}`;                                 // already international
+  if (digits.startsWith('0')) digits = digits.replace(/^0+/, '');   // strip India trunk 0
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`; // 91XXXXXXXXXX
+  if (digits.length === 10) return `+91${digits}`;                  // local 10-digit
+  return `+${digits}`;                                              // fallback
 }
 
 function normalizeWebsiteUri(raw) {
@@ -58,17 +97,27 @@ function normalizeWebsiteUri(raw) {
 
 function normalizeWhatsappUri(chatUrl, phoneFallback) {
   const c = String(chatUrl || '').trim();
-  if (/^https?:\/\//i.test(c) && /wa\.me|api\.whatsapp\.com/i.test(c)) return c;
-  const p = normalizePhone(phoneFallback || c);
+  const m = c.match(/(?:wa\.me\/|phone=)(\+?\d+)/i); // extract number from a wa.me / api.whatsapp.com link
+  const source = m ? m[1] : phoneFallback || c;
+  const p = normalizePhone(source);
   const d = p.replace(/\D/g, '');
-  if (d.length >= 10) return `https://wa.me/${d}`;
-  return '';
+  return d.length >= 10 ? `https://wa.me/${d}` : '';
+}
+
+// Surface the most actionable Google status instead of a blanket 502.
+function pickFailureStatus(failed) {
+  const statuses = failed.map((f) => f.status).filter(Boolean);
+  if (statuses.includes(401)) return 401;
+  if (statuses.includes(403)) return 403;
+  if (statuses.includes(429)) return 429;
+  if (statuses.includes(400)) return 400;
+  return 502;
 }
 
 async function patchLocationResource(accessToken, locationId, updateMask, patchBody) {
   const url = new URL(locationResourceUrl(locationId));
   url.searchParams.set('updateMask', updateMask);
-  const res = await fetch(url.toString(), {
+  return fetchWithRetry(url.toString(), {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -76,28 +125,15 @@ async function patchLocationResource(accessToken, locationId, updateMask, patchB
     },
     body: JSON.stringify(patchBody),
   });
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { raw: text };
-  }
-  return { ok: res.ok, status: res.status, data };
 }
 
 async function patchWhatsappAttribute(accessToken, locationId, uri) {
   const url = new URL(`${GMB_BASE}/locations/${encodeURIComponent(locationId)}/attributes`);
   url.searchParams.set('attributeMask', 'attributes/url_whatsapp');
   const body = {
-    attributes: [
-      {
-        name: 'attributes/url_whatsapp',
-        uriValues: [{ uri }],
-      },
-    ],
+    attributes: [{ name: 'attributes/url_whatsapp', uriValues: [{ uri }] }],
   };
-  const res = await fetch(url.toString(), {
+  return fetchWithRetry(url.toString(), {
     method: 'PATCH',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -105,14 +141,6 @@ async function patchWhatsappAttribute(accessToken, locationId, uri) {
     },
     body: JSON.stringify(body),
   });
-  const text = await res.text();
-  let data;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { raw: text };
-  }
-  return { ok: res.ok, status: res.status, data };
 }
 
 /**
@@ -307,14 +335,33 @@ export async function POST(request) {
     }
 
     const failed = results.filter((x) => !x.ok);
+    const succeeded = results.filter((x) => x.ok);
+
     if (failed.length) {
+      const summary = failed.map((f) => ({
+        field: f.field,
+        status: f.status,
+        code: f.data?.error?.status,
+        message: f.data?.error?.message,
+      }));
+
+      console.error('[patch-location] Google failures:', JSON.stringify(summary, null, 2));
+
+      // Partial success: some fields saved, some didn't (e.g. a transient 503).
+      const partial = succeeded.length > 0;
       return NextResponse.json(
         {
           success: false,
-          error: 'One or more Google API calls failed',
+          partial,
+          error: partial
+            ? `Saved ${succeeded.length} of ${results.length} fields. ${failed.length} failed — please retry.`
+            : 'One or more Google API calls failed',
+          detail: summary.find((s) => s.message)?.message || null,
+          savedFields: succeeded.map((s) => s.field),
+          failures: summary,
           results,
         },
-        { status: 502 }
+        { status: pickFailureStatus(failed) }
       );
     }
 
@@ -393,8 +440,6 @@ export async function GET(request) {
         { status: 502 }
       );
     }
-
-   
 
     return NextResponse.json({ success: true, location: data });
   } catch (e) {

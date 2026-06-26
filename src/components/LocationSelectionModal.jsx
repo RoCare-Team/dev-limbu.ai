@@ -23,10 +23,9 @@ const LocationSelectionModal = ({
   const [checkmark, setCheckmark] = useState(["post", "photo"]);
   const [postType, setPostType] = useState("standard");
   const [ctaType, setCtaType] = useState("book");
-  const [customUrl, setCustomUrl] = useState(() => {
-    const defaultLoc = locations.find((l) => l.websiteUrl);
-    return defaultLoc ? defaultLoc.websiteUrl : "";
-  });
+  // Leave empty by default so each location uses its OWN websiteUrl.
+  // Only when the user explicitly types a custom URL does it override all locations.
+  const [customUrl, setCustomUrl] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [eventTitle, setEventTitle] = useState("");
@@ -135,6 +134,16 @@ const LocationSelectionModal = ({
   const totalCost = selectedLocations.length * 20;
   const insufficientFunds = isPostAction && walletBalance < totalCost;
 
+  // Show the Custom URL field ONLY when a selected location has no websiteUrl of
+  // its own. If every selected location already has its own websiteUrl, hide it
+  // so each location uses its own URL.
+  const selectedLocationDetails = locations.filter((loc) =>
+    selectedLocations.includes(loc.id),
+  );
+  const showCustomUrlField =
+    selectedLocationDetails.length > 0 &&
+    selectedLocationDetails.some((loc) => !loc.websiteUrl);
+
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[150] flex items-center justify-center p-4 animate-in fade-in duration-300 animate-fadeIn">
       <div className="relative bg-white border border-black/[0.03] rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.15)] w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300 animate-scaleIn">
@@ -239,7 +248,7 @@ const LocationSelectionModal = ({
                   </select>
                 </div>
 
-                {ctaType !== "call_now" && (
+                {ctaType !== "call_now" && showCustomUrlField && (
                   <div className="md:col-span-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2 block">
                       Custom URL (Optional)

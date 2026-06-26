@@ -1507,6 +1507,10 @@ export default function PostManagementPage() {
           }
         }
 
+        // If the user explicitly typed a custom URL, it overrides ALL locations.
+        // Otherwise each location uses its OWN websiteUrl.
+        const customUrl = (meta.customUrl || "").trim();
+
         // Prepare the batched location data
         const locationDataBatch = locs.map((l) => ({
           city: l.locationId,
@@ -1514,7 +1518,7 @@ export default function PostManagementPage() {
           bookUrl:
             !isVideoSelection && meta.ctaType === "call_now"
               ? l.primaryPhone || ""
-              : meta.customUrl || l.websiteUrl || "",
+              : customUrl || l.websiteUrl || "",
           account: l.accountId, // Pass account ID per location if needed by backend mapping
         }));
 

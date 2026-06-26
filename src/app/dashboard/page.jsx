@@ -21,6 +21,7 @@ import InstagramColumn from "@/components/dashboard/InstagramColumn";
 import LinkedinColumn from "@/components/dashboard/LinkedinColumn";
 import PinterestColumn from "@/components/dashboard/PinterestColumn";
 import YouTubeColumn from "@/components/dashboard/YouTubeColumn";
+import WhatsappColumn from "@/components/dashboard/WhatsappColumn";
 import ConnectModal from "@/components/modals/ConnectModal";
 import SessionExpiredModal from "@/components/modals/SessionExpiredModal";
 
@@ -31,6 +32,7 @@ import { useInstagram } from "@/hooks/useInstagram";
 import { useLinkedin } from "@/hooks/useLinkedin";
 import { usePinterest } from "@/hooks/usePinterest";
 import { useYouTube } from "@/hooks/useYouTube";
+import { useWhatsapp } from "@/hooks/useWhatsapp";
 import {
   getLocalStorage,
   getSessionStorage,
@@ -180,6 +182,15 @@ export default function DashboardPage() {
   const { youtubeChannels, setYoutubeChannels, handleDisconnectYouTube } =
     useYouTube(router, searchParams);
 
+  const {
+    accountStatus: whatsappStatus,
+    checking: whatsappChecking,
+    signupWhatsapp,
+    openWhatsappDashboard,
+    checkWhatsappAccount,
+    loading: whatsappLoading,
+  } = useWhatsapp();
+
   // --- Consolidated Performance Insights State ---
   const [performanceState, setPerformanceState] = useState({
     isOpen: false,
@@ -210,6 +221,25 @@ export default function DashboardPage() {
       session?.user?.name ||
       "User"
     : session?.user?.name || "User";
+
+  // WhatsApp uses ONLY the locally stored credentials (not NextAuth)
+  const whatsappName = getLocalStorage("fullName") || "";
+  const whatsappEmail =
+    getLocalStorage("email") || getLocalStorage("userEmail") || "";
+
+  // Check (server-side SSO) whether a WhatsApp account already exists.
+  // Email ALWAYS comes from localStorage on page load (not NextAuth).
+  useEffect(() => {
+    const email = getLocalStorage("email") || getLocalStorage("userEmail") || "";
+
+    if (!email) {
+      console.warn("[WhatsApp] No email in localStorage — skipping account check");
+      return;
+    }
+
+    console.log("[WhatsApp] Checking account on load for:", email);
+    checkWhatsappAccount(email);
+  }, [checkWhatsappAccount]);
 
   const userPlan = session?.user?.plan || "";
   const maxAccounts = userPlan === "" ? 1 : 0;
@@ -538,6 +568,12 @@ export default function DashboardPage() {
       icon: "/social-icon/pinterest-icon.png",
       count: pinterestProfiles?.length || 0,
     },
+    {
+      id: "whatsapp",
+      label: "WhatsApp",
+      icon: "/social-icon/whatsaap-icon.png",
+      count: whatsappStatus?.exists ? 1 : 0,
+    },
   ];
 
   return (
@@ -727,6 +763,18 @@ export default function DashboardPage() {
             youtubeChannels={youtubeChannels}
             setYoutubeChannels={setYoutubeChannels}
             handleDisconnectYouTube={handleDisconnectYouTube}
+          />
+        )}
+
+        {activeTab === "whatsapp" && (
+          <WhatsappColumn
+            accountStatus={whatsappStatus}
+            checking={whatsappChecking}
+            signupWhatsapp={signupWhatsapp}
+            openWhatsappDashboard={openWhatsappDashboard}
+            loading={whatsappLoading}
+            userName={whatsappName}
+            userEmail={whatsappEmail}
           />
         )}
 

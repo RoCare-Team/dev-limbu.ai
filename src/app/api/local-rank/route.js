@@ -1,7 +1,3 @@
-
-
-
-
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -14,7 +10,7 @@ export async function POST(req) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
-      }
+      },
     );
 
     const data = await response.json();

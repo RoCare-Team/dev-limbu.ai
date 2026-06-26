@@ -2046,24 +2046,6 @@ export default function UserManagement() {
           executiveMobile: agent.mobile,
           userMobile: user.phone || user.mobileNumber,
         };
-
-        // try {
-        //   const waRes = await fetch("/api/admin/assign-lead-whatsapp", {
-        //     method: "POST",
-        //     headers: { "Content-Type": "application/json" },
-        //     body: JSON.stringify(payload),
-        //   });
-
-        //   const waData = await waRes.json();
-
-        //   if (!waRes.ok || !waData.success) {
-        //     console.error("WhatsApp send failed:", waData);
-        //   } else {
-        //     console.log("✅ WhatsApp sent successfully");
-        //   }
-        // } catch (err) {
-        //   console.error("WhatsApp API error:", err);
-        // }
       }
 
       // 3️⃣ Update local state immediately
@@ -4755,13 +4737,13 @@ export default function UserManagement() {
                                                     <Fragment key={step.id}>
                                                       <div
                                                         className={`
-                            inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
-                            ${
-                              isDone
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                                : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
-                            }
-                          `}
+                                                          inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
+                                                          ${
+                                                            isDone
+                                                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
+                                                              : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
+                                                          }
+                                                        `}
                                                       >
                                                         {step.icon}
                                                         <span>{step.id}</span>
@@ -5072,11 +5054,11 @@ export default function UserManagement() {
                                           >
                                             <select
                                               className="
-                              appearance-none bg-transparent 
-                              px-4 py-1.5 pr-8 
-                              text-xs font-bold 
-                              focus:outline-none 
-                              cursor-pointer
+                                              appearance-none bg-transparent 
+                                              px-4 py-1.5 pr-8 
+                                              text-xs font-bold 
+                                              focus:outline-none 
+                                              cursor-pointer
                                               "
                                               value={
                                                 // ✅ Handle populated object, string ID, null, and undefined
@@ -5385,7 +5367,7 @@ export default function UserManagement() {
                   Showing {filteredUsers.length} users
                 </span>
                 <span className="text-gray-400"> · </span>
-                <span className="text-indigo-700 font-medium">
+                <span className="text-indigo-700 font-medium">    
                   follow-up: {agentFollowUpFilterLabel}
                 </span>
               </p>

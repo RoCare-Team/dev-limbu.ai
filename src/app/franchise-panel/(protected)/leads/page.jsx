@@ -439,6 +439,7 @@ export default function UserManagement() {
           setUsers={setUsers}
           setRemarksUser={setRemarksUser}
           showToast={showToast}
+          getAuthHeaders={getAuthHeaders}
         />
 
         {/* Table */}

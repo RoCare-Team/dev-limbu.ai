@@ -11,7 +11,10 @@ export default function RemarksModal({
   setUsers, // 👈 ADD THIS
   setRemarksUser,
   showToast,
+  getAuthHeaders,
 }) {
+  const authHeaders = () =>
+    typeof getAuthHeaders === "function" ? getAuthHeaders() : {};
   const [remarksInput, setRemarksInput] = useState("");
 
   const defaultRemarks = [
@@ -42,7 +45,7 @@ export default function RemarksModal({
 
       const res = await fetch("/api/franchise-panel/franchise-user", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
           userId,
           remark: remarksInput,
@@ -80,6 +83,7 @@ export default function RemarksModal({
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          ...authHeaders(),
         },
         body: JSON.stringify({
           userId: user._id,

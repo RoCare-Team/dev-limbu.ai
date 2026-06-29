@@ -413,7 +413,16 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 mt-3">
+        <nav
+  className="
+    flex-1 mt-3 h-[calc(100vh-170px)]
+    overflow-y-hidden
+    hover:overflow-y-auto
+    scrollbar-thin
+    scrollbar-thumb-slate-400
+    scrollbar-track-transparent
+  "
+>
           {navGroups.map((group, idx) => (
             <div key={idx}>
               <button

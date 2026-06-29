@@ -34,7 +34,11 @@ export default function PinterestShareModal({
       post?.fbDescription ||
       "",
   );
-  const [pinLink, setPinLink] = useState(() => defaultLink || "");
+  // Visit URL comes from the connected Pinterest account's websiteUrl
+  // (NOT from GMB). Empty if the account has no websiteUrl.
+  const [pinLink, setPinLink] = useState(
+    () => pinterestProfiles?.[0]?.websiteUrl || "",
+  );
 
   if (!isOpen || !post) return null;
 
@@ -245,6 +249,8 @@ export default function PinterestShareModal({
                               onChange={() => {
                                 setSelectedBoardId(board.boardId);
                                 setSelectedProfileId(profile.pinterestUserId);
+                                // Visit URL = selected account's websiteUrl (empty if none)
+                                setPinLink(profile.websiteUrl || "");
                                 setPublishError(""); // Clear error when board changes
                               }}
                               className="hidden"

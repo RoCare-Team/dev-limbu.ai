@@ -219,7 +219,7 @@ export function usePostManagementActions({
       console.log("Image-to-video request payload:", body);
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds timeout
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes — video render is slow
 
       let ivRes;
       try {

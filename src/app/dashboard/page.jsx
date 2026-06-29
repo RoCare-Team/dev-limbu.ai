@@ -551,6 +551,12 @@ export default function DashboardPage() {
       count: instagramPages.length,
     },
     {
+      id: "whatsapp",
+      label: "WhatsApp",
+      icon: "/social-icon/whatsaap-icon.png",
+      count: whatsappStatus?.exists ? 1 : 0,
+    },
+    {
       id: "linkedin",
       label: "LinkedIn",
       icon: "/social-icon/linkedin.png",
@@ -567,12 +573,6 @@ export default function DashboardPage() {
       label: "Pinterest",
       icon: "/social-icon/pinterest-icon.png",
       count: pinterestProfiles?.length || 0,
-    },
-    {
-      id: "whatsapp",
-      label: "WhatsApp",
-      icon: "/social-icon/whatsaap-icon.png",
-      count: whatsappStatus?.exists ? 1 : 0,
     },
   ];
 

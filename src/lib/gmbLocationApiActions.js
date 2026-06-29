@@ -22,6 +22,7 @@ export const LOCATION_UPDATE_MASKS = {
   latlng: 'latlng',
   serviceArea: 'serviceArea',
   regularHours: 'regularHours',
+  serviceItems: 'serviceItems',
 };
 
 export function locationResourceUrl(locationId) {
@@ -74,6 +75,28 @@ export function buildServiceAreaPatchBody(placeNames) {
       places: { placeInfos: names.map((placeName) => ({ placeName })) },
     },
   };
+}
+
+/**
+ * Build a serviceItems PATCH body from a comma-separated list (or array) of service
+ * names, as free-form service items under the location's primary category gcid.
+ * Verified format: { serviceItems: [{ freeFormServiceItem: { category: 'gcid:...',
+ * label: { displayName, languageCode } } }] } with updateMask=serviceItems.
+ */
+export function buildServiceItemsPatchBody(services, categoryGcid) {
+  const gcid = String(categoryGcid || '').replace(/^categories\//, '').trim();
+  const list = Array.isArray(services) ? services : String(services || '').split(',');
+  const items = list
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .slice(0, 100)
+    .map((label) => ({
+      freeFormServiceItem: {
+        category: gcid,
+        label: { displayName: label.slice(0, 140), languageCode: 'en' },
+      },
+    }));
+  return { serviceItems: items };
 }
 
 export function parseServiceAreaFromText(text) {

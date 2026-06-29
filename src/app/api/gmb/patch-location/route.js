@@ -10,12 +10,12 @@ import {
   locationResourceUrl,
   buildTitlePatchBody,
   buildProfileDescriptionPatchBody,
-  buildPhoneNumbersPatchBody,
   buildWebsiteUriPatchBody,
   buildStorefrontAddressPatchBody,
   buildLatLngPatchBody,
   buildServiceAreaPatchBody,
   buildRegularHoursPatchBody,
+  buildServiceItemsPatchBody,
   parseServiceAreaFromText,
 } from '@/lib/gmbLocationApiActions';
 
@@ -104,9 +104,44 @@ function normalizeWhatsappUri(chatUrl, phoneFallback) {
   return d.length >= 10 ? `https://wa.me/${d}` : '';
 }
 
+// Google puts the precise reason in error.details[].fieldViolations[].description
+// (e.g. "Invalid phone number for region IN"). error.message is generic ("Request
+// contains an invalid argument."), so dig into the violations for a useful message.
+function googleErrorDetail(errData) {
+  const err = errData?.error;
+  if (!err) return null;
+  const details = Array.isArray(err.details) ? err.details : [];
+  // ErrorInfo carries the real reason (e.g. THROTTLED) — Google's top-level message
+  // for these is the generic "Request contains an invalid argument."
+  for (const d of details) {
+    if (d.reason) {
+      const fld = d.metadata?.field_mask ? ` (${d.metadata.field_mask})` : '';
+      if (d.reason === 'THROTTLED') {
+        return `Google is rate-limiting edits to this field${fld}. It was changed too many times recently — wait a while (often a few hours / up to ~24h) before saving it again. Other fields were saved.`;
+      }
+      return `${d.reason}${fld}`;
+    }
+  }
+  // BadRequest fieldViolations (e.g. genuinely invalid value)
+  for (const d of details) {
+    const fv = Array.isArray(d.fieldViolations) ? d.fieldViolations : [];
+    const msgs = fv.map((v) => v.description || v.field).filter(Boolean);
+    if (msgs.length) return msgs.join('; ');
+  }
+  return err.message || null;
+}
+
+function isThrottled(failed) {
+  return failed.some((f) =>
+    Array.isArray(f.data?.error?.details) &&
+    f.data.error.details.some((d) => d.reason === 'THROTTLED')
+  );
+}
+
 // Surface the most actionable Google status instead of a blanket 502.
 function pickFailureStatus(failed) {
   const statuses = failed.map((f) => f.status).filter(Boolean);
+  if (isThrottled(failed)) return 429; // rate-limited field edit — transient
   if (statuses.includes(401)) return 401;
   if (statuses.includes(403)) return 403;
   if (statuses.includes(429)) return 429;
@@ -125,6 +160,17 @@ async function patchLocationResource(accessToken, locationId, updateMask, patchB
     },
     body: JSON.stringify(patchBody),
   });
+}
+
+// Services use freeFormServiceItem which must reference one of the location's category
+// gcids — fetch the primary category so the caller doesn't have to send it.
+async function fetchPrimaryCategoryGcid(accessToken, locationId) {
+  const url = `${GMB_BASE}/locations/${encodeURIComponent(locationId)}?readMask=categories`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+  if (!res.ok) return '';
+  const d = await res.json().catch(() => ({}));
+  const nm = d?.categories?.primaryCategory?.name || '';
+  return nm.replace(/^categories\//, ''); // e.g. "gcid:water_purification_company"
 }
 
 async function patchWhatsappAttribute(accessToken, locationId, uri) {
@@ -192,14 +238,20 @@ export async function POST(request) {
     const maxDesc = 750;
 
     const description = typeof body.description === 'string' ? body.description.trim() : '';
-    const primaryPhone = normalizePhone(body.primaryPhone);
+    // Services go to Google as serviceItems (free-form). Tagline has no Google field at all,
+    // so it is not handled here. Phone is intentionally not updated from here.
+    const services = typeof body.services === 'string' ? body.services.trim() : '';
     const websiteUri = normalizeWebsiteUri(body.websiteUri);
     let whatsappUri =
       typeof body.whatsappUri === 'string' && body.whatsappUri.trim()
         ? String(body.whatsappUri).trim()
         : '';
-    if (!whatsappUri) {
-      whatsappUri = normalizeWhatsappUri(body.chatUrl, body.primaryPhone);
+    const chatUrlIn = typeof body.chatUrl === 'string' ? body.chatUrl.trim() : '';
+    // Only set WhatsApp when the user actually provided a chat link/number. Do NOT derive
+    // it from the phone — that pushed an unwanted attribute and failed with "invalid
+    // argument" on locations whose category doesn't support attributes/url_whatsapp.
+    if (!whatsappUri && chatUrlIn) {
+      whatsappUri = normalizeWhatsappUri(chatUrlIn, '');
     }
     const serviceAreaText = typeof body.serviceAreaText === 'string' ? body.serviceAreaText : '';
     const serviceAreaPlacesIn = Array.isArray(body.serviceAreaPlaces) ? body.serviceAreaPlaces : [];
@@ -229,7 +281,7 @@ export async function POST(request) {
 
     const hasAny =
       description ||
-      primaryPhone ||
+      services ||
       websiteUri ||
       whatsappUri ||
       Boolean(serviceAreaBody) ||
@@ -269,15 +321,7 @@ export async function POST(request) {
       });
     }
 
-    if (primaryPhone) {
-      const r = await patchLocationResource(
-        accessToken,
-        locationId,
-        LOCATION_UPDATE_MASKS.phoneNumbers,
-        buildPhoneNumbersPatchBody(primaryPhone)
-      );
-      results.push({ field: 'phoneNumbers', ...r });
-    }
+    // Phone number is intentionally never PATCHed to Google here (per requirement).
 
     if (websiteUri) {
       const r = await patchLocationResource(
@@ -334,6 +378,27 @@ export async function POST(request) {
       results.push({ field: 'attributes/url_whatsapp', ...r });
     }
 
+    // Services -> Google serviceItems (free-form), referencing the location's primary category.
+    if (services) {
+      const gcid = await fetchPrimaryCategoryGcid(accessToken, locationId);
+      if (!gcid) {
+        results.push({
+          field: 'serviceItems',
+          ok: false,
+          status: 400,
+          data: { error: { message: 'No primary category on this location — cannot set services.' } },
+        });
+      } else {
+        const r = await patchLocationResource(
+          accessToken,
+          locationId,
+          LOCATION_UPDATE_MASKS.serviceItems,
+          buildServiceItemsPatchBody(services, gcid)
+        );
+        results.push({ field: 'serviceItems', ...r });
+      }
+    }
+
     const failed = results.filter((x) => !x.ok);
     const succeeded = results.filter((x) => x.ok);
 
@@ -342,7 +407,7 @@ export async function POST(request) {
         field: f.field,
         status: f.status,
         code: f.data?.error?.status,
-        message: f.data?.error?.message,
+        message: googleErrorDetail(f.data) || f.data?.error?.message,
       }));
 
       console.error('[patch-location] Google failures:', JSON.stringify(summary, null, 2));

@@ -153,21 +153,26 @@ export default function OptimizationPage() {
   }, [sessionStatus, accountId, refreshGmbLocations]);
 
   const handleSaveOptimization = useCallback(
-    async ({ locationId, description, serviceAreaPlaces }) => {
+    async ({ locationId, description, services, websiteUri, chatUrl, serviceAreaPlaces, regularHours }) => {
       const locId =
         String(locationId || "").trim() ||
         selectedLocations[0]?.locationId ||
         gmbLocations[0]?.locationId ||
         "";
       const desc = typeof description === "string" ? description.trim() : "";
+      const svc = typeof services === "string" ? services.trim() : "";
+      const website = typeof websiteUri === "string" ? websiteUri.trim() : "";
+      const chat = typeof chatUrl === "string" ? chatUrl.trim() : "";
       const places = Array.isArray(serviceAreaPlaces) ? serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean) : [];
+      const hasHours =
+        regularHours && typeof regularHours === "object" && Array.isArray(regularHours.periods);
 
       if (!accountId || !locId) {
         toast.error("Select a Google location, then try again.");
         return;
       }
-      if (!desc && places.length === 0) {
-        toast.error("Add a description or at least one service area to save.");
+      if (!desc && !svc && !website && !chat && places.length === 0 && !hasHours) {
+        toast.error("Add a description, services, website, WhatsApp or service area to save.");
         return;
       }
 
@@ -176,7 +181,11 @@ export default function OptimizationPage() {
       try {
         const patchBody = { accountId, locationId: locId };
         if (desc) patchBody.description = desc;
+        if (svc) patchBody.services = svc;
+        if (website) patchBody.websiteUri = website;
+        if (chat) patchBody.chatUrl = chat;
         if (places.length > 0) patchBody.serviceAreaPlaces = places;
+        if (hasHours) patchBody.regularHours = regularHours;
         const gRes = await fetch("/api/gmb/patch-location", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -232,11 +241,18 @@ export default function OptimizationPage() {
             accountId,
             locationId: locId,
             description: payload?.description,
-            primaryPhone: payload?.primaryPhone,
+            services:
+              typeof payload?.services === "string" && payload.services.trim()
+                ? payload.services.trim()
+                : undefined,
+            // Phone is intentionally not synced to Google.
             websiteUri: payload?.websiteUri,
             chatUrl: payload?.chatUrl,
             serviceAreaText: payload?.serviceAreaText,
-            serviceAreaPlaces: Array.isArray(payload?.serviceAreaPlaces) ? payload.serviceAreaPlaces : undefined,
+            serviceAreaPlaces:
+              Array.isArray(payload?.serviceAreaPlaces) && payload.serviceAreaPlaces.length
+                ? payload.serviceAreaPlaces
+                : undefined,
             regularHours:
               payload?.regularHours &&
               typeof payload.regularHours === "object" &&

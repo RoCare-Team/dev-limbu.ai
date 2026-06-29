@@ -24,6 +24,7 @@ import {
   BarChart3,
   X,
   MapPin,
+  Inbox,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 
@@ -83,6 +84,11 @@ export default function Sidebar({ children }) {
         text: "Review Management",
         icon: <Star size={18} />,
         path: "/review-management",
+      },
+      {
+        text: "Website Leads",
+        icon: <Inbox size={18} />,
+        path: "/limbu-website-leads",
       },
       {
         text: "Magic QR",

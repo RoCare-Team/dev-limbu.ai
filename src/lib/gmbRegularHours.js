@@ -59,15 +59,19 @@ export function parsePeriodsToDayMap(periods) {
     const od = p.openDay;
     if (!od || !GMB_WEEKDAYS.includes(od)) continue;
     if (map[od].mode !== 'closed') continue;
-    const oh = p.openTime?.hours;
+    // GMB represents midnight (00:00) as an empty TimeOfDay ({}), i.e. hours omitted.
+    // So an existing period with no openTime.hours means 00:00, not "missing".
+    const hasOpen = p.openTime && typeof p.openTime === 'object';
+    const hasClose = p.closeTime && typeof p.closeTime === 'object';
+    const oh = p.openTime?.hours ?? 0;
     const om = p.openTime?.minutes ?? 0;
-    const ch = p.closeTime?.hours;
+    const ch = p.closeTime?.hours ?? 0;
     const cm = p.closeTime?.minutes ?? 0;
     if (ch === 24 && oh === 0 && om === 0) {
       map[od] = { mode: 'open24' };
       continue;
     }
-    if (oh == null && ch == null) {
+    if (!hasOpen && !hasClose) {
       map[od] = { mode: 'closed' };
       continue;
     }

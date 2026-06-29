@@ -19,8 +19,22 @@ const LOCATION_READ_MASK = [
   'phoneNumbers',
   'profile',
   'serviceArea',
+  'serviceItems',
+  'categories',
+  'regularHours',
+  'openInfo',
   'metadata',
 ].join(',');
+
+// Join free-form / structured serviceItems into a comma-separated string for the UI.
+function serviceItemsToText(items) {
+  if (!Array.isArray(items)) return '';
+  return items
+    .map((it) => it?.freeFormServiceItem?.label?.displayName || it?.structuredServiceItem?.serviceTypeId || '')
+    .map((s) => String(s).trim())
+    .filter(Boolean)
+    .join(', ');
+}
 
 async function resolveAccessToken(session, accountId, email, bodyToken) {
   const fromBody = typeof bodyToken === 'string' ? bodyToken.trim() : '';
@@ -90,6 +104,12 @@ function mapLocation(loc, accountId) {
     primaryPhone: loc.phoneNumbers?.primaryPhone || '',
     profileDescription: loc.profile?.description || '',
     serviceAreaPlaces,
+    services: serviceItemsToText(loc.serviceItems),
+    primaryCategory: loc.categories?.primaryCategory?.displayName || '',
+    primaryCategoryId: (loc.categories?.primaryCategory?.name || '').replace(/^categories\//, ''),
+    // Raw structures so the panel/normalizer can render hours & open status.
+    regularHours: loc.regularHours || null,
+    openInfo: loc.openInfo || null,
     isVerified: loc.metadata?.hasVoiceOfMerchant === true,
     locationResourceName: name,
     businessProfileId: name,

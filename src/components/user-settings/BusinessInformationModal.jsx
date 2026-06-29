@@ -1707,8 +1707,19 @@ export default function BusinessInformationPanel({
   });
   const [hoursBaseline, setHoursBaseline] = useState("[]");
   const [websiteBuilderPending, setWebsiteBuilderPending] = useState(false);
+  // Tracks the last hydrated location + which fields the user has manually edited, so a
+  // gmbLocations refresh keeps the user's edits but still fills clean fields from Google
+  // (fixes services/serviceArea showing empty when the first hydrate used stale cache).
+  const lastHydratedLocRef = useRef(null);
+  const dirtyFieldsRef = useRef(new Set());
 
-  const setField = useCallback((key) => (val) => setFields((p) => ({ ...p, [key]: val })), []);
+  const setField = useCallback(
+    (key) => (val) => {
+      dirtyFieldsRef.current.add(key);
+      setFields((p) => ({ ...p, [key]: val }));
+    },
+    []
+  );
 
   const optimizationContext = useMemo(() => {
     const base = activeEnriched?.aiContext || {};
@@ -1733,6 +1744,7 @@ export default function BusinessInformationPanel({
     if (t) setFields((f) => ({ ...f, businessName: f.businessName || t }));
   }, [selectedBusiness.title, selectedBusiness.name, activeEditorLocationId]);
 
+
   useEffect(() => {
     if (activeEditorLocationId) return;
     const w = userDataProp?.website || primaryLoc.websiteUrl;
@@ -1749,6 +1761,17 @@ export default function BusinessInformationPanel({
     if (!activeEditorLocationId) return;
     const loc = gmbLocations.find((l) => l.locationId === activeEditorLocationId);
     if (!loc) return;
+    // Full hydrate only when the editor switches to a different location. When the
+    // SAME location's gmbLocations array merely refreshes (e.g. after a save), we
+    // must NOT overwrite the user's in-progress edits (service areas, hours, phone,
+    // website, WhatsApp) — that was wiping serviceAreaPlaces to [] before save.
+    const locationChanged = lastHydratedLocRef.current !== activeEditorLocationId;
+    lastHydratedLocRef.current = activeEditorLocationId;
+    // Switching location forgets previous edits; same-location refresh keeps them.
+    if (locationChanged) dirtyFieldsRef.current = new Set();
+    const keep = (key, freshVal, curVal) =>
+      dirtyFieldsRef.current.has(key) ? curVal : freshVal;
+
     const saList =
       Array.isArray(loc.serviceAreaPlaces) && loc.serviceAreaPlaces.length > 0
         ? [...loc.serviceAreaPlaces]
@@ -1767,19 +1790,24 @@ export default function BusinessInformationPanel({
         ? loc.whatsappUri.trim()
         : null;
     const rp = clonePeriods(loc.regularHours?.periods || []);
-    setHoursBaseline(JSON.stringify(rp));
+    if (locationChanged) setHoursBaseline(JSON.stringify(rp));
     setFields((f) => ({
       ...f,
+      // Display / read-only fields can always refresh from Google:
       businessName: loc.title || f.businessName,
-      phone: loc.phone || f.phone,
-      website: loc.websiteUrl || f.website,
       primaryCategory: loc.primaryCategory || f.primaryCategory,
       googleOpenStatus: loc.openStatus || f.googleOpenStatus,
-      ...(nextDescription != null ? { description: nextDescription } : {}),
-      ...(wa !== null ? { chatUrl: wa } : {}),
-      serviceAreaPlaces: saList,
       hoursSummary: loc.hoursSummaryText || f.hoursSummary,
-      regularHoursPeriods: rp,
+      // User-editable fields: fill from Google unless the user edited them this session.
+      ...(nextDescription != null && !dirtyFieldsRef.current.has("description")
+        ? { description: nextDescription }
+        : {}),
+      phone: keep("phone", loc.phone || f.phone, f.phone),
+      website: keep("website", loc.websiteUrl || f.website, f.website),
+      chatUrl: keep("chatUrl", wa !== null ? wa : f.chatUrl, f.chatUrl),
+      services: keep("services", loc.services || "", f.services),
+      serviceAreaPlaces: keep("serviceAreaPlaces", saList, f.serviceAreaPlaces),
+      regularHoursPeriods: keep("regularHoursPeriods", rp, f.regularHoursPeriods),
     }));
   }, [activeEditorLocationId, gmbLocations, profileDescriptionProp]);
 
@@ -1797,7 +1825,8 @@ export default function BusinessInformationPanel({
       if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
         await onSyncToGmb({
           description: desc,
-          primaryPhone: (fields.phone || "").trim(),
+          services: (fields.services || "").trim(),
+          // Phone is intentionally not synced to Google.
           websiteUri: (fields.website || "").trim(),
           chatUrl: (fields.chatUrl || "").trim(),
           serviceAreaPlaces: places,
@@ -1809,7 +1838,12 @@ export default function BusinessInformationPanel({
         await onSaveOptimization({
           locationId: activeEditorLocationId,
           description: desc,
+          services: (fields.services || "").trim(),
+          // Phone is intentionally not synced to Google.
+          websiteUri: (fields.website || "").trim(),
+          chatUrl: (fields.chatUrl || "").trim(),
           serviceAreaPlaces: places,
+          ...(hoursDirty ? { regularHours: { periods: fields.regularHoursPeriods || [] } } : {}),
         });
         return;
       }
@@ -1825,6 +1859,7 @@ export default function BusinessInformationPanel({
     activeEditorLocationId,
     onConfirmProfileDescription,
     fields.description,
+    fields.services,
     fields.serviceAreaPlaces,
     fields.phone,
     fields.website,
@@ -1964,7 +1999,8 @@ export default function BusinessInformationPanel({
       if (!text && fieldId !== "description") return;
       const payload = {};
       if (fieldId === "description") payload.description = clampGmbDescription(text);
-      if (fieldId === "phone") payload.primaryPhone = text;
+      if (fieldId === "services") payload.services = text;
+      // Phone is intentionally not synced to Google (no primaryPhone here).
       if (fieldId === "website") payload.websiteUri = text;
       if (fieldId === "chatUrl") payload.chatUrl = text;
       if (Object.keys(payload).length === 0) return;
@@ -2371,7 +2407,6 @@ export default function BusinessInformationPanel({
                       hint="Update the title in Google Business Profile if you need to change it."
                     />
                     {categoryBlock}
-                    <FieldRow label="Tagline" fieldId="tagline" value={fields.tagline} onChange={setField("tagline")} {...sharedFieldProps} />
                     <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
                     <FieldRow
                       label="Description"
@@ -2403,8 +2438,7 @@ export default function BusinessInformationPanel({
                       value={fields.phone}
                       onChange={setField("phone")}
                       manualOnly
-                      onSaveField={handleFieldSave}
-                      manualHint="Manual update only. Save on the field or Save changes syncs to Google (primaryPhone)."
+                      manualHint="Shown from Google. Phone is NOT updated to Google from here — change it in Google Business Profile."
                     />
                     <FieldRow
                       label="Chat / WhatsApp"

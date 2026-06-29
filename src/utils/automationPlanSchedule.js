@@ -6,15 +6,20 @@
 import { zonedYmdString, getUtcInstantForZonedDateAndTime } from '@/utils/postingScheduleWindow';
 import { getFrequencyStep } from '@/utils/userSettingsHelpers';
 
-/** When offset ≥ 1440, first local startDate is prefetch-only; publish from the next calendar day (IST, etc.). */
+/** True when the plan generates assets ~24h before each publish (offset ≥ 1440). */
 export function usesPrefetchLeadDay(plan) {
   return Number(plan?.prefetchOffsetMinutes) >= 1440;
 }
 
-function shouldSkipPublishYmdForPrefetchLead(plan, ymd, tz) {
-  if (!usesPrefetchLeadDay(plan)) return false;
-  const startYmd = plan.startDate ? zonedYmdString(plan.startDate, tz) : null;
-  return !!(startYmd && ymd === startYmd);
+function shouldSkipPublishYmdForPrefetchLead(/* plan, ymd, tz */) {
+  // Previously the start day was treated as "prefetch-only" (generate assets,
+  // publish next day). That left a brand-new plan doing nothing on the day it
+  // was saved — looked like "auto post generate nahi hota". The publish cron
+  // already generates image + copy inline when no prefetch bundle exists, so we
+  // now allow the start day to publish too. The 24h prefetch still applies to
+  // every following day (after the first post, nextRef advances to D+1 whose
+  // prefetch window lands on the start day's posting time).
+  return false;
 }
 
 export function sameZonedDay(a, b, timeZone) {
@@ -141,10 +146,8 @@ export function isPostingDayTodayZoned(plan, now = new Date()) {
   const skipped = new Set(Array.isArray(plan.skippedDates) ? plan.skippedDates : []);
   if (skipped.has(todayYmd)) return false;
 
-  // 24h prefetch: local startDate = generate assets only; GMB/FB/IG publish next day.
-  if (usesPrefetchLeadDay(plan) && startYmd && todayYmd === startYmd) {
-    return false;
-  }
+  // The start day is now a normal posting day. If no prefetch bundle exists yet
+  // (it can't on day 0), the publish cron generates image + copy inline.
 
   const rawLastYmd = plan.lastPostDate ? zonedYmdString(plan.lastPostDate, tz) : null;
   const lastYmdStale = !!(rawLastYmd && startYmd && rawLastYmd < startYmd);

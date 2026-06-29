@@ -39,7 +39,6 @@ import AutomationPlan   from '@/models/AutomationPlan';
 import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
   matchesPostingWindow,
-  matchesAbsoluteWindow,
   zonedYmdString,
   getHourMinuteInTimeZone,
 } from '@/utils/postingScheduleWindow';
@@ -144,7 +143,9 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     output:      imageUrl || '',
     description,
     accessToken: accessToken || '',
-    checkmark:   'post',
+    // 'both' = publish the post text AND attach the image. 'post' alone is a
+    // text-only update (no photo) — that's why GMB returned photo_media_id:null.
+    checkmark:   'both',
     skipDbUpdate: true,
   };
 
@@ -154,7 +155,7 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     locationData,
     output:         payload.output?.slice(0, 100),
     description:    description,
-    checkmark:      'post',
+    checkmark:      'both',
     accessTokenLen: accessToken?.length || 0,
   }, null, 2));
 
@@ -519,15 +520,21 @@ export async function GET(request) {
 
         if (hasHour) {
           const publishMs = getPublishUtcMsForDateRef(effectivePlan, runNow);
+          // Fire AT or AFTER the chosen time — never early. EARLY_GRACE only
+          // absorbs small server-clock skew; the late side spans the cron
+          // tolerance so a skipped cron run still publishes (the duplicate-today
+          // guard above prevents a second post the same day).
+          const EARLY_GRACE_MS = 60 * 1000;
+          const lateMs = CRON_TIME_TOLERANCE_MIN * 60 * 1000;
+          const delta = publishMs == null ? null : runNow.getTime() - publishMs;
           const inWin =
-            publishMs != null &&
-            matchesAbsoluteWindow(runNow, publishMs, CRON_TIME_TOLERANCE_MIN);
+            delta != null && delta >= -EARLY_GRACE_MS && delta <= lateMs;
           log(
-            `Absolute window eval — publishUtcMs=${publishMs} inWindow=${inWin}`
+            `Absolute window eval — publishUtcMs=${publishMs} deltaMin=${delta == null ? 'n/a' : (delta / 60000).toFixed(1)} inWindow=${inWin}`
           );
-          if (publishMs == null || !inWin) {
+          if (!inWin) {
             log(
-              `Skip — outside publish clock window (effective ${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} ${tz})`
+              `Skip — not yet at / past publish time (effective ${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} ${tz})`
             );
             results.skipped++; continue;
           }

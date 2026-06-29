@@ -100,8 +100,8 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   const fullAddress = [addressLines, locality, administrativeArea, postalCode, regionCode].filter(Boolean).join(', ');
   const phone = loc.phoneNumbers?.primaryPhone || loc.phone || '';
   const websiteUrl = loc.websiteUri || loc.websiteUrl || '';
-  const primaryCategory = loc.categories?.primaryCategory?.displayName || '';
-  const primaryCategoryName = loc.categories?.primaryCategory?.name || '';
+  const primaryCategory = loc.categories?.primaryCategory?.displayName || loc.primaryCategory || '';
+  const primaryCategoryName = loc.categories?.primaryCategory?.name || loc.primaryCategoryId || '';
   const openStatus = loc.openInfo?.status || '';
   const mapsUri = loc.metadata?.mapsUri || '';
   const placeId = loc.metadata?.placeId || '';
@@ -118,8 +118,21 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   const serviceAreaPlaceInfos = loc.serviceArea?.places?.placeInfos;
   const serviceAreaPlaces = Array.isArray(serviceAreaPlaceInfos)
     ? serviceAreaPlaceInfos.map((p) => p.placeName || p.placeId || '').filter(Boolean)
-    : [];
-  const serviceAreaText = formatServiceAreaPlaces(serviceAreaPlaceInfos);
+    : Array.isArray(loc.serviceAreaPlaces)
+      ? loc.serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean)
+      : [];
+  const serviceAreaText = formatServiceAreaPlaces(serviceAreaPlaceInfos) || (loc.serviceAreaText || '');
+  // Services come either pre-flattened (loc.services) or as raw GMB serviceItems.
+  const services =
+    typeof loc.services === 'string' && loc.services.trim()
+      ? loc.services.trim()
+      : Array.isArray(loc.serviceItems)
+        ? loc.serviceItems
+            .map((it) => it?.freeFormServiceItem?.label?.displayName || it?.structuredServiceItem?.serviceTypeId || '')
+            .map((s) => String(s).trim())
+            .filter(Boolean)
+            .join(', ')
+        : '';
   const hoursSummaryText = formatRegularHoursSummary(loc.regularHours?.periods);
   const storeCode = loc.storeCode || '';
   const languageCode = loc.languageCode || '';
@@ -183,6 +196,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
       lng,
     }),
     serviceAreaPlaces,
+    services,
     regularHours,
     specialHours,
   };

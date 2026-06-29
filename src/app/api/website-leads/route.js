@@ -97,3 +97,50 @@ export async function GET(req) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+const ALLOWED_STATUS = ["new", "contacted", "converted", "spam"];
+
+/**
+ * PATCH /api/website-leads
+ * Updates a lead's status. Scoped to the owner (id + userId must match) so a user
+ * can only change their own leads.
+ * Body: { id, userId, status }
+ */
+export async function PATCH(req) {
+  try {
+    await dbConnect();
+    const body = await req.json();
+    const { id, userId, status } = body ?? {};
+
+    if (!id || !userId || !status) {
+      return NextResponse.json(
+        { error: "id, userId and status are required." },
+        { status: 400 }
+      );
+    }
+    if (!ALLOWED_STATUS.includes(status)) {
+      return NextResponse.json(
+        { error: `status must be one of: ${ALLOWED_STATUS.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const lead = await WebsiteLead.findOneAndUpdate(
+      { _id: id, ownerUserId: userId },
+      { $set: { status } },
+      { new: true }
+    ).lean();
+
+    if (!lead) {
+      return NextResponse.json(
+        { error: "Lead not found for this user." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, lead }, { status: 200 });
+  } catch (error) {
+    console.error("Update Website Lead Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

@@ -6,8 +6,16 @@ import User from "@/models/User";
 import Transaction from "@/models/Transaction";
 import { uploadToS3 } from "@/utils/s3Config";
 
+// Video generation is slow — keep this route alive long enough for the
+// upstream render (and override the platform's default function timeout).
+export const maxDuration = 300; // seconds
+export const dynamic = "force-dynamic";
+
 const DEFAULT_IMAGE_TO_VIDEO_URL =
   "https://imgtovideo.limbutech.in/generate-video";
+
+// Upstream fetch timeout (must stay below maxDuration so we can return a clean error)
+const UPSTREAM_TIMEOUT_MS = 290000;
 
 /** Coins charged after a successful image→video render (saved via Post + Transaction). */
 const IMAGE_TO_VIDEO_COINS = 200;
@@ -257,11 +265,34 @@ export async function POST(req) {
 
     console.log("Image-to-video upstream payload:", payload);
 
-    const upstream = await fetch(upstreamUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const upstreamController = new AbortController();
+    const upstreamTimeout = setTimeout(
+      () => upstreamController.abort(),
+      UPSTREAM_TIMEOUT_MS
+    );
+
+    let upstream;
+    try {
+      upstream = await fetch(upstreamUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: upstreamController.signal,
+      });
+    } catch (err) {
+      if (err.name === "AbortError") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Video generation timed out. Please try again.",
+          },
+          { status: 504 }
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(upstreamTimeout);
+    }
 
     const text = await upstream.text();
 

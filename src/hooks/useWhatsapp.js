@@ -1,11 +1,9 @@
 import { useState, useCallback } from "react";
 import { toast } from "react-hot-toast";
 
-const WHATSAPP_BASE_URL = "https://whatsapp.limbu.ai";
-const SSO_SECRET = process.env.NEXT_PUBLIC_SSO_SHARED_SECRET;
-
-const SSO_LOGIN_URL = (email) =>
-  `${WHATSAPP_BASE_URL}/api/auth/sso-login?email=${encodeURIComponent(email)}`;
+// All WhatsApp SSO calls go through our own /api/whatsapp/* routes.
+// The shared secret lives only on the server (SSO_SHARED_SECRET) and never
+// reaches the browser.
 
 export function useWhatsapp() {
   const [loading, setLoading] = useState(false);
@@ -18,7 +16,7 @@ export function useWhatsapp() {
 
   /**
    * Check whether a WhatsApp account exists for this email.
-   * Calls sso-login with x-sso-secret header.
+   * Server route /api/whatsapp/check attaches the SSO secret.
    */
   const checkWhatsappAccount = useCallback(async (email) => {
     if (!email) {
@@ -29,15 +27,13 @@ export function useWhatsapp() {
     setChecking(true);
 
     try {
-      const res = await fetch(SSO_LOGIN_URL(email), {
-        headers: {
-          "x-sso-secret": SSO_SECRET,
-        },
-      });
+      const res = await fetch(
+        `/api/whatsapp/check?email=${encodeURIComponent(email)}`,
+      );
       const json = await res.json().catch(() => ({}));
-      // data.exists → "You already have a WhatsApp account" + "Open WhatsApp Dashboard" button
-      // !data.exists → "Connect to WhatsApp" → signup form
-      setAccountStatus({ checked: true, exists: !!json?.data?.exists });
+      // exists → "You already have a WhatsApp account" + "Open WhatsApp Dashboard" button
+      // !exists → "Connect to WhatsApp" → signup form
+      setAccountStatus({ checked: true, exists: !!json?.exists });
     } catch (error) {
       console.error("Error checking WhatsApp account:", error);
       setAccountStatus({ checked: true, exists: false });
@@ -47,38 +43,26 @@ export function useWhatsapp() {
   }, []);
 
   /**
-   * Existing account → call sso-login to get a fresh handoff code,
-   * then redirect to the WhatsApp dashboard.
+   * Existing account → server route /api/whatsapp/go fetches a fresh handoff
+   * code and 302-redirects into the WhatsApp dashboard. The secret and the
+   * handoff lookup stay on the server.
    */
-  const openWhatsappDashboard = useCallback(async (email) => {
+  const openWhatsappDashboard = useCallback((email) => {
     if (!email) {
       toast.error("Email not found");
       return;
     }
 
-    try {
-      const res = await fetch(SSO_LOGIN_URL(email), {
-        headers: {
-          "x-sso-secret": SSO_SECRET,
-        },
-      });
-      const json = await res.json().catch(() => ({}));
-      const handoffCode = json?.data?.handoffCode;
-
-      if (!handoffCode) {
-        toast.error("Could not retrieve dashboard access code");
-        return;
-      }
-
-      window.location.href = `${WHATSAPP_BASE_URL}/auth/sso?code=${encodeURIComponent(handoffCode)}`;
-    } catch (error) {
-      console.error("Error opening WhatsApp dashboard:", error);
-      toast.error("Unexpected error opening WhatsApp");
-    }
+    window.open(
+      `/api/whatsapp/go?email=${encodeURIComponent(email)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
   }, []);
 
   /**
-   * Sign up the user on whatsapp.limbu.ai and redirect to its dashboard.
+   * Sign up the user via /api/whatsapp/signup (server proxy), then redirect to
+   * the WhatsApp dashboard with the returned handoff code.
    */
   const signupWhatsapp = useCallback(
     async ({ name, email, password, workspaceName }) => {
@@ -95,26 +79,21 @@ export function useWhatsapp() {
       setLoading(true);
 
       try {
-        const res = await fetch(`${WHATSAPP_BASE_URL}/api/auth/signup`, {
+        const res = await fetch("/api/whatsapp/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name || email.split("@")[0],
-            email,
-            password,
-            workspaceName: workspaceName || `${name || "My"} Business`,
-          }),
+          body: JSON.stringify({ name, email, password, workspaceName }),
         });
 
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok || data.success === false) {
-          const msg = data.error || data.message || "WhatsApp signup failed";
+          const msg = data.error || "WhatsApp signup failed";
           toast.error(msg);
           return { success: false, error: msg };
         }
 
-        const handoffCode = data?.data?.handoffCode;
+        const handoffCode = data?.handoffCode;
 
         if (!handoffCode) {
           toast.error("Signup succeeded but no handoff code received");
@@ -124,7 +103,7 @@ export function useWhatsapp() {
         toast.success("WhatsApp account created! Redirecting...");
         setAccountStatus({ checked: true, exists: true });
 
-        window.location.href = `${WHATSAPP_BASE_URL}/auth/sso?code=${encodeURIComponent(handoffCode)}`;
+        window.location.href = `https://whatsapp.limbu.ai/auth/sso?code=${encodeURIComponent(handoffCode)}`;
 
         return { success: true, data };
       } catch (error) {
@@ -135,7 +114,7 @@ export function useWhatsapp() {
         setLoading(false);
       }
     },
-    []
+    [],
   );
 
   return {

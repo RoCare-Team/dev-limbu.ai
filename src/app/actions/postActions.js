@@ -105,30 +105,52 @@ export async function savePostAction(postPayload) {
     return await postRes.json();
 }
 
-export async function deductFromWalletAction(userId, { amount, reason, metadata }) {
+export async function deductFromWalletAction(userId, { amount, type = "deduct", reason, metadata }) {
   try {
     await dbConnect();
 
-    const updated = await User.findOneAndUpdate(
-      { userId, wallet: { $gte: amount } },
-      { $inc: { wallet: -amount } },
-      { new: true }
-    );
+    const amt = Math.abs(Number(amount) || 0);
+    if (!amt) return { error: "Invalid amount" };
 
-    if (!updated) {
-      return { error: "Insufficient balance" };
+    // "credit" (and its alias "refund") ADD coins back — used for refunds when a
+    // post / generation fails. Everything else deducts. The old code ignored
+    // `type` and always subtracted, so refunds silently double-charged the user.
+    const isCredit = type === "credit" || type === "refund";
+
+    let updated;
+    if (isCredit) {
+      updated = await User.findOneAndUpdate(
+        { userId },
+        { $inc: { wallet: amt } },
+        { new: true }
+      );
+      if (!updated) {
+        return { error: "User not found" };
+      }
+    } else {
+      updated = await User.findOneAndUpdate(
+        { userId, wallet: { $gte: amt } },
+        { $inc: { wallet: -amt } },
+        { new: true }
+      );
+      if (!updated) {
+        return { error: "Insufficient balance" };
+      }
     }
 
     await Transaction.create({
       userId,
-      type: "debit",
-      amount,
+      type: isCredit ? "credit" : "debit",
+      amount: amt,
       balanceAfter: updated.wallet,
-      reason: reason || "wallet_deduct",
+      reason: reason || (isCredit ? "wallet_credit" : "wallet_deduct"),
       metadata: metadata || {},
     });
 
-    return { message: "Wallet debited", wallet: updated.wallet };
+    return {
+      message: isCredit ? "Wallet credited" : "Wallet debited",
+      wallet: updated.wallet,
+    };
   } catch (err) {
     console.error("❌ deductFromWalletAction error:", err.message);
     return { error: err.message };

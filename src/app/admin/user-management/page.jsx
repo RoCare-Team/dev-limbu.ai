@@ -10,8 +10,6 @@ import {
   Search,
   X,
   Crown,
-  Zap,
-  Shield,
   Mail,
   Phone,
   Calendar,
@@ -20,19 +18,15 @@ import {
   Plus,
   User,
   User2Icon,
-  Image as ImageIcon,
   Eye,
-  ZoomIn,
   Wallet,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
   MessageSquare,
-  AlertTriangle,
   ChevronDown,
   CheckCircle,
   UserCheck,
-  Upload,
   Send,
   Smartphone,
   MessageCircle,
@@ -64,6 +58,19 @@ import AddExpoLeadUserModal from "./components/AddExpoLeadUserModal";
 import WhatsappModal from "./components/WhatsAppTemplateModel";
 import ChatHistoryModal from "./components/ChatHistoryModal";
 import ChatbotSummaryMetrics from "./components/ChatbotSummaryMetrics";
+import WalletUpdateModal from "./components/WalletUpdateModal";
+import RemarksModal from "./components/RemarksModal";
+import AddUserModal from "./components/AddUserModal";
+import BulkDeleteModal from "./components/BulkDeleteModal";
+import DeleteUserModal from "./components/DeleteUserModal";
+import OnboardClientModal from "./components/OnboardClientModal";
+import MeetingModal from "./components/MeetingModal";
+import PlanUpgradeModal from "./components/PlanUpgradeModal";
+import FullViewImageModal from "./components/FullViewImageModal";
+import IssuesModal from "./components/IssuesModal";
+import UserPostsModal from "./components/UserPostsModal";
+import UserTableRow from "./components/UserTableRow";
+import AgentPerformanceDashboard from "./components/AgentPerformanceDashboard";
 
 // import { uploadToS3Action } from "../../../app/actions/uploadS3Actions";
 
@@ -81,6 +88,16 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+
+import {
+  getLimbuBotHistoryUserId,
+  getConversationStageFromHistory,
+  getConversationStageKey,
+  hasGmbConnected,
+  getAvatarColor,
+  getCalculatedDateRange,
+  groupByDate,
+} from "./utils";
 
 const WHATSAPP_STAGE_CONTACTS_URL =
   "https://whatsapp.limbu.ai/api/external/contacts?after=2026-05-07";
@@ -338,121 +355,6 @@ export default function UserManagement() {
     setServiceUser(user);
     setActiveModal("service");
   };
-
-  const getLimbuBotHistoryUserId = (user = {}) => {
-    const explicit =
-      user.chatbotUserId ||
-      user.whatsappUserId ||
-      user.limbuBotUserId ||
-      user.botUserId ||
-      "";
-    if (typeof explicit === "string" && explicit.trim()) {
-      return explicit.trim().startsWith("wa_")
-        ? explicit.trim()
-        : `wa_${explicit.trim().replace(/\D/g, "")}`;
-    }
-
-    let phone = user.phone || user.mobileNumber || "";
-    phone = String(phone).replace(/\D/g, "");
-    if (!phone) return "";
-    if (phone.length === 10) phone = `91${phone}`;
-    return `wa_${phone}`;
-  };
-
-  const getConversationStageFromHistory = (history = [], user = {}) => {
-    const steps = [];
-    const assistantMessages = history.filter(
-      (item) => String(item?.role || "").toLowerCase() === "assistant",
-    );
-    const inboundUserMessageCount = history.filter(
-      (item) =>
-        String(item?.role || "").toLowerCase() === "user" &&
-        String(item?.content || "").trim() !== "",
-    ).length;
-
-    const hasText = (...keywords) =>
-      assistantMessages.some((item) => {
-        const content = String(item?.content || "").toLowerCase();
-        return keywords.some((keyword) =>
-          content.includes(keyword.toLowerCase()),
-        );
-      });
-
-    const hasConnectedStage = hasText(
-      "Congrats! Apka Account connect ho gaya!",
-      "Badhaai ho! Account connect ho gaya!",
-      "Account connect ho gaya",
-    );
-    const downstreamSteps = [];
-
-    if (hasText("Full Health report")) downstreamSteps.push("GMB Health");
-    if (hasText("Magic QR ready hai!")) downstreamSteps.push("Magic QR");
-    if (hasText("Full Report (PDF)")) downstreamSteps.push("GMB Insight");
-    if (hasText("Website URL")) downstreamSteps.push("Build Website");
-
-    if (inboundUserMessageCount >= 2) steps.push("Initial Conversation");
-    if (hasConnectedStage || downstreamSteps.length > 0) {
-      steps.push("GMB Connected");
-    }
-    steps.push(...downstreamSteps);
-
-    // Agar koi activity nahi hai
-    if (steps.length === 0 && history.length === 0) {
-      return { label: "Not started", steps: [] };
-    }
-
-    return {
-      label: steps.join(" ➔ "),
-      steps: steps, // Hum array bhi bhej rahe hain easy checking ke liye
-    };
-  };
-
-  const getConversationStageKey = (user = {}) =>
-    String(user.userId || getLimbuBotHistoryUserId(user) || user._id || "");
-
-  const mapWhatsAppMessagesToHistory = (messages = []) =>
-    (Array.isArray(messages) ? messages : []).map((message) => ({
-      id: message.id,
-      role:
-        String(message.direction || "").toLowerCase() === "inbound"
-          ? "user"
-          : "assistant",
-      type: message.type || "text",
-      content: String(message.content || ""),
-      status: message.status || "",
-      time: message.sent_at || message.created_at || "",
-      created_at: message.created_at || "",
-    }));
-
-  const normalizeWhatsAppPhone = (value) => {
-    let digits = String(value || "").replace(/\D/g, "");
-    if (digits.length === 10) digits = `91${digits}`;
-    return digits;
-  };
-
-  const phoneToLocalMobile = (value) => {
-    const digits = normalizeWhatsAppPhone(value);
-    return digits.startsWith("91") && digits.length >= 12
-      ? digits.slice(2)
-      : digits;
-  };
-
-  const getLatestWhatsAppMessage = (messages = []) =>
-    (Array.isArray(messages) ? [...messages] : []).sort((a, b) =>
-      String(b?.sent_at || b?.created_at || "").localeCompare(
-        String(a?.sent_at || a?.created_at || ""),
-      ),
-    )[0] || null;
-
-  const hasGmbConnected = (user = {}) =>
-    Boolean(
-      user.isBusinessConnected ||
-      user.connectedBusinessEmail ||
-      user.gmbProjectId ||
-      user.selectedBusiness?.name ||
-      (Array.isArray(user.businessListings) &&
-        user.businessListings.length > 0),
-    );
 
   const fetchConversationStagesOnLoad = async () => {
     try {
@@ -1011,33 +913,6 @@ export default function UserManagement() {
     leadStageInactive: 0,
     leadStageOnboard: 0,
   });
-
-  const getCalculatedDateRange = (filter) => {
-    const today = new Date();
-    let start = new Date(today);
-    let end = new Date(today);
-
-    if (filter === "Today") {
-      // start is today
-    } else if (filter === "Last 7 Days") {
-      start.setDate(today.getDate() - 7);
-    } else if (filter === "Last 30 Days") {
-      start.setDate(today.getDate() - 30);
-    } else if (filter === "This Month") {
-      start.setDate(1);
-    } else {
-      return null;
-    }
-
-    const toLocalYMD = (d) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
-
-    return { startDate: toLocalYMD(start), endDate: toLocalYMD(end) };
-  };
 
   useEffect(() => {
     setRole(localStorage.getItem("role"));
@@ -2183,31 +2058,6 @@ export default function UserManagement() {
     }
   };
 
-  const getAvatarColor = (name) => {
-    if (!name) return "bg-gray-100 text-gray-600 border-gray-200";
-    const colors = [
-      "bg-red-50 text-red-700 border-red-200",
-      "bg-orange-50 text-orange-700 border-orange-200",
-      "bg-amber-50 text-amber-700 border-amber-200",
-      "bg-green-50 text-green-700 border-green-200",
-      "bg-emerald-50 text-emerald-700 border-emerald-200",
-      "bg-teal-50 text-teal-700 border-teal-200",
-      "bg-cyan-50 text-cyan-700 border-cyan-200",
-      "bg-blue-50 text-blue-700 border-blue-200",
-      "bg-indigo-50 text-indigo-700 border-indigo-200",
-      "bg-violet-50 text-violet-700 border-violet-200",
-      "bg-purple-50 text-purple-700 border-purple-200",
-      "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
-      "bg-pink-50 text-pink-700 border-pink-200",
-      "bg-rose-50 text-rose-700 border-rose-200",
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
   // ✅ Helper to safely get agent name from populated object or string ID
   const getAgentName = (assignedAgentId) => {
     // console.log("assignedAgentIdassignedAgentId", assignedAgentId);
@@ -3351,21 +3201,6 @@ export default function UserManagement() {
     }
   };
 
-  const groupByDate = (data) => {
-    return data.reduce((acc, item) => {
-      const dateLabel = item.demoBooking?.selectedDate
-        ? `Demo: ${item.demoBooking.selectedDateLabel || item.demoBooking.selectedDate}`
-        : new Date(item.createdAt).toLocaleDateString("en-IN");
-
-      if (!acc[dateLabel]) {
-        acc[dateLabel] = [];
-      }
-
-      acc[dateLabel].push(item);
-      return acc;
-    }, {});
-  };
-
   const groupedUsers = groupByDate(filteredUsers); // 🔥 यही use होगा
   const currentLeadTotal =
     isAgent && followUpFilter !== "all"
@@ -3443,282 +3278,19 @@ export default function UserManagement() {
         <div className="max-w-[98vw] mx-auto">
           {/* ── Agent Performance Dashboard ──────────────────────────────── */}
           {isAgent && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 space-y-3">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <Phone className="text-indigo-600" size={16} />
-                  </div>
-                  <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide">
-                    My Performance
-                  </h3>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {new Date().toLocaleDateString("en-IN", {
-                    weekday: "short",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-
-              {/* ── Row 1: Leads & Calls ── */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {[
-                  {
-                    label: "Today's Leads",
-                    value: agentTodayLeads,
-                    sub: "assigned today",
-                    from: "from-teal-50",
-                    to: "to-cyan-50",
-                    border: "border-teal-100",
-                    text: "text-teal-600",
-                    bold: "text-teal-800",
-                  },
-                  {
-                    label: "Total Leads",
-                    value: stats.total ?? 0,
-                    sub: "all-time assigned",
-                    from: "from-indigo-50",
-                    to: "to-blue-50",
-                    border: "border-indigo-100",
-                    text: "text-indigo-600",
-                    bold: "text-indigo-800",
-                  },
-                  {
-                    label: "Calls Today",
-                    value: callStats?.myCallsToday ?? 0,
-                    sub: "handled today",
-                    from: "from-violet-50",
-                    to: "to-purple-50",
-                    border: "border-violet-100",
-                    text: "text-violet-600",
-                    bold: "text-violet-800",
-                  },
-                  {
-                    label: "Total Calls",
-                    value: callStats?.myCallsTotal ?? 0,
-                    sub: "all-time calls",
-                    from: "from-blue-50",
-                    to: "to-sky-50",
-                    border: "border-blue-100",
-                    text: "text-blue-600",
-                    bold: "text-blue-800",
-                  },
-                ].map(({ label, value, sub, from, to, border, text, bold }) => (
-                  <div
-                    key={label}
-                    className={`bg-gradient-to-br ${from} ${to} rounded-lg p-2 border ${border}`}
-                  >
-                    <p
-                      className={`text-[10px] font-semibold uppercase tracking-wide ${text}`}
-                    >
-                      {label}
-                    </p>
-                    <p className={`text-lg font-bold mt-0.5 ${bold}`}>
-                      {value}
-                    </p>
-                    <p className={`text-[10px] mt-0.5 ${text} opacity-70`}>
-                      {sub}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── Today's demo bookings (from /api/bookDemo) ── */}
-              <div>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                  Today Demo Booked
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleChatbotMetricCardClick({
-                      metricId: "demoBooked",
-                      period: "today",
-                      title: "Today Demo Booked",
-                      cardKey: "demoBooked:today-agent",
-                    })
-                  }
-                  className={`w-full rounded-lg p-3 border-2 text-left transition-all ${
-                    chatbotMetricFilter?.cardKey === "demoBooked:today-agent"
-                      ? "bg-rose-500 text-white border-transparent ring-2 ring-rose-400 shadow-md"
-                      : "bg-rose-50 text-rose-900 border-rose-200 hover:border-rose-300 hover:bg-rose-100"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p
-                        className={`text-[9px] font-bold uppercase tracking-wide ${
-                          chatbotMetricFilter?.cardKey ===
-                          "demoBooked:today-agent"
-                            ? "text-white/80"
-                            : "text-rose-600"
-                        }`}
-                      >
-                        Scheduled for today
-                      </p>
-                      <p className="text-2xl font-black mt-0.5">
-                        {agentTodayDemos.loading ? "…" : agentTodayDemos.count}
-                      </p>
-                      <p
-                        className={`text-[10px] mt-0.5 ${
-                          chatbotMetricFilter?.cardKey ===
-                          "demoBooked:today-agent"
-                            ? "text-white/70"
-                            : "text-rose-500"
-                        }`}
-                      >
-                        {agentTodayDemos.calendarDate
-                          ? `Scheduled ${agentTodayDemos.calendarDate}`
-                          : "Click to view demo leads below"}
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-full px-3 py-1 text-[10px] font-bold ${
-                        chatbotMetricFilter?.cardKey ===
-                        "demoBooked:today-agent"
-                          ? "bg-white/20 text-white"
-                          : "bg-white text-rose-700 border border-rose-200"
-                      }`}
-                    >
-                      Demo tab
-                    </div>
-                  </div>
-                </button>
-              </div>
-
-              {/* ── Row 2: Follow-up quick stats (clickable → filter leads below) ── */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                {[
-                  {
-                    key: "today",
-                    label: "Today",
-                    count: followUpStats.todayFollowUps,
-                    bg: "bg-amber-500",
-                    ring: "ring-amber-400",
-                  },
-                  {
-                    key: "tomorrow",
-                    label: "Tomorrow",
-                    count: followUpStats.tomorrowFollowUps,
-                    bg: "bg-rose-500",
-                    ring: "ring-rose-400",
-                  },
-                  {
-                    key: "next7days",
-                    label: "Next 7 days",
-                    count: followUpStats.next7DaysFollowUps,
-                    bg: "bg-violet-500",
-                    ring: "ring-violet-400",
-                  },
-                  {
-                    key: "thisMonth",
-                    label: "This Month",
-                    count: followUpStats.thisMonthFollowUps,
-                    bg: "bg-emerald-500",
-                    ring: "ring-emerald-400",
-                  },
-                  {
-                    key: "all",
-                    label: "All Time",
-                    count: followUpStats.totalFollowUps,
-                    bg: "bg-gray-600",
-                    ring: "ring-gray-400",
-                  },
-                ].map(({ key, label, count, bg, ring }) => {
-                  const active = followUpFilter === key;
-                  return (
-                    <button
-                      key={key}
-                      onClick={() => setFollowUpFilter(key)}
-                      className={`rounded-lg p-2 border-2 text-left transition-all ${
-                        active
-                          ? `${bg} text-white border-transparent ring-2 ${ring} shadow-md`
-                          : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
-                      }`}
-                    >
-                      <p
-                        className={`text-[9px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
-                      >
-                        Follow-ups
-                      </p>
-                      <p
-                        className={`text-lg font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}
-                      >
-                        {count}
-                      </p>
-                      <p
-                        className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}
-                      >
-                        {label}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Pending follow-ups — same bucket as the table filter */}
-
-              <div>
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">
-                  Stages &amp; temperature
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    {
-                      label: "Active",
-                      v: stageStats["Active"] ?? 0,
-                      cls: "bg-green-50 text-green-800 border-green-200",
-                    },
-                    {
-                      label: "Follow Up",
-                      v: stageStats["Follow Up"] ?? 0,
-                      cls: "bg-amber-50 text-amber-900 border-amber-200",
-                    },
-                    {
-                      label: "Inactive",
-                      v: stageStats["Inactive"] ?? 0,
-                      cls: "bg-gray-50 text-gray-800 border-gray-200",
-                    },
-                    {
-                      label: "Onboard",
-                      v: stageStats["Onboard"] ?? 0,
-                      cls: "bg-blue-50 text-blue-800 border-blue-200",
-                    },
-                    {
-                      label: "Hot",
-                      v: leadStatusStats.Hot ?? 0,
-                      cls: "bg-red-50 text-red-800 border-red-200",
-                    },
-                    {
-                      label: "Warm",
-                      v: leadStatusStats.Warm ?? 0,
-                      cls: "bg-orange-50 text-orange-800 border-orange-200",
-                    },
-                    {
-                      label: "Cold",
-                      v: leadStatusStats.Cold ?? 0,
-                      cls: "bg-sky-50 text-sky-800 border-sky-200",
-                    },
-                  ].map(({ label, v, cls }) => (
-                    <div
-                      key={label}
-                      className={`rounded-md border px-2 py-1 text-center min-w-[3.1rem] ${cls}`}
-                    >
-                      <p className="text-[8px] font-bold uppercase opacity-80 leading-tight">
-                        {label}
-                      </p>
-                      <p className="text-sm font-black leading-tight tabular-nums">
-                        {v}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <AgentPerformanceDashboard
+              agentTodayLeads={agentTodayLeads}
+              stats={stats}
+              callStats={callStats}
+              followUpStats={followUpStats}
+              agentTodayDemos={agentTodayDemos}
+              leadStatusStats={leadStatusStats}
+              followUpFilter={followUpFilter}
+              setFollowUpFilter={setFollowUpFilter}
+              handleChatbotMetricCardClick={handleChatbotMetricCardClick}
+              chatbotMetricFilter={chatbotMetricFilter}
+              stageStats={stageStats}
+            />
           )}
 
           {(role === "superAdmin" ||
@@ -4646,696 +4218,37 @@ export default function UserManagement() {
                                 </td>
                               </tr>
                               {/* 🔥 USERS */}
-                              {users.map((user, rowIndex) => {
-                                const postData = userPostsData[user.userId] || {
-                                  total: 0,
-                                  posted: 0,
-                                  rejected: 0,
-                                };
-
-                                // --- CONVERSATION STEPS LOGIC ---
-                                const stage = getConversationStageDisplay(user);
-                                const botUserId =
-                                  getLimbuBotHistoryUserId(user);
-
-                                // 1. FIXED ROADMAP DEFINITION (Order as per your requirement)
-                                const FIXED_JOURNEY_STEPS = [
-                                  {
-                                    id: "Initial Conversation",
-                                    icon: <MessageCircle size={10} />,
-                                  },
-                                  {
-                                    id: "GMB Connected",
-                                    icon: <CheckCircle size={10} />,
-                                  },
-                                  {
-                                    id: "GMB Health",
-                                    icon: <Activity size={10} />,
-                                  },
-                                  {
-                                    id: "Magic QR",
-                                    icon: <QrCode size={10} />,
-                                  },
-                                  {
-                                    id: "GMB Insight",
-                                    icon: <BarChart3 size={10} />,
-                                  },
-                                  {
-                                    id: "Build Website",
-                                    icon: <Globe2 size={10} />,
-                                  },
-                                ];
-
-                                // 2. PARSE COMPLETED STEPS FROM LABEL
-                                const completedSteps = String(
-                                  stage?.label || "",
-                                )
-                                  .split("➔")
-                                  .map((item) => item.trim())
-                                  .filter(
-                                    (item) =>
-                                      item &&
-                                      item !== "No Activity" &&
-                                      item !== "Not Loaded",
-                                  );
-
-                                const lastCompletedStep =
-                                  completedSteps[completedSteps.length - 1];
-                                const hasAnyProgress =
-                                  completedSteps.length > 0;
-                                // -------------------------------
-
-                                return (
-                                  <Fragment key={user._id || user.userId}>
-                                    {/* 1. FIXED HORIZONTAL STEPS STRIP (Upper Row) */}
-                                    {botUserId && (
-                                      <tr
-                                        className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}
-                                      >
-                                        <td
-                                          colSpan={
-                                            role === "superAdmin" ? 14 : 13
-                                          }
-                                          className="px-6 pt-3 pb-1 border-b-0"
-                                        >
-                                          <div className="flex items-center gap-3">
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                              User Journey:
-                                            </span>
-                                            <div className="flex flex-wrap items-center gap-1.5">
-                                              {FIXED_JOURNEY_STEPS.map(
-                                                (step, index) => {
-                                                  const isDone =
-                                                    completedSteps.includes(
-                                                      step.id,
-                                                    );
-                                                  const isLastActive =
-                                                    step.id ===
-                                                    lastCompletedStep;
-
-                                                  return (
-                                                    <Fragment key={step.id}>
-                                                      <div
-                                                        className={`
-                                                          inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-bold shadow-sm transition-all
-                                                          ${
-                                                            isDone
-                                                              ? "border-emerald-200 bg-emerald-50 text-emerald-700" // GREEN if completed
-                                                              : "border-blue-300 bg-blue-50 text-blue-600 opacity-80" // Blue if pending
-                                                          }
-                                                        `}
-                                                      >
-                                                        {step.icon}
-                                                        <span>{step.id}</span>
-                                                      </div>
-
-                                                      {/* Arrow Logic */}
-                                                      {index !==
-                                                        FIXED_JOURNEY_STEPS.length -
-                                                          1 && (
-                                                        <MoveRight
-                                                          size={10}
-                                                          className={
-                                                            isDone
-                                                              ? "text-emerald-400"
-                                                              : "text-slate-300"
-                                                          }
-                                                        />
-                                                      )}
-                                                    </Fragment>
-                                                  );
-                                                },
-                                              )}
-                                            </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-
-                                    {/* 2. MAIN DATA ROW (Bottom Row) */}
-                                    <tr
-                                      onClick={() => handleViewPosts(user)}
-                                      className={`cursor-pointer ${
-                                        rowIndex % 2 === 0
-                                          ? "bg-white"
-                                          : "bg-slate-50/40"
-                                      } ${botUserId ? "border-t-0" : ""}`}
-                                    >
-                                      {role === "superAdmin" && (
-                                        <td
-                                          className="px-3 py-5 w-14 align-middle"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={bulkWaSelectedUserIds.includes(
-                                              String(user.userId),
-                                            )}
-                                            onChange={() =>
-                                              toggleBulkWaUserId(user.userId)
-                                            }
-                                            className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 cursor-pointer"
-                                          />
-                                        </td>
-                                      )}
-
-                                      {/* DATE / FOLLOW UP */}
-                                      <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                          <Calendar
-                                            size={14}
-                                            className="text-gray-400"
-                                          />
-                                          <div className="text-sm text-gray-700">
-                                            {user.createdAt ? (
-                                              <div className="font-medium">
-                                                {new Date(
-                                                  user.createdAt,
-                                                ).toLocaleDateString("en-US", {
-                                                  month: "short",
-                                                  day: "numeric",
-                                                  year: "numeric",
-                                                })}
-                                              </div>
-                                            ) : (
-                                              <span className="text-gray-400 italic">
-                                                N/A
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-
-                                      {/* USER INFO & STATUS */}
-                                      <td className="px-6 py-5">
-                                        <div className="space-y-1">
-                                          <div className="flex items-center gap-2">
-                                            {user.fullName && (
-                                              <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                <User2Icon
-                                                  size={14}
-                                                  className="text-gray-400"
-                                                />
-                                                {user.fullName}
-                                              </div>
-                                            )}
-                                            {chatbotMetricFilter?.metricId ===
-                                              "demoBooked" &&
-                                              user.demoBooking && (
-                                                <span
-                                                  className="inline-block px-2 py-0.5 text-[10px] font-semibold text-rose-800 bg-rose-100 rounded-full border border-rose-200"
-                                                  title={`Demo: ${user.demoBooking.selectedDateLabel || user.demoBooking.selectedDate} · ${user.demoBooking.seminarTime} · ${user.demoBooking.status}`}
-                                                >
-                                                  Demo{" "}
-                                                  {user.demoBooking.seminarTime}
-                                                </span>
-                                              )}
-                                            {paidUsersStatus[user.userId] && ( // A URL exists for this user
-                                              <>
-                                                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-green-700 bg-green-100 rounded-full border border-green-200">
-                                                  Paid
-                                                </span>
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setFullViewImage(
-                                                      paidUsersStatus[
-                                                        user.userId
-                                                      ],
-                                                    );
-                                                  }}
-                                                  className="p-1 hover:bg-gray-200 rounded-full"
-                                                  title="View Payment Screenshot"
-                                                >
-                                                  <Eye
-                                                    size={14}
-                                                    className="text-gray-500"
-                                                  />
-                                                </button>
-                                              </>
-                                            )}
-                                          </div>
-                                          {chatbotMetricFilter?.metricId ===
-                                            "demoBooked" &&
-                                            user.demoBooking && (
-                                              <div className="text-[10px] text-rose-700 font-medium space-y-0.5">
-                                                <div>
-                                                  Demo Date:{" "}
-                                                  {user.demoBooking
-                                                    .selectedDateLabel ||
-                                                    user.demoBooking
-                                                      .selectedDate ||
-                                                    "—"}{" "}
-                                                  ·{" "}
-                                                  {user.demoBooking.seminarTime}{" "}
-                                                  · {user.demoBooking.status}
-                                                </div>
-                                                <div className="text-indigo-700">
-                                                  Agent:{" "}
-                                                  {getAgentName(
-                                                    user.assignedAgentId,
-                                                  )}
-                                                </div>
-                                              </div>
-                                            )}
-                                          <div
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <select
-                                              value={user.leadStatus || ""}
-                                              onChange={(e) =>
-                                                handleLeadStatusChange(
-                                                  user.userId,
-                                                  e.target.value,
-                                                )
-                                              }
-                                              className={`mt-1 px-2 py-0.5 rounded text-[10px] font-semibold border outline-none cursor-pointer transition-all ${
-                                                user.leadStatus === "Hot"
-                                                  ? "bg-red-50 text-red-700 border-red-200"
-                                                  : user.leadStatus === "Warm"
-                                                    ? "bg-orange-50 text-orange-700 border-orange-200"
-                                                    : user.leadStatus === "Cold"
-                                                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                      : "bg-gray-50 text-gray-600 border-gray-200"
-                                              }`}
-                                            >
-                                              <option value="">Untagged</option>
-                                              <option value="Hot">Hot</option>
-                                              <option value="Warm">Warm</option>
-                                              <option value="Cold">Cold</option>
-                                            </select>
-                                          </div>
-                                          {!user.franchiseId && (
-                                            <div
-                                              onClick={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                            >
-                                              <select
-                                                value={
-                                                  USER_SOURCE_OPTIONS.some(
-                                                    (o) =>
-                                                      o.value ===
-                                                      (user.source || ""),
-                                                  )
-                                                    ? user.source || "signup"
-                                                    : "signup"
-                                                }
-                                                onChange={(e) =>
-                                                  handleUserSourceChange(
-                                                    user.userId,
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                className="mt-1 w-full max-w-[140px] px-2 py-0.5 rounded text-[10px] font-semibold border border-gray-200 bg-white text-gray-700 outline-none"
-                                                title="Lead source (website, chatbot, manual upload, …)"
-                                              >
-                                                {USER_SOURCE_OPTIONS.map(
-                                                  (o) => (
-                                                    <option
-                                                      key={o.value}
-                                                      value={o.value}
-                                                    >
-                                                      {o.label}
-                                                    </option>
-                                                  ),
-                                                )}
-                                              </select>
-                                            </div>
-                                          )}{" "}
-                                          <div className="flex flex-wrap gap-1 mt-1">
-                                            {user.franchiseId ? (
-                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100 rounded-full">
-                                                Franchise: {user.franchiseId}
-                                              </span>
-                                            ) : (
-                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">
-                                                {/* {userAcquisitionLabel(
-                                                  user.source,
-                                                )} */}
-                                                {""}
-                                              </span>
-                                            )}
-
-                                            {user.paidPackage && (
-                                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded-full">
-                                                {user.paidPackage}
-                                              </span>
-                                            )}
-
-                                            {Array.isArray(user.leadTags) &&
-                                              user.leadTags.map((tag) => (
-                                                <span
-                                                  key={`${user.userId || user._id}-${tag}`}
-                                                  className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${leadTagPillClassName(tag)}`}
-                                                >
-                                                  {formatLeadTagLabel(tag)}
-                                                </span>
-                                              ))}
-                                          </div>
-                                        </div>
-                                      </td>
-
-                                      {/* CHAT BUTTON & PROGRESS COUNT */}
-                                      <td className="px-6 py-5">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            fetchChatHistoryForUser(user);
-                                          }}
-                                          disabled={!botUserId}
-                                          className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider transition shadow-sm disabled:opacity-40 ${
-                                            hasAnyProgress
-                                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                                              : "border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                          }`}
-                                        >
-                                          <MessageCircle size={14} />
-                                          <span>Chat</span>
-                                          {hasAnyProgress && (
-                                            <div className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-200 px-1.5 text-[9px] font-bold text-emerald-800">
-                                              {completedSteps.length}
-                                            </div>
-                                          )}
-                                        </button>
-                                      </td>
-
-                                      {/* CONTACT INFO */}
-                                      <td className="px-6 py-5">
-                                        <div className="text-xs space-y-1">
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <Mail size={12} />{" "}
-                                            {user.email || "N/A"}
-                                          </div>
-                                          <div className="flex items-center gap-2 text-gray-600">
-                                            <Phone size={12} />{" "}
-                                            {user.phone ||
-                                              user.mobileNumber ||
-                                              "N/A"}
-                                          </div>
-                                        </div>
-                                      </td>
-
-                                      {/* AGENT ASSIGNMENT */}
-                                      <td
-                                        className="px-6 py-5 whitespace-nowrap"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {role === "superAdmin" ||
-                                        role === "admin" ||
-                                        role === "superfranchiseAdmin" ? (
-                                          <div
-                                            className={`relative inline-flex items-center rounded-full border ${getAvatarColor(
-                                              getAgentName(
-                                                user.assignedAgentId,
-                                              ),
-                                            )}`}
-                                          >
-                                            <select
-                                              className="
-                                              appearance-none bg-transparent 
-                                              px-4 py-1.5 pr-8 
-                                              text-xs font-bold 
-                                              focus:outline-none 
-                                              cursor-pointer
-                                              "
-                                              value={
-                                                // ✅ Handle populated object, string ID, null, and undefined
-                                                user.assignedAgentId?._id ||
-                                                (typeof user.assignedAgentId ===
-                                                  "string" &&
-                                                  user.assignedAgentId) ||
-                                                ""
-                                              }
-                                              onChange={(e) =>
-                                                handleAssignChange(
-                                                  user.userId,
-                                                  e.target.value,
-                                                )
-                                              }
-                                            >
-                                              <option value="">
-                                                -- Unassigned --
-                                              </option>
-
-                                              {agents.map((agent) => (
-                                                <option
-                                                  key={agent._id}
-                                                  value={agent._id}
-                                                >
-                                                  {agent.fullName}
-                                                </option>
-                                              ))}
-                                            </select>
-
-                                            {!user.assignedAgentId && (
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleRoundRobinAssign(
-                                                    user.userId,
-                                                  );
-                                                }}
-                                                className="absolute -right-8 p-1 bg-indigo-100 text-indigo-600 rounded-full hover:bg-indigo-200 transition-colors"
-                                                title="Auto Assign (Round Robin)"
-                                              >
-                                                <RefreshCw size={12} />
-                                              </button>
-                                            )}
-
-                                            <span className="pointer-events-none absolute right-2 flex items-center">
-                                              <ChevronDown className="h-3 w-3" />
-                                            </span>
-                                          </div>
-                                        ) : (
-                                          <span
-                                            className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(
-                                              getAgentName(
-                                                user.assignedAgentId,
-                                              ),
-                                            )}`}
-                                          >
-                                            {getAgentName(user.assignedAgentId)}
-                                          </span>
-                                        )}
-                                      </td>
-
-                                      {/* REMARKS */}
-                                      <td className="px-6 py-4">
-                                        <div
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenRemarksModal(user);
-                                          }}
-                                          className="cursor-pointer"
-                                        >
-                                          <div className="flex items-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 w-fit">
-                                            <MessageSquare
-                                              size={14}
-                                              className="mr-1.5"
-                                            />
-                                            <span className="font-bold text-xs">
-                                              {user.remarksHistory?.length || 0}
-                                            </span>
-                                          </div>
-
-                                          {/* ✅ Last remark date/time */}
-                                          {user.remarksHistory?.length > 0 &&
-                                            (() => {
-                                              const lastRemark =
-                                                user.remarksHistory[
-                                                  user.remarksHistory.length - 1
-                                                ];
-                                              const date = lastRemark?.createdAt
-                                                ? new Date(lastRemark.createdAt)
-                                                : null;
-                                              return date ? (
-                                                <div className="text-[10px] text-blue-400 font-bold mt-1">
-                                                  {date.toLocaleDateString(
-                                                    "en-IN",
-                                                    {
-                                                      day: "numeric",
-                                                      month: "short",
-                                                      year: "2-digit",
-                                                    },
-                                                  )}{" "}
-                                                  {date.toLocaleTimeString(
-                                                    "en-IN",
-                                                    {
-                                                      hour: "2-digit",
-                                                      minute: "2-digit",
-                                                      hour12: true,
-                                                    },
-                                                  )}
-                                                </div>
-                                              ) : null;
-                                            })()}
-
-                                          {user.Remarks && (
-                                            <div className="text-[10px] text-gray-500 truncate max-w-[150px] mt-1 italic">
-                                              {user.Remarks}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </td>
-
-                                      {/* LEAD STAGE */}
-                                      <td className="px-6 py-5">
-                                        <select
-                                          value={user.leadStage || "Active"}
-                                          onChange={(e) =>
-                                            handleLeadStageChange(
-                                              user.userId,
-                                              e.target.value,
-                                            )
-                                          }
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="px-3 py-1.5 rounded-lg text-xs font-medium border bg-white"
-                                        >
-                                          <option value="Active">Active</option>
-                                          <option value="Follow Up">
-                                            Follow Up
-                                          </option>
-                                          <option value="Inactive">
-                                            Inactive
-                                          </option>
-                                          <option value="Onboard">
-                                            Onboard
-                                          </option>
-                                        </select>
-                                      </td>
-
-                                      <td className="px-6 py-4">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleUpgradePlan(user);
-                                          }}
-                                          className="p-1.5 bg-yellow-50 text-yellow-600 rounded-lg hover:bg-yellow-100 transition-all"
-                                          title="Change Plan"
-                                        >
-                                          <Crown size={16} />
-                                        </button>
-                                      </td>
-
-                                      <td className="px-6 py-4">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-
-                                            handleOpenServiceModal(user);
-                                          }}
-                                          className="p-2 hover:bg-gray-100 rounded-lg cursor-pointer"
-                                          title="Add Service "
-                                        >
-                                          🛡️
-                                        </button>
-                                      </td>
-
-                                      {/* WALLET */}
-                                      <td className="px-6 py-5">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenWalletModal(user);
-                                          }}
-                                          className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100"
-                                        >
-                                          <Wallet size={14} />
-                                          <span className="font-bold text-sm">
-                                            {user.wallet || 0}
-                                          </span>
-                                        </button>
-                                      </td>
-
-                                      {/* POSTS DATA */}
-                                      <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2">
-                                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg px-3 py-2 border border-indigo-200">
-                                            <div className="flex items-center gap-3">
-                                              <div className="text-center">
-                                                <p className="text-xs text-gray-600">
-                                                  Total
-                                                </p>
-                                                <p className="text-lg font-bold text-indigo-600">
-                                                  {postData.total}
-                                                </p>
-                                              </div>
-                                              <div className="w-px h-8 bg-gray-300"></div>
-                                              <div className="text-center">
-                                                <p className="text-xs text-green-600">
-                                                  Posted
-                                                </p>
-                                                <p className="text-lg font-bold text-green-600">
-                                                  {postData.posted}
-                                                </p>
-                                              </div>
-                                              <div className="w-px h-8 bg-gray-300"></div>
-                                              <div className="text-center">
-                                                <p className="text-xs text-red-600">
-                                                  Rejected
-                                                </p>
-                                                <p className="text-lg font-bold text-red-600">
-                                                  {postData.rejected}
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </td>
-
-                                      {/* LISTING INFO */}
-                                      <td className="px-6 py-4">
-                                        {user.businessListings?.[0] ? (
-                                          <div className="text-xs font-medium max-w-[150px] truncate">
-                                            {user.businessListings[0].title}
-                                          </div>
-                                        ) : (
-                                          <span className="text-[10px] text-gray-400 italic">
-                                            No Listing
-                                          </span>
-                                        )}
-                                      </td>
-
-                                      {/* ACTIONS */}
-                                      <td className="px-6 py-4">
-                                        <div className="flex items-center gap-1.5">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              AdminPanelButton(user.userId);
-                                            }}
-                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold"
-                                          >
-                                            Login
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleVoiceCall(user.phone);
-                                            }}
-                                            className="p-1.5 bg-blue-50 text-blue-600 rounded-lg"
-                                          >
-                                            <Phone size={14} />
-                                          </button>
-                                          {role === "superAdmin" && (
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setDeleteUserModal(user);
-                                              }}
-                                              className="p-1.5 bg-red-50 text-red-600 rounded-lg"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
-                                          )}
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  </Fragment>
-                                );
-                              })}
+                              {users.map((user, rowIndex) => (
+                                <UserTableRow
+                                  key={user._id || user.userId}
+                                  user={user}
+                                  rowIndex={rowIndex}
+                                  role={role}
+                                  agents={agents}
+                                  userPostsData={userPostsData}
+                                  paidUsersStatus={paidUsersStatus}
+                                  bulkWaSelectedUserIds={bulkWaSelectedUserIds}
+                                  chatbotMetricFilter={chatbotMetricFilter}
+                                  getAgentName={getAgentName}
+                                  getConversationStageDisplay={getConversationStageDisplay}
+                                  AdminPanelButton={AdminPanelButton}
+                                  handleAssignChange={handleAssignChange}
+                                  handleLeadStageChange={handleLeadStageChange}
+                                  handleLeadStatusChange={handleLeadStatusChange}
+                                  handleOpenRemarksModal={handleOpenRemarksModal}
+                                  handleOpenServiceModal={handleOpenServiceModal}
+                                  handleOpenWalletModal={handleOpenWalletModal}
+                                  handleRoundRobinAssign={handleRoundRobinAssign}
+                                  handleUpgradePlan={handleUpgradePlan}
+                                  handleUserSourceChange={handleUserSourceChange}
+                                  handleViewPosts={handleViewPosts}
+                                  handleVoiceCall={handleVoiceCall}
+                                  fetchChatHistoryForUser={fetchChatHistoryForUser}
+                                  toggleBulkWaUserId={toggleBulkWaUserId}
+                                  setDeleteUserModal={setDeleteUserModal}
+                                  setFullViewImage={setFullViewImage}
+                                />
+                              ))}
                             </Fragment>
                           );
                         })}
@@ -5412,432 +4325,40 @@ export default function UserManagement() {
         </div>
 
         {/* Wallet Update Modal */}
-        {walletModalUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl transform transition-all">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
-                    <Wallet className="text-white" size={20} />
-                  </div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Update Wallet
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+        <WalletUpdateModal
+          walletModalUser={walletModalUser}
+          walletUpdate={walletUpdate}
+          setWalletUpdate={setWalletUpdate}
+          setWalletModalUser={setWalletModalUser}
+          updatingWallet={updatingWallet}
+          handleUpdateWallet={handleUpdateWallet}
+        />
 
-              <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-0.5">User</p>
-                <p className="font-semibold text-sm text-gray-800">
-                  {walletModalUser.email}
-                </p>
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <p className="text-xs text-gray-600">Current Balance</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    {walletModalUser.wallet || 0} coins
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Transaction Type
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        walletUpdate.type === "credit"
-                          ? "border-green-500 bg-green-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="credit"
-                        checked={walletUpdate.type === "credit"}
-                        onChange={(e) =>
-                          setWalletUpdate({
-                            ...walletUpdate,
-                            type: e.target.value,
-                          })
-                        }
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <Plus
-                          className={`mx-auto mb-0.5 ${walletUpdate.type === "credit" ? "text-green-600" : "text-gray-400"}`}
-                          size={18}
-                        />
-                        <span
-                          className={`text-sm font-semibold ${walletUpdate.type === "credit" ? "text-green-700" : "text-gray-600"}`}
-                        >
-                          Add
-                        </span>
-                      </div>
-                    </label>
-                    <label
-                      className={`flex items-center justify-center p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                        walletUpdate.type === "debit"
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="type"
-                        value="debit"
-                        checked={walletUpdate.type === "debit"}
-                        onChange={(e) =>
-                          setWalletUpdate({
-                            ...walletUpdate,
-                            type: e.target.value,
-                          })
-                        }
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <X
-                          className={`mx-auto mb-0.5 ${walletUpdate.type === "debit" ? "text-red-600" : "text-gray-400"}`}
-                          size={18}
-                        />
-                        <span
-                          className={`text-sm font-semibold ${walletUpdate.type === "debit" ? "text-red-700" : "text-gray-600"}`}
-                        >
-                          Deduct
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Amount (Coins)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={walletUpdate.amount}
-                    onChange={(e) =>
-                      setWalletUpdate({
-                        ...walletUpdate,
-                        amount: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                    min="0"
-                    step="0.01"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Reason
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., admin add by bonus"
-                    value={walletUpdate.reason}
-                    onChange={(e) =>
-                      setWalletUpdate({
-                        ...walletUpdate,
-                        reason: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none text-sm"
-                  />
-                </div>
-
-                {walletUpdate.amount && (
-                  <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-0.5">
-                      New Balance Preview
-                    </p>
-                    <p className="text-lg font-bold text-indigo-600">
-                      {walletUpdate.type === "credit"
-                        ? (
-                            parseFloat(walletModalUser.wallet || 0) +
-                            parseFloat(walletUpdate.amount || 0)
-                          ).toFixed(2)
-                        : (
-                            parseFloat(walletModalUser.wallet || 0) -
-                            parseFloat(walletUpdate.amount || 0)
-                          ).toFixed(2)}{" "}
-                      coins
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setWalletModalUser(null)}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateWallet}
-                  disabled={updatingWallet}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                >
-                  {updatingWallet ? "Updating..." : "Update Wallet"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {selectedUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-50 p-4 pt-10 overflow-y-auto">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Upgrade Plan
-                </h2>
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-                <p className="text-sm text-gray-600 mb-1">User</p>
-                <p className="font-semibold text-gray-800">
-                  {selectedUser.email}
-                </p>
-              </div>
-
-              {subscriptionPlans && (
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 no-scrollbar">
-                  {subscriptionPlans.billingCycles.map((cycle) => (
-                    <button
-                      key={cycle.cycle}
-                      onClick={() => setSelectedCycle(cycle.cycle)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                        selectedCycle === cycle.cycle
-                          ? "bg-indigo-600 text-white shadow-md"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {cycle.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
-                {(subscriptionPlans
-                  ? subscriptionPlans.billingCycles.find(
-                      (c) => c.cycle === selectedCycle,
-                    )?.plans
-                  : ["Basic Plan", "Professional Plan", "Premium Plan"].map(
-                      (p) => ({
-                        title: p,
-                      }),
-                    )
-                ).map((plan) => {
-                  const planName = plan.title || plan;
-                  return (
-                    <label
-                      key={planName}
-                      className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                        selectedPlan === planName
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 w-full">
-                        <input
-                          type="radio"
-                          name="plan"
-                          value={planName}
-                          checked={selectedPlan === planName}
-                          onChange={(e) => setSelectedPlan(e.target.value)}
-                          className="w-4 h-4 text-indigo-600 shrink-0"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            {planName.includes("Premium") && (
-                              <Crown size={18} className="text-purple-600" />
-                            )}
-                            {planName.includes("Professional") && (
-                              <Zap size={18} className="text-blue-600" />
-                            )}
-                            {planName.includes("Basic") && (
-                              <Shield size={18} className="text-gray-600" />
-                            )}
-                            <span className="font-semibold text-gray-800">
-                              {planName}
-                            </span>
-                          </div>
-
-                          {plan.totalAmount && (
-                            <div className="text-xs text-gray-500 mt-1 ml-7">
-                              ₹{plan.totalAmount} / {plan.duration}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Amount (₹){" "}
-                    <span className="text-gray-400">(for new revenue)</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g., 5000"
-                    value={planAmount}
-                    onChange={(e) => setPlanAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Start Date
-                  </label>
-                  <input
-                    type="date"
-                    value={planStartDate}
-                    onChange={(e) => setPlanStartDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                    Expiry Date
-                  </label>
-                  <input
-                    type="date"
-                    value={planExpiryDate}
-                    readOnly
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 outline-none text-sm cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              {/* Payment Screenshot Upload */}
-              <div className="mb-6">
-                <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                  Payment Screenshot{" "}
-                  <span className="text-gray-400">(if amount entered)</span>
-                </label>
-
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-indigo-500 transition-colors">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setPlanScreenshot(file);
-                      }
-                    }}
-                    className="hidden"
-                    id="plan-screenshot-upload"
-                  />
-
-                  <label
-                    htmlFor="plan-screenshot-upload"
-                    className="flex flex-col items-center cursor-pointer"
-                  >
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-
-                    <span className="text-sm text-gray-600">
-                      {planScreenshot
-                        ? planScreenshot.name
-                        : "Click to upload payment screenshot"}
-                    </span>
-
-                    <span className="text-xs text-gray-400 mt-1">
-                      PNG, JPG up to 10MB
-                    </span>
-                  </label>
-                </div>
-
-                {/* UTR Number Field */}
-                <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    UTR Number
-                  </label>
-
-                  <input
-                    type="text"
-                    value={utrNumber}
-                    onChange={(e) => setUtrNumber(e.target.value)}
-                    placeholder="Enter UTR / Transaction ID"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-
-                {/* Remark Field */}
-                <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Remark
-                  </label>
-
-                  <textarea
-                    value={planRemarks}
-                    onChange={(e) => setplanRemarks(e.target.value)}
-                    placeholder="Enter remark..."
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
-                  />
-                </div>
-
-                {/* GST Number Field */}
-                <div className="mt-4">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    GST Number
-                  </label>
-
-                  <input
-                    type="text"
-                    value={gstNumber}
-                    onChange={(e) => setGstNumber(e.target.value)}
-                    placeholder="Enter GST Number"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setSelectedUser(null)}
-                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={confirmPlanChange}
-                  disabled={updating === selectedUser.userId}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium disabled:opacity-50"
-                >
-                  {updating === selectedUser.userId ? "Updating..." : "Confirm"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Upgrade Plan Modal */}
+        <PlanUpgradeModal
+          selectedUser={selectedUser}
+          setSelectedUser={setSelectedUser}
+          subscriptionPlans={subscriptionPlans}
+          selectedCycle={selectedCycle}
+          setSelectedCycle={setSelectedCycle}
+          selectedPlan={selectedPlan}
+          setSelectedPlan={setSelectedPlan}
+          planAmount={planAmount}
+          setPlanAmount={setPlanAmount}
+          planStartDate={planStartDate}
+          setPlanStartDate={setPlanStartDate}
+          planExpiryDate={planExpiryDate}
+          planScreenshot={planScreenshot}
+          setPlanScreenshot={setPlanScreenshot}
+          utrNumber={utrNumber}
+          setUtrNumber={setUtrNumber}
+          planRemarks={planRemarks}
+          setplanRemarks={setplanRemarks}
+          gstNumber={gstNumber}
+          setGstNumber={setGstNumber}
+          updating={updating}
+          confirmPlanChange={confirmPlanChange}
+        />
 
         <ChatHistoryModal
           open={chatHistoryModal.open}
@@ -5854,1041 +4375,117 @@ export default function UserManagement() {
         />
 
         {/* Remarks Modal */}
-        {remarksModalUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-gray-800">
-                  Remarks History
-                </h2>
-                <button
-                  onClick={() => setRemarksModalUser(null)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition"
-                >
-                  <X size={16} />
-                </button>
-              </div>
+        <RemarksModal
+          remarksModalUser={remarksModalUser}
+          setRemarksModalUser={setRemarksModalUser}
+          remarksInput={remarksInput}
+          setRemarksInput={setRemarksInput}
+          followUpDate={followUpDate}
+          setFollowUpDate={setFollowUpDate}
+          followUpTime={followUpTime}
+          setFollowUpTime={setFollowUpTime}
+          loadingRemarks={loadingRemarks}
+          remarksHistory={remarksHistory}
+          handleAddRemark={handleAddRemark}
+          handleDefaultRemarkClick={handleDefaultRemarkClick}
+          FOLLOW_UP_REMARKS={FOLLOW_UP_REMARKS}
+          defaultRemarks={defaultRemarks}
+        />
 
-              {/* Add Remark Section (Input + Button in one line) */}
-              <div className="flex items-center gap-2 mb-3">
-                <input
-                  type="text"
-                  value={remarksInput}
-                  onChange={(e) => setRemarksInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddRemark()}
-                  className="flex-1 px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="Type a new remark..."
-                />
-                <button
-                  onClick={handleAddRemark}
-                  disabled={!remarksInput.trim()}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm font-medium text-sm whitespace-nowrap"
-                >
-                  Submit
-                </button>
-              </div>
+        {/* Add New User Modal */}
+        <AddUserModal
+          addingUser={addingUser}
+          setAddingUser={setAddingUser}
+          newUser={newUser}
+          setNewUser={setNewUser}
+          handleAddUser={handleAddUser}
+        />
+        {/* User Posts Modal (primary — gated by activeModal === "posts") */}
+        <UserPostsModal
+          open={activeModal === "posts" && !!viewingUserPosts}
+          user={viewingUserPosts || {}}
+          loadingPosts={loadingPosts}
+          userPosts={userPosts}
+          totalCount={userPosts.length}
+          postedCount={
+            userPosts.filter((p) => p.status === "posted").length
+          }
+          rejectedCount={
+            userPosts.filter((p) => p.status === "rejected").length
+          }
+          onCloseX={() => {
+            setViewingUserPosts(null);
+            setActiveModal(null);
+            setUserPosts([]);
+          }}
+          onCloseFooter={() => {
+            setViewingUserPosts(null);
+            setUserPosts([]);
+          }}
+          setFullViewImage={setFullViewImage}
+        />
 
-              {/* Follow-up date picker — shown when remark requires a callback */}
-              {FOLLOW_UP_REMARKS.some((r) => remarksInput.startsWith(r)) && (
-                <div className="mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <Calendar size={13} className="text-amber-600" />
-                    <span className="text-xs font-bold text-amber-700">
-                      Schedule Follow-up
-                    </span>
-                    {followUpDate && (
-                      <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold tabular-nums">
-                        {new Date(
-                          `${followUpDate}T${(followUpTime && /^\d{1,2}:\d{2}$/.test(followUpTime.trim()) ? followUpTime.trim() : "09:00").padStart(5, "0")}:00`,
-                        ).toLocaleString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  {/* Quick date buttons */}
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {[
-                      { label: "Today", days: 0 },
-                      { label: "Tomorrow", days: 1 },
-                      { label: "Next 7 Days", days: 7 },
-                      { label: "This Month", days: null },
-                    ].map(({ label, days }) => {
-                      const getDate = () => {
-                        const d = new Date();
-                        if (days === null) {
-                          // last day of this month
-                          d.setMonth(d.getMonth() + 1, 0);
-                        } else {
-                          d.setDate(d.getDate() + days);
-                        }
-                        return d.toISOString().split("T")[0];
-                      };
-                      const val = getDate();
-                      const isActive = followUpDate === val;
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => setFollowUpDate(isActive ? "" : val)}
-                          className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
-                            isActive
-                              ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                              : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {/* Custom date + time */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      type="date"
-                      value={followUpDate}
-                      min={new Date().toISOString().split("T")[0]}
-                      onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="flex-1 min-w-[8rem] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
-                    />
-                    <input
-                      type="time"
-                      value={followUpTime}
-                      onChange={(e) => setFollowUpTime(e.target.value)}
-                      disabled={!followUpDate}
-                      className="text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white disabled:opacity-40"
-                    />
-                    {followUpDate && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFollowUpDate("");
-                          setFollowUpTime("09:00");
-                        }}
-                        className="text-amber-500 hover:text-red-500 transition-colors"
-                      >
-                        <X size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
+        <FullViewImageModal
+          fullViewImage={fullViewImage}
+          setFullViewImage={setFullViewImage}
+        />
 
-              {/* Default Remarks */}
-              <div className="flex flex-wrap gap-2 mb-3">
-                {defaultRemarks.map((remark, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleDefaultRemarkClick(remark)}
-                    className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-indigo-100 hover:text-indigo-700 transition-colors border border-gray-200"
-                  >
-                    {remark}
-                  </button>
-                ))}
-              </div>
-
-              {/* Remarks List */}
-              <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
-                {loadingRemarks ? (
-                  <div className="text-center py-6 text-gray-500 text-xs">
-                    Loading history...
-                  </div>
-                ) : !remarksHistory || remarksHistory.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-xs flex flex-col items-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                    <MessageSquare size={20} className="mb-1 opacity-20" />
-                    No remarks found
-                  </div>
-                ) : (
-                  remarksHistory
-                    .slice()
-                    .reverse()
-                    .map((r, idx) => {
-                      const isLatest = idx === 0;
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`p-3 rounded-xl border transition-all shadow-sm
-                      ${
-                        isLatest
-                          ? "bg-green-50 border-green-300"
-                          : "bg-white border-gray-200"
-                      }`}
-                        >
-                          {/* Top Row */}
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] font-semibold text-gray-600">
-                              Remark
-                            </span>
-
-                            {isLatest && (
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500 text-white font-bold">
-                                Latest
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Remark Text */}
-                          <p className="text-sm text-gray-800 leading-relaxed">
-                            {r.text}
-                          </p>
-
-                          {r.messageSent && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <CheckCircle
-                                size={12}
-                                className="text-green-500"
-                              />
-                              <span className="text-[10px] text-green-600 font-medium">
-                                Message Sent
-                              </span>
-                            </div>
-                          )}
-
-                          {r.followUpDate && (
-                            <div className="flex items-center gap-1 mt-1 bg-amber-50 rounded-lg px-2 py-0.5 w-fit">
-                              <Calendar size={10} className="text-amber-500" />
-                              <span className="text-[10px] text-amber-700 font-semibold">
-                                Follow-up:{" "}
-                                {new Date(r.followUpDate).toLocaleString(
-                                  "en-IN",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Timestamp */}
-                          <p className="text-[9px] text-gray-400 mt-1 flex items-center justify-end gap-1">
-                            <Calendar size={9} />
-                            {new Date(r.createdAt).toLocaleString([], {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })}
-                          </p>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {addingUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 w-full max-w-md shadow-2xl">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                  Add New User
-                </h2>
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                >
-                  <X size={20} className="text-gray-700 dark:text-gray-300" />
-                </button>
-              </div>
-
-              {/* Form */}
-              <div className="space-y-4 mb-6">
-                {/* Full Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter full name"
-                    value={newUser.fullName}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, fullName: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                        rounded-xl focus:ring-2 focus:ring-indigo-500 
-                        focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="user@example.com"
-                    value={newUser.email}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, email: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                        rounded-xl focus:ring-2 focus:ring-indigo-500 
-                        focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+91 9876543210"
-                    value={newUser.phone}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, phone: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                        rounded-xl focus:ring-2 focus:ring-indigo-500 
-                        focus:border-transparent outline-none"
-                  />
-                </div>
-
-                {/* Plan */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Plan
-                  </label>
-                  <select
-                    value={newUser.plan}
-                    onChange={(e) =>
-                      setNewUser({ ...newUser, plan: e.target.value })
-                    }
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 
-                        bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 
-                        rounded-xl focus:ring-2 focus:ring-indigo-500 
-                        focus:border-transparent outline-none"
-                  >
-                    <option value="Free">Free</option>
-                    <option value="Basic">Basic</option>
-                    <option value="Standard">Standard</option>
-                    <option value="Premium">Premium</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setAddingUser(false)}
-                  className="flex-1 px-6 py-3 bg-gray-100 dark:bg-gray-800 
-                      text-gray-700 dark:text-gray-200 rounded-xl 
-                      hover:bg-gray-200 dark:hover:bg-gray-700 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleAddUser}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 
-                      text-white rounded-xl hover:from-green-700 hover:to-emerald-700 
-                      transition-all font-medium"
-                >
-                  Add User
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {activeModal === "posts" && viewingUserPosts && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    User Posts
-                  </h2>
-                  <p className="text-gray-600 text-sm mt-1">
-                    {viewingUserPosts.email}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setActiveModal(null);
-                    setUserPosts([]);
-                  }}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
-                    <p className="text-2xl font-bold text-indigo-600">
-                      {viewingUserPosts.wallet || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Posts</p>
-                    <p className="text-2xl font-bold text-purple-600">
-                      {loadingPosts ? "..." : userPosts.length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Posted</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {loadingPosts
-                        ? "..."
-                        : userPosts.filter((p) => p.status === "posted").length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {loadingPosts
-                        ? "..."
-                        : userPosts.filter((p) => p.status === "rejected")
-                            .length}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {loadingPosts ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-                  </div>
-                ) : userPosts.length === 0 ? (
-                  <div className="text-center py-12">
-                    <ImageIcon
-                      size={48}
-                      className="mx-auto mb-3 text-gray-300"
-                    />
-                    <p className="text-gray-500 font-medium">No posts yet</p>
-                    <p className="text-gray-400 text-sm">
-                      This user hasn't created any posts
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {userPosts.map((post, index) => (
-                      <div
-                        key={post._id || index}
-                        className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
-                      >
-                        <div className="aspect-square relative">
-                          <img
-                            src={post.aiOutput}
-                            alt={`Post ${index + 1}`}
-                            className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            onError={(e) => {
-                              e.target.src =
-                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
-                            }}
-                          />
-
-                          <div className="absolute top-2 right-2">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                                post.status === "posted"
-                                  ? "bg-green-100 text-green-700 border border-green-300"
-                                  : post.status === "rejected"
-                                    ? "bg-red-100 text-red-700 border border-red-300"
-                                    : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                              }`}
-                            >
-                              <div
-                                className={`w-2 h-2 rounded-full ${
-                                  post.status === "posted"
-                                    ? "bg-green-500"
-                                    : post.status === "rejected"
-                                      ? "bg-red-500"
-                                      : "bg-yellow-500"
-                                }`}
-                              ></div>
-                              {post.status === "posted"
-                                ? "Posted"
-                                : post.status === "rejected"
-                                  ? "Rejected"
-                                  : "Pending"}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => setFullViewImage(post.aiOutput)}
-                            className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            <ZoomIn size={16} className="text-gray-700" />
-                          </button>
-                        </div>
-
-                        <div className="p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium text-gray-500">
-                              Post #{index + 1}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(post.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-
-                          {post.promat && (
-                            <p className="text-sm text-gray-700 line-clamp-2">
-                              <span className="font-bold">Prompt:</span>{" "}
-                              {post.promat}
-                            </p>
-                          )}
-                          {post.status === "rejected" && post.rejectReason && (
-                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                              <p className="text-xs font-semibold text-red-700 mb-1">
-                                Rejection Reason:
-                              </p>
-                              <p className="text-xs text-red-600">
-                                {post.rejectReason}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    setViewingUserPosts(null);
-                    setUserPosts([]);
-                  }}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {fullViewImage && (
-          <div
-            className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-            onClick={() => setFullViewImage(null)}
-          >
-            <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
-              <button
-                onClick={() => setFullViewImage(null)}
-                className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
-              >
-                <X size={24} />
-              </button>
-              <img
-                src={fullViewImage}
-                alt="Full view"
-                className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          </div>
-        )}
-
-        {showIssuesModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">
-                  Reported Issues
-                </h2>
-                <button
-                  onClick={() => setShowIssuesModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                        User
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                        Issue
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {issues.map((issue, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {new Date(issue.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                          <div>{issue.fullName || "Unknown"}</div>
-                          <div className="text-xs text-gray-500">
-                            {issue.mobile}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
-                          {issue.issue}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              issue.status === "resolved"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}
-                          >
-                            {issue.status || "open"}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {issues.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan="5"
-                          className="px-6 py-8 text-center text-gray-500"
-                        >
-                          No issues found
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Reported Issues Modal */}
+        <IssuesModal
+          showIssuesModal={showIssuesModal}
+          setShowIssuesModal={setShowIssuesModal}
+          issues={issues}
+        />
 
         {/* Bulk Delete Confirmation Modal */}
-        {bulkDeleteModalOpen && bulkWaSelectedUserIds.length > 0 && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle className="text-red-600" size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Delete {bulkWaSelectedUserIds.length} lead
-                  {bulkWaSelectedUserIds.length > 1 ? "s" : ""}?
-                </h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  Selected leads will be permanently removed from user
-                  management. This action cannot be undone.
-                </p>
-                <div className="flex gap-3 w-full">
-                  <button
-                    onClick={() => setBulkDeleteModalOpen(false)}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmBulkDeleteUsers}
-                    disabled={isDeleting}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
-                  >
-                    {isDeleting ? "Deleting..." : "Delete All"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <BulkDeleteModal
+          bulkDeleteModalOpen={bulkDeleteModalOpen}
+          bulkWaSelectedUserIds={bulkWaSelectedUserIds}
+          setBulkDeleteModalOpen={setBulkDeleteModalOpen}
+          confirmBulkDeleteUsers={confirmBulkDeleteUsers}
+          isDeleting={isDeleting}
+        />
 
         {/* Delete User Confirmation Modal */}
-        {deleteUserModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl transform transition-all animate-in zoom-in-95">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle className="text-red-600" size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Delete User?
-                </h3>
-                <p className="text-gray-500 text-sm mb-6">
-                  Are you sure you want to delete{" "}
-                  <strong>
-                    {deleteUserModal.fullName || deleteUserModal.email}
-                  </strong>
-                  ? This action cannot be undone.
-                </p>
-                <div className="flex gap-3 w-full">
-                  <button
-                    onClick={() => setDeleteUserModal(null)}
-                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={confirmDeleteUser}
-                    disabled={isDeleting}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium disabled:opacity-70"
-                  >
-                    {isDeleting ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <DeleteUserModal
+          deleteUserModal={deleteUserModal}
+          setDeleteUserModal={setDeleteUserModal}
+          confirmDeleteUser={confirmDeleteUser}
+          isDeleting={isDeleting}
+        />
 
         {/* User Onboard Revenue Details Modal ✅ NEW */}
 
         {/* Onboard Client Modal */}
-        {showOnboardModal && onboardModalUser && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">
-                    Onboard Client
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {onboardModalUser.fullName}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setShowOnboardModal(false);
-                    setOnboardModalUser(null);
-                    setOnboardData({
-                      plan: "",
-                      amount: "",
-                      screenshot: null,
-                      notes: "",
-                    });
-                  }}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Plan <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={onboardData.plan}
-                    onChange={(e) =>
-                      setOnboardData({ ...onboardData, plan: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                  >
-                    <option value="">Select Plan</option>
-                    <option value="Basic Plan">Basic Plan</option>
-                    <option value="Professional Plan">Professional Plan</option>
-                    <option value="Premium Plan">Premium Plan</option>
-                    <option value="Enterprise Plan">Enterprise Plan</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (₹) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="Enter amount"
-                    value={onboardData.amount}
-                    onChange={(e) =>
-                      setOnboardData({ ...onboardData, amount: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Screenshot <span className="text-red-500">*</span>
-                  </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 hover:border-emerald-500 transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          setOnboardData({ ...onboardData, screenshot: file });
-                        }
-                      }}
-                      className="hidden"
-                      id="onboard-screenshot-upload"
-                    />
-                    <label
-                      htmlFor="onboard-screenshot-upload"
-                      className="flex flex-col items-center cursor-pointer"
-                    >
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-sm text-gray-600">
-                        {onboardData.screenshot
-                          ? onboardData.screenshot.name
-                          : "Click to upload screenshot"}
-                      </span>
-                      <span className="text-xs text-gray-400 mt-1">
-                        PNG, JPG up to 10MB
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    placeholder="Add any additional notes..."
-                    value={onboardData.notes}
-                    onChange={(e) =>
-                      setOnboardData({ ...onboardData, notes: e.target.value })
-                    }
-                    rows="3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleOnboardSubmit}
-                  disabled={
-                    uploadingOnboard ||
-                    !onboardData.plan ||
-                    !onboardData.amount ||
-                    !onboardData.screenshot
-                  }
-                  className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {uploadingOnboard ? (
-                    <>
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-5 h-5" />
-                      Onboard Client
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <OnboardClientModal
+          showOnboardModal={showOnboardModal}
+          onboardModalUser={onboardModalUser}
+          setShowOnboardModal={setShowOnboardModal}
+          setOnboardModalUser={setOnboardModalUser}
+          onboardData={onboardData}
+          setOnboardData={setOnboardData}
+          uploadingOnboard={uploadingOnboard}
+          handleOnboardSubmit={handleOnboardSubmit}
+        />
 
         {/* Meeting Schedule Modal */}
-        {showMeetingModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">
-                  Schedule Meeting
-                </h2>
-                <button
-                  onClick={() => setShowMeetingModal(false)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Date & Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={meetingData.date}
-                    onChange={(e) =>
-                      setMeetingData({ ...meetingData, date: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Link
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://zoom.us/..."
-                    value={meetingData.link}
-                    onChange={(e) =>
-                      setMeetingData({ ...meetingData, link: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting ID
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Meeting ID"
-                    value={meetingData.meetingId}
-                    onChange={(e) =>
-                      setMeetingData({
-                        ...meetingData,
-                        meetingId: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Passcode (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123456"
-                    value={meetingData.passcode}
-                    onChange={(e) =>
-                      setMeetingData({
-                        ...meetingData,
-                        passcode: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleMeetingSubmit}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
-                >
-                  Schedule & Send
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <MeetingModal
+          showMeetingModal={showMeetingModal}
+          setShowMeetingModal={setShowMeetingModal}
+          meetingData={meetingData}
+          setMeetingData={setMeetingData}
+          handleMeetingSubmit={handleMeetingSubmit}
+        />
 
         {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}
-        {/* Meeting Schedule Modal */}
-        {showMeetingModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800">
-                  Schedule Meeting
-                </h2>
-                <button
-                  onClick={() => setShowMeetingModal(false)}
-                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Date & Time
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={meetingData.date}
-                    onChange={(e) =>
-                      setMeetingData({ ...meetingData, date: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting Link
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://zoom.us/..."
-                    value={meetingData.link}
-                    onChange={(e) =>
-                      setMeetingData({ ...meetingData, link: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Meeting ID
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Meeting ID"
-                    value={meetingData.meetingId}
-                    onChange={(e) =>
-                      setMeetingData({
-                        ...meetingData,
-                        meetingId: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Passcode (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="123456"
-                    value={meetingData.passcode}
-                    onChange={(e) =>
-                      setMeetingData({
-                        ...meetingData,
-                        passcode: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                  />
-                </div>
-
-                <button
-                  onClick={handleMeetingSubmit}
-                  className="w-full py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-medium"
-                >
-                  Schedule & Send
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Meeting Schedule Modal (NOTE: pre-existing duplicate of the modal above — kept to preserve original behaviour) */}
+        <MeetingModal
+          showMeetingModal={showMeetingModal}
+          setShowMeetingModal={setShowMeetingModal}
+          meetingData={meetingData}
+          setMeetingData={setMeetingData}
+          handleMeetingSubmit={handleMeetingSubmit}
+        />
 
         <FollowUpDueAlertModal
           alert={followUpDueAlert}
@@ -6909,211 +4506,44 @@ export default function UserManagement() {
         )}
       </div>
 
-      {viewingUserPosts && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800">User Posts</h2>
-                <p className="text-gray-600 text-sm mt-1">
-                  {viewingUserPosts.email}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setViewingUserPosts(null);
-                  setUserPosts([]);
-                }}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
+      {/* User Posts Modal (secondary — gated by viewingUserPosts; stats from userPostsData) */}
+      <UserPostsModal
+        open={!!viewingUserPosts}
+        user={viewingUserPosts || {}}
+        loadingPosts={loadingPosts}
+        userPosts={userPosts}
+        totalCount={
+          userPostsData?.[viewingUserPosts?.userId]?.total ||
+          viewingUserPosts?.totalPosts ||
+          viewingUserPosts?.postsCount ||
+          userPosts.length ||
+          0
+        }
+        postedCount={
+          userPostsData?.[viewingUserPosts?.userId]?.posted ||
+          userPosts.filter((p) => p.status === "posted").length ||
+          0
+        }
+        rejectedCount={
+          userPostsData?.[viewingUserPosts?.userId]?.rejected ||
+          userPosts.filter((p) => p.status === "rejected").length ||
+          0
+        }
+        onCloseX={() => {
+          setViewingUserPosts(null);
+          setUserPosts([]);
+        }}
+        onCloseFooter={() => {
+          setViewingUserPosts(null);
+          setUserPosts([]);
+        }}
+        setFullViewImage={setFullViewImage}
+      />
 
-            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 mb-6">
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Wallet Balance</p>
-                  <p className="text-2xl font-bold text-indigo-600">
-                    {viewingUserPosts.wallet || 0}
-                  </p>
-                </div>
-                {/* Total Posts */}
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Posts</p>
-                  <p className="text-2xl font-bold text-purple-600">
-                    {loadingPosts
-                      ? "..."
-                      : userPostsData?.[viewingUserPosts?.userId]?.total ||
-                        viewingUserPosts?.totalPosts ||
-                        viewingUserPosts?.postsCount ||
-                        userPosts.length ||
-                        0}
-                  </p>
-                </div>
-
-                {/* Posted */}
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Posted</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {loadingPosts
-                      ? "..."
-                      : userPostsData?.[viewingUserPosts?.userId]?.posted ||
-                        userPosts.filter((p) => p.status === "posted").length ||
-                        0}
-                  </p>
-                </div>
-                {/* Rejected */}
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Rejected</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {loadingPosts
-                      ? "..."
-                      : userPostsData?.[viewingUserPosts?.userId]?.rejected ||
-                        userPosts.filter((p) => p.status === "rejected")
-                          .length ||
-                        0}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              {loadingPosts ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent"></div>
-                </div>
-              ) : userPosts.length === 0 ? (
-                <div className="text-center py-12">
-                  <ImageIcon size={48} className="mx-auto mb-3 text-gray-300" />
-                  <p className="text-gray-500 font-medium">No posts yet</p>
-                  <p className="text-gray-400 text-sm">
-                    This user hasn't created any posts
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userPosts.map((post, index) => (
-                    <div
-                      key={post._id || index}
-                      className="relative group bg-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all"
-                    >
-                      <div className="aspect-square relative">
-                        <img
-                          src={post.aiOutput}
-                          alt={`Post ${index + 1}`}
-                          className="w-full h-full object-cover cursor-pointer"
-                          onClick={() => setFullViewImage(post.aiOutput)}
-                          onError={(e) => {
-                            e.target.src =
-                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='16' text-anchor='middle' dy='.3em' fill='%239ca3af'%3ENo Image%3C/text%3E%3C/svg%3E";
-                          }}
-                        />
-
-                        <div className="absolute top-2 right-2">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold ${
-                              post.status === "posted"
-                                ? "bg-green-100 text-green-700 border border-green-300"
-                                : post.status === "rejected"
-                                  ? "bg-red-100 text-red-700 border border-red-300"
-                                  : "bg-yellow-100 text-yellow-700 border border-yellow-300"
-                            }`}
-                          >
-                            <div
-                              className={`w-2 h-2 rounded-full ${
-                                post.status === "posted"
-                                  ? "bg-green-500"
-                                  : post.status === "rejected"
-                                    ? "bg-red-500"
-                                    : "bg-yellow-500"
-                              }`}
-                            ></div>
-                            {post.status === "posted"
-                              ? "Posted"
-                              : post.status === "rejected"
-                                ? "Rejected"
-                                : "Pending"}
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => setFullViewImage(post.aiOutput)}
-                          className="absolute top-2 left-2 p-2 bg-white/90 hover:bg-white rounded-full transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <ZoomIn size={16} className="text-gray-700" />
-                        </button>
-                      </div>
-
-                      <div className="p-4 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-gray-500">
-                            Post #{index + 1}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {new Date(post.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-
-                        {post.promat && (
-                          <p className="text-sm text-gray-700 line-clamp-2">
-                            <span className="font-bold">Prompt:</span>{" "}
-                            {post.promat}
-                          </p>
-                        )}
-                        {post.status === "rejected" && post.rejectReason && (
-                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-xs font-semibold text-red-700 mb-1">
-                              Rejection Reason:
-                            </p>
-                            <p className="text-xs text-red-600">
-                              {post.rejectReason}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setViewingUserPosts(null);
-                  setUserPosts([]);
-                }}
-                className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all font-medium"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {fullViewImage && (
-        <div
-          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-          onClick={() => setFullViewImage(null)}
-        >
-          <div className="relative max-w-7xl max-h-[95vh] w-full h-full flex items-center justify-center">
-            <button
-              onClick={() => setFullViewImage(null)}
-              className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-sm z-10"
-            >
-              <X size={24} />
-            </button>
-            <img
-              src={fullViewImage}
-              alt="Full view"
-              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-        </div>
-      )}
+      <FullViewImageModal
+        fullViewImage={fullViewImage}
+        setFullViewImage={setFullViewImage}
+      />
 
       <AddExpoLeadUserModal
         open={showAddExpoLeadModal}

@@ -1360,13 +1360,13 @@ const PostCard = React.memo(
 
                   {/* TITLE */}
                   <h3 className="text-2xl font-extrabold text-[#EAB308] mb-2 animate-fadeUp">
-                    Video Ready 🎉
+                    Video Ready 
                   </h3>
 
                   {/* SUBTEXT */}
                   <p className="text-sm text-slate-600 mb-6 animate-fadeUp delay-100">
                     Aapki video successfully generate ho gayi hai. Ab aap ise
-                    post ya download kar sakte ho 🚀
+                    post ya download kar sakte ho 
                   </p>
 
                   {/* DONE BUTTON */}
@@ -1422,28 +1422,28 @@ const PostCard = React.memo(
                 {`
 
           @keyframes tickDraw {
-  0% {
-    stroke-dasharray: 0 50;
-  }
-  100% {
-    stroke-dasharray: 50 0;
-  }
-}
+          0% {
+            stroke-dasharray: 0 50;
+          }
+          100% {
+            stroke-dasharray: 50 0;
+          }
+        }
 
-.tick-path {
-  stroke-dasharray: 50;
-  stroke-dashoffset: 50;
-  animation: tickDraw 0.6s ease forwards;
-}
+        .tick-path {
+          stroke-dasharray: 50;
+          stroke-dashoffset: 50;
+          animation: tickDraw 0.6s ease forwards;
+        }
 
-.animate-tick {
-  animation: popIn 0.3s ease;
-}
+        .animate-tick {
+          animation: popIn 0.3s ease;
+        }
 
-@keyframes popIn {
-  0% { transform: scale(0.5); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
+        @keyframes popIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
+        }
 
         @keyframes slide {
           0% { transform: translateX(-100%); }

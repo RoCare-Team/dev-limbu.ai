@@ -1454,11 +1454,11 @@ export default function PostManagementPage() {
         });
 
        const deductOk =
-  walletRes?.message === "Wallet updated" ||
-  walletRes?.message === "Wallet debited" ||
-  walletRes?.success === true ||
-  walletRes?.status === "success" ||
-  walletRes?.ok === true;
+        walletRes?.message === "Wallet updated" ||
+        walletRes?.message === "Wallet debited" ||
+        walletRes?.success === true ||
+        walletRes?.status === "success" ||
+        walletRes?.ok === true;
 
         if (!deductOk) {
           throw new Error(

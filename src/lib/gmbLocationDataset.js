@@ -133,6 +133,25 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
             .filter(Boolean)
             .join(', ')
         : '';
+  // Structured services (title + description). Prefer a pre-flattened list, else
+  // derive from raw GMB serviceItems (free-form label carries the description).
+  const serviceItemsList = Array.isArray(loc.serviceItemsList)
+    ? loc.serviceItemsList
+        .map((s) => ({
+          title: String(s?.title || s?.displayName || '').trim(),
+          description: String(s?.description || '').trim(),
+        }))
+        .filter((s) => s.title)
+    : Array.isArray(loc.serviceItems)
+      ? loc.serviceItems
+          .map((it) => {
+            const label = it?.freeFormServiceItem?.label;
+            const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+            const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
+            return title ? { title, description } : null;
+          })
+          .filter(Boolean)
+      : [];
   const hoursSummaryText = formatRegularHoursSummary(loc.regularHours?.periods);
   const storeCode = loc.storeCode || '';
   const languageCode = loc.languageCode || '';
@@ -197,6 +216,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
     }),
     serviceAreaPlaces,
     services,
+    serviceItemsList,
     regularHours,
     specialHours,
   };

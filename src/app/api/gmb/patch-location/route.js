@@ -16,8 +16,10 @@ import {
   buildServiceAreaPatchBody,
   buildRegularHoursPatchBody,
   buildServiceItemsPatchBody,
+  buildAttributesPatchBody,
   parseServiceAreaFromText,
 } from '@/lib/gmbLocationApiActions';
+import { listCategoryAttributes } from '@/lib/gmbCategoryAttributes';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,12 +175,13 @@ async function fetchPrimaryCategoryGcid(accessToken, locationId) {
   return nm.replace(/^categories\//, ''); // e.g. "gcid:water_purification_company"
 }
 
-async function patchWhatsappAttribute(accessToken, locationId, uri) {
+// Generic attributes PATCH — one call for all attributes, using a combined
+// attributeMask. Used for category-driven attributes AND WhatsApp (which is just a
+// URL-type attribute). Gating against the category's available list happens before
+// this is called, so Google never sees an unsupported attribute.
+async function patchAttributes(accessToken, locationId, attributeMask, body) {
   const url = new URL(`${GMB_BASE}/locations/${encodeURIComponent(locationId)}/attributes`);
-  url.searchParams.set('attributeMask', 'attributes/url_whatsapp');
-  const body = {
-    attributes: [{ name: 'attributes/url_whatsapp', uriValues: [{ uri }] }],
-  };
+  url.searchParams.set('attributeMask', attributeMask);
   return fetchWithRetry(url.toString(), {
     method: 'PATCH',
     headers: {
@@ -241,6 +244,17 @@ export async function POST(request) {
     // Services go to Google as serviceItems (free-form). Tagline has no Google field at all,
     // so it is not handled here. Phone is intentionally not updated from here.
     const services = typeof body.services === 'string' ? body.services.trim() : '';
+    // Structured services: [{ title, description }] — each becomes a free-form
+    // serviceItem with a label description. Preferred over the legacy `services` string.
+    const serviceItemsIn = Array.isArray(body.serviceItems)
+      ? body.serviceItems
+          .map((s) =>
+            s && typeof s === 'object'
+              ? { title: String(s.title || s.displayName || '').trim(), description: String(s.description || '').trim() }
+              : { title: String(s || '').trim(), description: '' }
+          )
+          .filter((s) => s.title)
+      : null;
     const websiteUri = normalizeWebsiteUri(body.websiteUri);
     let whatsappUri =
       typeof body.whatsappUri === 'string' && body.whatsappUri.trim()
@@ -263,6 +277,18 @@ export async function POST(request) {
             longitude: Number(body.latlng.longitude),
           }
         : null;
+    // Category-driven attributes: [{ name, valueType, values }]. Gated against the
+    // location category's available attribute list before any PATCH.
+    const attributesIn = Array.isArray(body.attributes)
+      ? body.attributes
+          .map((a) => ({
+            name: String(a?.name || '').trim(),
+            valueType: String(a?.valueType || '').toUpperCase(),
+            values: a?.values,
+          }))
+          .filter((a) => a.name && a.valueType)
+      : [];
+
     const title = typeof body.title === 'string' ? body.title.trim() : '';
     const storefrontAddress =
       body.storefrontAddress && typeof body.storefrontAddress === 'object' ? body.storefrontAddress : null;
@@ -282,13 +308,15 @@ export async function POST(request) {
     const hasAny =
       description ||
       services ||
+      (serviceItemsIn && serviceItemsIn.length > 0) ||
       websiteUri ||
       whatsappUri ||
       Boolean(serviceAreaBody) ||
       (latlng && Number.isFinite(latlng.latitude) && Number.isFinite(latlng.longitude)) ||
       title ||
       storefrontAddress ||
-      Boolean(hasRegularHoursPayload);
+      Boolean(hasRegularHoursPayload) ||
+      attributesIn.length > 0;
 
     if (!hasAny) {
       return NextResponse.json(
@@ -373,13 +401,61 @@ export async function POST(request) {
       results.push({ field: 'regularHours', ...r });
     }
 
-    if (whatsappUri) {
-      const r = await patchWhatsappAttribute(accessToken, locationId, whatsappUri);
-      results.push({ field: 'attributes/url_whatsapp', ...r });
+    // ── Attributes (category-driven + WhatsApp) ──────────────────────────────
+    // WhatsApp is just a URL-type attribute, so route it through the same gated
+    // generic path. Anything the category doesn't support is SKIPPED (not sent),
+    // which fixes the old blanket url_whatsapp "invalid argument" failure.
+    const attrItems = [...attributesIn];
+    if (whatsappUri && !attrItems.some((a) => a.name === 'attributes/url_whatsapp')) {
+      attrItems.push({ name: 'attributes/url_whatsapp', valueType: 'URL', values: whatsappUri });
     }
 
-    // Services -> Google serviceItems (free-form), referencing the location's primary category.
-    if (services) {
+    if (attrItems.length) {
+      let available = new Set();
+      let optionsByName = {};
+      try {
+        const cat = await listCategoryAttributes(accessToken, locationId);
+        for (const m of cat.metadata || []) {
+          if (!m?.parent) continue;
+          available.add(m.parent);
+          if (Array.isArray(m.valueMetadata)) {
+            optionsByName[m.parent] = m.valueMetadata.map((v) => v.value).filter((v) => v != null);
+          }
+        }
+      } catch (e) {
+        console.warn('[patch-location] Could not load category attributes for gating:', e.message);
+      }
+
+      const supported = [];
+      for (const it of attrItems) {
+        // If we couldn't load the available list, fail open rather than block all edits.
+        if (available.size && !available.has(it.name)) {
+          results.push({
+            field: it.name,
+            ok: false,
+            skipped: true,
+            status: 200,
+            reason: 'not available for this location category',
+          });
+        } else {
+          supported.push(it);
+        }
+      }
+
+      if (supported.length) {
+        const built = buildAttributesPatchBody(supported, optionsByName);
+        if (built) {
+          const r = await patchAttributes(accessToken, locationId, built.attributeMask, built.body);
+          results.push({ field: 'attributes', names: built.attributeMask, ...r });
+        }
+      }
+    }
+
+    // Services -> Google serviceItems (free-form, title + optional description),
+    // referencing the location's primary category. Structured serviceItems[] wins
+    // over the legacy comma-separated services string when both are sent.
+    const servicesPayload = serviceItemsIn && serviceItemsIn.length ? serviceItemsIn : services;
+    if (servicesPayload && (Array.isArray(servicesPayload) ? servicesPayload.length : true)) {
       const gcid = await fetchPrimaryCategoryGcid(accessToken, locationId);
       if (!gcid) {
         results.push({
@@ -393,13 +469,17 @@ export async function POST(request) {
           accessToken,
           locationId,
           LOCATION_UPDATE_MASKS.serviceItems,
-          buildServiceItemsPatchBody(services, gcid)
+          buildServiceItemsPatchBody(servicesPayload, gcid)
         );
         results.push({ field: 'serviceItems', ...r });
       }
     }
 
-    const failed = results.filter((x) => !x.ok);
+    // Skipped attributes (not supported by the category) are informational — they
+    // must NOT count as failures, otherwise an unsupported url_whatsapp would fail
+    // the whole save (the exact bug this change fixes).
+    const skipped = results.filter((x) => x.skipped);
+    const failed = results.filter((x) => !x.ok && !x.skipped);
     const succeeded = results.filter((x) => x.ok);
 
     if (failed.length) {
@@ -434,6 +514,7 @@ export async function POST(request) {
       success: true,
       locationId,
       results,
+      skipped: skipped.map((s) => ({ field: s.field, reason: s.reason })),
       descriptionMaxLength: maxDesc,
     });
   } catch (e) {

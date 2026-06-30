@@ -45,12 +45,22 @@ const TabIconClock = () => (
 const TabIconMore = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
 );
+const TabIconCategory = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+);
+const TabIconMenu = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 11h18M3 7h18M3 15h12M3 19h8"/></svg>
+);
 
+// `cap` = the location-metadata capability that must be true for the tab to appear
+// (drives the profile-aware editor: e.g. Menu only for food-eligible locations).
 const TABS = [
   { id: "about", label: "About", Icon: TabIconBuilding },
   { id: "contact", label: "Contact", Icon: TabIconPhone },
   { id: "location", label: "Location", Icon: TabIconPin },
   { id: "hours", label: "Hours", Icon: TabIconClock },
+  { id: "category", label: "Category", Icon: TabIconCategory },
+  { id: "menu", label: "Menu", Icon: TabIconMenu, cap: "canHaveFoodMenus" },
   { id: "more", label: "More", Icon: TabIconMore },
 ];
 
@@ -875,6 +885,537 @@ function hasEnoughAddressForGeocode(payload) {
   return false;
 }
 
+// ─── Category attribute helpers ───────────────────────────────────────────────
+function attrValuesEqual(a, b) {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    const aa = Array.isArray(a) ? a : [];
+    const bb = Array.isArray(b) ? b : [];
+    if (aa.length !== bb.length) return false;
+    const sa = [...aa].map(String).sort();
+    const sb = [...bb].map(String).sort();
+    return sa.every((v, i) => v === sb[i]);
+  }
+  if (typeof a === "boolean" || typeof b === "boolean") return !!a === !!b;
+  return String(a ?? "") === String(b ?? "");
+}
+
+function attrIsSet(value, valueType) {
+  if (valueType === "BOOL") return value === true;
+  if (valueType === "REPEATED_ENUM") return Array.isArray(value) && value.length > 0;
+  return value != null && String(value).trim() !== "";
+}
+
+const ATTR_TYPE_ICON = {
+  URL: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+  ),
+  BOOL: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="6" width="22" height="12" rx="6"/><circle cx="16" cy="12" r="3"/></svg>
+  ),
+  ENUM: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+  ),
+  REPEATED_ENUM: (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+  ),
+};
+
+// ─── Category Attribute Row (BOOL / ENUM / REPEATED_ENUM / URL) ────────────────
+// Renders one Google category attribute by its valueType, with an AI-suggest button
+// that proposes a value the user reviews (ConfirmModal) before it is applied. The
+// list of attributes is category-driven (from /api/gmb/category-fields). The per-row
+// Save button only appears once the value differs from what is live on Google.
+function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
+  const { displayName, valueType, options = [] } = attr;
+  const dirty = !attrValuesEqual(value, original);
+  const isSet = attrIsSet(value, valueType);
+
+  const toggleRepeated = (optVal) => {
+    const cur = Array.isArray(value) ? value : [];
+    onChange(cur.includes(optVal) ? cur.filter((v) => v !== optVal) : [...cur, optVal]);
+  };
+
+  const chipBtn = (active) => ({
+    padding: "7px 13px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit",
+    fontSize: 12.5, fontWeight: 700, transition: "all .15s",
+    border: active ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0",
+    background: active ? "rgba(99,102,241,.08)" : "#fff",
+    color: active ? "#4338ca" : "#64748b",
+  });
+
+  return (
+    <div
+      style={{
+        marginBottom: 10,
+        padding: "13px 15px",
+        borderRadius: 13,
+        border: `1.5px solid ${dirty ? "#c7d2fe" : "#eef2f6"}`,
+        background: dirty ? "linear-gradient(135deg,#fafbff,#f5f3ff)" : "#fff",
+        boxShadow: dirty ? "0 4px 14px rgba(99,102,241,.10)" : "0 1px 2px rgba(15,23,42,.03)",
+        transition: "all .18s",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
+          <span style={{
+            width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: isSet ? "linear-gradient(135deg,#eef2ff,#ede9fe)" : "#f1f5f9",
+            color: isSet ? "#6366f1" : "#94a3b8",
+          }}>
+            {ATTR_TYPE_ICON[valueType] || ATTR_TYPE_ICON.BOOL}
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {displayName}
+          </span>
+          {dirty && (
+            <span style={{
+              fontSize: 9.5, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase",
+              color: "#6366f1", background: "#eef2ff", border: "1px solid #c7d2fe",
+              padding: "2px 7px", borderRadius: 20, flexShrink: 0,
+            }}>
+              Unsaved
+            </span>
+          )}
+        </div>
+        <span style={{
+          fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 20, flexShrink: 0,
+          color: isSet ? "#166534" : "#94a3b8",
+          background: isSet ? "#f0fdf4" : "#f8fafc",
+          border: `1px solid ${isSet ? "#bbf7d0" : "#e2e8f0"}`,
+        }}>
+          {isSet ? "✓ Set" : "Not set"}
+        </span>
+      </div>
+
+      {valueType === "BOOL" && (
+        <div style={{ display: "inline-flex", gap: 6, background: "#f1f5f9", padding: 3, borderRadius: 11 }}>
+          {[{ v: false, l: "No" }, { v: true, l: "Yes" }].map((o) => {
+            const active = !!value === o.v;
+            return (
+              <button
+                key={o.l}
+                type="button"
+                onClick={() => onChange(o.v)}
+                style={{
+                  padding: "6px 20px", borderRadius: 9, border: "none", cursor: "pointer",
+                  fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, transition: "all .15s",
+                  background: active ? (o.v ? "linear-gradient(135deg,#6366f1,#818cf8)" : "#fff") : "transparent",
+                  color: active ? (o.v ? "#fff" : "#0f172a") : "#94a3b8",
+                  boxShadow: active ? "0 2px 6px rgba(15,23,42,.10)" : "none",
+                }}
+              >
+                {o.l}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {valueType === "ENUM" && (
+        <select
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          style={{
+            width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+            fontSize: 13, fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer",
+          }}
+        >
+          <option value="">— Select —</option>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      )}
+
+      {valueType === "REPEATED_ENUM" && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+          {options.map((o) => {
+            const on = Array.isArray(value) && value.includes(o.value);
+            return (
+              <button key={o.value} type="button" onClick={() => toggleRepeated(o.value)} style={{ ...chipBtn(on), borderRadius: 20 }}>
+                {on ? "✓ " : ""}{o.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {valueType === "URL" && (
+        <div style={{ position: "relative" }}>
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8", display: "flex" }}>
+            {ATTR_TYPE_ICON.URL}
+          </span>
+          <input
+            type="url"
+            value={value ?? ""}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="https://…"
+            style={{
+              width: "100%", padding: "10px 12px 10px 32px", borderRadius: 10, border: "1.5px solid #e2e8f0",
+              fontSize: 13, fontFamily: "inherit", color: "#0f172a",
+            }}
+          />
+        </div>
+      )}
+
+      {dirty && typeof onSave === "function" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 11, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            disabled={saving}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 9,
+              border: "none", cursor: saving ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "#fff",
+              fontSize: 12, fontWeight: 800, fontFamily: "inherit",
+              boxShadow: "0 3px 10px rgba(99,102,241,.3)",
+            }}
+          >
+            {saving ? "Saving…" : "Save to Google"}
+          </button>
+          <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
+            or use <strong style={{ color: "#6366f1" }}>Save changes</strong> below
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Services editor (title + description per service) ────────────────────────
+// Each service is { title, description }. AI generates both; user reviews in the
+// ConfirmModal before they replace the list. Saved as Google free-form serviceItems.
+function ServiceItemsEditor({ items, onChange, aiContext, businessName, categoryHint, onSave, savePending }) {
+  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(null); // [{ title, description }]
+  const [err, setErr] = useState("");
+  const list = Array.isArray(items) ? items : [];
+
+  const update = (i, key, val) => onChange(list.map((it, idx) => (idx === i ? { ...it, [key]: val } : it)));
+  const add = () => onChange([...list, { title: "", description: "" }]);
+  const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+
+  const generate = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const ctx = { ...(aiContext || {}), businessNameHint: businessName, categoryHints: categoryHint };
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "serviceItems", context: ctx }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(data.error || "AI generation failed. Check OPENAI_API_KEY.");
+        return;
+      }
+      const gen = Array.isArray(data.items) ? data.items : [];
+      if (!gen.length) {
+        setErr("AI returned no services. Try again.");
+        return;
+      }
+      setPending(gen.map((p) => ({ title: String(p.title || "").trim(), description: String(p.description || "").trim() })));
+    } catch {
+      setErr("AI generation failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyPending = () => {
+    if (pending) onChange(pending);
+    setPending(null);
+  };
+
+  return (
+    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Services</div>
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+            Each service has a title and an optional description (e.g. “RO Water Purifier Installation”).
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={loading}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
+              borderRadius: 9, border: "1.5px solid #e0e7ff", cursor: loading ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #fafbff, #eef2ff)", color: "#4338ca",
+              fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+            }}
+          >
+            <SparkIcon /> {loading ? "Generating…" : "AI generate"}
+          </button>
+          <button
+            type="button"
+            onClick={add}
+            style={{
+              padding: "7px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", cursor: "pointer",
+              background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+            }}
+          >
+            + Add service
+          </button>
+        </div>
+      </div>
+
+      {list.length === 0 ? (
+        <div style={{ padding: "16px 14px", borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#94a3b8", fontSize: 12.5, textAlign: "center" }}>
+          No services yet. Use <strong style={{ color: "#6366f1" }}>AI generate</strong> or <strong>+ Add service</strong>.
+        </div>
+      ) : (
+        list.map((it, i) => (
+          <div key={i} style={{ marginBottom: 10, padding: "12px 13px", borderRadius: 12, border: "1.5px solid #eef2f6", background: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <input
+                value={it.title || ""}
+                onChange={(e) => update(i, "title", e.target.value)}
+                placeholder="Service title (e.g. RO Water Purifier Installation)"
+                maxLength={140}
+                style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit", color: "#0f172a" }}
+              />
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                aria-label="Remove service"
+                style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+            <textarea
+              value={it.description || ""}
+              onChange={(e) => update(i, "description", e.target.value)}
+              placeholder="Short description (optional, max 300 chars)"
+              maxLength={300}
+              rows={2}
+              style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
+            />
+          </div>
+        ))
+      )}
+
+      {err ? <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{err}</div> : null}
+
+      {typeof onSave === "function" && list.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            disabled={savePending}
+            style={{
+              padding: "7px 16px", borderRadius: 9, border: "none", cursor: savePending ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "#fff",
+              fontSize: 12, fontWeight: 800, fontFamily: "inherit", boxShadow: "0 3px 10px rgba(99,102,241,.3)",
+            }}
+          >
+            {savePending ? "Saving…" : "Save services to Google"}
+          </button>
+        </div>
+      )}
+
+      {pending && (
+        <ConfirmModal
+          field="Services"
+          aiContent={pending.map((p) => (p.description ? `${p.title} — ${p.description}` : p.title))}
+          onConfirm={applyPending}
+          onCancel={() => setPending(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Food Menu editor (sections -> items with name / description / price) ──────
+// Shown only for food-eligible locations (metadata.canHaveFoodMenus). Saved via the
+// v4 Food Menu API. AI can generate the whole menu; the user reviews before saving.
+function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint, onSave, savePending }) {
+  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(null); // { currency, sections }
+  const [err, setErr] = useState("");
+  const currency = menu?.currency || "INR";
+  const sections = Array.isArray(menu?.sections) ? menu.sections : [];
+
+  const setSections = (next) => onChange({ currency, sections: next });
+  const addSection = () => setSections([...sections, { name: "", items: [] }]);
+  const removeSection = (si) => setSections(sections.filter((_, i) => i !== si));
+  const renameSection = (si, name) => setSections(sections.map((s, i) => (i === si ? { ...s, name } : s)));
+  const addItem = (si) =>
+    setSections(sections.map((s, i) => (i === si ? { ...s, items: [...(s.items || []), { name: "", description: "", price: "" }] } : s)));
+  const removeItem = (si, ii) =>
+    setSections(sections.map((s, i) => (i === si ? { ...s, items: s.items.filter((_, j) => j !== ii) } : s)));
+  const updateItem = (si, ii, key, val) =>
+    setSections(sections.map((s, i) => (i === si ? { ...s, items: s.items.map((it, j) => (j === ii ? { ...it, [key]: val } : it)) } : s)));
+
+  const generate = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const ctx = { ...(aiContext || {}), businessNameHint: businessName, categoryHints: categoryHint };
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "foodMenu", context: ctx, currency }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(data.error || "AI generation failed. Check OPENAI_API_KEY.");
+        return;
+      }
+      const secs = Array.isArray(data.sections) ? data.sections : [];
+      if (!secs.length) {
+        setErr("AI returned no menu. Try again.");
+        return;
+      }
+      setPending({ currency: data.currency || currency, sections: secs });
+    } catch {
+      setErr("AI generation failed. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyPending = () => {
+    if (pending) onChange(pending);
+    setPending(null);
+  };
+
+  const itemCount = sections.reduce((n, s) => n + (Array.isArray(s.items) ? s.items.length : 0), 0);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#475569", background: "#f1f5f9", padding: "4px 11px", borderRadius: 20 }}>
+            {sections.length} section{sections.length === 1 ? "" : "s"}
+          </span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#475569", background: "#f1f5f9", padding: "4px 11px", borderRadius: 20 }}>
+            {itemCount} item{itemCount === 1 ? "" : "s"}
+          </span>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#94a3b8" }}>Prices in {currency}</span>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={loading}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 9,
+              border: "1.5px solid #e0e7ff", cursor: loading ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #fafbff, #eef2ff)", color: "#4338ca",
+              fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+            }}
+          >
+            <SparkIcon /> {loading ? "Generating…" : "AI generate menu"}
+          </button>
+          <button
+            type="button"
+            onClick={addSection}
+            style={{ padding: "7px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", cursor: "pointer", background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}
+          >
+            + Section
+          </button>
+        </div>
+      </div>
+
+      {sections.length === 0 ? (
+        <div style={{ padding: "20px 14px", borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#94a3b8", fontSize: 12.5, textAlign: "center" }}>
+          No menu yet. Use <strong style={{ color: "#6366f1" }}>AI generate menu</strong> or <strong>+ Section</strong>.
+        </div>
+      ) : (
+        sections.map((sec, si) => (
+          <div key={si} style={{ marginBottom: 14, borderRadius: 13, border: "1.5px solid #eef2f6", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "linear-gradient(135deg,#fafbff,#f5f3ff)", borderBottom: "1px solid #eef2f6" }}>
+              <input
+                value={sec.name || ""}
+                onChange={(e) => renameSection(si, e.target.value)}
+                placeholder="Section name (e.g. Sweets, Namkeen)"
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 700, fontFamily: "inherit", color: "#0f172a", background: "#fff" }}
+              />
+              <button type="button" onClick={() => addItem(si)} style={{ padding: "7px 11px", borderRadius: 8, border: "1.5px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>+ Item</button>
+              <button type="button" onClick={() => removeSection(si)} aria-label="Remove section" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><CloseIcon /></button>
+            </div>
+            <div style={{ padding: 12 }}>
+              {(Array.isArray(sec.items) ? sec.items : []).length === 0 ? (
+                <div style={{ fontSize: 12, color: "#94a3b8", padding: "6px 2px" }}>No items — tap “+ Item”.</div>
+              ) : (
+                sec.items.map((it, ii) => (
+                  <div key={ii} style={{ marginBottom: 10, padding: "10px 11px", borderRadius: 10, border: "1px solid #eef2f6", background: "#fff" }}>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 7 }}>
+                      <input
+                        value={it.name || ""}
+                        onChange={(e) => updateItem(si, ii, "name", e.target.value)}
+                        placeholder="Item name (e.g. Kaju Katli)"
+                        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit", color: "#0f172a" }}
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "0 10px", background: "#fff" }}>
+                        <span style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700 }}>{currency}</span>
+                        <input
+                          value={it.price ?? ""}
+                          onChange={(e) => updateItem(si, ii, "price", e.target.value.replace(/[^\d.]/g, ""))}
+                          placeholder="0"
+                          inputMode="decimal"
+                          style={{ width: 64, padding: "8px 2px", border: "none", outline: "none", fontSize: 13, fontFamily: "inherit", color: "#0f172a", background: "transparent" }}
+                        />
+                      </div>
+                      <button type="button" onClick={() => removeItem(si, ii)} aria-label="Remove item" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><CloseIcon /></button>
+                    </div>
+                    <input
+                      value={it.description || ""}
+                      onChange={(e) => updateItem(si, ii, "description", e.target.value)}
+                      placeholder="Short description (optional)"
+                      maxLength={300}
+                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155" }}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ))
+      )}
+
+      {err ? <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{err}</div> : null}
+
+      {typeof onSave === "function" && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            disabled={savePending || itemCount === 0}
+            style={{
+              padding: "9px 20px", borderRadius: 10, border: "none",
+              cursor: savePending || itemCount === 0 ? "not-allowed" : "pointer",
+              background: savePending || itemCount === 0 ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
+              color: savePending || itemCount === 0 ? "#a5b4fc" : "#fff",
+              fontSize: 13, fontWeight: 800, fontFamily: "inherit",
+              boxShadow: savePending || itemCount === 0 ? "none" : "0 4px 14px rgba(99,102,241,.3)",
+            }}
+          >
+            {savePending ? "Saving…" : "Save menu to Google"}
+          </button>
+        </div>
+      )}
+
+      {pending && (
+        <ConfirmModal
+          field="Menu"
+          aiContent={pending.sections.flatMap((s) => [`◆ ${s.name}`, ...s.items.map((it) => `   • ${it.name}${it.price ? ` — ${currency} ${it.price}` : ""}`)])}
+          onConfirm={applyPending}
+          onCancel={() => setPending(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 function SectionBlock({ title, hint, children }) {
   return (
     <div style={{
@@ -1693,6 +2234,7 @@ export default function BusinessInformationPanel({
     phone: "",
     website: "",
     services: "",
+    serviceItems: [],
     bookingUrl: "",
     serviceAreaPlaces: [],
     hoursSummary: "",
@@ -1712,6 +2254,32 @@ export default function BusinessInformationPanel({
   // (fixes services/serviceArea showing empty when the first hydrate used stale cache).
   const lastHydratedLocRef = useRef(null);
   const dirtyFieldsRef = useRef(new Set());
+
+  // Category-driven attributes (menu link, dine-in, payments, …) — fetched per
+  // location from /api/gmb/category-fields. attrDirtyRef tracks user edits so a
+  // refresh doesn't clobber them and "Save changes" only sends changed attributes.
+  const [categoryAttrs, setCategoryAttrs] = useState([]);
+  const [attrValues, setAttrValues] = useState({});
+  const [attrLoading, setAttrLoading] = useState(false);
+  const [attrError, setAttrError] = useState("");
+  const attrDirtyRef = useRef(new Set());
+  const categoryReqRef = useRef(0);
+
+  // Capabilities (from location metadata) decide which optional editors appear.
+  const [capabilities, setCapabilities] = useState({});
+
+  // Food menu (only for canHaveFoodMenus locations). { currency, sections }.
+  const [foodMenu, setFoodMenu] = useState({ currency: "INR", sections: [] });
+  const [menuLoading, setMenuLoading] = useState(false);
+  const [menuError, setMenuError] = useState("");
+  const [menuSaving, setMenuSaving] = useState(false);
+  const menuReqRef = useRef(0);
+  const menuDirtyRef = useRef(false);
+
+  const setAttrValue = useCallback((name, val) => {
+    attrDirtyRef.current.add(name);
+    setAttrValues((p) => ({ ...p, [name]: val }));
+  }, []);
 
   const setField = useCallback(
     (key) => (val) => {
@@ -1806,12 +2374,154 @@ export default function BusinessInformationPanel({
       website: keep("website", loc.websiteUrl || f.website, f.website),
       chatUrl: keep("chatUrl", wa !== null ? wa : f.chatUrl, f.chatUrl),
       services: keep("services", loc.services || "", f.services),
+      serviceItems: keep(
+        "serviceItems",
+        Array.isArray(loc.serviceItemsList) ? loc.serviceItemsList : [],
+        f.serviceItems
+      ),
       serviceAreaPlaces: keep("serviceAreaPlaces", saList, f.serviceAreaPlaces),
       regularHoursPeriods: keep("regularHoursPeriods", rp, f.regularHoursPeriods),
     }));
   }, [activeEditorLocationId, gmbLocations, profileDescriptionProp]);
 
   const businessName = fields.businessName || selectedBusiness.title || "";
+
+  const groupedAttrs = useMemo(() => {
+    const m = new Map();
+    for (const a of categoryAttrs) {
+      const g = a.group || "Other";
+      if (!m.has(g)) m.set(g, []);
+      m.get(g).push(a);
+    }
+    return [...m.entries()];
+  }, [categoryAttrs]);
+
+  const attrStats = useMemo(() => {
+    let set = 0;
+    let unsaved = 0;
+    for (const a of categoryAttrs) {
+      if (attrIsSet(attrValues[a.name], a.valueType)) set++;
+      if (!attrValuesEqual(attrValues[a.name], a.currentValue)) unsaved++;
+    }
+    return { total: categoryAttrs.length, set, unsaved };
+  }, [categoryAttrs, attrValues]);
+
+  // Load the category's attribute set + current values for the active location.
+  // Only relevant on the Google-sync optimization page (gmbSyncMode). Guards stale
+  // responses with a request token so a fast location switch doesn't apply old data.
+  const reloadCategoryFields = useCallback(async () => {
+    const accountId = activeEnriched?.accountId || "";
+    const locationId = activeEditorLocationId;
+    const reqToken = ++categoryReqRef.current;
+    if (!gmbSyncMode || !accountId || !locationId) {
+      setCategoryAttrs([]);
+      setAttrValues({});
+      setCapabilities({});
+      attrDirtyRef.current = new Set();
+      return;
+    }
+    setAttrLoading(true);
+    setAttrError("");
+    try {
+      const res = await fetch(
+        `/api/gmb/category-fields?accountId=${encodeURIComponent(accountId)}&locationId=${encodeURIComponent(locationId)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (categoryReqRef.current !== reqToken) return; // a newer request superseded this one
+      if (!res.ok) {
+        setAttrError(data.error || "Could not load category fields from Google.");
+        setCategoryAttrs([]);
+        setAttrValues({});
+        return;
+      }
+      setCapabilities(data.capabilities || {});
+      const attrs = Array.isArray(data.attributes) ? data.attributes : [];
+      const seeded = {};
+      for (const a of attrs) {
+        seeded[a.name] =
+          a.currentValue ?? (a.valueType === "REPEATED_ENUM" ? [] : a.valueType === "BOOL" ? false : "");
+      }
+      setCategoryAttrs(attrs);
+      setAttrValues(seeded);
+      attrDirtyRef.current = new Set();
+    } catch {
+      if (categoryReqRef.current === reqToken) setAttrError("Could not load category fields from Google.");
+    } finally {
+      if (categoryReqRef.current === reqToken) setAttrLoading(false);
+    }
+  }, [gmbSyncMode, activeEnriched?.accountId, activeEditorLocationId]);
+
+  useEffect(() => {
+    void reloadCategoryFields();
+  }, [reloadCategoryFields]);
+
+  const canHaveFoodMenus = !!capabilities.canHaveFoodMenus;
+
+  const reloadFoodMenu = useCallback(async () => {
+    const accountId = activeEnriched?.accountId || "";
+    const locationId = activeEditorLocationId;
+    const reqToken = ++menuReqRef.current;
+    if (!gmbSyncMode || !accountId || !locationId || !canHaveFoodMenus) {
+      setFoodMenu({ currency: "INR", sections: [] });
+      menuDirtyRef.current = false;
+      return;
+    }
+    setMenuLoading(true);
+    setMenuError("");
+    try {
+      const res = await fetch(
+        `/api/gmb/food-menu?accountId=${encodeURIComponent(accountId)}&locationId=${encodeURIComponent(locationId)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (menuReqRef.current !== reqToken) return;
+      if (!res.ok) {
+        setMenuError(data.error || "Could not load menu from Google.");
+        return;
+      }
+      setFoodMenu(data.menu && typeof data.menu === "object" ? data.menu : { currency: "INR", sections: [] });
+      menuDirtyRef.current = false;
+    } catch {
+      if (menuReqRef.current === reqToken) setMenuError("Could not load menu from Google.");
+    } finally {
+      if (menuReqRef.current === reqToken) setMenuLoading(false);
+    }
+  }, [gmbSyncMode, activeEnriched?.accountId, activeEditorLocationId, canHaveFoodMenus]);
+
+  useEffect(() => {
+    void reloadFoodMenu();
+  }, [reloadFoodMenu]);
+
+  // If the active tab requires a capability the current location lacks, fall back.
+  useEffect(() => {
+    if (tab === "menu" && !canHaveFoodMenus) setTab("about");
+  }, [tab, canHaveFoodMenus]);
+
+  const handleSaveFoodMenu = useCallback(async () => {
+    const accountId = activeEnriched?.accountId || "";
+    if (!gmbSyncMode || !accountId || !activeEditorLocationId) return;
+    setMenuSaving(true);
+    try {
+      const res = await fetch("/api/gmb/food-menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId, locationId: activeEditorLocationId, menu: foodMenu }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not save menu");
+      if (data.menu) setFoodMenu(data.menu);
+      menuDirtyRef.current = false;
+      toast.success("Menu saved to Google.");
+    } catch (e) {
+      toast.error(e.message || "Could not save menu");
+    } finally {
+      setMenuSaving(false);
+    }
+  }, [gmbSyncMode, activeEnriched?.accountId, activeEditorLocationId, foodMenu]);
+
+  const setFoodMenuDirty = useCallback((next) => {
+    menuDirtyRef.current = true;
+    setFoodMenu(next);
+  }, []);
 
   const hoursDirty = useMemo(
     () => JSON.stringify(fields.regularHoursPeriods || []) !== hoursBaseline,
@@ -1822,23 +2532,34 @@ export default function BusinessInformationPanel({
     try {
       const desc = clampGmbDescription((fields.description || "").trim());
       const places = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [];
+      const dirtyAttrs = categoryAttrs
+        .filter((a) => attrDirtyRef.current.has(a.name))
+        .map((a) => ({ name: a.name, valueType: a.valueType, values: attrValues[a.name] }));
+      // Only send services when the editor was touched, so untouched listings are not
+      // re-converted/cleared. Structured serviceItems carry title + description.
+      const serviceItemsDirty = dirtyFieldsRef.current.has("serviceItems");
+      const serviceItemsClean = (Array.isArray(fields.serviceItems) ? fields.serviceItems : [])
+        .map((s) => ({ title: String(s?.title || "").trim(), description: String(s?.description || "").trim() }))
+        .filter((s) => s.title);
       if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
         await onSyncToGmb({
           description: desc,
-          services: (fields.services || "").trim(),
+          ...(serviceItemsDirty ? { serviceItems: serviceItemsClean } : {}),
           // Phone is intentionally not synced to Google.
           websiteUri: (fields.website || "").trim(),
           chatUrl: (fields.chatUrl || "").trim(),
           serviceAreaPlaces: places,
           ...(hoursDirty ? { regularHours: { periods: fields.regularHoursPeriods || [] } } : {}),
+          ...(dirtyAttrs.length ? { attributes: dirtyAttrs } : {}),
         });
+        if (dirtyAttrs.length) await reloadCategoryFields();
         return;
       }
       if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
         await onSaveOptimization({
           locationId: activeEditorLocationId,
           description: desc,
-          services: (fields.services || "").trim(),
+          ...(serviceItemsDirty ? { serviceItems: serviceItemsClean } : {}),
           // Phone is intentionally not synced to Google.
           websiteUri: (fields.website || "").trim(),
           chatUrl: (fields.chatUrl || "").trim(),
@@ -1859,13 +2580,16 @@ export default function BusinessInformationPanel({
     activeEditorLocationId,
     onConfirmProfileDescription,
     fields.description,
-    fields.services,
+    fields.serviceItems,
     fields.serviceAreaPlaces,
     fields.phone,
     fields.website,
     fields.chatUrl,
     hoursDirty,
     fields.regularHoursPeriods,
+    categoryAttrs,
+    attrValues,
+    reloadCategoryFields,
   ]);
 
   const canSyncGmb =
@@ -1889,6 +2613,18 @@ export default function BusinessInformationPanel({
       toast.error(e.message || "Could not save service areas");
     }
   }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, fields.serviceAreaPlaces]);
+
+  const handleSaveServiceItems = useCallback(async () => {
+    if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
+    const cleaned = (Array.isArray(fields.serviceItems) ? fields.serviceItems : [])
+      .map((s) => ({ title: String(s?.title || "").trim(), description: String(s?.description || "").trim() }))
+      .filter((s) => s.title);
+    try {
+      await onSyncToGmb({ serviceItems: cleaned });
+    } catch (e) {
+      toast.error(e.message || "Could not save services");
+    }
+  }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, fields.serviceItems]);
 
   const handleGenerateWebsiteFromBuilder = useCallback(async () => {
     const title = (fields.businessName || primaryLoc.title || selectedBusiness.title || "").trim();
@@ -2011,6 +2747,23 @@ export default function BusinessInformationPanel({
       }
     },
     [gmbSyncMode, activeEditorLocationId, onSyncToGmb]
+  );
+
+  const handleAttributeSave = useCallback(
+    async (name) => {
+      if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
+      const a = categoryAttrs.find((x) => x.name === name);
+      if (!a) return;
+      try {
+        await onSyncToGmb({
+          attributes: [{ name: a.name, valueType: a.valueType, values: attrValues[a.name] }],
+        });
+        await reloadCategoryFields();
+      } catch (e) {
+        toast.error(e.message || "Could not save attribute");
+      }
+    },
+    [gmbSyncMode, activeEditorLocationId, onSyncToGmb, categoryAttrs, attrValues, reloadCategoryFields]
   );
 
   const sharedFieldProps = {
@@ -2360,7 +3113,7 @@ export default function BusinessInformationPanel({
                 gap: 2,
               }}
             >
-              {TABS.map((tb) => {
+              {TABS.filter((tb) => !tb.cap || capabilities[tb.cap]).map((tb) => {
                 const active = tab === tb.id;
                 const Icon = tb.Icon;
                 return (
@@ -2392,6 +3145,15 @@ export default function BusinessInformationPanel({
                       <Icon />
                     </span>
                     {tb.label}
+                    {tb.id === "category" && attrStats.unsaved > 0 && (
+                      <span style={{
+                        minWidth: 16, height: 16, padding: "0 4px", borderRadius: 8,
+                        background: "#6366f1", color: "#fff", fontSize: 10, fontWeight: 800,
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        {attrStats.unsaved}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -2407,7 +3169,15 @@ export default function BusinessInformationPanel({
                       hint="Update the title in Google Business Profile if you need to change it."
                     />
                     {categoryBlock}
-                    <FieldRow label="Services" fieldId="services" value={fields.services} onChange={setField("services")} {...sharedFieldProps} />
+                    <ServiceItemsEditor
+                      items={fields.serviceItems}
+                      onChange={setField("serviceItems")}
+                      aiContext={optimizationContext}
+                      businessName={businessName}
+                      categoryHint={categoryHint}
+                      onSave={gmbSyncMode ? handleSaveServiceItems : undefined}
+                      savePending={syncToGmbPending}
+                    />
                     <FieldRow
                       label="Description"
                       fieldId="description"
@@ -2533,6 +3303,151 @@ export default function BusinessInformationPanel({
                         noBottomRule
                       />
                     </div>
+                  </SectionBlock>
+                </div>
+              )}
+
+              {tab === "category" && (
+                <div style={{ animation: "slideIn .25s ease" }}>
+                  <SectionBlock
+                    title={`Category attributes${fields.primaryCategory ? " — " + fields.primaryCategory : ""}`}
+                    hint="These fields come from Google for this location's primary category — a restaurant gets a menu link and dine-in options, a service business gets its own set. Edit a value, then Save."
+                  >
+                    {/* Summary strip */}
+                    {gmbSyncMode && !attrLoading && !attrError && categoryAttrs.length > 0 && (
+                      <div style={{
+                        display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap",
+                        marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #eef2f6",
+                      }}>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#475569", background: "#f1f5f9", padding: "4px 11px", borderRadius: 20 }}>
+                          {attrStats.total} attribute{attrStats.total === 1 ? "" : "s"}
+                        </span>
+                        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#166534", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "4px 11px", borderRadius: 20 }}>
+                          ✓ {attrStats.set} set
+                        </span>
+                        {attrStats.unsaved > 0 && (
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#6366f1", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "4px 11px", borderRadius: 20 }}>
+                            {attrStats.unsaved} unsaved
+                          </span>
+                        )}
+                        <span style={{ flex: 1 }} />
+                        <button
+                          type="button"
+                          onClick={() => void reloadCategoryFields()}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, fontWeight: 700,
+                            color: "#64748b", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
+                          }}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                          Refresh
+                        </button>
+                      </div>
+                    )}
+
+                    {!gmbSyncMode ? (
+                      <div style={{ padding: "28px 16px", textAlign: "center", color: "#64748b", fontSize: 13 }}>
+                        Connect a Google location to edit category attributes.
+                      </div>
+                    ) : attrLoading ? (
+                      <div style={{ padding: "8px 0" }}>
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} style={{
+                            height: 78, borderRadius: 13, marginBottom: 10, border: "1px solid #eef2f6",
+                            background: "linear-gradient(90deg,#f8fafc 25%,#eef2f6 37%,#f8fafc 63%)",
+                            backgroundSize: "400% 100%", animation: "shimmer 1.4s ease infinite",
+                          }} />
+                        ))}
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 4 }}>
+                          Loading category fields from Google…
+                        </div>
+                      </div>
+                    ) : attrError ? (
+                      <div style={{
+                        padding: "14px 16px", borderRadius: 12, background: "#fef2f2", border: "1px solid #fecaca",
+                        color: "#b91c1c", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+                      }}>
+                        <span>{attrError}</span>
+                        <button type="button" onClick={() => void reloadCategoryFields()} style={{
+                          padding: "6px 14px", borderRadius: 9, border: "1.5px solid #fecaca", background: "#fff",
+                          color: "#b91c1c", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                        }}>
+                          Retry
+                        </button>
+                      </div>
+                    ) : categoryAttrs.length === 0 ? (
+                      <div style={{ padding: "32px 16px", textAlign: "center" }}>
+                        <div style={{
+                          width: 46, height: 46, borderRadius: 14, margin: "0 auto 12px",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          background: "#f1f5f9", color: "#94a3b8",
+                        }}>
+                          <TabIconCategory />
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>No category attributes</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 4, maxWidth: 360, marginInline: "auto", lineHeight: 1.5 }}>
+                          Google doesn&apos;t offer category-specific fields for this business category. Use the other tabs to optimize this listing.
+                        </div>
+                      </div>
+                    ) : (
+                      groupedAttrs.map(([group, items], gi) => (
+                        <div key={group} style={{ marginBottom: gi === groupedAttrs.length - 1 ? 0 : 22 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".06em" }}>
+                              {group}
+                            </span>
+                            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", background: "#f1f5f9", padding: "1px 8px", borderRadius: 20 }}>
+                              {items.length}
+                            </span>
+                            <span style={{ flex: 1, height: 1, background: "#eef2f6" }} />
+                          </div>
+                          {items.map((a) => (
+                            <AttributeRow
+                              key={a.name}
+                              attr={a}
+                              value={attrValues[a.name]}
+                              original={a.currentValue}
+                              onChange={(v) => setAttrValue(a.name, v)}
+                              onSave={() => handleAttributeSave(a.name)}
+                              saving={syncToGmbPending}
+                            />
+                          ))}
+                        </div>
+                      ))
+                    )}
+                  </SectionBlock>
+                </div>
+              )}
+
+              {tab === "menu" && (
+                <div style={{ animation: "slideIn .25s ease" }}>
+                  <SectionBlock
+                    title="Menu"
+                    hint="Your Google food menu — sections (e.g. Sweets, Namkeen) with items, prices and descriptions. AI can draft the whole menu; review and edit before saving to Google."
+                  >
+                    {menuLoading ? (
+                      <div style={{ padding: "8px 0" }}>
+                        {[0, 1].map((i) => (
+                          <div key={i} style={{ height: 70, borderRadius: 13, marginBottom: 10, border: "1px solid #eef2f6", background: "linear-gradient(90deg,#f8fafc 25%,#eef2f6 37%,#f8fafc 63%)", backgroundSize: "400% 100%", animation: "shimmer 1.4s ease infinite" }} />
+                        ))}
+                        <div style={{ textAlign: "center", color: "#94a3b8", fontSize: 12 }}>Loading menu from Google…</div>
+                      </div>
+                    ) : menuError ? (
+                      <div style={{ padding: "14px 16px", borderRadius: 12, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                        <span>{menuError}</span>
+                        <button type="button" onClick={() => void reloadFoodMenu()} style={{ padding: "6px 14px", borderRadius: 9, border: "1.5px solid #fecaca", background: "#fff", color: "#b91c1c", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Retry</button>
+                      </div>
+                    ) : (
+                      <FoodMenuEditor
+                        menu={foodMenu}
+                        onChange={setFoodMenuDirty}
+                        aiContext={optimizationContext}
+                        businessName={businessName}
+                        categoryHint={categoryHint}
+                        onSave={handleSaveFoodMenu}
+                        savePending={menuSaving}
+                      />
+                    )}
                   </SectionBlock>
                 </div>
               )}

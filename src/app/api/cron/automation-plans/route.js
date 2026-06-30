@@ -56,6 +56,7 @@ import {
   parseAutomationCronParams,
   effectivePlanForPostingClock,
 } from '@/lib/automationCronQueryParams';
+import { createRunLogger } from '@/lib/automationRunLogger';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -136,16 +137,25 @@ async function refreshGoogleToken(refreshToken, planId) {
  * Returns { ok, httpStatus, data }
  */
 async function postToGmb({ account, locationData, imageUrl, description, accessToken }) {
-  // ── Build payload identical to the manual post ───────────────────────────
+  // ── Build payload for GMB publish (same upstream as manual) ──────────────
   const payload = {
     account,
-    locationData,          // [{ city: locationId, cityName: locality, bookUrl: websiteUrl }]
+    locationData,          // [{ city, cityName, bookUrl, account }]
     output:      imageUrl || '',
     description,
     accessToken: accessToken || '',
-    // 'both' = publish the post text AND attach the image. 'post' alone is a
-    // text-only update (no photo) — that's why GMB returned photo_media_id:null.
+    // Mirror the WORKING manual flow exactly: checkmark 'both' (image attaches to
+    // the post AND the photo gallery) PLUS the full payload (post_type, cta, …).
+    // The cron's old 'both' failed "Photo gallery upload failed" only because it
+    // omitted post_type/cta, so the upstream's photo step had no context.
     checkmark:   'both',
+    post_type:   'standard',
+    cta:         'learn_more',
+    video_url:   '',
+    startDate:   '',
+    endDate:     '',
+    tittle:      '',
+    wait_video:  false,
     skipDbUpdate: true,
   };
 
@@ -177,7 +187,19 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     // /api/gmb/publish wraps the upstream response as { ok, data: { success, fail, succeeded, failed, total } }.
     // HTTP 200 with a non-empty `fail` list (e.g. expired OAuth token) is NOT a real success,
     // so inspect the per-location results instead of trusting the outer ok flag.
-    const publishData = data && typeof data.data === 'object' && data.data ? data.data : {};
+    // The upstream sometimes nests the result one level deeper (`data.data.data`).
+    // Unwrap until we find the success/fail lists — otherwise a real failure list
+    // sitting one level down was missed and the post was falsely marked "posted".
+    const outer = data && typeof data.data === 'object' && data.data ? data.data : {};
+    const publishData =
+      Array.isArray(outer.success) ||
+      Array.isArray(outer.fail) ||
+      outer.succeeded != null ||
+      outer.failed != null
+        ? outer
+        : outer.data && typeof outer.data === 'object'
+          ? outer.data
+          : outer;
     const successList = Array.isArray(publishData.success) ? publishData.success : [];
     const failList = Array.isArray(publishData.fail) ? publishData.fail : [];
     const succeeded = Number(publishData.succeeded) || successList.length;
@@ -382,6 +404,17 @@ export async function GET(request) {
 
   const results = { processed: 0, successful: 0, skipped: 0, failed: 0, errors: [] };
 
+  // Persistent step log — one AutomationLog doc per plan, every guard/action
+  // recorded pass/fail/skip with the real error. View at GET /api/automation-logs.
+  const triggerStr = [
+    `phase=${phase}`,
+    forceRun ? 'force' : '',
+    dryRun ? 'dryRun' : '',
+    manualTriggerEffective ? 'manual' : '',
+    cronParams.testNow ? 'testNow' : '',
+  ].filter(Boolean).join(' ');
+  const run = createRunLogger({ phase: 'publish', trigger: triggerStr });
+
   for (const plan of activePlans) {
     const {
       _id: planId,
@@ -435,6 +468,9 @@ export async function GET(request) {
 
     results.processed++;
 
+    const slog = run.plan({ userId, planId });
+    slog.info('plan:start', `platforms=${platformsSafe.join(',')} keywords=${keywords.length} locations=${locations.length}`);
+
     console.log('\n[CRON] ─────────────────────────────────────────────────');
     console.log('[CRON] Plan:', planId.toString(), '| userId:', userId);
     console.log('[CRON] Plan details:', JSON.stringify({
@@ -477,6 +513,7 @@ export async function GET(request) {
         log(`Extended endDate to package expiry (${pkgExp.toISOString()}) — plan end was stale`);
       } else {
         log(`Skip — end date passed: ${endDate}`);
+        slog.skip('guard:end-date', `end date passed (${endDate}) — plan deactivated`);
         await AutomationPlan.updateOne({ _id: planId }, { $set: { active: false, automationEnabled: false } });
         results.skipped++; continue;
       }
@@ -485,11 +522,13 @@ export async function GET(request) {
     if (!forceRun) {
       if (startDate && zonedYmdString(runNow, tz) < zonedYmdString(startDate, tz)) {
         log(`Skip — start date not reached yet: ${startDate}`);
+        slog.skip('guard:start-date', `start date not reached yet (${zonedYmdString(startDate, tz)})`);
         results.skipped++; continue;
       }
 
       if (!isPostingDayTodayZoned(plan, runNow)) {
         log(`Skip — not a scheduled posting day (frequency/schedule/start/end in ${tz})`);
+        slog.skip('guard:posting-day', `today is not a scheduled posting day (frequency/schedule)`);
         results.skipped++; continue;
       }
 
@@ -503,6 +542,7 @@ export async function GET(request) {
         zonedYmdString(lastPostDate, tz) === zonedYmdString(runNow, tz)
       ) {
         log(`Skip — already posted today (duplicate guard). lastPostDate=${lastPostDate} — pass force=true to bypass`);
+        slog.skip('guard:duplicate-today', `already posted today (lastPostDate=${lastPostDate})`);
         results.skipped++; continue;
       }
 
@@ -536,10 +576,12 @@ export async function GET(request) {
             log(
               `Skip — not yet at / past publish time (effective ${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} ${tz})`
             );
+            slog.skip('guard:clock-window', `not yet at/past publish time ${effectivePlan.postingHour}:${String(effectivePlan.postingMinute ?? 0).padStart(2, '0')} ${tz} (deltaMin=${delta == null ? 'n/a' : (delta / 60000).toFixed(1)})`);
             results.skipped++; continue;
           }
         } else if (!matchesPostingWindow(effectivePlan, runNow)) {
           log(`Skip — outside posting time window (legacy)`);
+          slog.skip('guard:clock-window', 'outside posting time window (legacy matcher)');
           results.skipped++; continue;
         }
       }
@@ -547,11 +589,13 @@ export async function GET(request) {
 
     if (limit > 0 && postsUsed >= limit) {
       log(`Skip — quota exhausted: ${postsUsed}/${limit}`);
+      slog.skip('guard:quota', `quota exhausted ${postsUsed}/${limit}`);
       results.skipped++; continue;
     }
 
     if (!keywords.length) {
       log(`Skip — no keywords configured in plan`);
+      slog.skip('guard:no-keywords', 'no keywords configured in plan');
       results.skipped++; continue;
     }
 
@@ -582,12 +626,14 @@ export async function GET(request) {
 
     if (wantGmb && !locations.length) {
       log(`FAIL — GMB enabled but no locations in AutomationPlan`);
+      slog.fail('config:no-locations', 'GMB enabled but no locations configured in AutomationPlan');
       results.errors.push({ planId: planId.toString(), userId, error: 'No locations configured for GMB' });
       results.failed++; continue;
     }
 
     if (!wantGmb && !wantFb && !wantIg) {
       log(`FAIL — no platforms enabled (platforms=${JSON.stringify(platformsSafe)})`);
+      slog.fail('config:no-platforms', `no usable platforms enabled (platforms=${JSON.stringify(platformsSafe)}; FB/IG may be missing tokens)`);
       results.errors.push({ planId: planId.toString(), userId, error: 'No platforms enabled' });
       results.failed++; continue;
     }
@@ -639,6 +685,7 @@ export async function GET(request) {
       usedPrefetch = true;
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
+      slog.pass('content:prefetch', `using prefetched bundle keyword="${prefetchPost.keyword || keyword}"`);
       log('Publish flow — using AutomationPlan.prefetchPost', {
         keyword: prefetchPost.keyword,
         publishOnYmd: prefetchPost.publishOn ? zonedYmdString(prefetchPost.publishOn, tz) : null,
@@ -653,12 +700,21 @@ export async function GET(request) {
         await AutomationPlan.updateOne({ _id: planId }, { $unset: { prefetchPost: 1 } });
         log('Removed stale prefetch (missed publish day)');
       }
-      const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
-      log(`Image prompt: "${imagePrompt}"`);
-      imageUrl = await generateImage({ imagePrompt, keyword, businessName, imageConfig });
-      log(`Image URL: ${imageUrl || '⚠ NULL — n8n returned no image URL'}`);
-      postText = await generatePostText({ businessName, keyword, cityName });
-      log(`Post text: "${postText}"`);
+      try {
+        const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
+        log(`Image prompt: "${imagePrompt}"`);
+        imageUrl = await generateImage({ imagePrompt, keyword, businessName, imageConfig });
+        log(`Image URL: ${imageUrl || '⚠ NULL — n8n returned no image URL'}`);
+        postText = await generatePostText({ businessName, keyword, cityName });
+        log(`Post text: "${postText}"`);
+        slog.pass('content:generate', `inline generate keyword="${keyword}" image=${imageUrl ? 'ok' : 'NULL'} text=${postText ? 'ok' : 'NULL'}`);
+      } catch (genErr) {
+        // generateImage/Text normally swallow their own errors; this catch is a
+        // safety net so a throw doesn't crash the whole run. The empty-bundle
+        // gate below turns missing image/text into a clean per-plan failure.
+        slog.fail('content:generate', `inline generation threw for keyword="${keyword}"`, genErr);
+        log(`⚠ Inline generation threw: ${genErr.message}`);
+      }
     }
 
     const imgTrim = String(imageUrl || '').trim();
@@ -667,6 +723,7 @@ export async function GET(request) {
       log(
         `FAIL — empty publish bundle (safety gate). imageChars=${imgTrim.length} captionChars=${txtTrim.length} usedPrefetch=${usedPrefetch}`
       );
+      slog.fail('content:empty-bundle', `empty image/caption (imageChars=${imgTrim.length} captionChars=${txtTrim.length}) — check aiAssetsGenerate / OPENAI_API_KEY`);
       results.errors.push({
         planId: planId.toString(),
         userId,
@@ -684,6 +741,7 @@ export async function GET(request) {
         log(
           `FAIL — GMB accessToken invalid or missing before publish (trimmedLen=${tok.length}). Refresh failed or tokens not stored on AutomationPlan.`
         );
+        slog.fail('token:invalid', `GMB access token invalid/missing (len=${tok.length}) — re-save user-settings or refreshToken expired`);
         results.errors.push({
           planId: planId.toString(),
           userId,
@@ -738,6 +796,8 @@ export async function GET(request) {
     try {
       const saved = await Post.create(savePayload);
       savedPostId = saved._id;
+      slog.setPostId(savedPostId);
+      slog.pass('db:post-created', `PostStatus created _id=${savedPostId} status=pending`);
       log(`✓ PostStatus created — _id=${savedPostId}  userId=${resolvedUserId}  status=pending`);
 
       // Verify save was successful
@@ -746,6 +806,7 @@ export async function GET(request) {
     } catch (saveErr) {
       console.error('[CRON] ❌ Post.create() FAILED:', saveErr.message);
       console.error('[CRON] ❌ Error details:', JSON.stringify(saveErr.errors || {}));
+      slog.fail('db:post-save', `PostStatus save failed (code=${saveErr.code})`, saveErr);
       log(`✗ PostStatus save FAILED: ${saveErr.message}  code=${saveErr.code}`);
       // Continue — still try to post to GMB even if DB save failed
     }
@@ -756,9 +817,11 @@ export async function GET(request) {
       city:     loc.locationId,
       cityName: loc.locality || loc.name || '',
       bookUrl:  loc.websiteUrl || '',
+      account:  loc.accountId || account,
     }));
 
     if (dryRun) {
+      slog.success('dryrun', `dryRun — image+text generated & saved pending _id=${savedPostId}; live posts skipped`);
       log(`⏭ dryRun=1 — live posts SKIPPED. Post saved as "pending" _id=${savedPostId}`);
       results.successful++;
       continue;
@@ -802,6 +865,7 @@ export async function GET(request) {
 
       if (!gmbResult.ok) {
         log(`✗ GMB post FAILED after all attempts`);
+        slog.fail('publish:gmb', `GMB post failed (httpStatus=${gmbResult.httpStatus} authError=${gmbResult.authError} succeeded=${gmbResult.succeeded} failed=${gmbResult.failed})`, JSON.stringify(gmbResult.data).slice(0, 500));
         if (savedPostId) {
           try {
             await Post.findByIdAndUpdate(savedPostId, { $set: { status: 'failed' } });
@@ -822,8 +886,10 @@ export async function GET(request) {
         continue;
       }
 
+      slog.pass('publish:gmb', `GMB post successful (succeeded=${gmbResult.succeeded} locations=${locations.length})`);
       log(`✓ GMB post SUCCESSFUL`);
     } else {
+      slog.info('publish:gmb', 'GMB skipped — not selected in platforms');
       log('GMB skipped — not selected in platforms');
     }
 
@@ -838,6 +904,10 @@ export async function GET(request) {
         imageUrl,
       });
       log(`Facebook: ${JSON.stringify(fbResults)}`);
+      const fbOk = fbResults.filter((r) => r.success).length;
+      const fbErr = fbResults.find((r) => !r.success)?.error;
+      if (fbOk > 0 && !fbErr) slog.pass('publish:fb', `Facebook posted to ${fbOk}/${fbResults.length} page(s)`);
+      else slog.fail('publish:fb', `Facebook posted ${fbOk}/${fbResults.length} page(s)`, fbErr);
     }
     if (wantIg) {
       igResults = await postToInstagramAccounts({
@@ -847,6 +917,10 @@ export async function GET(request) {
         imageUrl,
       });
       log(`Instagram: ${JSON.stringify(igResults)}`);
+      const igOk = igResults.filter((r) => r.success).length;
+      const igErr = igResults.find((r) => !r.success)?.error;
+      if (igOk > 0 && !igErr) slog.pass('publish:ig', `Instagram posted to ${igOk}/${igResults.length} account(s)`);
+      else slog.fail('publish:ig', `Instagram posted ${igOk}/${igResults.length} account(s)`, igErr);
     }
 
     const gmbPosted = wantGmb && gmbResult.ok;
@@ -866,6 +940,7 @@ export async function GET(request) {
 
     if (!overallOk) {
       log(`✗ One or more selected platforms did not post — platformsPosted=${JSON.stringify(platformsPosted)}`);
+      slog.fail('publish:partial', `not all selected platforms posted — posted=${JSON.stringify(platformsPosted)} wanted=${JSON.stringify(platformsSafe)}`);
       if (savedPostId) {
         try {
           await Post.findByIdAndUpdate(savedPostId, { $set: { status: 'failed' } });
@@ -954,9 +1029,12 @@ export async function GET(request) {
       console.warn('[CRON] ⚠ User.postsUsed increment non-fatal:', e.message);
     }
 
+    slog.success('done', `posted to [${platformsPosted.join(',')}] postId=${savedPostId} postsUsed=${newUsed}/${limit}`);
     results.successful++;
     log(`✅ Done — postId=${savedPostId}  resolvedUserId=${resolvedUserId}  nextIndex=${postIndex + 1}`);
   }
+
+  const logSave = await run.flush();
 
   console.log('\n[CRON] ═══════════════════════════════════════════════════════');
   console.log('[CRON] Run complete:', JSON.stringify(results, null, 2));
@@ -965,6 +1043,8 @@ export async function GET(request) {
   return NextResponse.json({
     timestamp: new Date().toISOString(),
     baseUrl: BASE_URL,
+    runId: run.runId,
+    automationLogsSaved: logSave.saved,
     force: forceRun,
     dryRun,
     manualTrigger: manualTriggerEffective,

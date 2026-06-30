@@ -78,25 +78,110 @@ export function buildServiceAreaPatchBody(placeNames) {
 }
 
 /**
- * Build a serviceItems PATCH body from a comma-separated list (or array) of service
- * names, as free-form service items under the location's primary category gcid.
+ * Build a serviceItems PATCH body as free-form service items under the location's
+ * primary category gcid. Accepts EITHER:
+ *   - a comma-separated string / array of strings (titles only — legacy), or
+ *   - an array of objects { title|displayName|label, description } so each service
+ *     carries a title AND an optional description.
  * Verified format: { serviceItems: [{ freeFormServiceItem: { category: 'gcid:...',
- * label: { displayName, languageCode } } }] } with updateMask=serviceItems.
+ * label: { displayName, description?, languageCode } } }] } with updateMask=serviceItems.
+ * Google's free-form serviceItem label supports an optional `description`.
  */
 export function buildServiceItemsPatchBody(services, categoryGcid) {
   const gcid = String(categoryGcid || '').replace(/^categories\//, '').trim();
-  const list = Array.isArray(services) ? services : String(services || '').split(',');
+
+  let list;
+  if (Array.isArray(services)) {
+    list = services.map((s) =>
+      s && typeof s === 'object'
+        ? { displayName: s.title || s.displayName || s.label || '', description: s.description || '' }
+        : { displayName: String(s || ''), description: '' }
+    );
+  } else {
+    list = String(services || '')
+      .split(',')
+      .map((s) => ({ displayName: s, description: '' }));
+  }
+
   const items = list
-    .map((s) => String(s).trim())
-    .filter(Boolean)
+    .map((s) => ({
+      displayName: String(s.displayName || '').trim(),
+      description: String(s.description || '').trim(),
+    }))
+    .filter((s) => s.displayName)
     .slice(0, 100)
-    .map((label) => ({
+    .map((s) => ({
       freeFormServiceItem: {
         category: gcid,
-        label: { displayName: label.slice(0, 140), languageCode: 'en' },
+        label: {
+          displayName: s.displayName.slice(0, 140),
+          ...(s.description ? { description: s.description.slice(0, 300) } : {}),
+          languageCode: 'en',
+        },
       },
     }));
+
   return { serviceItems: items };
+}
+
+/**
+ * Build a combined attributes PATCH body + attributeMask for the Business
+ * Information v1 `locations/{id}/attributes` endpoint from a normalized list.
+ *
+ * items: [{ name, valueType, values }]
+ *   URL           -> values: string | [string]   -> uriValues:[{ uri }]
+ *   BOOL          -> values: boolean              -> values:[bool]
+ *   ENUM          -> values: string               -> values:[string]
+ *   REPEATED_ENUM -> values: string[]             -> repeatedEnumValue:{ setValues, unsetValues }
+ *
+ * `optionsByName` maps attribute name -> all option values, used to compute the
+ * REPEATED_ENUM `unsetValues` complement so deselecting actually clears values.
+ * The returned `attributeMask` lists exactly the attributes present in the body —
+ * Google CLEARS anything that is in the mask but missing from the body.
+ *
+ * Returns null when nothing valid was produced.
+ */
+export function buildAttributesPatchBody(items, optionsByName = {}) {
+  const list = Array.isArray(items) ? items : [];
+  const attributes = [];
+
+  for (const it of list) {
+    const name = String(it?.name || '').trim();
+    if (!name) continue;
+    const valueType = String(it?.valueType || '').toUpperCase();
+    const raw = it?.values;
+
+    if (valueType === 'URL') {
+      const uris = (Array.isArray(raw) ? raw : [raw])
+        .map((u) => String(u || '').trim())
+        .filter(Boolean);
+      if (!uris.length) continue;
+      attributes.push({ name, valueType, uriValues: uris.map((uri) => ({ uri })) });
+    } else if (valueType === 'BOOL') {
+      if (typeof raw !== 'boolean') continue;
+      attributes.push({ name, valueType, values: [raw] });
+    } else if (valueType === 'ENUM') {
+      const v = String(raw == null ? '' : raw).trim();
+      if (!v) continue;
+      attributes.push({ name, valueType, values: [v] });
+    } else if (valueType === 'REPEATED_ENUM') {
+      const setValues = (Array.isArray(raw) ? raw : [raw])
+        .map((v) => String(v || '').trim())
+        .filter(Boolean);
+      const allOptions = Array.isArray(optionsByName[name]) ? optionsByName[name] : [];
+      const unsetValues = allOptions.filter((o) => !setValues.includes(o));
+      attributes.push({ name, valueType, repeatedEnumValue: { setValues, unsetValues } });
+    } else {
+      // Unknown type — skip rather than send something Google rejects.
+      continue;
+    }
+  }
+
+  if (!attributes.length) return null;
+  return {
+    attributeMask: attributes.map((a) => a.name).join(','),
+    body: { attributes },
+  };
 }
 
 export function parseServiceAreaFromText(text) {

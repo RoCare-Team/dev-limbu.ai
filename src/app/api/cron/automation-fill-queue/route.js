@@ -18,6 +18,7 @@ import {
   generateImage,
   generatePostText,
 } from '@/lib/automationPlanContentGeneration';
+import { createRunLogger } from '@/lib/automationRunLogger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -59,13 +60,19 @@ export async function GET(request) {
 
   const stats = { found: candidates.length, filled: 0, failed: 0, skipped: 0 };
 
+  const run = createRunLogger({ phase: 'fill-queue', trigger: 'generate' });
+
   for (const c of candidates) {
+    const slog = run.plan({ userId: c.userId, planId: c.automationPlanId, postId: c._id });
+    slog.info('queue:start', `generateContentAt=${c.generateContentAt?.toISOString?.() || ''}`);
+
     const locked = await Post.findOneAndUpdate(
       { _id: c._id, status: 'pending' },
       { status: 'processing' },
       { new: true }
     );
     if (!locked) {
+      slog.skip('queue:lock', 'post already locked / status changed');
       stats.skipped++;
       continue;
     }
@@ -84,6 +91,7 @@ export async function GET(request) {
 
     if (!plan) {
       log(`No AutomationPlan for post ${c._id}`);
+      slog.fail('queue:plan-lookup', 'no active AutomationPlan for this post');
       locked.status = 'failed';
       locked.error = 'No active automation plan';
       await locked.save();
@@ -115,7 +123,7 @@ export async function GET(request) {
       });
 
       if (!imageUrl || !postText) {
-        throw new Error('Missing imageUrl or postText');
+        throw new Error(`Missing ${!imageUrl ? 'imageUrl' : 'postText'} (aiAssetsGenerate / OPENAI_API_KEY?)`);
       }
 
       locked.aiOutput = imageUrl;
@@ -127,9 +135,11 @@ export async function GET(request) {
       locked.error = '';
       await locked.save();
 
+      slog.success('queue:filled', `image+text generated → scheduled publishAt=${locked.scheduledDate?.toISOString()}`);
       log(`Filled post ${c._id} → scheduled publishAt=${locked.scheduledDate?.toISOString()}`);
       stats.filled++;
     } catch (err) {
+      slog.fail('queue:generate', `content generation failed for keyword="${keyword}"`, err);
       log(`FAIL post ${c._id}`, err.message);
       locked.status = 'failed';
       locked.error = err.message || 'Fill failed';
@@ -138,9 +148,13 @@ export async function GET(request) {
     }
   }
 
+  const logSave = await run.flush();
+
   return NextResponse.json({
     success: true,
     timestamp: new Date().toISOString(),
+    runId: run.runId,
+    automationLogsSaved: logSave.saved,
     ...stats,
     logs,
   });

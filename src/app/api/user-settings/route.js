@@ -645,8 +645,21 @@ export async function POST(request) {
     }
 
     if (useDelayPostQueue && projectPostQueue) {
-      const locations = Array.isArray(resolvedBusiness?.locations)
-        ? resolvedBusiness.locations
+      // Use the GMB locations the user actually selected (safeLocations) — same
+      // source the legacy publish cron uses. Falling back to a single
+      // resolvedBusiness.locationId dropped every extra location (multi-location
+      // automation posted to only one), and an empty locationId left the queued
+      // post with NO targets → publish-scheduled marked it "failed".
+      const locations = safeLocations.length
+        ? safeLocations.map((l) => ({
+            locationId: l.locationId || '',
+            accountId:  l.accountId  || '',
+            name:       l.name       || '',
+            address:    l.address    || '',
+            locality:   l.locality   || '',
+            websiteUrl: l.websiteUrl || '',
+            isPosted:   false,
+          }))
         : resolvedBusiness?.locationId
           ? [{ locationId: resolvedBusiness.locationId, accountId: resolvedBusiness.accountId, name: businessName, address: resolvedBusiness.address || '', isPosted: false }]
           : [];
@@ -703,7 +716,9 @@ export async function POST(request) {
           aiOutput:            '',
           accessToken:         projectPostQueue.accessToken || '',
           refreshToken:        projectPostQueue.refreshToken || '',
-          checkmark:           'post',
+          // 'both' = attach the generated image to the GMB post (publish-scheduled
+          // sends post_type/cta too). 'post' alone published text-only — no image.
+          checkmark:           'both',
           locations,
           fbPages: hasFb && Array.isArray(fbPages)
             ? fbPages.filter((p) => p?.pageId).map((p) => ({

@@ -153,7 +153,7 @@ export default function OptimizationPage() {
   }, [sessionStatus, accountId, refreshGmbLocations]);
 
   const handleSaveOptimization = useCallback(
-    async ({ locationId, description, services, websiteUri, chatUrl, serviceAreaPlaces, regularHours }) => {
+    async ({ locationId, description, services, serviceItems, websiteUri, chatUrl, serviceAreaPlaces, regularHours, attributes }) => {
       const locId =
         String(locationId || "").trim() ||
         selectedLocations[0]?.locationId ||
@@ -166,13 +166,15 @@ export default function OptimizationPage() {
       const places = Array.isArray(serviceAreaPlaces) ? serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean) : [];
       const hasHours =
         regularHours && typeof regularHours === "object" && Array.isArray(regularHours.periods);
+      const hasAttrs = Array.isArray(attributes) && attributes.length > 0;
+      const hasServiceItems = Array.isArray(serviceItems);
 
       if (!accountId || !locId) {
         toast.error("Select a Google location, then try again.");
         return;
       }
-      if (!desc && !svc && !website && !chat && places.length === 0 && !hasHours) {
-        toast.error("Add a description, services, website, WhatsApp or service area to save.");
+      if (!desc && !svc && !website && !chat && places.length === 0 && !hasHours && !hasAttrs && !hasServiceItems) {
+        toast.error("Add a description, services, website, WhatsApp, service area or category attribute to save.");
         return;
       }
 
@@ -182,10 +184,12 @@ export default function OptimizationPage() {
         const patchBody = { accountId, locationId: locId };
         if (desc) patchBody.description = desc;
         if (svc) patchBody.services = svc;
+        if (hasServiceItems) patchBody.serviceItems = serviceItems;
         if (website) patchBody.websiteUri = website;
         if (chat) patchBody.chatUrl = chat;
         if (places.length > 0) patchBody.serviceAreaPlaces = places;
         if (hasHours) patchBody.regularHours = regularHours;
+        if (Array.isArray(attributes) && attributes.length > 0) patchBody.attributes = attributes;
         const gRes = await fetch("/api/gmb/patch-location", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -245,6 +249,7 @@ export default function OptimizationPage() {
               typeof payload?.services === "string" && payload.services.trim()
                 ? payload.services.trim()
                 : undefined,
+            serviceItems: Array.isArray(payload?.serviceItems) ? payload.serviceItems : undefined,
             // Phone is intentionally not synced to Google.
             websiteUri: payload?.websiteUri,
             chatUrl: payload?.chatUrl,
@@ -258,6 +263,10 @@ export default function OptimizationPage() {
               typeof payload.regularHours === "object" &&
               Array.isArray(payload.regularHours.periods)
                 ? payload.regularHours
+                : undefined,
+            attributes:
+              Array.isArray(payload?.attributes) && payload.attributes.length
+                ? payload.attributes
                 : undefined,
             googleAccessToken:
               typeof payload?.googleAccessToken === "string" && payload.googleAccessToken.trim()

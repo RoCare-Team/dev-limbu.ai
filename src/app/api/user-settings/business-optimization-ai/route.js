@@ -113,6 +113,86 @@ export async function POST(request) {
     const body = await request.json().catch(() => ({}));
     const { mode = 'field', fieldId, fieldLabel, context, currentValue, omitDescription: omitStudioDescription } = body;
 
+    if (mode === 'foodMenu') {
+      // Generate a structured food menu for an eligible (restaurant / sweets / cafe)
+      // location: sections, each with items { name, description, price }. The UI lets
+      // the user review/edit before it is saved to Google's Food Menu.
+      const currency = String(body?.currency || 'INR').trim() || 'INR';
+      const sys =
+        'You are a menu writer for a Google Business Profile food listing. Use ONLY facts from the JSON context (business name, primary category, city). Return ONLY valid JSON, no markdown.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: Create a realistic menu for this business based on its primary category and locality. Use 2–4 sections, each with 3–6 items. Each item has a "name", a short "description" (max 120 chars), and a numeric "price" in ${currency} (number only, no symbol). Keep prices realistic for the locality. Return ONLY: {"currency":"${currency}","sections":[{"name":"...","items":[{"name":"...","description":"...","price":0}]}]}`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 1400,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const text = completion.choices?.[0]?.message?.content?.trim() || '';
+      let parsed;
+      try {
+        parsed = JSON.parse(text.replace(/^```(?:json)?|```$/gm, '').trim());
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON from model', raw: text.slice(0, 400) }, { status: 502 });
+      }
+      const sections = Array.isArray(parsed?.sections) ? parsed.sections : [];
+      const cleaned = sections
+        .map((sec) => ({
+          name: String(sec?.name || '').trim().slice(0, 140),
+          items: (Array.isArray(sec?.items) ? sec.items : [])
+            .map((it) => {
+              const price = Number(it?.price);
+              return {
+                name: String(it?.name || '').trim().slice(0, 140),
+                description: String(it?.description || '').trim().slice(0, 300),
+                price: Number.isFinite(price) && price >= 0 ? String(price) : '',
+              };
+            })
+            .filter((it) => it.name)
+            .slice(0, 30),
+        }))
+        .filter((sec) => sec.name && sec.items.length)
+        .slice(0, 12);
+      return NextResponse.json({ success: true, currency: parsed?.currency || currency, sections: cleaned });
+    }
+
+    if (mode === 'serviceItems') {
+      // Generate concrete services for the primary category, each with a title and a
+      // short description (Google free-form serviceItems support label descriptions).
+      const sys =
+        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, primary category, city). Return ONLY valid JSON, no markdown.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: List 5 concrete services this business offers, grounded in its primary category. Each service has a short "title" (2–5 words, e.g. "RO Water Purifier Installation") and a "description" (1–2 sentences, max 250 characters, what it includes / benefit). Return ONLY: {"items":[{"title":"...","description":"..."}]}`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 700,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const text = completion.choices?.[0]?.message?.content?.trim() || '';
+      let parsed;
+      try {
+        parsed = JSON.parse(text.replace(/^```(?:json)?|```$/gm, '').trim());
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON from model', raw: text.slice(0, 400) }, { status: 502 });
+      }
+      const items = Array.isArray(parsed?.items) ? parsed.items : Array.isArray(parsed) ? parsed : [];
+      const cleaned = items
+        .map((it) => ({
+          title: String(it?.title || it?.name || '').trim().slice(0, 140),
+          description: String(it?.description || '').trim().slice(0, 300),
+        }))
+        .filter((it) => it.title)
+        .slice(0, 20);
+      return NextResponse.json({ success: true, items: cleaned });
+    }
+
     if (mode === 'studio') {
       const sys =
         'You are a Google Business Profile copywriter. Use ONLY facts from the JSON context. Return ONLY valid JSON, no markdown fences.';

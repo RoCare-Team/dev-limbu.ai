@@ -36,6 +36,19 @@ function serviceItemsToText(items) {
     .join(', ');
 }
 
+// Structured services with title + description, for the title/description editor.
+function serviceItemsToList(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((it) => {
+      const label = it?.freeFormServiceItem?.label;
+      const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+      const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
+      return title ? { title, description } : null;
+    })
+    .filter(Boolean);
+}
+
 async function resolveAccessToken(session, accountId, email, bodyToken) {
   const fromBody = typeof bodyToken === 'string' ? bodyToken.trim() : '';
   if (fromBody) return fromBody;
@@ -105,6 +118,7 @@ function mapLocation(loc, accountId) {
     profileDescription: loc.profile?.description || '',
     serviceAreaPlaces,
     services: serviceItemsToText(loc.serviceItems),
+    serviceItemsList: serviceItemsToList(loc.serviceItems),
     primaryCategory: loc.categories?.primaryCategory?.displayName || '',
     primaryCategoryId: (loc.categories?.primaryCategory?.name || '').replace(/^categories\//, ''),
     // Raw structures so the panel/normalizer can render hours & open status.

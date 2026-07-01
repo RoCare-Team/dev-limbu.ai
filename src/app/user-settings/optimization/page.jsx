@@ -268,6 +268,12 @@ export default function OptimizationPage() {
               Array.isArray(payload?.attributes) && payload.attributes.length
                 ? payload.attributes
                 : undefined,
+            categories:
+              payload?.categories &&
+              typeof payload.categories === "object" &&
+              (payload.categories.primary || payload.categories.primaryCategory)
+                ? payload.categories
+                : undefined,
             googleAccessToken:
               typeof payload?.googleAccessToken === "string" && payload.googleAccessToken.trim()
                 ? payload.googleAccessToken.trim()
@@ -292,6 +298,14 @@ export default function OptimizationPage() {
             ? `Synced ${n} field${n === 1 ? "" : "s"} to Google. Data reloaded from Google.`
             : "Synced to Google. Data reloaded from Google."
         );
+        if (Array.isArray(data.serviceAreaUnresolved) && data.serviceAreaUnresolved.length) {
+          toast(
+            `Couldn't match ${data.serviceAreaUnresolved.length} area(s) to a Google place: ${data.serviceAreaUnresolved
+              .slice(0, 3)
+              .join(", ")}. Try clearer names like "Andheri West, Mumbai".`,
+            { icon: "⚠️", duration: 6000 }
+          );
+        }
       } catch (e) {
         const msg = e.message || "Google sync failed";
         setError(msg);
@@ -310,16 +324,12 @@ export default function OptimizationPage() {
       <BackRow onClick={() => router.push("/user-settings")} />
 
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>
           Business optimization
         </h1>
-        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#64748b", lineHeight: 1.55, maxWidth: 720 }}>
-          Data loads from the Google Business Information API (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>GET …/locations/&#123;id&#125;</code>
-          ) and attributes for WhatsApp. Updates use the official PATCH masks (<code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>title</code>,{" "}
-          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>profile</code>, <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>phoneNumbers</code>,{" "}
-          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>websiteUri</code>,           <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>storefrontAddress</code>,{" "}
-          <code style={{ fontSize: 12, background: "#f1f5f9", padding: "2px 6px", borderRadius: 4 }}>serviceArea</code>). Map coordinates are not edited here; service-area search uses your Google address or listing coordinates.{" "}
-          <strong>Save changes</strong> (or per-field <strong>Save</strong>) PATCHes Google, then refetches live data. Website Builder saves generated HTML to your account and can push the URL to Google.
+        <p style={{ margin: "8px 0 0", fontSize: 15, color: "#64748b", lineHeight: 1.55, maxWidth: 720 }}>
+          Edit your Google Business Profile — category, services, description, hours and more.
+          Every change saves straight to Google.
         </p>
         {gmbRefreshPending && (
           <p style={{ margin: "8px 0 0", fontSize: 12, color: "#6366f1", fontWeight: 600 }}>

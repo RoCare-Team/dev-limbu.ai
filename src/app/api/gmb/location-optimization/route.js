@@ -5,6 +5,7 @@ import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { GMB_BUSINESS_INFORMATION_V1_BASE } from '@/lib/gmbLocationApiActions';
+import { parseServiceMoney } from '@/lib/gmbLocationDataset';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,7 +45,8 @@ function serviceItemsToList(items) {
       const label = it?.freeFormServiceItem?.label;
       const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
       const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
-      return title ? { title, description } : null;
+      const { priceType, price } = parseServiceMoney(it?.price);
+      return title ? { title, description, priceType, price } : null;
     })
     .filter(Boolean);
 }

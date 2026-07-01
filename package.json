@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "backfill:subscription-payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs",
-    "backfill:payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs"
+    "backfill:payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs",
+    "sync:gmb-categories": "node scripts/sync-gmb-categories.mjs"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.11.0",

@@ -22,7 +22,23 @@ export const GMB_BUSINESS_INFORMATION_READ_MASK = [
   'relationshipData',
   'metadata',
   'openInfo',
+  'serviceItems',
 ].join(',');
+
+/**
+ * Parse a Google ServiceItem `price` (Money) back into the UI's { priceType, price }.
+ * Zero amount → Free; a positive amount → Fixed; missing → No price. (The public API
+ * has no "From" flag, so a From price reads back as Fixed.)
+ */
+export function parseServiceMoney(money) {
+  if (!money || typeof money !== 'object') return { priceType: 'none', price: '' };
+  const units = Number(money.units || 0);
+  const nanos = Number(money.nanos || 0);
+  const amt = units + nanos / 1e9;
+  if (!Number.isFinite(amt)) return { priceType: 'none', price: '' };
+  if (amt === 0) return { priceType: 'free', price: '' };
+  return { priceType: 'fixed', price: String(Number.isInteger(amt) ? amt : Number(amt.toFixed(2))) };
+}
 
 /** Human-readable lines from Business Information regularHours.periods */
 export function formatRegularHoursSummary(periods) {
@@ -140,6 +156,8 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
         .map((s) => ({
           title: String(s?.title || s?.displayName || '').trim(),
           description: String(s?.description || '').trim(),
+          priceType: s?.priceType || 'none',
+          price: s?.price != null ? String(s.price) : '',
         }))
         .filter((s) => s.title)
     : Array.isArray(loc.serviceItems)
@@ -148,7 +166,8 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
             const label = it?.freeFormServiceItem?.label;
             const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
             const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
-            return title ? { title, description } : null;
+            const { priceType, price } = parseServiceMoney(it?.price);
+            return title ? { title, description, priceType, price } : null;
           })
           .filter(Boolean)
       : [];

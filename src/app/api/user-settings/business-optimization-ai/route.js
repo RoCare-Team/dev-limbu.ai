@@ -18,7 +18,7 @@ const FIELD_INSTRUCTIONS = {
   tagline:
     'Write a punchy 8–12 word tagline. Return ONLY the tagline.',
   description:
-    `Write a Google Business Profile description: SEO-friendly, accurate to the facts given, include locality/service areas, end with a soft CTA. HARD LIMIT: maximum ${GMB_PROFILE_DESCRIPTION_MAX} characters (including spaces). Stay under the limit. Return ONLY the description text.`,
+    `Write a Google Business Profile description: SEO-friendly and accurate to the facts given. When the context provides them, weave in the business category (primaryCategory), the city (city/locality), the address/area, the target keyword(s), and the customer intent (what the searcher wants) naturally — do not list them as labels. Include locality/service areas and end with a soft CTA. HARD LIMIT: maximum ${GMB_PROFILE_DESCRIPTION_MAX} characters (including spaces). Stay under the limit. Return ONLY the description text.`,
   services:
     'List exactly 5 concrete services this business offers (from category + context). Return ONLY a JSON array of strings like ["a","b","c","d","e"] — no markdown.',
   phone:
@@ -157,6 +157,46 @@ export async function POST(request) {
         .filter((sec) => sec.name && sec.items.length)
         .slice(0, 12);
       return NextResponse.json({ success: true, currency: parsed?.currency || currency, sections: cleaned });
+    }
+
+    if (mode === 'descriptionVariants') {
+      // Generate 2–3 DISTINCT Google Business Profile description options so the user
+      // can pick one. Uses the guided inputs (city/address/keyword/intent) + category
+      // from the JSON context. Each option is clamped to the Google length limit.
+      const count = Math.min(Math.max(Number(body?.count) || 3, 2), 3);
+      const sys =
+        'You are a Google Business Profile copywriter. Use ONLY facts from the JSON context. Return ONLY valid JSON, no markdown fences.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: Write ${count} DISTINCT Google Business Profile description options. For each: SEO-friendly and accurate; naturally weave in the business category (primaryCategory), city (city/locality), address/area, target keyword(s) and customer intent when present; end with a soft CTA. Vary the angle/tone across the options so they read differently. HARD LIMIT: each option max ${GMB_PROFILE_DESCRIPTION_MAX} characters (including spaces). Return ONLY: {"variants":["option 1","option 2"${count === 3 ? ',"option 3"' : ''}]}`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.85,
+        max_tokens: 1400,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const text = completion.choices?.[0]?.message?.content?.trim() || '';
+      let parsed;
+      try {
+        parsed = JSON.parse(text.replace(/^```(?:json)?|```$/gm, '').trim());
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON from model', raw: text.slice(0, 400) }, { status: 502 });
+      }
+      const rawVariants = Array.isArray(parsed?.variants)
+        ? parsed.variants
+        : Array.isArray(parsed)
+          ? parsed
+          : [];
+      const variants = rawVariants
+        .map((v) => clampGmbDescription(String(v || '').trim()))
+        .filter(Boolean)
+        .slice(0, 3);
+      if (!variants.length) {
+        return NextResponse.json({ error: 'AI returned no descriptions. Try again.' }, { status: 502 });
+      }
+      return NextResponse.json({ success: true, variants });
     }
 
     if (mode === 'serviceItems') {

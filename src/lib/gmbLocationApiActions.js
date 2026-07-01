@@ -23,6 +23,7 @@ export const LOCATION_UPDATE_MASKS = {
   serviceArea: 'serviceArea',
   regularHours: 'regularHours',
   serviceItems: 'serviceItems',
+  categories: 'categories',
 };
 
 export function locationResourceUrl(locationId) {
@@ -64,62 +65,105 @@ export function buildRegularHoursPatchBody(periods) {
   return { regularHours: { periods: p } };
 }
 
-export function buildServiceAreaPatchBody(placeNames) {
-  const names = Array.isArray(placeNames)
-    ? placeNames.map((s) => String(s).trim()).filter(Boolean)
-    : [];
-  if (!names.length) return null;
+/**
+ * Build a serviceArea PATCH body. Google's PlaceInfo requires BOTH placeName AND a
+ * Google placeId — a bare name is rejected — so this accepts resolved objects
+ * { placeName, placeId } and drops any without a placeId. Max 20 places.
+ */
+export function buildServiceAreaPatchBody(placeInfos) {
+  const infos = (Array.isArray(placeInfos) ? placeInfos : [])
+    .map((p) => {
+      if (p && typeof p === 'object') {
+        const placeName = String(p.placeName || p.name || '').trim();
+        const placeId = String(p.placeId || '').trim();
+        return placeName && placeId ? { placeName, placeId } : null;
+      }
+      return null; // a bare string has no placeId — cannot be sent to Google
+    })
+    .filter(Boolean)
+    .slice(0, 20);
+  if (!infos.length) return null;
   return {
     serviceArea: {
       businessType: 'CUSTOMER_AND_BUSINESS_LOCATION',
-      places: { placeInfos: names.map((placeName) => ({ placeName })) },
+      places: { placeInfos: infos },
     },
   };
+}
+
+/**
+ * Build a `ServiceItem.price` (Money) from the UI price fields. The Business
+ * Information API ServiceItem has a real top-level `price` (Money) — Free is a zero
+ * amount, Fixed is the entered amount. "No price" omits the field. (The public API
+ * has no "starts at / From" flag, so a From amount is stored as a plain price.)
+ */
+export function buildServiceMoney(priceType, price, currencyCode = 'INR') {
+  const type = String(priceType || 'none').toLowerCase();
+  if (type === 'none') return null;
+  if (type === 'free') return { currencyCode, units: '0', nanos: 0 };
+  const num = Number(String(price ?? '').replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(num) || num < 0) return null;
+  const units = Math.floor(num);
+  const nanos = Math.round((num - units) * 1e9);
+  return { currencyCode, units: String(units), nanos };
 }
 
 /**
  * Build a serviceItems PATCH body as free-form service items under the location's
  * primary category gcid. Accepts EITHER:
  *   - a comma-separated string / array of strings (titles only — legacy), or
- *   - an array of objects { title|displayName|label, description } so each service
- *     carries a title AND an optional description.
- * Verified format: { serviceItems: [{ freeFormServiceItem: { category: 'gcid:...',
- * label: { displayName, description?, languageCode } } }] } with updateMask=serviceItems.
- * Google's free-form serviceItem label supports an optional `description`.
+ *   - an array of objects { title|displayName|label, description, priceType, price }
+ *     so each service carries a title, an optional description AND a real price.
+ * Verified format: { serviceItems: [{ price?: Money, freeFormServiceItem: {
+ * category: 'gcid:...', label: { displayName, description?, languageCode } } }] } with
+ * updateMask=serviceItems. `price` is Google's own service price field (Money).
  */
-export function buildServiceItemsPatchBody(services, categoryGcid) {
+export function buildServiceItemsPatchBody(services, categoryGcid, opts = {}) {
   const gcid = String(categoryGcid || '').replace(/^categories\//, '').trim();
+  const currencyCode = opts.currencyCode || 'INR';
 
   let list;
   if (Array.isArray(services)) {
     list = services.map((s) =>
       s && typeof s === 'object'
-        ? { displayName: s.title || s.displayName || s.label || '', description: s.description || '' }
-        : { displayName: String(s || ''), description: '' }
+        ? {
+            displayName: s.title || s.displayName || s.label || '',
+            description: s.description || '',
+            priceType: s.priceType || 'none',
+            price: s.price,
+          }
+        : { displayName: String(s || ''), description: '', priceType: 'none', price: '' }
     );
   } else {
     list = String(services || '')
       .split(',')
-      .map((s) => ({ displayName: s, description: '' }));
+      .map((s) => ({ displayName: s, description: '', priceType: 'none', price: '' }));
   }
 
   const items = list
     .map((s) => ({
       displayName: String(s.displayName || '').trim(),
       description: String(s.description || '').trim(),
+      priceType: s.priceType || 'none',
+      price: s.price,
     }))
     .filter((s) => s.displayName)
     .slice(0, 100)
-    .map((s) => ({
-      freeFormServiceItem: {
-        category: gcid,
-        label: {
-          displayName: s.displayName.slice(0, 140),
-          ...(s.description ? { description: s.description.slice(0, 300) } : {}),
-          languageCode: 'en',
+    .map((s) => {
+      const item = {
+        freeFormServiceItem: {
+          category: gcid,
+          label: {
+            displayName: s.displayName.slice(0, 140),
+            ...(s.description ? { description: s.description.slice(0, 300) } : {}),
+            languageCode: 'en',
+          },
         },
-      },
-    }));
+      };
+      const money = buildServiceMoney(s.priceType, s.price, currencyCode);
+      if (money) item.price = money;
+      return item;
+    });
 
   return { serviceItems: items };
 }
@@ -182,6 +226,46 @@ export function buildAttributesPatchBody(items, optionsByName = {}) {
     attributeMask: attributes.map((a) => a.name).join(','),
     body: { attributes },
   };
+}
+
+/**
+ * Normalize a Google category id to the bare `gcid:...` form the categories PATCH
+ * body expects (the location resource sometimes returns `categories/gcid:...`).
+ */
+export function normalizeCategoryGcid(name) {
+  return String(name || '')
+    .trim()
+    .replace(/^categories\//, '');
+}
+
+/**
+ * Build a `categories` PATCH body (updateMask=categories) from a primary category
+ * gcid + optional list of additional (sub) category gcids. Google requires the
+ * primary category; additional categories are capped at 9 per the API.
+ * Shape: { categories: { primaryCategory: { name }, additionalCategories: [{ name }] } }
+ */
+export function buildCategoriesPatchBody(primaryGcid, additionalGcids = []) {
+  const primary = normalizeCategoryGcid(primaryGcid);
+  if (!primary) return null;
+  const additional = (Array.isArray(additionalGcids) ? additionalGcids : [])
+    .map(normalizeCategoryGcid)
+    .filter((g) => g && g !== primary);
+  // De-dupe while preserving order; Google allows up to 9 additional categories.
+  const seen = new Set();
+  const uniqueAdditional = [];
+  for (const g of additional) {
+    if (seen.has(g)) continue;
+    seen.add(g);
+    uniqueAdditional.push(g);
+  }
+  const categories = { primaryCategory: { name: primary } };
+  if (uniqueAdditional.length) {
+    categories.additionalCategories = uniqueAdditional.slice(0, 9).map((name) => ({ name }));
+  } else {
+    // Send an empty array so removing all sub-categories actually clears them.
+    categories.additionalCategories = [];
+  }
+  return { categories };
 }
 
 export function parseServiceAreaFromText(text) {

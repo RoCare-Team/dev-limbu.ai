@@ -127,16 +127,50 @@ async function refreshGoogleToken(refreshToken, planId) {
 
 // ─── GMB posting ──────────────────────────────────────────────────────────────
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// "Photo gallery upload failed" happens when Google fetches the image for the photo
+// gallery (checkmark 'both') before the freshly generated image is fully available on
+// S3, or on a transient media hiccup. Warm the URL first so Google's fetch succeeds.
+async function warmImageUrl(url, log) {
+  if (!url) return false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const r = await fetch(url, { method: 'GET', cache: 'no-store' });
+      if (r.ok) {
+        // Drain the body so the S3/CDN object is definitely materialized before Google fetches it.
+        await r.arrayBuffer().catch(() => {});
+        if (log) log(`Image warm OK (attempt ${attempt + 1}) — ${url.slice(0, 80)}`);
+        return true;
+      }
+      if (log) log(`Image warm HTTP ${r.status} (attempt ${attempt + 1})`);
+    } catch (e) {
+      if (log) log(`Image warm error (attempt ${attempt + 1}): ${e.message}`);
+    }
+    await sleep(1500 * (attempt + 1));
+  }
+  return false;
+}
+
+// A failure list where EVERY failure is the photo-gallery step (and nothing succeeded)
+// is safe to retry — no post was created, and the gallery step is the flaky part.
+function isGalleryOnlyFailure(failList) {
+  if (!Array.isArray(failList) || failList.length === 0) return false;
+  return failList.every((f) => /photo gallery|gallery upload/i.test(String(f?.error || f?.message || '')));
+}
+
 /**
  * Calls /api/gmb/publish — the SAME working endpoint the manual frontend uses
- * (postToGmbAction). The legacy /api/post-to-gmb path pointed at a dead n8n
- * webhook whose host no longer resolves, which is why cron posts failed with
- * "fetch failed". Payload shape matches the manual post:
+ * (postToGmbAction). Payload shape matches the manual post:
  *   account, locationData, output, description, accessToken, checkmark
  * `skipDbUpdate` is set because this cron manages PostStatus itself.
+ *
+ * Reliability: keeps checkmark 'both' (post + photo gallery). Warms the image URL
+ * first, and retries when the ONLY failure is "Photo gallery upload failed" and
+ * nothing succeeded — that step is intermittent on freshly generated images.
  * Returns { ok, httpStatus, data }
  */
-async function postToGmb({ account, locationData, imageUrl, description, accessToken }) {
+async function postToGmb({ account, locationData, imageUrl, description, accessToken }, log) {
   // ── Build payload for GMB publish (same upstream as manual) ──────────────
   const payload = {
     account,
@@ -146,8 +180,6 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     accessToken: accessToken || '',
     // Mirror the WORKING manual flow exactly: checkmark 'both' (image attaches to
     // the post AND the photo gallery) PLUS the full payload (post_type, cta, …).
-    // The cron's old 'both' failed "Photo gallery upload failed" only because it
-    // omitted post_type/cta, so the upstream's photo step had no context.
     checkmark:   'both',
     post_type:   'standard',
     cta:         'learn_more',
@@ -169,27 +201,28 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     accessTokenLen: accessToken?.length || 0,
   }, null, 2));
 
-  try {
-    const res  = await fetch(`${BASE_URL}/api/gmb/publish`, {
+  // Pre-warm the image so Google's photo-gallery fetch doesn't race a fresh S3 upload.
+  await warmImageUrl(imageUrl, log);
+
+  const MAX_GALLERY_ATTEMPTS = 3; // 1 initial + up to 2 gallery retries
+
+  const runOnce = async () => {
+    const res = await fetch(`${BASE_URL}/api/gmb/publish`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
     });
-      console.log('[CRON] 📮 gmb/publish HTTP status:', res.status);
+    console.log('[CRON] 📮 gmb/publish HTTP status:', res.status);
+    const text = await res.text();
+    console.log('[CRON] 📮 gmb/publish FULL raw response:', text.slice(0, 12000));
 
-      const text = await res.text();
-      console.log('[CRON] 📮 gmb/publish FULL raw response:', text.slice(0, 12000));
-
-      let data;
+    let data;
     try   { data = text ? JSON.parse(text) : {}; }
     catch { data = { raw: text }; }
 
     // /api/gmb/publish wraps the upstream response as { ok, data: { success, fail, succeeded, failed, total } }.
-    // HTTP 200 with a non-empty `fail` list (e.g. expired OAuth token) is NOT a real success,
-    // so inspect the per-location results instead of trusting the outer ok flag.
-    // The upstream sometimes nests the result one level deeper (`data.data.data`).
-    // Unwrap until we find the success/fail lists — otherwise a real failure list
-    // sitting one level down was missed and the post was falsely marked "posted".
+    // Inspect per-location results (HTTP 200 with a non-empty `fail` list is NOT success).
+    // The upstream sometimes nests the result one level deeper (`data.data.data`) — unwrap it.
     const outer = data && typeof data.data === 'object' && data.data ? data.data : {};
     const publishData =
       Array.isArray(outer.success) ||
@@ -205,30 +238,40 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     const succeeded = Number(publishData.succeeded) || successList.length;
     const failed = Number(publishData.failed) || failList.length;
     const httpOk = res.ok && data?.ok !== false;
-    const hasFailures = failed > 0;
-    const hasSuccess = succeeded > 0;
-    // Real success: transport ok, no failures, and either an explicit success or no per-location lists at all.
     const reallyOk =
-      httpOk && !hasFailures && (hasSuccess || (successList.length === 0 && failList.length === 0));
+      httpOk && failed === 0 && (succeeded > 0 || (successList.length === 0 && failList.length === 0));
 
-    const failMessages = failList
-      .map((f) => String(f?.error || f?.message || ''))
-      .join(' | ');
+    const failMessages = failList.map((f) => String(f?.error || f?.message || '')).join(' | ');
     const authError =
       [401, 403].includes(res.status) ||
-      /invalid authentication|unauthenticated|oauth 2|invalid_grant|access token|login cookie|permission/i.test(
-        failMessages
-      );
+      /invalid authentication|unauthenticated|oauth 2|invalid_grant|access token|login cookie|permission/i.test(failMessages);
 
     return {
-      ok: reallyOk,
-      httpStatus: res.status,
-      authError,
-      succeeded,
-      failed,
-      data,
-      rawBody: text,
+      ok: reallyOk, httpStatus: res.status, authError, succeeded, failed,
+      failList, data, rawBody: text,
     };
+  };
+
+  try {
+    let result;
+    for (let attempt = 1; attempt <= MAX_GALLERY_ATTEMPTS; attempt++) {
+      result = await runOnce();
+      // Only retry the flaky, non-destructive case: gallery-only failure with nothing posted.
+      const galleryRetryable =
+        !result.ok && result.succeeded === 0 && isGalleryOnlyFailure(result.failList);
+      if (result.ok || !galleryRetryable || attempt === MAX_GALLERY_ATTEMPTS) {
+        if (galleryRetryable && attempt === MAX_GALLERY_ATTEMPTS && log) {
+          log(`GMB gallery upload still failing after ${attempt} attempts — giving up`);
+        }
+        break;
+      }
+      const waitMs = 4000 * attempt; // 4s, then 8s — let the media settle on Google's side
+      if (log) log(`GMB "Photo gallery upload failed" — re-warming image and retrying in ${waitMs / 1000}s (attempt ${attempt + 1}/${MAX_GALLERY_ATTEMPTS})`);
+      await warmImageUrl(imageUrl, log);
+      await sleep(waitMs);
+    }
+    const { failList: _omit, ...rest } = result;
+    return rest;
   } catch (err) {
     console.error('[CRON] ❌ postToGmb EXCEPTION:', err.message);
     return { ok: false, httpStatus: 500, authError: false, data: err.message, rawBody: '' };
@@ -832,7 +875,7 @@ export async function GET(request) {
     if (wantGmb) {
       log(`Posting to GMB — account=${account}  locations=${locations.length}  tokenLen=${accessToken?.length || 0}`);
 
-      gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
+      gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken }, log);
 
       log(`GMB attempt 1`, {
         ok: gmbResult.ok,
@@ -850,7 +893,7 @@ export async function GET(request) {
           accessToken = await refreshGoogleToken(storedRefreshToken, planId);
           log(`✓ New accessToken obtained (length=${accessToken.length}) — retrying GMB post`);
 
-          gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken });
+          gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken }, log);
 
           log(`GMB retry`, {
             ok: gmbResult.ok,

@@ -166,6 +166,8 @@ export async function GET(request) {
       locationId,
       categoryName: category.categoryName,
       primaryCategory: category.primaryCategory,
+      primaryCategoryName: category.primaryCategoryName || '',
+      additionalCategories: Array.isArray(category.additionalCategories) ? category.additionalCategories : [],
       regionCode: category.regionCode,
       languageCode: category.languageCode,
       capabilities: category.capabilities || {},

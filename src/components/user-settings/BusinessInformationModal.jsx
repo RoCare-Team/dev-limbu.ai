@@ -138,22 +138,22 @@ function ConfirmModal({ field, aiContent, onConfirm, onCancel }) {
         {/* Header */}
         <div style={{
           padding: "20px 24px 16px",
-          background: "linear-gradient(135deg, #fafbff, #eef2ff)",
-          borderBottom: "1px solid #e0e7ff",
+          background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)",
+          borderBottom: "1px solid #FEF08A",
           display: "flex", alignItems: "center", gap: 12,
         }}>
           <div style={{
             width: 42, height: 42, borderRadius: 13,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            background: "linear-gradient(135deg, #CA8A04, #EAB308)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 14px rgba(99,102,241,.35)",
+            boxShadow: "0 4px 14px rgba(202,138,4,.35)",
           }}>
             <SparkIcon size={18} />
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b4b" }}>AI Generated Content</div>
-            <div style={{ fontSize: 12, color: "#818cf8" }}>
-              Review before inserting into <strong style={{ color: "#6366f1" }}>{field}</strong>
+            <div style={{ fontSize: 12, color: "#EAB308" }}>
+              Review before inserting into <strong style={{ color: "#CA8A04" }}>{field}</strong>
             </div>
           </div>
           <button type="button" onClick={onCancel} style={{
@@ -170,7 +170,7 @@ function ConfirmModal({ field, aiContent, onConfirm, onCancel }) {
           </div>
           <div style={{
             background: "#f8fafc", borderRadius: 12, padding: "16px",
-            border: "1.5px solid #e0e7ff", minHeight: 90,
+            border: "1.5px solid #FEF08A", minHeight: 90,
             fontSize: 13, lineHeight: 1.75, color: "#334155",
           }}>
             {Array.isArray(aiContent) ? (
@@ -185,7 +185,7 @@ function ConfirmModal({ field, aiContent, onConfirm, onCancel }) {
                 {!done && (
                   <span style={{
                     display: "inline-block", width: 2, height: 14,
-                    background: "#6366f1", marginLeft: 1, verticalAlign: "middle",
+                    background: "#CA8A04", marginLeft: 1, verticalAlign: "middle",
                     animation: "blink .9s infinite",
                   }} />
                 )}
@@ -218,12 +218,12 @@ function ConfirmModal({ field, aiContent, onConfirm, onCancel }) {
           }}>Cancel</button>
           <button type="button" onClick={() => done && onConfirm(aiContent)} style={{
             padding: "10px 28px", borderRadius: 10, border: "none",
-            background: done ? "linear-gradient(135deg, #6366f1, #818cf8)" : "#e0e7ff",
-            color: done ? "#fff" : "#a5b4fc",
+            background: done ? "linear-gradient(135deg, #CA8A04, #EAB308)" : "#FEF08A",
+            color: done ? "#fff" : "#9ca3af",
             fontSize: 13, fontWeight: 800,
             cursor: done ? "pointer" : "not-allowed",
             fontFamily: "inherit",
-            boxShadow: done ? "0 4px 14px rgba(99,102,241,.35)" : "none",
+            boxShadow: done ? "0 4px 14px rgba(202,138,4,.35)" : "none",
             transition: "all .3s",
             display: "flex", alignItems: "center", gap: 7,
           }}>
@@ -241,7 +241,7 @@ function EditChooser({ fieldLabel, onAiClick, onManualClick }) {
     <div style={{
       position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 300,
       background: "#fff", borderRadius: 14, width: 252,
-      boxShadow: "0 8px 32px rgba(0,0,0,.13)", border: "1px solid #e0e7ff",
+      boxShadow: "0 8px 32px rgba(0,0,0,.13)", border: "1px solid #FEF08A",
       animation: "popIn .18s cubic-bezier(.34,1.56,.64,1)",
       overflow: "hidden",
     }}>
@@ -254,25 +254,25 @@ function EditChooser({ fieldLabel, onAiClick, onManualClick }) {
         {/* AI Generated option */}
         <button type="button" onClick={onAiClick} style={{
           width: "100%", display: "flex", alignItems: "center", gap: 10,
-          padding: "11px 12px", borderRadius: 10, border: "1.5px solid #e0e7ff",
-          background: "linear-gradient(135deg, #fafbff, #eef2ff)",
+          padding: "11px 12px", borderRadius: 10, border: "1.5px solid #FEF08A",
+          background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)",
           cursor: "pointer", textAlign: "left", fontFamily: "inherit",
           marginBottom: 7, transition: "all .15s",
         }}
-          onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, #eef2ff, #ede9fe)"; e.currentTarget.style.borderColor = "#c7d2fe"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, #fafbff, #eef2ff)"; e.currentTarget.style.borderColor = "#e0e7ff"; }}
+          onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, #FEF9C3, #FEF9C3)"; e.currentTarget.style.borderColor = "#FDE047"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, #FFFDF5, #FEF9C3)"; e.currentTarget.style.borderColor = "#FEF08A"; }}
         >
           <div style={{
             width: 34, height: 34, borderRadius: 10,
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            background: "linear-gradient(135deg, #CA8A04, #EAB308)",
             display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-            boxShadow: "0 3px 8px rgba(99,102,241,.3)",
+            boxShadow: "0 3px 8px rgba(202,138,4,.3)",
           }}>
             <SparkIcon />
           </div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#4338ca" }}>AI Generated</div>
-            <div style={{ fontSize: 11, color: "#818cf8" }}>OpenAI (server) + live GMB facts</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#854D0E" }}>AI Generated</div>
+            <div style={{ fontSize: 11, color: "#EAB308" }}>OpenAI (server) + live GMB facts</div>
           </div>
         </button>
 
@@ -452,9 +452,9 @@ function FieldRow({
             style={{
               display: "flex", alignItems: "center", gap: 6,
               fontSize: 11, fontWeight: 800,
-              color: "#4f46e5",
+              color: "#A16207",
               background: "#fff",
-              border: "1.5px solid #c7d2fe",
+              border: "1.5px solid #FDE047",
               borderRadius: 9, padding: "6px 12px",
               cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 1px 2px rgba(15,23,42,.06)",
@@ -482,9 +482,9 @@ function FieldRow({
               placeholder={`Enter ${label.toLowerCase()}…`}
               style={{
                 width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
-                color: "#334155", border: "1.5px solid #6366f1", borderRadius: 10,
+                color: "#334155", border: "1.5px solid #CA8A04", borderRadius: 10,
                 padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
-                outline: "none", background: "#fafbff",
+                outline: "none", background: "#FFFDF5",
               }}
             />
           ) : (
@@ -501,8 +501,8 @@ function FieldRow({
               placeholder={`Enter ${label.toLowerCase()}…`}
               style={{
                 width: "100%", boxSizing: "border-box", fontSize: 14, color: "#334155",
-                border: "1.5px solid #6366f1", borderRadius: 10, padding: "11px 14px",
-                fontFamily: "inherit", outline: "none", background: "#fafbff",
+                border: "1.5px solid #CA8A04", borderRadius: 10, padding: "11px 14px",
+                fontFamily: "inherit", outline: "none", background: "#FFFDF5",
               }}
             />
           )
@@ -532,7 +532,7 @@ function FieldRow({
                 border: "none",
                 borderRadius: 8,
                 padding: "8px 14px",
-                background: "#1a73e8",
+                background: "#CA8A04",
                 color: "#fff",
                 fontSize: 12,
                 fontWeight: 700,
@@ -565,11 +565,11 @@ function FieldRow({
                 onClick={() => void generateAI()}
                 disabled={loading}
                 style={{
-                  border: "1px solid #c7d2fe",
+                  border: "1px solid #FDE047",
                   borderRadius: 8,
                   padding: "8px 14px",
-                  background: loading ? "#eef2ff" : "#fff",
-                  color: "#5b21b6",
+                  background: loading ? "#FEF9C3" : "#fff",
+                  color: "#854D0E",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: loading ? "not-allowed" : "pointer",
@@ -585,11 +585,11 @@ function FieldRow({
                 onClick={() => void onWebsiteBuilder()}
                 disabled={websiteBuilderPending}
                 style={{
-                  border: "1px solid #bae6fd",
+                  border: "1px solid #FDE047",
                   borderRadius: 8,
                   padding: "8px 14px",
-                  background: websiteBuilderPending ? "#e0f2fe" : "#f0f9ff",
-                  color: websiteBuilderPending ? "#7dd3fc" : "#0369a1",
+                  background: websiteBuilderPending ? "#f3f4f6" : "#FEFCE8",
+                  color: websiteBuilderPending ? "#9ca3af" : "#854D0E",
                   fontSize: 12,
                   fontWeight: 700,
                   cursor: websiteBuilderPending ? "not-allowed" : "pointer",
@@ -630,8 +630,8 @@ function FieldRow({
           {aiSource && (
             <span style={{
               fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 20,
-              background: "linear-gradient(135deg, #eef2ff, #ede9fe)",
-              border: "1px solid #c7d2fe", color: "#6366f1",
+              background: "linear-gradient(135deg, #FEF9C3, #FEF9C3)",
+              border: "1px solid #FDE047", color: "#CA8A04",
               textTransform: "uppercase", letterSpacing: ".05em",
             }}>✦ AI</span>
           )}
@@ -641,12 +641,12 @@ function FieldRow({
           <button type="button" onClick={() => { setShowChooser(v => !v); setManualMode(false); }} style={{
             display: "flex", alignItems: "center", gap: 6,
             fontSize: 11, fontWeight: 800,
-            color: showChooser ? "#fff" : "#4f46e5",
-            background: showChooser ? "linear-gradient(135deg, #6366f1, #7c3aed)" : "#fff",
-            border: `1.5px solid ${showChooser ? "transparent" : "#c7d2fe"}`,
+            color: showChooser ? "#fff" : "#A16207",
+            background: showChooser ? "linear-gradient(135deg, #CA8A04, #A16207)" : "#fff",
+            border: `1.5px solid ${showChooser ? "transparent" : "#FDE047"}`,
             borderRadius: 9, padding: "6px 12px",
             cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
-            boxShadow: showChooser ? "0 4px 12px rgba(99,102,241,.35)" : "0 1px 2px rgba(15,23,42,.06)",
+            boxShadow: showChooser ? "0 4px 12px rgba(202,138,4,.35)" : "0 1px 2px rgba(15,23,42,.06)",
           }}>
             <EditIcon /> Edit
           </button>
@@ -679,18 +679,18 @@ function FieldRow({
             maxLength={maxLength != null ? maxLength : undefined}
             style={{
               width: "100%", boxSizing: "border-box", fontSize: 14, lineHeight: 1.7,
-              color: "#334155", border: "1.5px solid #6366f1", borderRadius: 10,
+              color: "#334155", border: "1.5px solid #CA8A04", borderRadius: 10,
               padding: "12px 14px", resize: "vertical", fontFamily: "inherit",
-              outline: "none", background: "#fafbff",
+              outline: "none", background: "#FFFDF5",
             }}
           />
       ) : (
         <div style={{
           fontSize: 14, color: value ? "#334155" : "#94a3b8",
           padding: "11px 14px",
-          background: aiSource ? "#fafbff" : "#f8fafc",
+          background: aiSource ? "#FFFDF5" : "#f8fafc",
           borderRadius: 10,
-          border: aiSource ? "1.5px solid #c7d2fe" : "1px solid #e8edf5",
+          border: aiSource ? "1.5px solid #FDE047" : "1px solid #e8edf5",
           lineHeight: 1.7, minHeight: multiline ? 72 : "auto",
           whiteSpace: multiline ? "pre-wrap" : "normal",
           wordBreak: "break-word",
@@ -708,7 +708,7 @@ function FieldRow({
               border: "none",
               borderRadius: 8,
               padding: "8px 14px",
-              background: "#1a73e8",
+              background: "#CA8A04",
               color: "#fff",
               fontSize: 12,
               fontWeight: 700,
@@ -848,7 +848,7 @@ function ReadOnlyLinkRow({ label, href, hint }) {
         style={{
           fontSize: 14,
           fontWeight: 600,
-          color: "#1a73e8",
+          color: "#CA8A04",
           textDecoration: "none",
           display: "inline-block",
           padding: "10px 14px",
@@ -938,9 +938,9 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
   const chipBtn = (active) => ({
     padding: "7px 13px", borderRadius: 9, cursor: "pointer", fontFamily: "inherit",
     fontSize: 12.5, fontWeight: 700, transition: "all .15s",
-    border: active ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0",
-    background: active ? "rgba(99,102,241,.08)" : "#fff",
-    color: active ? "#4338ca" : "#64748b",
+    border: active ? "1.5px solid #CA8A04" : "1.5px solid #e2e8f0",
+    background: active ? "rgba(202,138,4,.08)" : "#fff",
+    color: active ? "#854D0E" : "#64748b",
   });
 
   return (
@@ -949,9 +949,9 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
         marginBottom: 10,
         padding: "13px 15px",
         borderRadius: 13,
-        border: `1.5px solid ${dirty ? "#c7d2fe" : "#eef2f6"}`,
-        background: dirty ? "linear-gradient(135deg,#fafbff,#f5f3ff)" : "#fff",
-        boxShadow: dirty ? "0 4px 14px rgba(99,102,241,.10)" : "0 1px 2px rgba(15,23,42,.03)",
+        border: `1.5px solid ${dirty ? "#FDE047" : "#eef2f6"}`,
+        background: dirty ? "linear-gradient(135deg,#FFFDF5,#FEFCE8)" : "#fff",
+        boxShadow: dirty ? "0 4px 14px rgba(202,138,4,.10)" : "0 1px 2px rgba(15,23,42,.03)",
         transition: "all .18s",
       }}
     >
@@ -960,8 +960,8 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
           <span style={{
             width: 26, height: 26, borderRadius: 8, flexShrink: 0,
             display: "inline-flex", alignItems: "center", justifyContent: "center",
-            background: isSet ? "linear-gradient(135deg,#eef2ff,#ede9fe)" : "#f1f5f9",
-            color: isSet ? "#6366f1" : "#94a3b8",
+            background: isSet ? "linear-gradient(135deg,#FEF9C3,#FEF9C3)" : "#f1f5f9",
+            color: isSet ? "#CA8A04" : "#94a3b8",
           }}>
             {ATTR_TYPE_ICON[valueType] || ATTR_TYPE_ICON.BOOL}
           </span>
@@ -971,7 +971,7 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
           {dirty && (
             <span style={{
               fontSize: 9.5, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase",
-              color: "#6366f1", background: "#eef2ff", border: "1px solid #c7d2fe",
+              color: "#CA8A04", background: "#FEF9C3", border: "1px solid #FDE047",
               padding: "2px 7px", borderRadius: 20, flexShrink: 0,
             }}>
               Unsaved
@@ -1000,7 +1000,7 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
                 style={{
                   padding: "6px 20px", borderRadius: 9, border: "none", cursor: "pointer",
                   fontFamily: "inherit", fontSize: 12.5, fontWeight: 800, transition: "all .15s",
-                  background: active ? (o.v ? "linear-gradient(135deg,#6366f1,#818cf8)" : "#fff") : "transparent",
+                  background: active ? (o.v ? "linear-gradient(135deg,#CA8A04,#EAB308)" : "#fff") : "transparent",
                   color: active ? (o.v ? "#fff" : "#0f172a") : "#94a3b8",
                   boxShadow: active ? "0 2px 6px rgba(15,23,42,.10)" : "none",
                 }}
@@ -1068,15 +1068,15 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 16px", borderRadius: 9,
               border: "none", cursor: saving ? "wait" : "pointer",
-              background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "#fff",
+              background: "linear-gradient(135deg, #CA8A04, #EAB308)", color: "#fff",
               fontSize: 12, fontWeight: 800, fontFamily: "inherit",
-              boxShadow: "0 3px 10px rgba(99,102,241,.3)",
+              boxShadow: "0 3px 10px rgba(202,138,4,.3)",
             }}
           >
             {saving ? "Saving…" : "Save to Google"}
           </button>
           <span style={{ fontSize: 11.5, color: "#94a3b8" }}>
-            or use <strong style={{ color: "#6366f1" }}>Save changes</strong> below
+            or use <strong style={{ color: "#CA8A04" }}>Save changes</strong> below
           </span>
         </div>
       )}
@@ -1084,9 +1084,40 @@ function AttributeRow({ attr, value, original, onChange, onSave, saving }) {
   );
 }
 
-// ─── Services editor (title + description per service) ────────────────────────
-// Each service is { title, description }. AI generates both; user reviews in the
-// ConfirmModal before they replace the list. Saved as Google free-form serviceItems.
+// ─── Service price helpers ────────────────────────────────────────────────────
+// Service price uses Google's real ServiceItem.price (Money) field — the same one the
+// GMB dashboard edits. No price → omit; Free → zero amount; Fixed → the entered amount.
+// (The public API has no "From/starts-at" flag, so it is not offered here.)
+const SERVICE_PRICE_TYPES = [
+  { value: "none", label: "No price" },
+  { value: "free", label: "Free" },
+  { value: "fixed", label: "Fixed" },
+];
+/** Hydrate raw Google serviceItems [{title, description, priceType, price}] into UI items. */
+function hydrateServiceItems(list) {
+  return (Array.isArray(list) ? list : []).map((s) => ({
+    title: String(s?.title || "").trim(),
+    description: String(s?.description || "").trim(),
+    priceType: s?.priceType || "none",
+    price: s?.price != null ? String(s.price) : "",
+  }));
+}
+/** Collapse UI items back to the shape the API expects (title + description + price). */
+function serviceItemsForGoogle(list) {
+  return (Array.isArray(list) ? list : [])
+    .map((s) => ({
+      title: String(s?.title || "").trim(),
+      description: String(s?.description || "").trim(),
+      priceType: s?.priceType || "none",
+      price: s?.price || "",
+    }))
+    .filter((s) => s.title);
+}
+
+// ─── Services editor (title + description + price per service) ─────────────────
+// Each service is { title, description, priceType, price }. AI generates title +
+// description; user reviews in the ConfirmModal before they replace the list. Saved as
+// Google free-form serviceItems with a real ServiceItem.price (Money).
 function ServiceItemsEditor({ items, onChange, aiContext, businessName, categoryHint, onSave, savePending }) {
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null); // [{ title, description }]
@@ -1094,7 +1125,7 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
   const list = Array.isArray(items) ? items : [];
 
   const update = (i, key, val) => onChange(list.map((it, idx) => (idx === i ? { ...it, [key]: val } : it)));
-  const add = () => onChange([...list, { title: "", description: "" }]);
+  const add = () => onChange([...list, { title: "", description: "", priceType: "none", price: "" }]);
   const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
 
   const generate = async () => {
@@ -1146,8 +1177,8 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
             disabled={loading}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
-              borderRadius: 9, border: "1.5px solid #e0e7ff", cursor: loading ? "wait" : "pointer",
-              background: "linear-gradient(135deg, #fafbff, #eef2ff)", color: "#4338ca",
+              borderRadius: 9, border: "1.5px solid #FEF08A", cursor: loading ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)", color: "#854D0E",
               fontSize: 12, fontWeight: 700, fontFamily: "inherit",
             }}
           >
@@ -1168,7 +1199,7 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
 
       {list.length === 0 ? (
         <div style={{ padding: "16px 14px", borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#94a3b8", fontSize: 12.5, textAlign: "center" }}>
-          No services yet. Use <strong style={{ color: "#6366f1" }}>AI generate</strong> or <strong>+ Add service</strong>.
+          No services yet. Use <strong style={{ color: "#CA8A04" }}>AI generate</strong> or <strong>+ Add service</strong>.
         </div>
       ) : (
         list.map((it, i) => (
@@ -1198,6 +1229,33 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
               rows={2}
               style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
             />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>Price</span>
+              <select
+                value={it.priceType || "none"}
+                onChange={(e) => update(i, "priceType", e.target.value)}
+                style={{ padding: "8px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer" }}
+              >
+                {SERVICE_PRICE_TYPES.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              {it.priceType === "fixed" && (
+                <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <span style={{ position: "absolute", left: 10, color: "#94a3b8", fontSize: 12.5 }}>₹</span>
+                  <input
+                    value={it.price || ""}
+                    onChange={(e) => update(i, "price", e.target.value.replace(/[^\d.]/g, ""))}
+                    placeholder="Service price (INR)"
+                    inputMode="decimal"
+                    style={{ width: 150, padding: "8px 11px 8px 22px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a" }}
+                  />
+                </div>
+              )}
+              <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
+                Saved to Google&apos;s service price field.
+              </span>
+            </div>
           </div>
         ))
       )}
@@ -1212,8 +1270,8 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
             disabled={savePending}
             style={{
               padding: "7px 16px", borderRadius: 9, border: "none", cursor: savePending ? "wait" : "pointer",
-              background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "#fff",
-              fontSize: 12, fontWeight: 800, fontFamily: "inherit", boxShadow: "0 3px 10px rgba(99,102,241,.3)",
+              background: "linear-gradient(135deg, #CA8A04, #EAB308)", color: "#fff",
+              fontSize: 12, fontWeight: 800, fontFamily: "inherit", boxShadow: "0 3px 10px rgba(202,138,4,.3)",
             }}
           >
             {savePending ? "Saving…" : "Save services to Google"}
@@ -1229,6 +1287,584 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
           onCancel={() => setPending(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Category picker (editable primary + Google-supported sub categories) ──────
+// Primary + additional (sub) categories are searched against Google's category
+// catalog (/api/gmb/categories-search) so only Google-supported categories can be
+// chosen. When a primary is set, related sub-categories are suggested automatically.
+// Saved via categories PATCH (updateMask=categories).
+function useCategorySearch(regionCode, languageCode, accountId) {
+  const base = `regionCode=${encodeURIComponent(regionCode || "IN")}&languageCode=${encodeURIComponent(
+    languageCode || "en"
+  )}&accountId=${encodeURIComponent(accountId || "")}`;
+
+  const search = useCallback(
+    async (query) => {
+      const q = String(query || "").trim();
+      if (q.length < 2) return [];
+      try {
+        const res = await fetch(`/api/gmb/categories-search?query=${encodeURIComponent(q)}&${base}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return [];
+        return Array.isArray(data.categories) ? data.categories : [];
+      } catch {
+        return [];
+      }
+    },
+    [base]
+  );
+
+  // Name-similarity sub-category suggestions for a chosen primary (served from the
+  // synced Mongo catalog by token overlap).
+  const suggest = useCallback(
+    async (displayName, exclude = []) => {
+      const dn = String(displayName || "").trim();
+      if (!dn) return [];
+      try {
+        const res = await fetch(
+          `/api/gmb/categories-search?similarTo=${encodeURIComponent(dn)}&exclude=${encodeURIComponent(
+            (exclude || []).join(",")
+          )}&${base}`
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return [];
+        return Array.isArray(data.categories) ? data.categories : [];
+      } catch {
+        return [];
+      }
+    },
+    [base]
+  );
+
+  return { search, suggest };
+}
+
+// Gold-on-white theme for the category editor (primary #CA8A04).
+const CAT = {
+  gold: "#CA8A04",
+  goldHover: "#A16207",
+  goldText: "#854D0E",
+  goldDeep: "#713F12",
+  g50: "#FEFCE8",
+  g100: "#FEF9C3",
+  g200: "#FEF08A",
+  g300: "#FDE047",
+  softBorder: "#F1E4B8",
+  ring: "rgba(202,138,4,.16)",
+};
+
+function CategorySearchBox({ placeholder, search, exclude, onPick, autoFocus = false }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [active, setActive] = useState(0);
+  const boxRef = useRef(null);
+  const excludeSet = useMemo(() => new Set((exclude || []).map((n) => n)), [exclude]);
+
+  useEffect(() => {
+    const handler = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setResults([]); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    const id = setTimeout(async () => {
+      const r = await search(q);
+      if (cancelled) return;
+      setResults(r.filter((c) => !excludeSet.has(c.name)));
+      setActive(0);
+      setLoading(false);
+      setOpen(true);
+    }, 280);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [query, search, excludeSet]);
+
+  const pick = (c) => { onPick(c); setQuery(""); setResults([]); setOpen(false); setActive(0); };
+
+  const onKeyDown = (e) => {
+    if (!open || !results.length) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); if (results[active]) pick(results[active]); }
+    else if (e.key === "Escape") { setOpen(false); }
+  };
+
+  return (
+    <div ref={boxRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: focused ? CAT.gold : "#9ca3af", display: "flex", transition: "color .15s" }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
+        </span>
+        <input
+          autoFocus={autoFocus}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => { setFocused(true); if (results.length) setOpen(true); }}
+          onBlur={() => setFocused(false)}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          style={{
+            width: "100%", boxSizing: "border-box", padding: "13px 40px", borderRadius: 12,
+            border: `1.5px solid ${focused ? CAT.gold : "#e5e7eb"}`, fontSize: 15, fontFamily: "inherit",
+            color: "#111827", background: "#fff", outline: "none",
+            transition: "border-color .15s, box-shadow .15s",
+            boxShadow: focused ? `0 0 0 4px ${CAT.ring}` : "0 1px 2px rgba(0,0,0,.04)",
+          }}
+        />
+        {loading ? (
+          <span style={{ position: "absolute", right: 14, top: "50%", marginTop: -8, width: 16, height: 16, borderRadius: "50%", border: `2px solid ${CAT.g200}`, borderTopColor: CAT.gold, animation: "spin .7s linear infinite" }} />
+        ) : null}
+      </div>
+      {open && (loading || results.length > 0) && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 300,
+          background: "#fff", borderRadius: 14, border: `1px solid ${CAT.softBorder}`,
+          boxShadow: "0 12px 34px rgba(120,90,10,.14)", maxHeight: 300, overflowY: "auto", padding: 6,
+          animation: "popIn .16s ease",
+        }}>
+          {loading ? (
+            <div style={{ padding: "12px 14px", fontSize: 14, color: "#9ca3af" }}>Searching…</div>
+          ) : (
+            results.map((c, i) => (
+              <button
+                key={c.name}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => pick(c)}
+                style={{
+                  width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "11px 13px",
+                  borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14.5, color: "#1f2937", fontFamily: "inherit",
+                  background: i === active ? CAT.g50 : "#fff", transition: "background .12s",
+                }}
+              >
+                <span style={{ width: 22, height: 22, borderRadius: 7, background: i === active ? CAT.g100 : "#f3f4f6", color: CAT.gold, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M12 5v14M5 12h14" /></svg>
+                </span>
+                {c.displayName}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryEditor({
+  disabled,
+  primary,          // { name, displayName } | null
+  additional,       // [{ name, displayName }]
+  onChange,         // ({ primary?, additional? }) => void
+  onSave,
+  saving,
+  dirty,
+  regionCode,
+  languageCode,
+  accountId,
+  fallbackChips = [],
+}) {
+  const { search, suggest } = useCategorySearch(regionCode, languageCode, accountId);
+  const [editingPrimary, setEditingPrimary] = useState(false);
+  const [suggested, setSuggested] = useState([]);
+
+  const excludeNames = useMemo(
+    () => [primary?.name, ...additional.map((a) => a.name)].filter(Boolean),
+    [primary, additional]
+  );
+
+  // Suggest Google-supported sub-categories related to the primary category, ranked
+  // by name similarity from the synced Mongo catalog.
+  useEffect(() => {
+    const dn = primary?.displayName || "";
+    if (disabled || !dn) { setSuggested([]); return; }
+    let cancelled = false;
+    (async () => {
+      const r = await suggest(dn, excludeNames);
+      if (cancelled) return;
+      setSuggested(r.slice(0, 8));
+    })();
+    return () => { cancelled = true; };
+  }, [primary?.displayName, disabled, suggest, excludeNames]);
+
+  const sectionCard = {
+    marginBottom: 22,
+    padding: 20,
+    borderRadius: 16,
+    background: "#fff",
+    border: `1px solid ${CAT.softBorder}`,
+    boxShadow: "0 1px 2px rgba(120,90,10,.05)",
+  };
+  const sectionTitle = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8, flexWrap: "wrap" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 9, fontSize: 14, fontWeight: 800, color: CAT.goldDeep }}>
+        <span style={{ width: 28, height: 28, borderRadius: 9, background: CAT.g100, color: CAT.gold, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <TabIconCategory />
+        </span>
+        Business categories
+      </span>
+      {dirty ? (
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", color: CAT.goldText, background: CAT.g50, border: `1px solid ${CAT.g200}`, padding: "4px 10px", borderRadius: 20 }}>● Unsaved</span>
+      ) : null}
+    </div>
+  );
+
+  if (disabled) {
+    return (
+      <div style={sectionCard}>
+        {sectionTitle}
+        <p style={{ margin: "0 0 14px", fontSize: 13.5, color: "#6b7280", lineHeight: 1.6 }}>
+          Connect a Google location to edit your primary category and add Google-supported sub-categories.
+        </p>
+        {fallbackChips.length ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {fallbackChips.map((c, i) => (
+              <span key={`${c}-${i}`} style={{ fontSize: 13.5, padding: "8px 15px", borderRadius: 22, background: i === 0 ? CAT.g100 : "#f3f4f6", color: i === 0 ? CAT.goldText : "#4b5563", fontWeight: i === 0 ? 800 : 600, border: `1px solid ${i === 0 ? CAT.g200 : "#e5e7eb"}` }}>{c}</span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const atMax = additional.length >= 9;
+
+  return (
+    <div style={sectionCard}>
+      {sectionTitle}
+
+      {/* Primary category */}
+      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 9 }}>Primary category</div>
+      {editingPrimary ? (
+        <div style={{ marginBottom: 8 }}>
+          <CategorySearchBox
+            autoFocus
+            placeholder="Search Google categories — e.g. Water Purification Company"
+            search={search}
+            exclude={excludeNames}
+            onPick={(c) => { onChange({ primary: c }); setEditingPrimary(false); }}
+          />
+          <button type="button" onClick={() => setEditingPrimary(false)} style={{ marginTop: 10, border: "1.5px solid #e5e7eb", borderRadius: 10, padding: "8px 15px", background: "#fff", color: "#4b5563", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 15, padding: "9px 16px", borderRadius: 12, background: CAT.g50, color: CAT.goldText, fontWeight: 800, border: `1.5px solid ${CAT.g200}` }}>
+            {primary?.displayName || "No primary category"}
+            <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".06em", padding: "2px 8px", borderRadius: 6, background: CAT.gold, color: "#fff", textTransform: "uppercase" }}>Primary</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setEditingPrimary(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 800, color: CAT.goldText, background: "#fff", border: `1.5px solid ${CAT.g300}`, borderRadius: 10, padding: "8px 15px", cursor: "pointer", fontFamily: "inherit", transition: "background .15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = CAT.g50; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; }}
+          >
+            <EditIcon /> Change
+          </button>
+        </div>
+      )}
+
+      {/* Additional (sub) categories */}
+      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: ".04em", margin: "20px 0 9px", display: "flex", alignItems: "center", gap: 8 }}>
+        Additional (sub) categories
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: atMax ? CAT.goldText : "#9ca3af", background: atMax ? CAT.g50 : "#f3f4f6", border: `1px solid ${atMax ? CAT.g200 : "#e5e7eb"}`, padding: "2px 9px", borderRadius: 20, letterSpacing: 0, textTransform: "none" }}>
+          {additional.length} / 9
+        </span>
+      </div>
+      {additional.length ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+          {additional.map((c) => (
+            <span key={c.name} style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13.5, padding: "8px 8px 8px 15px", borderRadius: 22, background: "#fff", color: "#374151", fontWeight: 600, border: "1.5px solid #e5e7eb" }}>
+              {c.displayName}
+              <button
+                type="button"
+                aria-label={`Remove ${c.displayName}`}
+                onClick={() => onChange({ additional: additional.filter((x) => x.name !== c.name) })}
+                style={{ width: 20, height: 20, borderRadius: 10, border: "none", background: "#f3f4f6", color: "#6b7280", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, lineHeight: 1, transition: "all .15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.color = "#dc2626"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#f3f4f6"; e.currentTarget.style.color = "#6b7280"; }}
+              >×</button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ fontSize: 13.5, color: "#9ca3af", marginBottom: 12 }}>No sub-categories yet. Add Google-supported ones below.</div>
+      )}
+      {!atMax ? (
+        <CategorySearchBox
+          placeholder="Search to add a sub-category…"
+          search={search}
+          exclude={excludeNames}
+          onPick={(c) => onChange({ additional: [...additional, c] })}
+        />
+      ) : null}
+
+      {/* Suggested sub-categories for the chosen primary */}
+      {suggested.length && !atMax ? (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px dashed ${CAT.g200}` }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12, fontWeight: 800, color: CAT.goldText, textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 10 }}>
+            <SparkIcon size={13} /> Suggested for {primary?.displayName}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {suggested.map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => onChange({ additional: [...additional, c] })}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, padding: "8px 14px", borderRadius: 22, background: "#fff", color: CAT.goldText, fontWeight: 700, border: `1.5px dashed ${CAT.g300}`, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = CAT.g50; e.currentTarget.style.borderStyle = "solid"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderStyle = "dashed"; }}
+              >
+                <span style={{ color: CAT.gold, fontWeight: 900 }}>+</span> {c.displayName}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {typeof onSave === "function" && dirty ? (
+        <div style={{ marginTop: 18 }}>
+          <button
+            type="button"
+            onClick={() => void onSave()}
+            disabled={saving || !primary?.name}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", borderRadius: 12, border: "none",
+              cursor: saving || !primary?.name ? "not-allowed" : "pointer",
+              background: saving || !primary?.name ? "#f3f4f6" : CAT.gold,
+              color: saving || !primary?.name ? "#9ca3af" : "#fff",
+              fontSize: 14, fontWeight: 800, fontFamily: "inherit",
+              boxShadow: saving || !primary?.name ? "none" : "0 4px 14px rgba(202,138,4,.32)",
+              transition: "background .15s",
+            }}
+            onMouseEnter={(e) => { if (!(saving || !primary?.name)) e.currentTarget.style.background = CAT.goldHover; }}
+            onMouseLeave={(e) => { if (!(saving || !primary?.name)) e.currentTarget.style.background = CAT.gold; }}
+          >
+            {saving ? "Saving…" : "Save categories to Google"}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Description generator (guided inputs -> AI GMB description) ────────────────
+// Collects city / address / keyword / intent (category comes automatically from the
+// primary category) and asks the server AI to write a Google-ready description. The
+// result is reviewed in the ConfirmModal, then inserted into the Description field
+// (which itself syncs to Google from the About tab).
+function DescriptionGenerator({ aiContext, businessName, categoryHint, primaryLoc, onInsert }) {
+  const [inputs, setInputs] = useState({ city: "", address: "", keyword: "", intent: "" });
+  const [loading, setLoading] = useState(false);
+  const [variants, setVariants] = useState(null); // string[] | null
+  const [err, setErr] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const set = (k) => (e) => setInputs((p) => ({ ...p, [k]: e.target.value }));
+  const category = categoryHint?.[0] || "";
+
+  // Prefill city / address from the connected Google location when empty.
+  useEffect(() => {
+    setInputs((p) => ({
+      ...p,
+      city: p.city || primaryLoc?.locality || "",
+      address: p.address || primaryLoc?.fullAddress || primaryLoc?.address || "",
+    }));
+  }, [primaryLoc?.locality, primaryLoc?.fullAddress, primaryLoc?.address]);
+
+  const generate = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const ctx = {
+        ...(aiContext || {}),
+        businessNameHint: businessName,
+        categoryHints: categoryHint,
+        primaryCategory: category,
+        city: inputs.city.trim(),
+        address: inputs.address.trim(),
+        keyword: inputs.keyword.trim(),
+        intent: inputs.intent.trim(),
+      };
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "descriptionVariants", count: 3, context: ctx }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErr(data.error || "Generation failed. Check OPENAI_API_KEY and try again.");
+        return;
+      }
+      const list = (Array.isArray(data.variants) ? data.variants : [])
+        .map((v) => clampGmbDescription(String(v || "").trim()))
+        .filter(Boolean);
+      if (!list.length) {
+        setErr("AI returned no descriptions. Try again.");
+        return;
+      }
+      setVariants(list);
+    } catch {
+      setErr("Generation failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputStyle = {
+    width: "100%", boxSizing: "border-box", padding: "9px 11px", borderRadius: 9,
+    border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a",
+  };
+
+  return (
+    <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", gap: 7 }}>
+            <span style={{ color: "#CA8A04", display: "flex" }}><SparkIcon /></span> AI description generator
+          </div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
+            Add a few details — category is used automatically. The result goes into the Description below.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          style={{ fontSize: 11.5, fontWeight: 800, color: open ? "#fff" : "#A16207", background: open ? "linear-gradient(135deg, #CA8A04, #A16207)" : "#fff", border: `1.5px solid ${open ? "transparent" : "#FDE047"}`, borderRadius: 9, padding: "7px 13px", cursor: "pointer", fontFamily: "inherit" }}
+        >
+          {open ? "Close" : "Generate with AI"}
+        </button>
+      </div>
+
+      {open ? (
+        <div style={{ marginTop: 12, padding: 14, borderRadius: 12, border: "1.5px solid #FEF08A", background: "linear-gradient(135deg,#FFFDF5,#FEFCE8)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, fontSize: 12, color: "#475569" }}>
+            <span style={{ fontWeight: 700, color: "#64748b" }}>Category:</span>
+            <span style={{ fontWeight: 800, color: "#854D0E", background: "#FEFCE8", border: "1px solid #FDE047", padding: "3px 10px", borderRadius: 20 }}>
+              {category || "—"}
+            </span>
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>(automatic)</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}>City</label>
+              <input value={inputs.city} onChange={set("city")} placeholder="e.g. Mumbai" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}>Address / area</label>
+              <input value={inputs.address} onChange={set("address")} placeholder="e.g. Andheri West" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}>Keyword</label>
+              <input value={inputs.keyword} onChange={set("keyword")} placeholder="e.g. RO water purifier" style={inputStyle} />
+            </div>
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#64748b", display: "block", marginBottom: 4 }}>Customer intent</label>
+              <input value={inputs.intent} onChange={set("intent")} placeholder="e.g. book same-day installation" style={inputStyle} />
+            </div>
+          </div>
+          {err ? <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{err}</div> : null}
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => void generate()}
+              disabled={loading}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 9, border: "none", cursor: loading ? "wait" : "pointer", background: "linear-gradient(135deg, #CA8A04, #EAB308)", color: "#fff", fontSize: 12, fontWeight: 800, fontFamily: "inherit", boxShadow: "0 3px 10px rgba(202,138,4,.25)" }}
+            >
+              <SparkIcon /> {loading ? "Generating…" : "Generate 3 options"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {variants !== null ? (
+        <DescriptionVariantsModal
+          variants={variants}
+          onUse={(text) => { onInsert(clampGmbDescription(String(text || ""))); setVariants(null); setOpen(false); }}
+          onCancel={() => setVariants(null)}
+          onRegenerate={() => { setVariants(null); void generate(); }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+// ─── Description variants chooser ──────────────────────────────────────────────
+// Shows the 2–3 AI-generated description options as selectable cards. The user picks
+// one and inserts it into the Description field (which then syncs to Google).
+function DescriptionVariantsModal({ variants, onUse, onCancel, onRegenerate }) {
+  const [selected, setSelected] = useState(0);
+  const list = Array.isArray(variants) ? variants : [];
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(15,23,42,.5)", backdropFilter: "blur(5px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 620, maxHeight: "88vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 60px rgba(0,0,0,.18)", animation: "modalIn .25s cubic-bezier(.34,1.56,.64,1)", overflow: "hidden" }}>
+        <div style={{ padding: "20px 24px 16px", background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)", borderBottom: "1px solid #FEF08A", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 13, background: "linear-gradient(135deg, #CA8A04, #EAB308)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(202,138,4,.35)" }}>
+            <SparkIcon size={18} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#1e1b4b" }}>Choose a description</div>
+            <div style={{ fontSize: 12, color: "#EAB308" }}>{list.length} AI options · pick the one you like</div>
+          </div>
+          <button type="button" onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex" }}>
+            <CloseIcon />
+          </button>
+        </div>
+
+        <div style={{ padding: "16px 24px", overflowY: "auto" }}>
+          {list.map((v, i) => {
+            const active = selected === i;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setSelected(i)}
+                style={{
+                  width: "100%", textAlign: "left", display: "block", marginBottom: 12, padding: "14px 16px",
+                  borderRadius: 12, cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
+                  border: active ? "1.5px solid #CA8A04" : "1.5px solid #e2e8f0",
+                  background: active ? "linear-gradient(135deg,#FFFDF5,#FEFCE8)" : "#fff",
+                  boxShadow: active ? "0 4px 14px rgba(202,138,4,.12)" : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: active ? "#854D0E" : "#94a3b8", textTransform: "uppercase", letterSpacing: ".05em" }}>
+                    Option {i + 1}
+                  </span>
+                  <span style={{ width: 18, height: 18, borderRadius: 9, border: `2px solid ${active ? "#CA8A04" : "#cbd5e1"}`, background: active ? "#CA8A04" : "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                    {active ? <CheckIcon size={11} color="#fff" /> : null}
+                  </span>
+                </div>
+                <div style={{ fontSize: 13, lineHeight: 1.7, color: "#334155", whiteSpace: "pre-wrap" }}>{v}</div>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "#94a3b8", textAlign: "right", marginTop: 6 }}>
+                  {v.length} / {GMB_PROFILE_DESCRIPTION_MAX}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{ padding: "12px 24px 20px", borderTop: "1px solid #f1f5f9", display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" onClick={onRegenerate} style={{ padding: "10px 18px", borderRadius: 10, border: "1.5px solid #FDE047", background: "#fff", color: "#A16207", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <SparkIcon /> Regenerate
+          </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button type="button" onClick={onCancel} style={{ padding: "10px 22px", borderRadius: 10, border: "1.5px solid #e2e8f0", background: "#fff", color: "#64748b", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button type="button" onClick={() => onUse(list[selected])} style={{ padding: "10px 28px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #CA8A04, #EAB308)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(202,138,4,.35)", display: "flex", alignItems: "center", gap: 7 }}>
+              <CheckIcon size={13} color="#fff" /> Use this description
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1308,8 +1944,8 @@ function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint,
             disabled={loading}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 9,
-              border: "1.5px solid #e0e7ff", cursor: loading ? "wait" : "pointer",
-              background: "linear-gradient(135deg, #fafbff, #eef2ff)", color: "#4338ca",
+              border: "1.5px solid #FEF08A", cursor: loading ? "wait" : "pointer",
+              background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)", color: "#854D0E",
               fontSize: 12, fontWeight: 700, fontFamily: "inherit",
             }}
           >
@@ -1327,19 +1963,19 @@ function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint,
 
       {sections.length === 0 ? (
         <div style={{ padding: "20px 14px", borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#94a3b8", fontSize: 12.5, textAlign: "center" }}>
-          No menu yet. Use <strong style={{ color: "#6366f1" }}>AI generate menu</strong> or <strong>+ Section</strong>.
+          No menu yet. Use <strong style={{ color: "#CA8A04" }}>AI generate menu</strong> or <strong>+ Section</strong>.
         </div>
       ) : (
         sections.map((sec, si) => (
           <div key={si} style={{ marginBottom: 14, borderRadius: 13, border: "1.5px solid #eef2f6", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "linear-gradient(135deg,#fafbff,#f5f3ff)", borderBottom: "1px solid #eef2f6" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "linear-gradient(135deg,#FFFDF5,#FEFCE8)", borderBottom: "1px solid #eef2f6" }}>
               <input
                 value={sec.name || ""}
                 onChange={(e) => renameSection(si, e.target.value)}
                 placeholder="Section name (e.g. Sweets, Namkeen)"
                 style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 700, fontFamily: "inherit", color: "#0f172a", background: "#fff" }}
               />
-              <button type="button" onClick={() => addItem(si)} style={{ padding: "7px 11px", borderRadius: 8, border: "1.5px solid #c7d2fe", background: "#eef2ff", color: "#4338ca", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>+ Item</button>
+              <button type="button" onClick={() => addItem(si)} style={{ padding: "7px 11px", borderRadius: 8, border: "1.5px solid #FDE047", background: "#FEF9C3", color: "#854D0E", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>+ Item</button>
               <button type="button" onClick={() => removeSection(si)} aria-label="Remove section" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><CloseIcon /></button>
             </div>
             <div style={{ padding: 12 }}>
@@ -1393,10 +2029,10 @@ function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint,
             style={{
               padding: "9px 20px", borderRadius: 10, border: "none",
               cursor: savePending || itemCount === 0 ? "not-allowed" : "pointer",
-              background: savePending || itemCount === 0 ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-              color: savePending || itemCount === 0 ? "#a5b4fc" : "#fff",
+              background: savePending || itemCount === 0 ? "#FEF08A" : "linear-gradient(135deg, #CA8A04, #A16207)",
+              color: savePending || itemCount === 0 ? "#9ca3af" : "#fff",
               fontSize: 13, fontWeight: 800, fontFamily: "inherit",
-              boxShadow: savePending || itemCount === 0 ? "none" : "0 4px 14px rgba(99,102,241,.3)",
+              boxShadow: savePending || itemCount === 0 ? "none" : "0 4px 14px rgba(202,138,4,.3)",
             }}
           >
             {savePending ? "Saving…" : "Save menu to Google"}
@@ -1436,7 +2072,7 @@ function SectionBlock({ title, hint, children }) {
       }}>
         <span style={{
           width: 3, alignSelf: "stretch", minHeight: 36, borderRadius: 2,
-          background: "linear-gradient(180deg, #6366f1, #7c3aed)", flexShrink: 0,
+          background: "linear-gradient(180deg, #CA8A04, #A16207)", flexShrink: 0,
         }} />
         <div>
           <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>{title}</div>
@@ -1643,15 +2279,15 @@ function ServiceAreaMultiSelect({
         borderBottom: noBottomRule ? "none" : "1px solid #eef2f6",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: ".07em" }}>
-          Service area
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+        <span style={{ width: 28, height: 28, borderRadius: 9, background: "#FEF9C3", color: "#CA8A04", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+          <TabIconPin />
         </span>
+        <span style={{ fontSize: 14, fontWeight: 800, color: "#713F12" }}>Service areas</span>
       </div>
-      <p style={{ margin: "0 0 14px", fontSize: 12, color: "#64748b", lineHeight: 1.55 }}>
-        Uses your <strong>storefront address on Google</strong> ({cityLabel}). Pick areas, then <strong style={{ color: "#6366f1" }}>Save service areas</strong> or{" "}
-        <strong style={{ color: "#6366f1" }}>Save changes</strong> to PATCH{" "}
-        <code style={{ fontSize: 11, background: "#f1f5f9", padding: "1px 5px", borderRadius: 4 }}>serviceArea</code> on Google.
+      <p style={{ margin: "0 0 14px", fontSize: 13.5, color: "#6b7280", lineHeight: 1.6 }}>
+        The towns, cities and localities where you <strong>serve customers at their location</strong> (e.g. RO installation at home).
+        Add the areas around {cityLabel}, then <strong style={{ color: "#CA8A04" }}>Save service areas</strong>. Google allows up to 20.
       </p>
 
       {enableRadiusSearch ? (
@@ -1685,39 +2321,41 @@ function ServiceAreaMultiSelect({
             </label>
             <button
               type="button"
+              onClick={() => void suggestAreasWithAi()}
+              disabled={aiAreaPending || !enableRadiusSearch}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 7,
+                padding: "9px 18px",
+                borderRadius: 9,
+                border: "none",
+                background: aiAreaPending || !enableRadiusSearch ? "#FEF08A" : "#CA8A04",
+                color: aiAreaPending || !enableRadiusSearch ? "#9ca3af" : "#fff",
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: aiAreaPending || !enableRadiusSearch ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                boxShadow: aiAreaPending || !enableRadiusSearch ? "none" : "0 3px 12px rgba(202,138,4,.3)",
+              }}
+            >
+              <SparkIcon size={13} /> {aiAreaPending ? "Suggesting…" : "AI suggest areas"}
+            </button>
+            <button
+              type="button"
               onClick={() => void fetchNearby()}
               disabled={fetchingNearby || !findButtonEnabled}
               style={{
                 padding: "9px 16px",
-                borderRadius: 8,
-                border: "none",
-                background: fetchingNearby || !findButtonEnabled ? "#e2e8f0" : "#1a73e8",
-                color: fetchingNearby || !findButtonEnabled ? "#94a3b8" : "#fff",
+                borderRadius: 9,
+                border: `1.5px solid ${fetchingNearby || !findButtonEnabled ? "#e5e7eb" : "#FDE047"}`,
+                background: "#fff",
+                color: fetchingNearby || !findButtonEnabled ? "#9ca3af" : "#854D0E",
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: fetchingNearby || !findButtonEnabled ? "not-allowed" : "pointer",
                 fontFamily: "inherit",
               }}
             >
-              {fetchingNearby ? "Loading…" : "Find nearby areas"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void suggestAreasWithAi()}
-              disabled={aiAreaPending || !enableRadiusSearch}
-              style={{
-                padding: "9px 16px",
-                borderRadius: 8,
-                border: "1px solid #c7d2fe",
-                background: aiAreaPending ? "#eef2ff" : "#f5f3ff",
-                color: aiAreaPending ? "#a5b4fc" : "#5b21b6",
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: aiAreaPending || !enableRadiusSearch ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {aiAreaPending ? "AI…" : "✨ AI suggest area names"}
+              {fetchingNearby ? "Loading…" : "Find nearby (radius)"}
             </button>
             {typeof onSaveServiceAreas === "function" ? (
               <button
@@ -1728,8 +2366,8 @@ function ServiceAreaMultiSelect({
                   padding: "9px 16px",
                   borderRadius: 8,
                   border: "none",
-                  background: saveServiceAreasPending ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-                  color: saveServiceAreasPending ? "#a5b4fc" : "#fff",
+                  background: saveServiceAreasPending ? "#FEF08A" : "linear-gradient(135deg, #CA8A04, #A16207)",
+                  color: saveServiceAreasPending ? "#9ca3af" : "#fff",
                   fontSize: 13,
                   fontWeight: 700,
                   cursor: saveServiceAreasPending ? "not-allowed" : "pointer",
@@ -1767,40 +2405,38 @@ function ServiceAreaMultiSelect({
 
       {selectedPlaces.length > 0 ? (
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
-            Selected ({selectedPlaces.length})
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 9 }}>
+            Your service areas ({selectedPlaces.length}{selectedPlaces.length >= 20 ? " · max" : ""})
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {selectedPlaces.map((p) => (
-              <button
+              <span
                 key={p}
-                type="button"
-                onClick={() => toggle(p)}
-                title="Remove"
                 style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#1e40af",
-                  background: "#eef2ff",
-                  border: "1px solid #c7d2fe",
-                  borderRadius: 20,
-                  padding: "7px 12px",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  textAlign: "left",
-                  maxWidth: "100%",
-                  lineHeight: 1.4,
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  fontSize: 13.5, fontWeight: 600, color: "#713F12",
+                  background: "#FEF9C3", border: "1.5px solid #FDE047",
+                  borderRadius: 22, padding: "7px 8px 7px 14px",
+                  maxWidth: "100%", lineHeight: 1.4,
                 }}
               >
-                {p}
-                <span style={{ marginLeft: 8, opacity: 0.7 }}>×</span>
-              </button>
+                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{p}</span>
+                <button
+                  type="button"
+                  onClick={() => toggle(p)}
+                  aria-label={`Remove ${p}`}
+                  title="Remove"
+                  style={{ width: 20, height: 20, flexShrink: 0, borderRadius: 10, border: "none", background: "#FDE047", color: "#854D0E", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, lineHeight: 1, transition: "all .15s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#fee2e2"; e.currentTarget.style.color = "#dc2626"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#FDE047"; e.currentTarget.style.color = "#854D0E"; }}
+                >×</button>
+              </span>
             ))}
           </div>
         </div>
       ) : (
-        <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 14, padding: "10px 12px", background: "#f8fafc", borderRadius: 10, border: "1px dashed #e2e8f0" }}>
-          No areas selected yet. Use <strong>Find nearby areas</strong> or <strong>AI suggest</strong>, pick from the list, or add custom lines.
+        <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 14, padding: "12px 14px", background: "#FFFDF5", borderRadius: 12, border: "1px dashed #FDE047" }}>
+          No areas added yet. Tap <strong style={{ color: "#854D0E" }}>AI suggest areas</strong>, pick from the list below, or type a custom area.
         </div>
       )}
 
@@ -1840,7 +2476,7 @@ function ServiceAreaMultiSelect({
                   padding: "12px 14px",
                   border: "none",
                   borderBottom: idx < mergedSuggestions.length - 1 ? "1px solid #f1f5f9" : "none",
-                  background: sel ? "#eef2ff" : "#fff",
+                  background: sel ? "#FEF9C3" : "#fff",
                   cursor: "pointer",
                   fontFamily: "inherit",
                   fontSize: 13,
@@ -1854,7 +2490,7 @@ function ServiceAreaMultiSelect({
                     flexShrink: 0,
                     fontSize: 11,
                     fontWeight: 800,
-                    color: sel ? "#4338ca" : "#64748b",
+                    color: sel ? "#854D0E" : "#64748b",
                   }}
                 >
                   {sel ? "✓ Added" : "+ Add"}
@@ -1892,7 +2528,7 @@ function ServiceAreaMultiSelect({
             padding: "10px 18px",
             borderRadius: 10,
             border: "none",
-            background: "linear-gradient(135deg, #6366f1, #7c3aed)",
+            background: "linear-gradient(135deg, #CA8A04, #A16207)",
             color: "#fff",
             fontSize: 13,
             fontWeight: 800,
@@ -1952,7 +2588,7 @@ function MagicAiLoader({ marginTop = 20, subtitle = "OpenAI is crafting…" }) {
           borderRadius: 16,
           padding: "20px 22px 18px",
           overflow: "hidden",
-          background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 42%, #5b21b6 100%)",
+          background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 42%, #854D0E 100%)",
           animation: "magic-ai-glow 2.4s ease-in-out infinite",
           border: "1px solid rgba(199, 210, 254, 0.35)",
         }}
@@ -2265,6 +2901,13 @@ export default function BusinessInformationPanel({
   const attrDirtyRef = useRef(new Set());
   const categoryReqRef = useRef(0);
 
+  // Editable business categories (primary + additional/sub). Loaded from the same
+  // category-fields call; edited/saved via categories PATCH (updateMask=categories).
+  const [categoryPrimary, setCategoryPrimary] = useState(null); // { name, displayName }
+  const [categoryAdditional, setCategoryAdditional] = useState([]); // [{ name, displayName }]
+  const [categoryDirty, setCategoryDirty] = useState(false);
+  const [categorySaving, setCategorySaving] = useState(false);
+
   // Capabilities (from location metadata) decide which optional editors appear.
   const [capabilities, setCapabilities] = useState({});
 
@@ -2376,7 +3019,7 @@ export default function BusinessInformationPanel({
       services: keep("services", loc.services || "", f.services),
       serviceItems: keep(
         "serviceItems",
-        Array.isArray(loc.serviceItemsList) ? loc.serviceItemsList : [],
+        hydrateServiceItems(Array.isArray(loc.serviceItemsList) ? loc.serviceItemsList : []),
         f.serviceItems
       ),
       serviceAreaPlaces: keep("serviceAreaPlaces", saList, f.serviceAreaPlaces),
@@ -2417,6 +3060,9 @@ export default function BusinessInformationPanel({
       setCategoryAttrs([]);
       setAttrValues({});
       setCapabilities({});
+      setCategoryPrimary(null);
+      setCategoryAdditional([]);
+      setCategoryDirty(false);
       attrDirtyRef.current = new Set();
       return;
     }
@@ -2444,6 +3090,20 @@ export default function BusinessInformationPanel({
       setCategoryAttrs(attrs);
       setAttrValues(seeded);
       attrDirtyRef.current = new Set();
+      // Sync the editable category picker with the live categories from Google.
+      setCategoryPrimary(
+        data.primaryCategoryName
+          ? { name: data.primaryCategoryName, displayName: data.primaryCategory || data.primaryCategoryName }
+          : null
+      );
+      setCategoryAdditional(
+        Array.isArray(data.additionalCategories)
+          ? data.additionalCategories
+              .map((c) => ({ name: String(c?.name || "").trim(), displayName: String(c?.displayName || "").trim() }))
+              .filter((c) => c.name)
+          : []
+      );
+      setCategoryDirty(false);
     } catch {
       if (categoryReqRef.current === reqToken) setAttrError("Could not load category fields from Google.");
     } finally {
@@ -2538,9 +3198,8 @@ export default function BusinessInformationPanel({
       // Only send services when the editor was touched, so untouched listings are not
       // re-converted/cleared. Structured serviceItems carry title + description.
       const serviceItemsDirty = dirtyFieldsRef.current.has("serviceItems");
-      const serviceItemsClean = (Array.isArray(fields.serviceItems) ? fields.serviceItems : [])
-        .map((s) => ({ title: String(s?.title || "").trim(), description: String(s?.description || "").trim() }))
-        .filter((s) => s.title);
+      const serviceItemsClean = serviceItemsForGoogle(fields.serviceItems);
+      const categoriesDirty = categoryDirty && Boolean(categoryPrimary?.name);
       if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
         await onSyncToGmb({
           description: desc,
@@ -2551,8 +3210,19 @@ export default function BusinessInformationPanel({
           serviceAreaPlaces: places,
           ...(hoursDirty ? { regularHours: { periods: fields.regularHoursPeriods || [] } } : {}),
           ...(dirtyAttrs.length ? { attributes: dirtyAttrs } : {}),
+          ...(categoriesDirty
+            ? {
+                categories: {
+                  primary: categoryPrimary.name,
+                  additional: categoryAdditional.map((c) => c.name).filter(Boolean),
+                },
+              }
+            : {}),
         });
-        if (dirtyAttrs.length) await reloadCategoryFields();
+        if (dirtyAttrs.length || categoriesDirty) {
+          setCategoryDirty(false);
+          await reloadCategoryFields();
+        }
         return;
       }
       if (savePushesDescriptionAndServiceArea && typeof onSaveOptimization === "function") {
@@ -2590,6 +3260,9 @@ export default function BusinessInformationPanel({
     categoryAttrs,
     attrValues,
     reloadCategoryFields,
+    categoryDirty,
+    categoryPrimary,
+    categoryAdditional,
   ]);
 
   const canSyncGmb =
@@ -2600,7 +3273,8 @@ export default function BusinessInformationPanel({
         (fields.website || "").trim() ||
         (fields.chatUrl || "").trim() ||
         (Array.isArray(fields.serviceAreaPlaces) && fields.serviceAreaPlaces.length > 0) ||
-        hoursDirty
+        hoursDirty ||
+        (categoryDirty && Boolean(categoryPrimary?.name))
     );
 
   const handleSaveServiceAreasToGoogle = useCallback(async () => {
@@ -2616,9 +3290,7 @@ export default function BusinessInformationPanel({
 
   const handleSaveServiceItems = useCallback(async () => {
     if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
-    const cleaned = (Array.isArray(fields.serviceItems) ? fields.serviceItems : [])
-      .map((s) => ({ title: String(s?.title || "").trim(), description: String(s?.description || "").trim() }))
-      .filter((s) => s.title);
+    const cleaned = serviceItemsForGoogle(fields.serviceItems);
     try {
       await onSyncToGmb({ serviceItems: cleaned });
     } catch (e) {
@@ -2766,6 +3438,38 @@ export default function BusinessInformationPanel({
     [gmbSyncMode, activeEditorLocationId, onSyncToGmb, categoryAttrs, attrValues, reloadCategoryFields]
   );
 
+  const handleCategoryChange = useCallback((next) => {
+    setCategoryDirty(true);
+    if (next.primary !== undefined) setCategoryPrimary(next.primary);
+    if (next.additional !== undefined) setCategoryAdditional(next.additional);
+  }, []);
+
+  const handleSaveCategories = useCallback(async () => {
+    if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
+    if (!categoryPrimary?.name) {
+      toast.error("Pick a primary category first.");
+      return;
+    }
+    setCategorySaving(true);
+    try {
+      await onSyncToGmb({
+        categories: {
+          primary: categoryPrimary.name,
+          additional: categoryAdditional.map((c) => c.name).filter(Boolean),
+        },
+      });
+      setCategoryDirty(false);
+      // Changing the category changes the available attribute set — reload both.
+      await reloadCategoryFields();
+    } catch (e) {
+      toast.error(e.message || "Could not save categories");
+    } finally {
+      setCategorySaving(false);
+    }
+  }, [gmbSyncMode, activeEditorLocationId, onSyncToGmb, categoryPrimary, categoryAdditional, reloadCategoryFields]);
+
+  const categoryRegionCode = primaryLoc?.regionCode || activeEnriched?.regionCode || "IN";
+
   const sharedFieldProps = {
     businessName,
     categoryHint,
@@ -2810,10 +3514,10 @@ export default function BusinessInformationPanel({
                   fontSize: 12,
                   padding: "6px 14px",
                   borderRadius: 20,
-                  background: i === 0 ? "linear-gradient(135deg, #e8f0fe, #d2e3fc)" : "#f1f5f9",
-                  color: i === 0 ? "#1967d2" : "#475569",
+                  background: i === 0 ? "linear-gradient(135deg, #FEFCE8, #FEF9C3)" : "#f1f5f9",
+                  color: i === 0 ? "#854D0E" : "#475569",
                   fontWeight: i === 0 ? 800 : 500,
-                  border: i === 0 ? "1px solid #aecbfa" : "1px solid #e2e8f0",
+                  border: i === 0 ? "1px solid #FDE047" : "1px solid #e2e8f0",
                 }}
               >
                 {c}
@@ -2862,7 +3566,7 @@ export default function BusinessInformationPanel({
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         .biz-opt-scope ::-webkit-scrollbar{width:6px}
         .biz-opt-scope ::-webkit-scrollbar-track{background:transparent}
-        .biz-opt-scope ::-webkit-scrollbar-thumb{background:rgba(99,102,241,.25);border-radius:6px}
+        .biz-opt-scope ::-webkit-scrollbar-thumb{background:rgba(202,138,4,.25);border-radius:6px}
         ${!embedded ? `body{background:#eef1f8;font-family:'DM Sans',system-ui,sans-serif;}` : ""}
       `}</style>
 
@@ -2907,7 +3611,7 @@ export default function BusinessInformationPanel({
                 Business Optimization
               </h1>
               <p style={{ fontSize: 13, color: "#64748b", maxWidth: 640, lineHeight: 1.55 }}>
-                Google Business Profile style editor — use <strong style={{ color: "#6366f1" }}>Edit</strong> on supported fields for drafts, then save or sync.
+                Google Business Profile style editor — use <strong style={{ color: "#CA8A04" }}>Edit</strong> on supported fields for drafts, then save or sync.
               </p>
             </div>
           </div>
@@ -2917,7 +3621,7 @@ export default function BusinessInformationPanel({
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", letterSpacing: "-.02em" }}>Profile fields</div>
             <p style={{ fontSize: 12, color: "#64748b", marginTop: 6, lineHeight: 1.5 }}>
-              Choose a location if you have several. Edits use the Business Information API; after <strong style={{ color: "#6366f1" }}>Save changes</strong>,
+              Choose a location if you have several. Edits use the Business Information API; after <strong style={{ color: "#CA8A04" }}>Save changes</strong>,
               the app refetches live data from Google.
             </p>
           </div>
@@ -2928,23 +3632,28 @@ export default function BusinessInformationPanel({
             <div
               style={{
                 background: "#fff",
-                borderRadius: 16,
-                border: "1px solid #dadce0",
-                boxShadow: "0 1px 3px rgba(60,64,67,.12)",
+                borderRadius: 18,
+                border: `1px solid ${CAT.softBorder}`,
+                boxShadow: "0 4px 28px rgba(120,90,10,.08)",
                 maxWidth: 640,
                 margin: "0 auto",
                 overflow: "hidden",
               }}
             >
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid #e8eaed" }}>
-                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 500, color: "#202124", fontFamily: "'Google Sans', 'DM Sans', system-ui, sans-serif" }}>
-                  Business information
-                </h2>
-                <p style={{ margin: "10px 0 0", fontSize: 14, color: "#5f6368", lineHeight: 1.5 }}>
-                  Select a location to load its Google Business Profile details. You can switch later.
-                </p>
+              <div style={{ padding: "22px 24px", borderBottom: "1px solid #f3f4f6", display: "flex", alignItems: "center", gap: 13 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 13, background: CAT.g100, color: CAT.gold, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <TabIconPin />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: "#111827" }}>
+                    Choose a location
+                  </h2>
+                  <p style={{ margin: "3px 0 0", fontSize: 13.5, color: "#6b7280", lineHeight: 1.45 }}>
+                    Pick which listing to edit. You can switch anytime.
+                  </p>
+                </div>
               </div>
-              <div style={{ padding: 16, maxHeight: "min(420px, 55vh)", overflowY: "auto" }}>
+              <div style={{ padding: 14, maxHeight: "min(440px, 55vh)", overflowY: "auto" }}>
                 {gmbLocations.map((loc) => {
                   const selected = pickSelectionId === loc.locationId;
                   const line = loc.fullAddress || [loc.address, loc.locality].filter(Boolean).join(", ");
@@ -2956,21 +3665,39 @@ export default function BusinessInformationPanel({
                       style={{
                         width: "100%",
                         textAlign: "left",
-                        padding: "14px 16px",
-                        marginBottom: 8,
-                        borderRadius: 12,
-                        border: selected ? "2px solid #1a73e8" : "1px solid #dadce0",
-                        background: selected ? "#e8f0fe" : "#fff",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        padding: "15px 16px",
+                        marginBottom: 10,
+                        borderRadius: 14,
+                        border: `1.5px solid ${selected ? CAT.gold : "#e5e7eb"}`,
+                        background: selected ? CAT.g50 : "#fff",
                         cursor: "pointer",
                         fontFamily: "inherit",
-                        transition: "border-color .15s, background .15s",
+                        transition: "border-color .15s, background .15s, box-shadow .15s",
+                        boxShadow: selected ? `0 0 0 4px ${CAT.ring}` : "none",
                       }}
                     >
-                      <div style={{ fontSize: 15, fontWeight: 600, color: "#202124" }}>{loc.title}</div>
-                      <div style={{ fontSize: 13, color: "#5f6368", marginTop: 6, lineHeight: 1.45 }}>{line || "—"}</div>
-                      {loc.isVerified && (
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#137333", marginTop: 6 }}>Verified on Google</div>
-                      )}
+                      <span
+                        style={{
+                          width: 22, height: 22, marginTop: 2, flexShrink: 0, borderRadius: "50%",
+                          border: `2px solid ${selected ? CAT.gold : "#d1d5db"}`,
+                          background: selected ? CAT.gold : "#fff",
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {selected ? <CheckIcon size={12} color="#fff" /> : null}
+                      </span>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ display: "block", fontSize: 15.5, fontWeight: 700, color: "#111827" }}>{loc.title}</span>
+                        <span style={{ display: "block", fontSize: 13.5, color: "#6b7280", marginTop: 5, lineHeight: 1.5 }}>{line || "—"}</span>
+                        {loc.isVerified && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#137333", marginTop: 7 }}>
+                            <CheckIcon size={11} color="#137333" /> Verified on Google
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
@@ -2978,12 +3705,12 @@ export default function BusinessInformationPanel({
               <div
                 style={{
                   padding: "14px 20px",
-                  borderTop: "1px solid #e8eaed",
+                  borderTop: "1px solid #f3f4f6",
                   display: "flex",
                   justifyContent: "flex-end",
                   alignItems: "center",
                   gap: 12,
-                  background: "#fafafa",
+                  background: "#fffdf5",
                 }}
               >
                 <button
@@ -2991,17 +3718,20 @@ export default function BusinessInformationPanel({
                   onClick={handleContinuePick}
                   disabled={!pickSelectionId}
                   style={{
-                    background: pickSelectionId ? "#1a73e8" : "#dadce0",
-                    color: "#fff",
+                    background: pickSelectionId ? CAT.gold : "#f3f4f6",
+                    color: pickSelectionId ? "#fff" : "#9ca3af",
                     border: "none",
-                    borderRadius: 8,
-                    padding: "10px 28px",
-                    fontWeight: 700,
+                    borderRadius: 11,
+                    padding: "11px 30px",
+                    fontWeight: 800,
                     fontSize: 14,
                     cursor: pickSelectionId ? "pointer" : "not-allowed",
                     fontFamily: "inherit",
-                    boxShadow: pickSelectionId ? "0 1px 2px rgba(60,64,67,.3)" : "none",
+                    boxShadow: pickSelectionId ? "0 4px 14px rgba(202,138,4,.32)" : "none",
+                    transition: "background .15s",
                   }}
+                  onMouseEnter={(e) => { if (pickSelectionId) e.currentTarget.style.background = CAT.goldHover; }}
+                  onMouseLeave={(e) => { if (pickSelectionId) e.currentTarget.style.background = CAT.gold; }}
                 >
                   Continue
                 </button>
@@ -3034,8 +3764,8 @@ export default function BusinessInformationPanel({
             <div
               style={{
                 padding: "18px 26px 14px",
-                borderBottom: "1px solid #f0f4f8",
-                background: "linear-gradient(135deg, #fafbff, #f5f7ff)",
+                borderBottom: "1px solid #f3f4f6",
+                background: "linear-gradient(135deg, #fffdf5, #fefce8)",
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
@@ -3046,20 +3776,20 @@ export default function BusinessInformationPanel({
                   width: 44,
                   height: 44,
                   borderRadius: 14,
-                  background: "linear-gradient(135deg, #6366f1, #7c3aed)",
+                  background: CAT.gold,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   color: "#fff",
-                  boxShadow: "0 6px 20px rgba(99,102,241,.35)",
+                  boxShadow: "0 6px 18px rgba(202,138,4,.32)",
                 }}
               >
                 <TabIconBuilding />
               </div>
               <div>
-                <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>Business information</div>
-                <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500, marginTop: 2 }}>
-                  <strong style={{ color: "#4f46e5" }}>Edit</strong> per field — AI draft or type yourself
+                <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>Business information</div>
+                <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 500, marginTop: 2 }}>
+                  <strong style={{ color: CAT.goldText }}>Edit</strong> per field — AI draft or type yourself
                 </div>
               </div>
             </div>
@@ -3074,7 +3804,7 @@ export default function BusinessInformationPanel({
                   justifyContent: "space-between",
                   gap: 12,
                   flexWrap: "wrap",
-                  background: "#fafbff",
+                  background: "#FFFDF5",
                 }}
               >
                 <div style={{ fontSize: 13, color: "#5f6368" }}>
@@ -3090,7 +3820,7 @@ export default function BusinessInformationPanel({
                     style={{
                       fontSize: 13,
                       fontWeight: 700,
-                      color: "#1a73e8",
+                      color: "#CA8A04",
                       background: "none",
                       border: "none",
                       cursor: "pointer",
@@ -3126,10 +3856,10 @@ export default function BusinessInformationPanel({
                       padding: "12px 14px",
                       fontSize: 12,
                       fontWeight: active ? 800 : 500,
-                      color: active ? "#4f46e5" : "#64748b",
-                      background: active ? "rgba(99,102,241,.06)" : "none",
+                      color: active ? "#A16207" : "#64748b",
+                      background: active ? "rgba(202,138,4,.06)" : "none",
                       border: "none",
-                      borderBottom: active ? "2.5px solid #6366f1" : "2.5px solid transparent",
+                      borderBottom: active ? "2.5px solid #CA8A04" : "2.5px solid transparent",
                       marginBottom: -1,
                       cursor: "pointer",
                       fontFamily: "inherit",
@@ -3141,14 +3871,14 @@ export default function BusinessInformationPanel({
                       borderRadius: "10px 10px 0 0",
                     }}
                   >
-                    <span style={{ color: active ? "#6366f1" : "#94a3b8", display: "flex" }}>
+                    <span style={{ color: active ? "#CA8A04" : "#94a3b8", display: "flex" }}>
                       <Icon />
                     </span>
                     {tb.label}
                     {tb.id === "category" && attrStats.unsaved > 0 && (
                       <span style={{
                         minWidth: 16, height: 16, padding: "0 4px", borderRadius: 8,
-                        background: "#6366f1", color: "#fff", fontSize: 10, fontWeight: 800,
+                        background: "#CA8A04", color: "#fff", fontSize: 10, fontWeight: 800,
                         display: "inline-flex", alignItems: "center", justifyContent: "center",
                       }}>
                         {attrStats.unsaved}
@@ -3168,7 +3898,23 @@ export default function BusinessInformationPanel({
                       value={fields.businessName}
                       hint="Update the title in Google Business Profile if you need to change it."
                     />
-                    {categoryBlock}
+                    {gmbSyncMode ? (
+                      <CategoryEditor
+                        disabled={!activeEditorLocationId}
+                        primary={categoryPrimary}
+                        additional={categoryAdditional}
+                        onChange={handleCategoryChange}
+                        onSave={handleSaveCategories}
+                        saving={categorySaving}
+                        dirty={categoryDirty}
+                        regionCode={categoryRegionCode}
+                        languageCode="en"
+                        accountId={activeEnriched?.accountId || ""}
+                        fallbackChips={categoryHint}
+                      />
+                    ) : (
+                      categoryBlock
+                    )}
                     <ServiceItemsEditor
                       items={fields.serviceItems}
                       onChange={setField("serviceItems")}
@@ -3177,6 +3923,13 @@ export default function BusinessInformationPanel({
                       categoryHint={categoryHint}
                       onSave={gmbSyncMode ? handleSaveServiceItems : undefined}
                       savePending={syncToGmbPending}
+                    />
+                    <DescriptionGenerator
+                      aiContext={optimizationContext}
+                      businessName={businessName}
+                      categoryHint={categoryHint}
+                      primaryLoc={primaryLoc}
+                      onInsert={(text) => setField("description")(text)}
                     />
                     <FieldRow
                       label="Description"
@@ -3326,7 +4079,7 @@ export default function BusinessInformationPanel({
                           ✓ {attrStats.set} set
                         </span>
                         {attrStats.unsaved > 0 && (
-                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#6366f1", background: "#eef2ff", border: "1px solid #c7d2fe", padding: "4px 11px", borderRadius: 20 }}>
+                          <span style={{ fontSize: 11.5, fontWeight: 700, color: "#CA8A04", background: "#FEF9C3", border: "1px solid #FDE047", padding: "4px 11px", borderRadius: 20 }}>
                             {attrStats.unsaved} unsaved
                           </span>
                         )}
@@ -3472,18 +4225,18 @@ export default function BusinessInformationPanel({
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                background: "linear-gradient(180deg, #fff, #fafbff)",
+                background: "linear-gradient(180deg, #fff, #FFFDF5)",
               }}
             >
               <div style={{ flex: 1, fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
                 {gmbSyncMode && activeEditorLocationId ? (
                   <span>
-                    <strong style={{ color: "#6366f1" }}>Save changes</strong> syncs description, phone, website, WhatsApp, and service areas to Google, then reloads live data.
+                    <strong style={{ color: "#CA8A04" }}>Save changes</strong> syncs description, phone, website, WhatsApp, and service areas to Google, then reloads live data.
                     You can also use <strong>Save</strong> on each field or <strong>Save service areas</strong> in the service-area panel.
                   </span>
                 ) : (
                   <span>
-                    <strong style={{ color: "#6366f1" }}>Save</strong> stores the description in automation settings.
+                    <strong style={{ color: "#CA8A04" }}>Save</strong> stores the description in automation settings.
                     {gmbSyncMode && activeEditorLocationId ? (
                       <span>
                         {" "}
@@ -3500,8 +4253,8 @@ export default function BusinessInformationPanel({
                   disabled={gmbSyncMode ? Boolean(syncToGmbPending) || !canSyncGmb : Boolean(savePending)}
                   style={{
                     flexShrink: 0,
-                    background: (gmbSyncMode ? syncToGmbPending : savePending) ? "#e0e7ff" : "linear-gradient(135deg, #6366f1, #7c3aed)",
-                    color: (gmbSyncMode ? syncToGmbPending : savePending) ? "#a5b4fc" : "#fff",
+                    background: (gmbSyncMode ? syncToGmbPending : savePending) ? "#FEF08A" : "linear-gradient(135deg, #CA8A04, #A16207)",
+                    color: (gmbSyncMode ? syncToGmbPending : savePending) ? "#9ca3af" : "#fff",
                     border: "none",
                     borderRadius: 10,
                     padding: "11px 28px",
@@ -3509,7 +4262,7 @@ export default function BusinessInformationPanel({
                     fontWeight: 800,
                     cursor: (gmbSyncMode ? syncToGmbPending : savePending) ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
-                    boxShadow: (gmbSyncMode ? syncToGmbPending : savePending) ? "none" : "0 4px 18px rgba(99,102,241,.35)",
+                    boxShadow: (gmbSyncMode ? syncToGmbPending : savePending) ? "none" : "0 4px 18px rgba(202,138,4,.35)",
                   }}
                 >
                   {(gmbSyncMode ? syncToGmbPending : savePending) ? "Saving…" : "Save changes"}

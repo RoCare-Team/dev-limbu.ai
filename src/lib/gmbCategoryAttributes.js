@@ -58,6 +58,16 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
   const loc = await gmbGet(url, accessToken);
   const categoryName = loc?.categories?.primaryCategory?.name || '';
   const primaryCategory = loc?.categories?.primaryCategory?.displayName || '';
+  // Current additional (sub) categories, kept as { name (gcid), displayName } so the
+  // UI can render + re-send them when the user edits the category set.
+  const additionalCategories = Array.isArray(loc?.categories?.additionalCategories)
+    ? loc.categories.additionalCategories
+        .map((c) => ({
+          name: String(c?.name || '').replace(/^categories\//, ''),
+          displayName: String(c?.displayName || '').trim(),
+        }))
+        .filter((c) => c.name)
+    : [];
   const regionCode =
     (opts.regionCode && String(opts.regionCode).trim()) ||
     loc?.storefrontAddress?.regionCode ||
@@ -72,7 +82,15 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
     canHaveBusinessCalls: md.canHaveBusinessCalls === true,
     canOperateHealthData: md.canOperateHealthData === true,
   };
-  return { categoryName, primaryCategory, regionCode, languageCode, capabilities };
+  return {
+    categoryName,
+    primaryCategory,
+    primaryCategoryName: String(categoryName || '').replace(/^categories\//, ''),
+    additionalCategories,
+    regionCode,
+    languageCode,
+    capabilities,
+  };
 }
 
 /**

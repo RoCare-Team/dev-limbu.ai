@@ -17,7 +17,7 @@ import {
   buildRegularHoursPatchBody,
   buildServiceItemsPatchBody,
   buildAttributesPatchBody,
-  parseServiceAreaFromText,
+  buildCategoriesPatchBody,
 } from '@/lib/gmbLocationApiActions';
 import { listCategoryAttributes } from '@/lib/gmbCategoryAttributes';
 
@@ -192,6 +192,69 @@ async function patchAttributes(accessToken, locationId, attributeMask, body) {
   });
 }
 
+// A Google Maps key (Geocoding API) — used to resolve service-area names to placeIds.
+function mapsApiKey() {
+  return (
+    process.env.GOOGLE_MAPS_API_KEY_1 ||
+    process.env.GOOGLE_MAPS_API_KEY_2 ||
+    process.env.GOOGLE_MAPS_API_KEY_3 ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    ''
+  );
+}
+
+// Region-ish result types acceptable as a Google Business "service area" place.
+const SERVICE_AREA_REGION_TYPES = new Set([
+  'locality',
+  'sublocality',
+  'sublocality_level_1',
+  'sublocality_level_2',
+  'neighborhood',
+  'administrative_area_level_1',
+  'administrative_area_level_2',
+  'administrative_area_level_3',
+  'postal_code',
+  'colloquial_area',
+  'political',
+  'country',
+]);
+
+/**
+ * Google's serviceArea PlaceInfo requires a Google placeId (a bare name is rejected).
+ * Resolve each area name to { placeName, placeId } via the Geocoding API, preferring a
+ * region-type result. Returns resolved infos + the names that could not be resolved.
+ */
+async function resolveServiceAreaPlaceInfos(names, apiKey) {
+  const resolved = [];
+  const unresolved = [];
+  let apiError = '';
+  for (const raw of names) {
+    const q = String(raw || '').trim();
+    if (!q) continue;
+    try {
+      const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+      url.searchParams.set('address', q);
+      url.searchParams.set('key', apiKey);
+      const res = await fetch(url.toString(), { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        apiError = data.error_message || data.status; // e.g. REQUEST_DENIED (API not enabled)
+      }
+      const results = Array.isArray(data.results) ? data.results : [];
+      const hit =
+        results.find((r) => (r.types || []).some((t) => SERVICE_AREA_REGION_TYPES.has(t))) || results[0];
+      if (hit?.place_id) {
+        resolved.push({ placeName: q, placeId: hit.place_id });
+      } else {
+        unresolved.push(q);
+      }
+    } catch {
+      unresolved.push(q);
+    }
+  }
+  return { resolved, unresolved, apiError };
+}
+
 /**
  * POST /api/gmb/patch-location
  * Body: { accountId, locationId, description?, primaryPhone?, websiteUri?, whatsappUri?, serviceAreaText?, latlng?, title?, storefrontAddress? }
@@ -250,8 +313,13 @@ export async function POST(request) {
       ? body.serviceItems
           .map((s) =>
             s && typeof s === 'object'
-              ? { title: String(s.title || s.displayName || '').trim(), description: String(s.description || '').trim() }
-              : { title: String(s || '').trim(), description: '' }
+              ? {
+                  title: String(s.title || s.displayName || '').trim(),
+                  description: String(s.description || '').trim(),
+                  priceType: String(s.priceType || 'none').toLowerCase(),
+                  price: s.price,
+                }
+              : { title: String(s || '').trim(), description: '', priceType: 'none', price: '' }
           )
           .filter((s) => s.title)
       : null;
@@ -293,17 +361,50 @@ export async function POST(request) {
     const storefrontAddress =
       body.storefrontAddress && typeof body.storefrontAddress === 'object' ? body.storefrontAddress : null;
 
+    // Categories: { primary: 'gcid:...', additional: ['gcid:...'] }. PATCHed with
+    // updateMask=categories. Primary is required; additional (sub) categories are
+    // Google-supported ids the user picked. Only sent when a primary is provided.
+    const categoriesIn =
+      body.categories && typeof body.categories === 'object' ? body.categories : null;
+    const categoriesBody = categoriesIn
+      ? buildCategoriesPatchBody(
+          categoriesIn.primary || categoriesIn.primaryCategory || '',
+          Array.isArray(categoriesIn.additional)
+            ? categoriesIn.additional
+            : Array.isArray(categoriesIn.additionalCategories)
+              ? categoriesIn.additionalCategories
+              : []
+        )
+      : null;
+
     const hasRegularHoursPayload =
       body.regularHours && typeof body.regularHours === 'object' && Array.isArray(body.regularHours.periods);
     const regularHoursPeriods = hasRegularHoursPayload ? body.regularHours.periods : null;
 
-    const serviceAreaFromText = !serviceAreaPlaces.length ? parseServiceAreaFromText(serviceAreaText) : null;
-    const serviceAreaBody =
+    // Service areas: names arrive from the UI (or legacy comma text). Google requires a
+    // placeId per area, so resolve each name → { placeName, placeId } before PATCHing.
+    const serviceAreaNames =
       serviceAreaPlaces.length > 0
-        ? buildServiceAreaPatchBody(serviceAreaPlaces)
-        : serviceAreaFromText
-          ? { serviceArea: serviceAreaFromText }
-          : null;
+        ? serviceAreaPlaces
+        : String(serviceAreaText || '')
+            .split(/[;\n]+/)
+            .map((s) => s.trim())
+            .filter(Boolean);
+    let serviceAreaBody = null;
+    let serviceAreaUnresolved = [];
+    let serviceAreaApiError = '';
+    if (serviceAreaNames.length) {
+      const key = mapsApiKey();
+      if (!key) {
+        serviceAreaUnresolved = [...serviceAreaNames];
+        serviceAreaApiError = 'No Google Maps API key configured on the server (GOOGLE_MAPS_API_KEY_1).';
+      } else {
+        const { resolved, unresolved, apiError } = await resolveServiceAreaPlaceInfos(serviceAreaNames, key);
+        serviceAreaUnresolved = unresolved;
+        serviceAreaApiError = apiError;
+        serviceAreaBody = buildServiceAreaPatchBody(resolved);
+      }
+    }
 
     const hasAny =
       description ||
@@ -312,10 +413,12 @@ export async function POST(request) {
       websiteUri ||
       whatsappUri ||
       Boolean(serviceAreaBody) ||
+      serviceAreaNames.length > 0 ||
       (latlng && Number.isFinite(latlng.latitude) && Number.isFinite(latlng.longitude)) ||
       title ||
       storefrontAddress ||
       Boolean(hasRegularHoursPayload) ||
+      Boolean(categoriesBody) ||
       attributesIn.length > 0;
 
     if (!hasAny) {
@@ -333,6 +436,16 @@ export async function POST(request) {
         buildTitlePatchBody(title)
       );
       results.push({ field: 'title', ...r });
+    }
+
+    if (categoriesBody) {
+      const r = await patchLocationResource(
+        accessToken,
+        locationId,
+        LOCATION_UPDATE_MASKS.categories,
+        categoriesBody
+      );
+      results.push({ field: 'categories', ...r });
     }
 
     if (description) {
@@ -389,6 +502,21 @@ export async function POST(request) {
         serviceAreaBody
       );
       results.push({ field: 'serviceArea', ...r });
+    } else if (serviceAreaNames.length) {
+      // Names were requested but none could be resolved to a Google place — surface it.
+      const detail = serviceAreaApiError
+        ? ` (${serviceAreaApiError})`
+        : '';
+      results.push({
+        field: 'serviceArea',
+        ok: false,
+        status: 400,
+        data: {
+          error: {
+            message: `Could not match your service areas to Google places${detail}. Use clearer area names like "Andheri West, Mumbai" or "Koregaon Park, Pune".`,
+          },
+        },
+      });
     }
 
     if (hasRegularHoursPayload) {
@@ -515,6 +643,8 @@ export async function POST(request) {
       locationId,
       results,
       skipped: skipped.map((s) => ({ field: s.field, reason: s.reason })),
+      // Areas we saved but couldn't match to a Google place (partial service-area save).
+      serviceAreaUnresolved,
       descriptionMaxLength: maxDesc,
     });
   } catch (e) {

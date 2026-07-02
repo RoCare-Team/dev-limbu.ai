@@ -26,14 +26,7 @@ export const maxDuration = 300;
 const BATCH = 15;
 
 export async function GET(request) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
-
+  // No CRON_SECRET gate — triggered by localhost curl on EC2 (no auth header).
   await dbConnect();
   const now = new Date();
 

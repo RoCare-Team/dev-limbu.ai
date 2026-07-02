@@ -37,7 +37,9 @@ export function useAuditHealth() {
       return;
     }
 
-    const selectedLoc = locations.find((l) => l.locationId === selectedLocationId);
+    const selectedLoc = locations.find(
+      (l) => l.locationId === selectedLocationId,
+    );
     if (!selectedLoc) {
       toast.error("Location details not found");
       return;
@@ -61,13 +63,13 @@ export function useAuditHealth() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }
+        },
       );
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       const rawText = await res.text();
-      
+
       if (!rawText) {
         throw new Error("Received empty response from server");
       }
@@ -79,36 +81,34 @@ export function useAuditHealth() {
         audit = data[0];
       }
 
-      if (audit && typeof audit === 'object' && "" in audit) {
+      if (audit && typeof audit === "object" && "" in audit) {
         audit = audit[""];
       }
 
       console.log("SESSION");
-console.log(session);
+      console.log(session);
 
-console.log("USER EMAIL");
-console.log(session?.user?.email);
+      console.log("USER EMAIL");
+      console.log(session?.user?.email);
 
-console.log("SELECTED LOCATION");
-console.log(selectedLoc);
+      console.log("SELECTED LOCATION");
+      console.log(selectedLoc);
 
+      await fetch("/api/audit-tracking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: session?.user?.email,
+          locationId: selectedLoc.locationId,
+          accountId: selectedLoc.accountId,
+          businessName: selectedLoc.title,
+        }),
+      });
 
-await fetch("/api/audit-tracking", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    email: session?.user?.email,
-    locationId: selectedLoc.locationId,
-    accountId: selectedLoc.accountId,
-    businessName: selectedLoc.title,
-  }),
-});
-
-setAuditData(audit);
-toast.success("Report generated successfully!");
-
+      setAuditData(audit);
+      toast.success("Report generated successfully!");
     } catch (error) {
       console.error("Audit Error:", error);
       toast.error("Failed to generate report. Please try again.");
@@ -123,6 +123,6 @@ toast.success("Report generated successfully!");
     setSelectedLocationId,
     loading,
     auditData,
-    handleGenerateReport
+    handleGenerateReport,
   };
 }

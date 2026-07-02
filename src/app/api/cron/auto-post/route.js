@@ -46,14 +46,8 @@ const CRON_TIME_TOLERANCE_MIN = Math.min(
 );
 
 export async function GET(request) {
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get('authorization');
-    if (auth !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-  }
-
+  // No CRON_SECRET gate — crons are triggered by localhost curl on EC2 (no auth
+  // header). Restrict at the firewall / nginx if the host is publicly exposed.
   const cronParams = parseAutomationCronParams(request.url);
   const forceRun = cronParams.force;
   const manualTriggerLogged = cronParams.manualTrigger;

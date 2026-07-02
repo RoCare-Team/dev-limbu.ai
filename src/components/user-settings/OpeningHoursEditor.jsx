@@ -45,6 +45,13 @@ export default function OpeningHoursEditor({
   const [draft, setDraft] = useState(null);
   const [aiDayPending, setAiDayPending] = useState(false);
 
+  // Bulk "apply to all days at once" controls.
+  const [bulkMode, setBulkMode] = useState("hours"); // 'closed' | 'open24' | 'hours'
+  const [bulkOpen, setBulkOpen] = useState("09:00");
+  const [bulkClose, setBulkClose] = useState("18:00");
+  const [includeSunday, setIncludeSunday] = useState(true);
+  const [bulkPending, setBulkPending] = useState(false);
+
   useEffect(() => {
     setDayMap(parsePeriodsToDayMap(periods));
     setEditingDay(null);
@@ -58,6 +65,49 @@ export default function OpeningHoursEditor({
     },
     [onChange]
   );
+
+  const computeBulkSetting = () => {
+    if (bulkMode === "open24") return { mode: "open24" };
+    if (bulkMode === "closed") return { mode: "closed" };
+    const [oh, om] = bulkOpen.split(":").map((x) => parseInt(x, 10) || 0);
+    const [ch, cm] = bulkClose.split(":").map((x) => parseInt(x, 10) || 0);
+    return {
+      mode: "hours",
+      openH: Math.min(23, oh),
+      openM: Math.min(59, om),
+      closeH: Math.min(24, ch),
+      closeM: Math.min(59, cm),
+    };
+  };
+
+  // Apply one setting to every weekday at once. Sunday is set to Closed when the
+  // "Include Sunday" toggle is off (common for shops closed on Sundays).
+  const applyToAll = async (setting) => {
+    const next = {};
+    for (const d of GMB_WEEKDAYS) {
+      next[d] = d === "SUNDAY" && !includeSunday ? { mode: "closed" } : { ...setting };
+    }
+    const nextPeriods = dayMapToPeriods(next);
+    setBulkPending(true);
+    try {
+      if (typeof onSyncToGmb === "function") {
+        await onSyncToGmb({ regularHours: { periods: nextPeriods } });
+      } else {
+        toast.success("Applied to all days in the editor — connect Google sync to push.");
+      }
+      setDayMap(next);
+      onChange(clonePeriods(nextPeriods));
+      setEditingDay(null);
+      setDraft(null);
+      if (typeof onSyncToGmb === "function") {
+        toast.success(`Hours applied to ${includeSunday ? "all 7 days" : "Mon–Sat (Sun closed)"} on Google.`);
+      }
+    } catch (e) {
+      toast.error(e.message || "Could not apply to all days");
+    } finally {
+      setBulkPending(false);
+    }
+  };
 
   const startEdit = (day) => {
     if (editingDay === day) {
@@ -193,6 +243,118 @@ export default function OpeningHoursEditor({
         <span>Hours</span>
       </div>
 
+      {/* ── Bulk: set all days at once ─────────────────────────────────────── */}
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 16,
+          borderRadius: 14,
+          border: "1px solid #F1E4B8",
+          background: "linear-gradient(135deg,#FFFDF5,#FEFCE8)",
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#713F12", marginBottom: 3 }}>
+          Set all days at once
+        </div>
+        <div style={{ fontSize: 12.5, color: "#6b7280", marginBottom: 12 }}>
+          Choose once and apply to every day — quick way to set the whole week.
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 12, alignItems: "center" }}>
+          {["hours", "open24", "closed"].map((m) => (
+            <label key={m} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13.5, color: "#374151", cursor: "pointer" }}>
+              <input type="radio" name="bulkMode" checked={bulkMode === m} onChange={() => setBulkMode(m)} disabled={disabled} />
+              {m === "hours" ? "Same time every day" : m === "open24" ? "Open 24 hours" : "Closed"}
+            </label>
+          ))}
+        </div>
+
+        {bulkMode === "hours" ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 12, alignItems: "center" }}>
+            <label style={{ fontSize: 12.5, color: "#6b7280", display: "inline-flex", alignItems: "center", gap: 8 }}>
+              Opens
+              <input
+                type="time"
+                value={bulkOpen}
+                disabled={disabled}
+                onChange={(e) => setBulkOpen(e.target.value)}
+                style={{ padding: 8, borderRadius: 8, border: "1.5px solid #FDE047", fontFamily: "inherit", background: "#fff" }}
+              />
+            </label>
+            <label style={{ fontSize: 12.5, color: "#6b7280", display: "inline-flex", alignItems: "center", gap: 8 }}>
+              Closes
+              <input
+                type="time"
+                value={bulkClose}
+                disabled={disabled}
+                onChange={(e) => setBulkClose(e.target.value)}
+                style={{ padding: 8, borderRadius: 8, border: "1.5px solid #FDE047", fontFamily: "inherit", background: "#fff" }}
+              />
+            </label>
+          </div>
+        ) : null}
+
+        {/* Include / exclude Sunday */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Sunday</span>
+          <div style={{ display: "inline-flex", background: "#fff", border: "1.5px solid #FDE047", borderRadius: 10, padding: 3, gap: 3 }}>
+            {[{ v: true, l: "Include" }, { v: false, l: "Exclude (closed)" }].map((o) => {
+              const active = includeSunday === o.v;
+              return (
+                <button
+                  key={o.l}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => setIncludeSunday(o.v)}
+                  style={{
+                    ...btnBase,
+                    padding: "6px 14px",
+                    border: "none",
+                    background: active ? "#CA8A04" : "transparent",
+                    color: active ? "#fff" : "#854D0E",
+                  }}
+                >
+                  {o.l}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <button
+            type="button"
+            disabled={disabled || bulkPending}
+            onClick={() => void applyToAll(computeBulkSetting())}
+            style={{
+              ...btnBase,
+              padding: "10px 20px",
+              fontSize: 13,
+              fontWeight: 800,
+              border: "none",
+              background: disabled || bulkPending ? "#FEF08A" : "#CA8A04",
+              color: disabled || bulkPending ? "#9ca3af" : "#fff",
+              boxShadow: disabled || bulkPending ? "none" : "0 3px 12px rgba(202,138,4,.3)",
+            }}
+          >
+            {bulkPending ? "Applying…" : "Apply to all days"}
+          </button>
+          <button
+            type="button"
+            disabled={disabled || bulkPending}
+            onClick={() => void applyToAll({ mode: "open24" })}
+            style={{ ...btnBase, border: "1.5px solid #FDE047", background: "#fff", color: "#854D0E" }}
+          >
+            All days · 24 hours
+          </button>
+          <span style={{ fontSize: 11.5, color: "#9ca3af" }}>Max 24 hours per day.</span>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 8 }}>
+        Or edit a single day
+      </div>
+
       <div
         style={{
           border: "1px solid #dadce0",
@@ -229,9 +391,9 @@ export default function OpeningHoursEditor({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 6,
-                  border: isEditing ? "1px solid #1a73e8" : "1px solid #dadce0",
+                  border: isEditing ? "1px solid #CA8A04" : "1px solid #dadce0",
                   background: "#fff",
-                  color: "#1a73e8",
+                  color: "#CA8A04",
                   flexShrink: 0,
                 }}
               >
@@ -248,7 +410,7 @@ export default function OpeningHoursEditor({
             marginTop: 16,
             padding: 16,
             borderRadius: 12,
-            border: "1px solid #e8f0fe",
+            border: "1px solid #FEFCE8",
             background: "#fafbff",
           }}
         >
@@ -316,7 +478,7 @@ export default function OpeningHoursEditor({
               type="button"
               disabled={syncPending}
               onClick={() => void saveEdit()}
-              style={{ ...btnBase, border: "none", background: "#1a73e8", color: "#fff" }}
+              style={{ ...btnBase, border: "none", background: "#CA8A04", color: "#fff" }}
             >
               Save
             </button>
@@ -333,9 +495,9 @@ export default function OpeningHoursEditor({
               onClick={() => void suggestDayWithAi()}
               style={{
                 ...btnBase,
-                border: "1px solid #c7d2fe",
-                background: aiDayPending ? "#eef2ff" : "#fff",
-                color: "#5b21b6",
+                border: "1px solid #FDE047",
+                background: aiDayPending ? "#FEF9C3" : "#fff",
+                color: "#854D0E",
               }}
             >
               {aiDayPending ? "AI…" : "AI suggested"}

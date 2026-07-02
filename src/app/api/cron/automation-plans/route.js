@@ -395,13 +395,7 @@ export async function GET(request) {
 
   if (phase === 'manual') {
     const manualUserId = new URL(request.url).searchParams.get('userId')?.trim();
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret) {
-      const auth = request.headers.get('authorization');
-      if (auth !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized — set Authorization: Bearer CRON_SECRET' }, { status: 401 });
-      }
-    }
+    // No CRON_SECRET gate — triggered by localhost curl on EC2 (no auth header).
     if (!manualUserId) {
       return NextResponse.json(
         {

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
 import ChatbotStageSnapshot from "@/models/ChatbotStageSnapshot";
+import ChatbotMessage from "@/models/ChatbotMessage";
 import dbConnect from "@/lib/dbConnect";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 import { getAppDayBounds } from "@/lib/appDayBounds";
@@ -303,7 +304,10 @@ function formatChatbotEmail(index) {
   return `${CHATBOT_EMAIL_PREFIX}${n}${CHATBOT_EMAIL_DOMAIN}`;
 }
 
-function buildChatbotUserPayload(bot, { email, assignedAgentId } = {}) {
+function buildChatbotUserPayload(
+  bot,
+  { email, assignedAgentId, metaTag = null } = {},
+) {
   const waId = String(bot.user_id || "").trim();
   const phone = bot.phone || waIdToPhone(waId);
 
@@ -325,7 +329,8 @@ function buildChatbotUserPayload(bot, { email, assignedAgentId } = {}) {
     gmbPrice: 20,
     imgGeneratePrice: 80,
     assignedAgentId,
-    source: "chatbot",
+    source: metaTag ? META_CHATBOT_SOURCE : "chatbot",
+    leadTags: metaTag ? [metaTag] : [],
     leadStage: "Active",
     subscription: {
       status: "inactive",
@@ -373,15 +378,54 @@ function takeNextChatbotEmail(state) {
   return email;
 }
 
-const META_CHATBOT_TRIGGER =
-  "Looking for a smart Google Business Profile solution.";
+// Meta ad-chatbot opening lines. Any inbound user message matching one of
+// these (case-insensitive) marks the contact as a Meta lead → source
+// "Meta Lead" + a business-specific leadTag (same treatment as real-estate
+// leads). Each trigger maps to its own leadTag.
+const META_CHATBOT_TRIGGERS = [
+  {
+    trigger:
+      "I want my travel business to rank higher on Google and get more bookings.",
+    tag: "travel business",
+  },
+  {
+    trigger:
+      "I own a Dental clinic and I'm interested in improving my Google presence.",
+    tag: "dental clinic",
+  },
+  {
+    trigger:
+      "Hi! I'm an interior designer and want to rank higher on Google Maps.",
+    tag: "interior design",
+  },
+  {
+    trigger: "Looking for a smart Google Business Profile solution.",
+    tag: "gmb optimization",
+  },
+];
 
-function isMetaChatbotUser(history = []) {
-  return history.some(
-    (m) =>
-      String(m?.role || "").toLowerCase() === "user" &&
-      String(m?.content || "").trim() === META_CHATBOT_TRIGGER,
-  );
+const META_CHATBOT_TRIGGER_MAP = new Map(
+  META_CHATBOT_TRIGGERS.map((t) => [t.trigger.toLowerCase(), t.tag]),
+);
+
+// Source applied to all Meta-chatbot leads.
+const META_CHATBOT_SOURCE = "Meta Lead";
+
+/**
+ * Returns the business-specific leadTag for the first matching trigger in the
+ * conversation, or null if none of the Meta-chatbot openers were sent.
+ */
+function detectMetaChatbotTag(history = []) {
+  for (const m of history) {
+    if (String(m?.role || "").toLowerCase() !== "user") continue;
+    const tag = META_CHATBOT_TRIGGER_MAP.get(
+      String(m?.content || "")
+        .trim()
+        .toLowerCase(),
+    );
+    if (tag) return tag;
+  }
+  return null;
 }
 
 export async function ensureChatbotRowsSaved(botRows = []) {
@@ -449,7 +493,8 @@ export async function ensureChatbotRowsSaved(botRows = []) {
     ).length;
 
     // AFTER:
-    const metaChatbot = isMetaChatbotUser(history);
+    const metaTag = detectMetaChatbotTag(history);
+    const metaChatbot = Boolean(metaTag);
     if (inboundCount < 1 && !metaChatbot) {
       console.log(
         `[ensureChatbotRowsSaved] ⏭️ SKIP (inbound < 1) | phone: ${bot.phone} | waId: ${bot.user_id} | inboundCount: ${inboundCount} | totalMessages: ${messageCount}`,
@@ -506,15 +551,19 @@ export async function ensureChatbotRowsSaved(botRows = []) {
           }
         }
 
+        if (metaTag) {
+          setData.source = META_CHATBOT_SOURCE;
+        }
+
         await User.updateOne(
           { _id: existing._id },
           {
             $set: setData,
-            ...(metaChatbot ? { $addToSet: { leadTags: "meta chatbot" } } : {}),
+            ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
           },
         );
         console.log(
-          `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | metaChatbot: ${metaChatbot}${metaChatbot ? " | 🏷️ meta chatbot tag saved" : ""} | stages: ${JSON.stringify(setData.conversationStages)}`, // 👈 metaChatbot part add karo
+          `[ensureChatbotRowsSaved] 🔗 LINKED (updated) | phone: ${bot.phone} | waId: ${bot.user_id} | inbound: ${inboundCount} | metaChatbot: ${metaChatbot}${metaTag ? ` | 🏷️ "${metaTag}" tag + source ${META_CHATBOT_SOURCE} saved` : ""} | stages: ${JSON.stringify(setData.conversationStages)}`,
         );
 
         linked++;
@@ -525,7 +574,7 @@ export async function ensureChatbotRowsSaved(botRows = []) {
       const email = takeNextChatbotEmail(emailState);
 
       const created = await User.create(
-        buildChatbotUserPayload(bot, { email, assignedAgentId }),
+        buildChatbotUserPayload(bot, { email, assignedAgentId, metaTag }),
       );
 
       if (assignedAgentId) {
@@ -548,15 +597,11 @@ export async function ensureChatbotRowsSaved(botRows = []) {
         );
       }
 
-      if (metaChatbot) {
-        await User.updateOne(
-          { _id: created._id },
-          { $addToSet: { leadTags: "meta chatbot" } },
-        );
+      if (metaTag) {
+        // source + leadTag already set in buildChatbotUserPayload
         console.log(
-          // 👈 YEH LOG ADD KARO
-          `[ensureChatbotRowsSaved] 🏷️ META CHAsuTBOT TAG SAVED | phone: ${bot.phone} | waId: ${bot.user_id} | userId: ${created.userId}`, // 👈
-        ); // 👈
+          `[ensureChatbotRowsSaved] 🏷️ META LEAD SAVED | phone: ${bot.phone} | waId: ${bot.user_id} | userId: ${created.userId} | source: ${META_CHATBOT_SOURCE} | tag: "${metaTag}"`,
+        );
       }
 
       existingByPhone.set(String(created.phone), created);
@@ -1457,8 +1502,8 @@ export async function syncChatbotUsersToApp(options = {}) {
         String(m?.content || "").trim() !== "",
     ).length;
     // ✅ AFTER
-    // ✅ AFTER
-    const metaChatbot = isMetaChatbotUser(history); // 👈 YEH LINE ADD KARO
+    const metaTag = detectMetaChatbotTag(history);
+    const metaChatbot = Boolean(metaTag);
     if (inboundCount < 1 && !metaChatbot) {
       // 👈 && !metaChatbot ADD KARO
       console.log(
@@ -1496,14 +1541,14 @@ export async function syncChatbotUsersToApp(options = {}) {
                 ? String(bot.last_message).slice(0, 500)
                 : null,
               ...(waId ? { chatbotUserId: waId } : {}),
+              ...(metaTag ? { source: META_CHATBOT_SOURCE } : {}),
             },
-            ...(metaChatbot ? { $addToSet: { leadTags: "meta chatbot" } } : {}),
+            ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
           },
         );
         console.log(
-          // 👈 YEH LOG ADD KARO
-          `[syncChatbotUsersToApp] 🔗 LINKED | phone: ${phone} | waId: ${waId} | metaChatbot: ${metaChatbot}${metaChatbot ? " | 🏷️ meta chatbot tag saved" : ""}`, // 👈
-        ); // 👈
+          `[syncChatbotUsersToApp] 🔗 LINKED | phone: ${phone} | waId: ${waId} | metaChatbot: ${metaChatbot}${metaTag ? ` | 🏷️ "${metaTag}" tag + source ${META_CHATBOT_SOURCE} saved` : ""}`,
+        );
         linked++;
         continue;
       }
@@ -1532,7 +1577,8 @@ export async function syncChatbotUsersToApp(options = {}) {
         gmbPrice: 20,
         imgGeneratePrice: 80,
         assignedAgentId,
-        source: "chatbot",
+        source: metaTag ? META_CHATBOT_SOURCE : "chatbot",
+        leadTags: metaTag ? [metaTag] : [],
         subscription: {
           status: "inactive",
           plan: "Free",
@@ -1546,15 +1592,11 @@ export async function syncChatbotUsersToApp(options = {}) {
           : null,
       });
 
-      if (metaChatbot) {
-        await User.updateOne(
-          { _id: created._id },
-          { $addToSet: { leadTags: "meta chatbot" } },
-        );
+      if (metaTag) {
+        // source + leadTag already set on create above
         console.log(
-          // 👈 YEH LOG ADD KARO
-          `[syncChatbotUsersToApp] 🏷️ META CHATBOT TAG SAVED | phone: ${phone} | waId: ${waId} | userId: ${created.userId}`, // 👈
-        ); // 👈
+          `[syncChatbotUsersToApp] 🏷️ META LEAD SAVED | phone: ${phone} | waId: ${waId} | userId: ${created.userId} | source: ${META_CHATBOT_SOURCE} | tag: "${metaTag}"`,
+        );
       }
 
       console.log(
@@ -1601,6 +1643,207 @@ export async function syncChatbotUsersToApp(options = {}) {
     nonIndian,
     errors,
   };
+}
+
+/** Fire-and-forget "lead assigned" WhatsApp template to the agent. */
+function notifyLeadAssigned(assignedAgentId, { customerName, customerPhone }) {
+  if (!assignedAgentId) return;
+  void fetch(
+    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/send-lead-assigned`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        destination: getAgentDetails(assignedAgentId)?.phone,
+        agentName: getAgentDetails(assignedAgentId)?.name || "Agent",
+        customerName: customerName || "Customer",
+        customerPhone,
+        source: "Chatbot",
+      }),
+    },
+  ).catch((err) =>
+    console.error("[notifyLeadAssigned] error:", err.message),
+  );
+}
+
+/**
+ * Real-time webhook handler: persist a single inbound chatbot message and
+ * upsert the sender as a CRM user. Called from /api/webhooks/limbubot for
+ * each `message.received` event so we no longer depend on slow polling.
+ *
+ * Returns a small status object (never throws for expected cases) so the
+ * webhook can always answer 200 quickly.
+ */
+export async function recordIncomingChatbotMessage(payload = {}) {
+  await dbConnect();
+
+  const contact = payload.contact || {};
+  const message = payload.message || {};
+
+  const e164 = normalizePhoneE164(contact.phone);
+  if (!e164) return { ok: false, reason: "no-phone" };
+
+  const waId = `wa_${e164}`;
+  const phone = waIdToPhone(waId); // 10-digit Indian, else ""
+  const content = String(message.content || "").trim();
+
+  const tsMs = Number(message.timestamp)
+    ? Number(message.timestamp) * 1000
+    : Date.now();
+  const timestamp = new Date(tsMs);
+  const lastActive = timestamp.toISOString();
+
+  // 1) Store the raw message (idempotent by wamid).
+  if (message.wamid) {
+    try {
+      await ChatbotMessage.updateOne(
+        { wamid: message.wamid },
+        {
+          $setOnInsert: {
+            wamid: message.wamid,
+            waId,
+            phone,
+            name: contact.name || "",
+            direction: "inbound",
+            type: message.type || "text",
+            content,
+            workspaceId: payload.workspace_id ?? null,
+            contactId: contact.id ?? null,
+            repliedToWamid: message.replied_to_wamid || null,
+            timestamp,
+            event: payload.event || "",
+          },
+        },
+        { upsert: true },
+      );
+    } catch (err) {
+      // duplicate wamid (race) → already stored, ignore
+      if (err.code !== 11000) {
+        console.error("[recordIncomingChatbotMessage] msg store:", err.message);
+      }
+    }
+  }
+
+  // Non-Indian / unresolvable numbers: message is stored above, but we don't
+  // create a CRM user (mirrors syncChatbotUsersToApp behaviour).
+  if (!phone) return { ok: true, action: "message-only", waId };
+
+  // Business-specific Meta lead tag from this message's text.
+  const metaTag = detectMetaChatbotTag([{ role: "user", content }]);
+
+  // 2) Upsert the CRM user.
+  try {
+    const existing = await User.findOne({
+      $or: [
+        { phone },
+        { chatbotUserId: waId },
+        { whatsappUserId: waId },
+        { limbuBotUserId: waId },
+      ],
+    })
+      .select("_id assignedAgentId")
+      .lean();
+
+    if (existing) {
+      const set = {
+        chatbotUserId: waId,
+        whatsappUserId: waId,
+        limbuBotUserId: waId,
+        chatbotLastActive: lastActive,
+        chatbotLastMessage: content ? content.slice(0, 500) : null,
+      };
+      if (metaTag) set.source = META_CHATBOT_SOURCE;
+
+      let assignedNow = null;
+      if (!existing.assignedAgentId) {
+        assignedNow = await assignNextAgentId();
+        if (assignedNow) set.assignedAgentId = assignedNow;
+      }
+
+      await User.updateOne(
+        { _id: existing._id },
+        {
+          $set: set,
+          $inc: { chatbotMessageCount: 1 },
+          ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
+        },
+      );
+
+      if (assignedNow) {
+        notifyLeadAssigned(assignedNow, {
+          customerName: contact.name,
+          customerPhone: phone,
+        });
+      }
+
+      invalidateLimbuBotCache();
+      return { ok: true, action: "linked", phone, waId, metaTag };
+    }
+
+    // New user.
+    const assignedAgentId = await assignNextAgentId();
+    const emailState = await getNextAvailableChatbotEmailState();
+    const email = takeNextChatbotEmail(emailState);
+
+    const created = await User.create(
+      buildChatbotUserPayload(
+        {
+          user_id: waId,
+          phone,
+          name: contact.name || "",
+          contact,
+          message_count: 1,
+          last_active: lastActive,
+          last_message: content,
+        },
+        { email, assignedAgentId, metaTag },
+      ),
+    );
+
+    notifyLeadAssigned(assignedAgentId, {
+      customerName: created.fullName || contact.name,
+      customerPhone: created.phone,
+    });
+
+    void runWelcomeBonusForUserId(created.userId).catch((err) =>
+      console.error("[recordIncomingChatbotMessage] welcomeBonus:", err),
+    );
+
+    invalidateLimbuBotCache();
+    return {
+      ok: true,
+      action: "created",
+      phone,
+      waId,
+      metaTag,
+      userId: created.userId,
+    };
+  } catch (err) {
+    // Concurrent first-message from same contact → unique index collision.
+    if (err.code === 11000) {
+      await User.updateOne(
+        {
+          $or: [
+            { phone },
+            { chatbotUserId: waId },
+            { whatsappUserId: waId },
+            { limbuBotUserId: waId },
+          ],
+        },
+        {
+          $set: {
+            chatbotLastActive: lastActive,
+            chatbotLastMessage: content ? content.slice(0, 500) : null,
+          },
+          $inc: { chatbotMessageCount: 1 },
+          ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
+        },
+      );
+      return { ok: true, action: "linked-dup", phone, waId, metaTag };
+    }
+    console.error("[recordIncomingChatbotMessage] upsert:", err.message);
+    return { ok: false, reason: err.message, phone, waId };
+  }
 }
 
 export const CONVERSATION_STAGE_KEYS = [

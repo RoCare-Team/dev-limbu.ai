@@ -1129,7 +1129,7 @@ export default function FranchisePage({ params }) {
                     {
                       value: "tel:+919289344726",
                       icon: PhoneCall,
-                      label: "+91 9289344726",
+                      label: "+91 9289344708",
                     },
                     {
                       value: "mailto:info@limbu.ai",
@@ -1162,7 +1162,6 @@ export default function FranchisePage({ params }) {
       </section>
 
       <FooterSection />
-      <ScrollToTop />
       <BookDemoModal />
     </div>
   );

@@ -1,3 +1,4 @@
+import FloatingWhatsapp from "@/components/FloatingWhatsapp";
 import React from "react";
 
 export function getBusinessFranchiseLayoutClass() {
@@ -5,7 +6,12 @@ export function getBusinessFranchiseLayoutClass() {
 }
 
 const Layout = ({ children }) => {
-  return <main className={getBusinessFranchiseLayoutClass()}>{children}</main>;
+  return (
+    <main className={getBusinessFranchiseLayoutClass()}>
+      {children}
+      <FloatingWhatsapp />
+    </main>
+  );
 };
 
 export default Layout;

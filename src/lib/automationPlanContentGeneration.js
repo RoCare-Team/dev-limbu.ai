@@ -84,30 +84,49 @@ export async function generateImage({ imagePrompt, keyword, businessName, imageC
 
   console.log('[automation-content] aiAssetsGenerate —', `${BASE_URL}/api/aiAssetsGenerate`);
 
-  try {
-    const res = await fetch(`${BASE_URL}/api/aiAssetsGenerate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    console.log('[automation-content] aiAssetsGenerate HTTP status:', res.status);
+  // Retry a few times: the upstream image service (assets-image.limbutech.in) can
+  // be briefly unreachable / slow. Without retries a single blip drops the whole
+  // day's post (imageUrl null → empty-bundle safety gate aborts it).
+  const MAX_ATTEMPTS = Math.max(1, Number(process.env.AUTOMATION_IMAGE_RETRIES) || 3);
+  const RETRY_DELAY_MS = Math.max(1000, Number(process.env.AUTOMATION_IMAGE_RETRY_DELAY_MS) || 5000);
 
-    const json = await res.json();
-    const d = json?.data;
-    const imageUrl =
-      d?.imageUrl ||
-      d?.url ||
-      d?.image ||
-      d?.output ||
-      (Array.isArray(d) ? d[0]?.imageUrl || d[0]?.url || d[0]?.image : null) ||
-      null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${BASE_URL}/api/aiAssetsGenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      console.log(`[automation-content] aiAssetsGenerate HTTP status (attempt ${attempt}/${MAX_ATTEMPTS}):`, res.status);
 
-    console.log('[automation-content] Extracted imageUrl:', imageUrl);
-    return imageUrl;
-  } catch (err) {
-    console.error('[automation-content] generateImage EXCEPTION:', err.message);
-    return null;
+      const json = await res.json();
+      const d = json?.data;
+      const imageUrl =
+        d?.imageUrl ||
+        d?.url ||
+        d?.image ||
+        d?.output ||
+        (Array.isArray(d) ? d[0]?.imageUrl || d[0]?.url || d[0]?.image : null) ||
+        null;
+
+      if (imageUrl) {
+        console.log('[automation-content] Extracted imageUrl:', imageUrl);
+        return imageUrl;
+      }
+      console.warn(
+        `[automation-content] attempt ${attempt}/${MAX_ATTEMPTS} returned no imageUrl (status ${res.status}, ${json?.error || 'image service down/slow?'})`
+      );
+    } catch (err) {
+      console.error(`[automation-content] generateImage attempt ${attempt}/${MAX_ATTEMPTS} EXCEPTION:`, err.message);
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+    }
   }
+
+  console.error(`[automation-content] generateImage FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`);
+  return null;
 }
 
 export async function generatePostText({ businessName, keyword, cityName }) {

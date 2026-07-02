@@ -199,6 +199,35 @@ export async function POST(request) {
       return NextResponse.json({ success: true, variants });
     }
 
+    if (mode === 'serviceDescription') {
+      // Generate a short description for ONE service, given its title + business context.
+      const title = String(body?.title || '').trim();
+      if (!title) {
+        return NextResponse.json({ error: 'title required for mode=serviceDescription' }, { status: 400 });
+      }
+      const sys =
+        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, primary category, city). Return ONLY the description sentence(s), no quotes, no markdown.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nService title: "${title}"\n\nTask: Write a concise, benefit-led description for THIS service — 1–2 sentences, max 250 characters, grounded in the business's primary category and city. No emojis, no quotes. Return ONLY the description text.`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 200,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const description = (completion.choices?.[0]?.message?.content || '')
+        .trim()
+        .replace(/^["']|["']$/g, '')
+        .slice(0, 300);
+      if (!description) {
+        return NextResponse.json({ error: 'AI returned no description. Try again.' }, { status: 502 });
+      }
+      return NextResponse.json({ success: true, description });
+    }
+
     if (mode === 'serviceItems') {
       // Generate concrete services for the primary category, each with a title and a
       // short description (Google free-form serviceItems support label descriptions).

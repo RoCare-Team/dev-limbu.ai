@@ -59,7 +59,7 @@ const TABS = [
   { id: "contact", label: "Contact", Icon: TabIconPhone },
   { id: "location", label: "Location", Icon: TabIconPin },
   { id: "hours", label: "Hours", Icon: TabIconClock },
-  { id: "category", label: "Category", Icon: TabIconCategory },
+  { id: "category", label: "Attributes", Icon: TabIconCategory },
   { id: "menu", label: "Menu", Icon: TabIconMenu, cap: "canHaveFoodMenus" },
   { id: "more", label: "More", Icon: TabIconMore },
 ];
@@ -1114,6 +1114,67 @@ function serviceItemsForGoogle(list) {
     .filter((s) => s.title);
 }
 
+// Minimal CSV parser — handles quoted fields, embedded commas, escaped quotes ("") and CRLF.
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  const s = String(text || "").replace(/^﻿/, ""); // strip BOM
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (s[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\n") {
+      row.push(field); rows.push(row); row = []; field = "";
+    } else if (c !== "\r") {
+      field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((c) => String(c).trim() !== ""));
+}
+
+// Map parsed CSV rows -> service items. Recognises a header row (Service/Title,
+// Description, Price) or falls back to positional columns [title, description, price].
+function csvRowsToServiceItems(rows) {
+  if (!rows.length) return [];
+  const header = rows[0].map((h) => String(h).trim().toLowerCase());
+  const looksLikeHeader = header.some((h) => /service|title|name|desc|price/.test(h));
+  let idx = { title: 0, description: 1, price: 2 };
+  let dataRows = rows;
+  if (looksLikeHeader) {
+    const find = (...keys) => header.findIndex((h) => keys.some((k) => h.includes(k)));
+    const tIdx = find("service", "title", "name");
+    idx = { title: tIdx < 0 ? 0 : tIdx, description: find("desc"), price: find("price", "amount", "cost") };
+    dataRows = rows.slice(1);
+  }
+  const out = [];
+  for (const r of dataRows) {
+    const title = String(r[idx.title] ?? "").trim();
+    if (!title) continue;
+    const description = idx.description >= 0 ? String(r[idx.description] ?? "").trim() : "";
+    const priceRaw = idx.price >= 0 ? String(r[idx.price] ?? "").trim() : "";
+    let priceType = "none";
+    let price = "";
+    if (/^free$/i.test(priceRaw)) {
+      priceType = "free";
+    } else {
+      const num = priceRaw.replace(/[^\d.]/g, "");
+      if (num) { priceType = "fixed"; price = num; }
+    }
+    out.push({ title: title.slice(0, 140), description: description.slice(0, 300), priceType, price });
+  }
+  return out;
+}
+
 // ─── Services editor (title + description + price per service) ─────────────────
 // Each service is { title, description, priceType, price }. AI generates title +
 // description; user reviews in the ConfirmModal before they replace the list. Saved as
@@ -1122,11 +1183,61 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(null); // [{ title, description }]
   const [err, setErr] = useState("");
+  const [descBusyIdx, setDescBusyIdx] = useState(-1);
+  const fileRef = useRef(null);
   const list = Array.isArray(items) ? items : [];
+
+  // Generate a description for ONE service from its title (small per-row AI button).
+  const genDescription = async (i) => {
+    const title = String(list[i]?.title || "").trim();
+    if (!title) return;
+    setDescBusyIdx(i);
+    try {
+      const ctx = {
+        ...(aiContext || {}),
+        businessNameHint: businessName,
+        categoryHints: categoryHint,
+        primaryCategory: categoryHint?.[0] || "",
+      };
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "serviceDescription", title, context: ctx }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Could not generate description");
+        return;
+      }
+      const desc = String(data.description || "").trim();
+      if (desc) update(i, "description", desc.slice(0, 300));
+    } catch {
+      toast.error("Could not generate description");
+    } finally {
+      setDescBusyIdx(-1);
+    }
+  };
 
   const update = (i, key, val) => onChange(list.map((it, idx) => (idx === i ? { ...it, [key]: val } : it)));
   const add = () => onChange([...list, { title: "", description: "", priceType: "none", price: "" }]);
   const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
+
+  const importCsv = async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = csvRowsToServiceItems(parseCsv(text));
+      if (!parsed.length) {
+        setErr("No valid rows found. Use columns: Service, Description, Price.");
+        return;
+      }
+      onChange([...list, ...parsed]);
+      setErr("");
+      toast.success(`Imported ${parsed.length} service${parsed.length === 1 ? "" : "s"} from CSV.`);
+    } catch {
+      setErr("Could not read the CSV file. Make sure it is a valid .csv.");
+    }
+  };
 
   const generate = async () => {
     setLoading(true);
@@ -1167,10 +1278,10 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Services</div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-            Each service has a title and an optional description (e.g. “RO Water Purifier Installation”).
+            Title + optional description + price. Or import a CSV with columns <strong>Service, Description, Price</strong>.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={() => void generate()}
@@ -1183,6 +1294,25 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
             }}
           >
             <SparkIcon /> {loading ? "Generating…" : "AI generate"}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            style={{ display: "none" }}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void importCsv(f); }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
+              borderRadius: 9, border: "1.5px solid #FDE047", cursor: "pointer",
+              background: "#fff", color: "#854D0E", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 15V3M7 8l5-5 5 5M5 21h14" /></svg>
+            Import CSV
           </button>
           <button
             type="button"
@@ -1221,14 +1351,35 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
                 <CloseIcon />
               </button>
             </div>
-            <textarea
-              value={it.description || ""}
-              onChange={(e) => update(i, "description", e.target.value)}
-              placeholder="Short description (optional, max 300 chars)"
-              maxLength={300}
-              rows={2}
-              style={{ width: "100%", padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
-            />
+            <div style={{ position: "relative" }}>
+              <textarea
+                value={it.description || ""}
+                onChange={(e) => update(i, "description", e.target.value)}
+                placeholder="Short description (optional, max 300 chars)"
+                maxLength={300}
+                rows={2}
+                style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px 9px 11px", paddingRight: it.title ? 96 : 11, borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
+              />
+              {it.title && String(it.title).trim() ? (
+                <button
+                  type="button"
+                  onClick={() => void genDescription(i)}
+                  disabled={descBusyIdx === i}
+                  title="Generate description from the title with AI"
+                  style={{
+                    position: "absolute", top: 7, right: 7,
+                    display: "inline-flex", alignItems: "center", gap: 5,
+                    padding: "5px 9px", borderRadius: 8,
+                    border: `1px solid ${!(it.description || "").trim() ? "#CA8A04" : "#FDE047"}`,
+                    background: descBusyIdx === i ? "#FEF9C3" : !(it.description || "").trim() ? "#CA8A04" : "#FEFCE8",
+                    color: descBusyIdx === i ? "#854D0E" : !(it.description || "").trim() ? "#fff" : "#854D0E",
+                    fontSize: 11, fontWeight: 800, cursor: descBusyIdx === i ? "wait" : "pointer", fontFamily: "inherit",
+                  }}
+                >
+                  <SparkIcon size={11} /> {descBusyIdx === i ? "…" : "AI"}
+                </button>
+              ) : null}
+            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>Price</span>
               <select
@@ -4217,58 +4368,6 @@ export default function BusinessInformationPanel({
               )}
             </div>
 
-            <div
-              style={{
-                flexShrink: 0,
-                borderTop: "1px solid #f0f4f8",
-                padding: "14px 26px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                background: "linear-gradient(180deg, #fff, #FFFDF5)",
-              }}
-            >
-              <div style={{ flex: 1, fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
-                {gmbSyncMode && activeEditorLocationId ? (
-                  <span>
-                    <strong style={{ color: "#CA8A04" }}>Save changes</strong> syncs description, phone, website, WhatsApp, and service areas to Google, then reloads live data.
-                    You can also use <strong>Save</strong> on each field or <strong>Save service areas</strong> in the service-area panel.
-                  </span>
-                ) : (
-                  <span>
-                    <strong style={{ color: "#CA8A04" }}>Save</strong> stores the description in automation settings.
-                    {gmbSyncMode && activeEditorLocationId ? (
-                      <span>
-                        {" "}
-                        <strong style={{ color: "#0f766e" }}>Sync to Google</strong> pushes description, phone, website, WhatsApp link (if set), service areas, and coordinates to the Business Profile API.
-                      </span>
-                    ) : null}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  onClick={() => void handleSave()}
-                  disabled={gmbSyncMode ? Boolean(syncToGmbPending) || !canSyncGmb : Boolean(savePending)}
-                  style={{
-                    flexShrink: 0,
-                    background: (gmbSyncMode ? syncToGmbPending : savePending) ? "#FEF08A" : "linear-gradient(135deg, #CA8A04, #A16207)",
-                    color: (gmbSyncMode ? syncToGmbPending : savePending) ? "#9ca3af" : "#fff",
-                    border: "none",
-                    borderRadius: 10,
-                    padding: "11px 28px",
-                    fontSize: 13,
-                    fontWeight: 800,
-                    cursor: (gmbSyncMode ? syncToGmbPending : savePending) ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    boxShadow: (gmbSyncMode ? syncToGmbPending : savePending) ? "none" : "0 4px 18px rgba(202,138,4,.35)",
-                  }}
-                >
-                  {(gmbSyncMode ? syncToGmbPending : savePending) ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
         )}

@@ -1667,18 +1667,27 @@ function notifyLeadAssigned(assignedAgentId, { customerName, customerPhone }) {
 }
 
 /**
- * Real-time webhook handler: persist a single inbound chatbot message and
- * upsert the sender as a CRM user. Called from /api/webhooks/limbubot for
- * each `message.received` event so we no longer depend on slow polling.
+ * Real-time webhook handler: persist a single chatbot message and (for inbound
+ * messages) upsert the sender as a CRM user. Called from /api/webhooks/limbubot
+ * for `message.received` (inbound / user) and `message.sent` (outbound / bot)
+ * events, so we no longer depend on slow polling.
+ *
+ * Inbound  → store message + create/link CRM lead + count++ + meta tag.
+ * Outbound → store bot reply (for full history + stage detection). We update an
+ *            existing user's last message/active but never create a lead from
+ *            the bot's own message.
  *
  * Returns a small status object (never throws for expected cases) so the
  * webhook can always answer 200 quickly.
  */
-export async function recordIncomingChatbotMessage(payload = {}) {
+export async function recordChatbotMessage(payload = {}) {
   await dbConnect();
 
   const contact = payload.contact || {};
   const message = payload.message || {};
+
+  const direction =
+    String(payload.event || "") === "message.sent" ? "outbound" : "inbound";
 
   const e164 = normalizePhoneE164(contact.phone);
   if (!e164) return { ok: false, reason: "no-phone" };
@@ -1704,7 +1713,7 @@ export async function recordIncomingChatbotMessage(payload = {}) {
             waId,
             phone,
             name: contact.name || "",
-            direction: "inbound",
+            direction,
             type: message.type || "text",
             content,
             workspaceId: payload.workspace_id ?? null,
@@ -1719,14 +1728,37 @@ export async function recordIncomingChatbotMessage(payload = {}) {
     } catch (err) {
       // duplicate wamid (race) → already stored, ignore
       if (err.code !== 11000) {
-        console.error("[recordIncomingChatbotMessage] msg store:", err.message);
+        console.error("[recordChatbotMessage] msg store:", err.message);
       }
     }
   }
 
   // Non-Indian / unresolvable numbers: message is stored above, but we don't
   // create a CRM user (mirrors syncChatbotUsersToApp behaviour).
-  if (!phone) return { ok: true, action: "message-only", waId };
+  if (!phone) return { ok: true, action: "message-only", waId, direction };
+
+  // Outbound (bot reply): stored for history/stages only. Just refresh the
+  // existing user's last message/active — never create a lead here.
+  if (direction === "outbound") {
+    await User.updateOne(
+      {
+        $or: [
+          { phone },
+          { chatbotUserId: waId },
+          { whatsappUserId: waId },
+          { limbuBotUserId: waId },
+        ],
+      },
+      {
+        $set: {
+          chatbotLastActive: lastActive,
+          ...(content ? { chatbotLastMessage: content.slice(0, 500) } : {}),
+        },
+      },
+    );
+    invalidateLimbuBotCache();
+    return { ok: true, action: "outbound-stored", phone, waId, direction };
+  }
 
   // Business-specific Meta lead tag from this message's text.
   const metaTag = detectMetaChatbotTag([{ role: "user", content }]);
@@ -1741,16 +1773,22 @@ export async function recordIncomingChatbotMessage(payload = {}) {
         { limbuBotUserId: waId },
       ],
     })
-      .select("_id assignedAgentId")
+      .select("_id assignedAgentId chatbotMessageCount")
       .lean();
 
     if (existing) {
+      // Compute the new count in JS instead of $inc — many legacy users have
+      // chatbotMessageCount stored as `null` (schema default), and $inc on a
+      // null field throws in MongoDB.
+      const nextCount = (Number(existing.chatbotMessageCount) || 0) + 1;
+
       const set = {
         chatbotUserId: waId,
         whatsappUserId: waId,
         limbuBotUserId: waId,
         chatbotLastActive: lastActive,
         chatbotLastMessage: content ? content.slice(0, 500) : null,
+        chatbotMessageCount: nextCount,
       };
       if (metaTag) set.source = META_CHATBOT_SOURCE;
 
@@ -1764,7 +1802,6 @@ export async function recordIncomingChatbotMessage(payload = {}) {
         { _id: existing._id },
         {
           $set: set,
-          $inc: { chatbotMessageCount: 1 },
           ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
         },
       );
@@ -1806,7 +1843,7 @@ export async function recordIncomingChatbotMessage(payload = {}) {
     });
 
     void runWelcomeBonusForUserId(created.userId).catch((err) =>
-      console.error("[recordIncomingChatbotMessage] welcomeBonus:", err),
+      console.error("[recordChatbotMessage] welcomeBonus:", err),
     );
 
     invalidateLimbuBotCache();
@@ -1821,6 +1858,8 @@ export async function recordIncomingChatbotMessage(payload = {}) {
   } catch (err) {
     // Concurrent first-message from same contact → unique index collision.
     if (err.code === 11000) {
+      // Aggregation-pipeline update so $ifNull safely handles legacy null
+      // chatbotMessageCount / leadTags without a prior read.
       await User.updateOne(
         {
           $or: [
@@ -1830,18 +1869,29 @@ export async function recordIncomingChatbotMessage(payload = {}) {
             { limbuBotUserId: waId },
           ],
         },
-        {
-          $set: {
-            chatbotLastActive: lastActive,
-            chatbotLastMessage: content ? content.slice(0, 500) : null,
+        [
+          {
+            $set: {
+              chatbotLastActive: lastActive,
+              chatbotLastMessage: content ? content.slice(0, 500) : null,
+              chatbotMessageCount: {
+                $add: [{ $ifNull: ["$chatbotMessageCount", 0] }, 1],
+              },
+              ...(metaTag
+                ? {
+                    source: META_CHATBOT_SOURCE,
+                    leadTags: {
+                      $setUnion: [{ $ifNull: ["$leadTags", []] }, [metaTag]],
+                    },
+                  }
+                : {}),
+            },
           },
-          $inc: { chatbotMessageCount: 1 },
-          ...(metaTag ? { $addToSet: { leadTags: metaTag } } : {}),
-        },
+        ],
       );
       return { ok: true, action: "linked-dup", phone, waId, metaTag };
     }
-    console.error("[recordIncomingChatbotMessage] upsert:", err.message);
+    console.error("[recordChatbotMessage] upsert:", err.message);
     return { ok: false, reason: err.message, phone, waId };
   }
 }

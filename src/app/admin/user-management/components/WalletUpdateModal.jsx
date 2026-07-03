@@ -22,9 +22,7 @@ export default function WalletUpdateModal({
             <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-500 rounded-lg">
               <Wallet className="text-white" size={20} />
             </div>
-            <h2 className="text-xl font-bold text-gray-800">
-              Update Wallet
-            </h2>
+            <h2 className="text-xl font-bold text-gray-800">Update Wallet</h2>
           </div>
           <button
             onClick={() => setWalletModalUser(null)}

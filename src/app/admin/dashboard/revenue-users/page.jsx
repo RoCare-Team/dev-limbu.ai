@@ -621,6 +621,23 @@ export default function RevenueUsersPage() {
     return t;
   };
 
+  // ✅ Plan name resolve karo (purane onboard records me `plan` field khaali hota hai)
+  //    Priority: record.plan -> notes ("Plan upgrade to X") -> user.paidPackage
+  const getPlanName = (p) => {
+    if (!p) return "";
+
+    if (p.plan && p.plan.trim()) return p.plan;
+
+    if (typeof p.notes === "string") {
+      const m = p.notes.match(/plan\s+upgrade\s+to\s+(.+)/i);
+      if (m && m[1].trim()) return m[1].trim();
+    }
+
+    if (p.userPaidPackage && p.userPaidPackage.trim()) return p.userPaidPackage;
+
+    return "";
+  };
+
   const formatDateIST = (dateStr) => {
     if (!dateStr) return "No Date";
 
@@ -1353,6 +1370,15 @@ export default function RevenueUsersPage() {
                               (p) => p._id === selectedPackagePlan[u.leadId],
                             ) || sortedPlans[0];
 
+                          // ✅ Ek hi expiry field use karo (badge + column same rahe)
+                          const effectiveExpiry =
+                            currentPlan.packageExpiryDate ||
+                            currentPlan.userPackageExpiryDate;
+
+                          const isExpired =
+                            effectiveExpiry &&
+                            new Date(effectiveExpiry) < new Date();
+
                           return (
                             <tr
                               key={u.leadId}
@@ -1409,17 +1435,12 @@ export default function RevenueUsersPage() {
                                   >
                                     {sortedPlans.map((p) => (
                                       <option key={p._id} value={p._id}>
-                                        {p.plan}
+                                        {getPlanName(p)}
                                       </option>
                                     ))}
                                   </select>
                                   {/* // revnue plan  */}
-                                  {(currentPlan.userPackageExpiryDate ||
-                                    currentPlan.packageExpiryDate) &&
-                                    new Date(
-                                      currentPlan.userPackageExpiryDate ||
-                                        currentPlan.packageExpiryDate,
-                                    ) < new Date() && (
+                                  {isExpired && (
                                       <>
                                         <span className="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold w-fit">
                                           Expired
@@ -1451,10 +1472,7 @@ export default function RevenueUsersPage() {
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(
-                                  currentPlan.packageExpiryDate ||
-                                    currentPlan.userPackageExpiryDate,
-                                )}
+                                {formatDateIST(effectiveExpiry)}
                               </td>
 
                               <td className="px-6 py-4">

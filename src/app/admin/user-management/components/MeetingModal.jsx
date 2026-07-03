@@ -17,9 +17,7 @@ export default function MeetingModal({
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">
-            Schedule Meeting
-          </h2>
+          <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
           <button
             onClick={() => setShowMeetingModal(false)}
             className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"

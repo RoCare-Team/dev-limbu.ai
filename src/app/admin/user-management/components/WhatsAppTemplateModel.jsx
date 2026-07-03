@@ -16,17 +16,16 @@ import {
 } from "lucide-react";
 
 const TEMPLATE_GROUPS = [
-
-   {
-  id: "google_business",
-  title: "Google Business",
-  subtitle: "Send Google Business Profile templates",
-  icon: Globe,
-  border: "border-cyan-200",
-  bg: "bg-cyan-50",
-  iconBg: "bg-cyan-100",
-  iconColor: "text-cyan-600",
-},
+  {
+    id: "google_business",
+    title: "Google Business",
+    subtitle: "Send Google Business Profile templates",
+    icon: Globe,
+    border: "border-cyan-200",
+    bg: "bg-cyan-50",
+    iconBg: "bg-cyan-100",
+    iconColor: "text-cyan-600",
+  },
   {
     id: "magic_qr",
     title: "Magic QR",
@@ -97,29 +96,27 @@ const TEMPLATE_GROUPS = [
     iconBg: "bg-green-100",
     iconColor: "text-green-600",
   },
- 
 ];
 
 const GOOGLE_BUSINESS_TEMPLATES = [
   {
-id: "google_business_profile_management",
-title: "Google Business Profile Management",
-subtitle: "Connect with your dedicated support manager",
-preview: [
-"Hi 👋 {{1}}",
-"Thank you for choosing our Google Business Profile management service.",
-"✨ Priya has been assigned as your dedicated support manager.",
-"Click the “Chat Now” button below to connect with Priya and start using your free features:",
-"✅ GMB Insights",
-"✅ Magic QR",
-"✅ GMB Health Check",
-"✅ Free Business Website",
-"✅ Auto Reply Setup",
-"👇 Tap below to start chatting with Priya."
-],
-buttons: ["Chat Now", "Need Support"],
-}
-
+    id: "google_business_profile_management",
+    title: "Google Business Profile Management",
+    subtitle: "Connect with your dedicated support manager",
+    preview: [
+      "Hi 👋 {{1}}",
+      "Thank you for choosing our Google Business Profile management service.",
+      "✨ Priya has been assigned as your dedicated support manager.",
+      "Click the “Chat Now” button below to connect with Priya and start using your free features:",
+      "✅ GMB Insights",
+      "✅ Magic QR",
+      "✅ GMB Health Check",
+      "✅ Free Business Website",
+      "✅ Auto Reply Setup",
+      "👇 Tap below to start chatting with Priya.",
+    ],
+    buttons: ["Chat Now", "Need Support"],
+  },
 ];
 
 const MAGIC_QR_TEMPLATES = [
@@ -227,11 +224,8 @@ const BULK_WHATSAPP_TEMPLATES = [
   },
 ];
 
-
-
 const getTemplatesForGroup = (groupId) => {
-  if (groupId === "google_business")
-    return GOOGLE_BUSINESS_TEMPLATES;
+  if (groupId === "google_business") return GOOGLE_BUSINESS_TEMPLATES;
   if (groupId === "magic_qr") return MAGIC_QR_TEMPLATES;
   if (groupId === "gmb_health") return GMB_HEALTH_TEMPLATES;
   if (groupId === "free_website") return FREE_WEBSITE_TEMPLATES;
@@ -239,7 +233,6 @@ const getTemplatesForGroup = (groupId) => {
   if (groupId === "gmb_insights") return GMB_INSIGHTS_TEMPLATES;
   if (groupId === "review_reply") return REVIEW_REPLY_TEMPLATES;
   if (groupId === "bulk_whatsapp") return BULK_WHATSAPP_TEMPLATES;
-   
 
   return [];
 };

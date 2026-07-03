@@ -224,7 +224,7 @@ export async function GET(req) {
     const userIds = revenueData.map((item) => item.leadId);
 
     const users = await User.find({ userId: { $in: userIds } })
-      .select("userId packageExpiryDate packageStartDate")
+      .select("userId packageExpiryDate packageStartDate paidPackage")
       .lean();
 
     const userMap = {};
@@ -238,6 +238,9 @@ export async function GET(req) {
         userMap[String(item.leadId).trim()]?.packageExpiryDate || null,
       userPackageStartDate:
         userMap[String(item.leadId).trim()]?.packageStartDate || null,
+      // ✅ Fallback plan name (onboard records me plan "" hota hai)
+      userPaidPackage:
+        userMap[String(item.leadId).trim()]?.paidPackage || null,
     }));
 
     return NextResponse.json({

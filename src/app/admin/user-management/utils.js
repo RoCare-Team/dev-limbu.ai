@@ -113,8 +113,7 @@ export const hasGmbConnected = (user = {}) =>
     user.connectedBusinessEmail ||
     user.gmbProjectId ||
     user.selectedBusiness?.name ||
-    (Array.isArray(user.businessListings) &&
-      user.businessListings.length > 0),
+    (Array.isArray(user.businessListings) && user.businessListings.length > 0),
   );
 
 export const getAvatarColor = (name) => {

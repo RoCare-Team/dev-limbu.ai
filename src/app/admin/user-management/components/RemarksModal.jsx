@@ -27,9 +27,7 @@ export default function RemarksModal({
       <div className="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-800">
-            Remarks History
-          </h2>
+          <h2 className="text-lg font-bold text-gray-800">Remarks History</h2>
           <button
             onClick={() => setRemarksModalUser(null)}
             className="p-1.5 hover:bg-gray-100 rounded-full transition"
@@ -208,10 +206,7 @@ export default function RemarksModal({
 
                     {r.messageSent && (
                       <div className="flex items-center gap-1 mt-1">
-                        <CheckCircle
-                          size={12}
-                          className="text-green-500"
-                        />
+                        <CheckCircle size={12} className="text-green-500" />
                         <span className="text-[10px] text-green-600 font-medium">
                           Message Sent
                         </span>
@@ -223,16 +218,13 @@ export default function RemarksModal({
                         <Calendar size={10} className="text-amber-500" />
                         <span className="text-[10px] text-amber-700 font-semibold">
                           Follow-up:{" "}
-                          {new Date(r.followUpDate).toLocaleString(
-                            "en-IN",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}
+                          {new Date(r.followUpDate).toLocaleString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </span>
                       </div>
                     )}

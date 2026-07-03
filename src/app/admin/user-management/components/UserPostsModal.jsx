@@ -144,8 +144,7 @@ export default function UserPostsModal({
 
                     {post.promat && (
                       <p className="text-sm text-gray-700 line-clamp-2">
-                        <span className="font-bold">Prompt:</span>{" "}
-                        {post.promat}
+                        <span className="font-bold">Prompt:</span> {post.promat}
                       </p>
                     )}
                     {post.status === "rejected" && post.rejectReason && (

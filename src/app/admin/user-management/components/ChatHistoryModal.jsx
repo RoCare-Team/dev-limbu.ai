@@ -1,7 +1,14 @@
 "use client";
 
 import React from "react";
-import { Bot, MessageCircle, RefreshCw, User, X, LayoutTemplate } from "lucide-react";
+import {
+  Bot,
+  MessageCircle,
+  RefreshCw,
+  User,
+  X,
+  LayoutTemplate,
+} from "lucide-react";
 
 const formatChatTime = (value) => {
   if (!value) return "";
@@ -25,7 +32,10 @@ const parseTemplateContent = (raw) => {
   if (!trimmed.startsWith("{")) return null;
   try {
     const parsed = JSON.parse(trimmed);
-    if (parsed && (parsed.__type === "template" || parsed.body || parsed.buttons)) {
+    if (
+      parsed &&
+      (parsed.__type === "template" || parsed.body || parsed.buttons)
+    ) {
       return parsed;
     }
     return null;
@@ -82,7 +92,10 @@ const TemplateBubble = ({ template, isUser }) => {
       {/* Body */}
       {body ? (
         <div className="px-4 py-3">
-          <TextWithBreaks text={body} className="text-sm leading-relaxed text-slate-800" />
+          <TextWithBreaks
+            text={body}
+            className="text-sm leading-relaxed text-slate-800"
+          />
         </div>
       ) : null}
 
@@ -138,7 +151,8 @@ export default function ChatHistoryModal({
                   Conversation History
                 </h2>
                 <p className="truncate text-xs font-semibold text-slate-500">
-                  {user?.fullName || user?.name || "User"} - {userId || "No WhatsApp ID"}
+                  {user?.fullName || user?.name || "User"} -{" "}
+                  {userId || "No WhatsApp ID"}
                 </p>
               </div>
             </div>
@@ -167,7 +181,9 @@ export default function ChatHistoryModal({
           {loading ? (
             <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-indigo-600">
               <RefreshCw size={28} className="animate-spin" />
-              <p className="text-sm font-bold text-slate-600">Loading conversation...</p>
+              <p className="text-sm font-bold text-slate-600">
+                Loading conversation...
+              </p>
             </div>
           ) : error ? (
             <div className="mx-auto flex min-h-[240px] max-w-md flex-col items-center justify-center rounded-2xl border border-red-100 bg-white p-6 text-center">
@@ -183,7 +199,9 @@ export default function ChatHistoryModal({
           ) : history.length === 0 ? (
             <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border-2 border-slate-300 bg-white text-center">
               <MessageCircle size={26} className="mb-2 text-slate-300" />
-              <p className="text-sm font-bold text-slate-500">No conversation found</p>
+              <p className="text-sm font-bold text-slate-500">
+                No conversation found
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -202,7 +220,9 @@ export default function ChatHistoryModal({
                       </div>
                     )}
 
-                    <div className={`max-w-[82%] ${template ? "" : "shadow-sm"}`}>
+                    <div
+                      className={`max-w-[82%] ${template ? "" : "shadow-sm"}`}
+                    >
                       {template ? (
                         <div className="space-y-1">
                           <div className="flex items-center gap-1.5 px-1">

@@ -46,8 +46,7 @@ export default function useUserManagementLogic() {
   });
   const [toast, setToast] = useState(null);
   const [userPostsData, setUserPostsData] = useState({});
-  
-  
+
   const [remarksModalUser, setRemarksModalUser] = useState(null);
   const [remarksInput, setRemarksInput] = useState("");
   const [remarksHistory, setRemarksHistory] = useState([]);
@@ -80,8 +79,7 @@ export default function useUserManagementLogic() {
     }
   }, [planStartDate]);
   const [planScreenshot, setPlanScreenshot] = useState(null);
-  
-  
+
   const [chatbotSummaryMetrics, setChatbotSummaryMetrics] = useState({
     loading: true,
     totals: {},
@@ -108,9 +106,9 @@ export default function useUserManagementLogic() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [agents, setAgents] = useState([]);
   const [assigneeFilter, setAssigneeFilter] = useState("All");
-  
+
   const [agentStats, setAgentStats] = useState({ Unassigned: 0 });
-  
+
   const [stageStats, setStageStats] = useState({});
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingData, setMeetingData] = useState({
@@ -121,12 +119,11 @@ export default function useUserManagementLogic() {
   });
   const [todayStats, setTodayStats] = useState({ count: 0, assignments: [] });
   const [agentTodayLeads, setAgentTodayLeads] = useState(0);
-  
-  
+
   const [todayUsersMetaLeads, setTodayUsersMetaLeads] = useState(0);
   const [todayUsersSignups, setTodayUsersSignups] = useState(0);
   /** Matches API getTodayUsersCount (Asia/Kolkata / APP_TIMEZONE calendar day). */
-  
+
   const [leadStatusStats, setLeadStatusStats] = useState({
     Hot: 0,
     Warm: 0,
@@ -135,9 +132,7 @@ export default function useUserManagementLogic() {
   const [leadStatusFilter, setLeadStatusFilter] = useState("All");
   const [leadStageFilter, setLeadStageFilter] = useState("All");
   const [conversationStageFilter, setConversationStageFilter] = useState("All");
-  
-  
-  
+
   const [conversationStageUsers, setConversationStageUsers] = useState([]);
   const [conversationStageCardsLoading, setConversationStageCardsLoading] =
     useState(false);
@@ -148,7 +143,7 @@ export default function useUserManagementLogic() {
   const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] =
     useState(false);
   const [callStats, setCallStats] = useState(null);
-  
+
   const [followUpDate, setFollowUpDate] = useState("");
   /** HH:mm — combined with followUpDate when saving follow-up */
   const [followUpTime, setFollowUpTime] = useState("09:00");
@@ -168,15 +163,12 @@ export default function useUserManagementLogic() {
 
   const [followUpFilter, setFollowUpFilter] = useState("all");
   const [followUpLeads, setFollowUpLeads] = useState([]);
-  
+
   const [followUpTableUsers, setFollowUpTableUsers] = useState([]);
   const [loadingFollowUpTable, setLoadingFollowUpTable] = useState(false);
   const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
-  
 
   // Revenue tracking state
-  
-  
 
   // Revenue Users Modal state ✅ NEW
 
@@ -193,7 +185,6 @@ export default function useUserManagementLogic() {
 
   // Payment Screenshot Upload state
 
-  
   const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -205,7 +196,6 @@ export default function useUserManagementLogic() {
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  
 
   // sercvice modal
   // const [openServiceModal, setOpenServiceModal] = useState(false);
@@ -814,7 +804,6 @@ export default function useUserManagementLogic() {
 
   useEffect(() => {
     setRole(localStorage.getItem("role"));
-    
   }, []);
 
   useEffect(() => {
@@ -843,8 +832,6 @@ export default function useUserManagementLogic() {
   useEffect(() => {
     if (bulkWaSelectedUserIds.length === 0) setBulkWaShowPanel(false);
   }, [bulkWaSelectedUserIds.length]);
-
-  
 
   useEffect(() => {
     const fetchCallStats = async () => {
@@ -881,7 +868,6 @@ export default function useUserManagementLogic() {
       if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
         return;
 
-      
       try {
         const res = await fetch(
           `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`,
@@ -895,7 +881,6 @@ export default function useUserManagementLogic() {
       } catch (err) {
         console.error("Failed to fetch follow-up leads:", err);
       } finally {
-        
       }
     };
 
@@ -1054,7 +1039,7 @@ export default function useUserManagementLogic() {
       if (data.success) {
         setAgentStats(data.stats);
         setStageStats(data.stageStats || {});
-        
+
         setLeadStatusStats(
           data.leadStatusStats || { Hot: 0, Warm: 0, Cold: 0 },
         );
@@ -1067,8 +1052,6 @@ export default function useUserManagementLogic() {
           // For agents, API returns todayLeads scoped to their own assignments
           if (isAgent) setAgentTodayLeads(data.todayLeads);
         }
-
-        
       }
     } catch (error) {
       console.error("Error fetching agent stats:", error);
@@ -1250,7 +1233,6 @@ export default function useUserManagementLogic() {
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
-    
     fetchIssues();
     fetchTodayUsersCount();
     fetchRevenue();
@@ -1303,16 +1285,10 @@ export default function useUserManagementLogic() {
         if (data.success) {
           // On this page, we only care about user onboarding revenue.
           if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
-            
-            
           } else if (userRole === "agent") {
             // For agents, totalRevenue from API is already just their user_onboard revenue
-            
-            
           } else {
             // For other roles like franchiseAdmin, they have no user_onboard revenue
-            
-            
           }
 
           // Create a map of paid users from 'user_onboard' type revenue entries
@@ -1329,7 +1305,6 @@ export default function useUserManagementLogic() {
               });
             setPaidUsersStatus(paidStatus);
           } else {
-            
           }
         }
       }
@@ -1384,8 +1359,6 @@ export default function useUserManagementLogic() {
       console.error("Error fetching posts counts:", err);
     }
   };
-
-  
 
   const syncWhatsAppUsersToDatabase = async () => {
     const adminEmail = localStorage.getItem("email");
@@ -1451,7 +1424,6 @@ export default function useUserManagementLogic() {
           totals: data.totals || {},
           today: data.today || {},
         });
-        
       } else {
         setChatbotSummaryMetrics((prev) => ({ ...prev, loading: false }));
         console.error("chatbot-summary-metrics:", data.error);
@@ -1541,9 +1513,6 @@ export default function useUserManagementLogic() {
         throw new Error(data.error || "Failed to load stage users");
       }
 
-      
-      
-      
       setConversationStageUsers(data.users || []);
       setPagination({
         totalUsers: data.totalUsers || 0,
@@ -1561,7 +1530,7 @@ export default function useUserManagementLogic() {
 
   const handleRefreshWhatsAppData = async () => {
     setIsRefreshingWhatsAppData(true);
-    
+
     setChatbotSummaryMetrics((prev) => ({ ...prev, loading: true }));
     try {
       const syncStats = await syncWhatsAppUsersToDatabase();
@@ -1585,7 +1554,7 @@ export default function useUserManagementLogic() {
       showToast(error.message || "Failed to refresh WhatsApp data", "error");
     } finally {
       setIsRefreshingWhatsAppData(false);
-      
+
       setChatbotSummaryMetrics((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -1680,10 +1649,8 @@ export default function useUserManagementLogic() {
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
-        
         setTodayUsersMetaLeads(data.todayMetaLeads || 0);
         setTodayUsersSignups(data.todaySignups || 0);
-        
       }
     } catch (error) {
       console.error("Error fetching today's users count:", error);
@@ -2861,8 +2828,6 @@ export default function useUserManagementLogic() {
       return;
     }
 
-    
-
     try {
       const res = await fetch("/api/twillo", {
         method: "POST",
@@ -2883,7 +2848,6 @@ export default function useUserManagementLogic() {
       console.error("Voice Call Error:", error);
       showToast(error.message || "Error initiating call", "error");
     } finally {
-      
     }
   };
   const handleMeetingSubmit = async () => {
@@ -3020,51 +2984,280 @@ export default function useUserManagementLogic() {
       : (pagination?.totalUsers ?? filteredUsers.length);
 
   return {
-    users, setUsers, loading, setLoading, updating, setUpdating,
-    selectedUser, setSelectedUser, selectedPlan, setSelectedPlan, addingUser, setAddingUser,
-    showAddExpoLeadModal, setShowAddExpoLeadModal, newUser, setNewUser, viewingUserPosts, setViewingUserPosts,
-    userPosts, setUserPosts, loadingPosts, setLoadingPosts, fullViewImage, setFullViewImage,
-    pagination, setPagination, connectedBusinessUsers, setConnectedBusinessUsers, updatingWallet, setUpdatingWallet,
-    walletModalUser, setWalletModalUser, walletUpdate, setWalletUpdate, toast, setToast,
-    userPostsData, setUserPostsData, remarksModalUser, setRemarksModalUser, remarksInput, setRemarksInput,
-    remarksHistory, setRemarksHistory, loadingRemarks, setLoadingRemarks, chatHistoryModal, setChatHistoryModal,
-    conversationStages, setConversationStages, subscriptionPlans, setSubscriptionPlans, selectedCycle, setSelectedCycle,
-    planStartDate, setPlanStartDate, utrNumber, setUtrNumber, planAmount, setPlanAmount,
-    planExpiryDate, setPlanExpiryDate, gstNumber, setGstNumber, planScreenshot, setPlanScreenshot,
-    chatbotSummaryMetrics, setChatbotSummaryMetrics, chatbotMetricFilter, setChatbotMetricFilter, chatbotMetricUsers, setChatbotMetricUsers,
-    chatbotMetricTableActive, setChatbotMetricTableActive, chatbotMetricLoading, setChatbotMetricLoading, agentTodayDemos, setAgentTodayDemos,
-    chatbotChatDayFilter, setChatbotChatDayFilter, issues, setIssues, showIssuesModal, setShowIssuesModal,
-    role, setRole, deleteUserModal, setDeleteUserModal, bulkDeleteModalOpen, setBulkDeleteModalOpen,
-    isDeleting, setIsDeleting, agents, setAgents, assigneeFilter, setAssigneeFilter,
-    agentStats, setAgentStats, stageStats, setStageStats, showMeetingModal, setShowMeetingModal,
-    meetingData, setMeetingData, todayStats, setTodayStats, agentTodayLeads, setAgentTodayLeads,
-    todayUsersMetaLeads, setTodayUsersMetaLeads, todayUsersSignups, setTodayUsersSignups, leadStatusStats, setLeadStatusStats,
-    leadStatusFilter, setLeadStatusFilter, leadStageFilter, setLeadStageFilter, conversationStageFilter, setConversationStageFilter,
-    conversationStageUsers, setConversationStageUsers, conversationStageCardsLoading, setConversationStageCardsLoading, selectedConversationStage, setSelectedConversationStage,
-    conversationStageTableActive, setConversationStageTableActive, isRefreshingWhatsAppData, setIsRefreshingWhatsAppData, callStats, setCallStats,
-    followUpDate, setFollowUpDate, followUpTime, setFollowUpTime, followUpStats, setFollowUpStats,
-    allSelectedUsers, setAllSelectedUsers, isOpen, setIsOpen, followUpFilter, setFollowUpFilter,
-    followUpLeads, setFollowUpLeads, followUpTableUsers, setFollowUpTableUsers, loadingFollowUpTable, setLoadingFollowUpTable,
-    followUpDueAlert, setFollowUpDueAlert, showOnboardModal, setShowOnboardModal, onboardModalUser, setOnboardModalUser,
-    onboardData, setOnboardData, uploadingOnboard, setUploadingOnboard, paidUsersStatus, setPaidUsersStatus,
-    searchQuery, setSearchQuery, filterStatus, setFilterStatus, filterDate, setFilterDate,
-    leadSourceFilter, setLeadSourceFilter, remarkCountFilter, setRemarkCountFilter, franchiseLeadsFilter, setFranchiseLeadsFilter,
-    customStartDate, setCustomStartDate, customEndDate, setCustomEndDate, currentPage, setCurrentPage,
-    activeModal, setActiveModal, serviceUser, setServiceUser, isRefreshingMetaLeads, setIsRefreshingMetaLeads,
-    bulkWaSelectedUserIds, setBulkWaSelectedUserIds, bulkWaShowPanel, setBulkWaShowPanel, bulkWaSendDate, setBulkWaSendDate,
-    bulkWaSending, setBulkWaSending, templateWaSendingId, setTemplateWaSendingId, bulkWaResult, setBulkWaResult,
-    allUserIds, setAllUserIds, planRemarks, setplanRemarks, tableRef, bottomRef,
-    fetchingConversationStageKeysRef, handleOpenServiceModal, fetchConversationStagesOnLoad, getConversationStageDisplay, isAgent, isManager,
-    preConversationFilteredUsers, filteredUsers, fetchAllUserIds, agentFollowUpFilterLabel, followUpVoiceItems, defaultRemarks,
-    FOLLOW_UP_REMARKS, handleDefaultRemarkClick, showToast, stageOptions, fetchChatHistoryForUser, updateConversationStageCache,
-    fetchWhatsAppHistoryForUser, closeChatHistoryModal, handleSearch, handleRefreshMetaLeads, stats, setStats,
-    fetchAgentStats, fetchUsers, uploadToS3, fetchRevenue, fetchAllUserPostsCounts, syncWhatsAppUsersToDatabase,
-    fetchAgentTodayDemos, fetchChatbotSummaryMetrics, fetchChatbotMetricUsers, fetchConversationStageUsers, handleRefreshWhatsAppData, clearChatbotMetricFilter,
-    handleChatbotMetricCardClick, handleConversationStageFilterChange, fetchIssues, fetchTodayUsersCount, handleAssignChange, handleRoundRobinAssign,
-    handleLeadStageChange, handleLeadStatusChange, handleUserSourceChange, getAgentName, handleUpgradePlan, confirmPlanChange,
-    confirmDeleteUser, confirmBulkDeleteUsers, getBulkWaCampaignByDate, toggleBulkWaUserId, selectAllBulkWaOnPage, sendBulkUserManagementWhatsApp,
-    getSelectedWhatsAppUsersPayload, sendTemplateWhatsApp, handleAddUser, handleViewPosts, handleOpenWalletModal, handleUpdateWallet,
-    AdminPanelButton, handleOpenRemarksModal, sendRemarkWhatsApp, handleAddRemark, handleVoiceCall, handleMeetingSubmit,
-    handleOnboardSubmit, clearFilters, handlePageChange, groupedUsers, currentLeadTotal,
+    users,
+    setUsers,
+    loading,
+    setLoading,
+    updating,
+    setUpdating,
+    selectedUser,
+    setSelectedUser,
+    selectedPlan,
+    setSelectedPlan,
+    addingUser,
+    setAddingUser,
+    showAddExpoLeadModal,
+    setShowAddExpoLeadModal,
+    newUser,
+    setNewUser,
+    viewingUserPosts,
+    setViewingUserPosts,
+    userPosts,
+    setUserPosts,
+    loadingPosts,
+    setLoadingPosts,
+    fullViewImage,
+    setFullViewImage,
+    pagination,
+    setPagination,
+    connectedBusinessUsers,
+    setConnectedBusinessUsers,
+    updatingWallet,
+    setUpdatingWallet,
+    walletModalUser,
+    setWalletModalUser,
+    walletUpdate,
+    setWalletUpdate,
+    toast,
+    setToast,
+    userPostsData,
+    setUserPostsData,
+    remarksModalUser,
+    setRemarksModalUser,
+    remarksInput,
+    setRemarksInput,
+    remarksHistory,
+    setRemarksHistory,
+    loadingRemarks,
+    setLoadingRemarks,
+    chatHistoryModal,
+    setChatHistoryModal,
+    conversationStages,
+    setConversationStages,
+    subscriptionPlans,
+    setSubscriptionPlans,
+    selectedCycle,
+    setSelectedCycle,
+    planStartDate,
+    setPlanStartDate,
+    utrNumber,
+    setUtrNumber,
+    planAmount,
+    setPlanAmount,
+    planExpiryDate,
+    setPlanExpiryDate,
+    gstNumber,
+    setGstNumber,
+    planScreenshot,
+    setPlanScreenshot,
+    chatbotSummaryMetrics,
+    setChatbotSummaryMetrics,
+    chatbotMetricFilter,
+    setChatbotMetricFilter,
+    chatbotMetricUsers,
+    setChatbotMetricUsers,
+    chatbotMetricTableActive,
+    setChatbotMetricTableActive,
+    chatbotMetricLoading,
+    setChatbotMetricLoading,
+    agentTodayDemos,
+    setAgentTodayDemos,
+    chatbotChatDayFilter,
+    setChatbotChatDayFilter,
+    issues,
+    setIssues,
+    showIssuesModal,
+    setShowIssuesModal,
+    role,
+    setRole,
+    deleteUserModal,
+    setDeleteUserModal,
+    bulkDeleteModalOpen,
+    setBulkDeleteModalOpen,
+    isDeleting,
+    setIsDeleting,
+    agents,
+    setAgents,
+    assigneeFilter,
+    setAssigneeFilter,
+    agentStats,
+    setAgentStats,
+    stageStats,
+    setStageStats,
+    showMeetingModal,
+    setShowMeetingModal,
+    meetingData,
+    setMeetingData,
+    todayStats,
+    setTodayStats,
+    agentTodayLeads,
+    setAgentTodayLeads,
+    todayUsersMetaLeads,
+    setTodayUsersMetaLeads,
+    todayUsersSignups,
+    setTodayUsersSignups,
+    leadStatusStats,
+    setLeadStatusStats,
+    leadStatusFilter,
+    setLeadStatusFilter,
+    leadStageFilter,
+    setLeadStageFilter,
+    conversationStageFilter,
+    setConversationStageFilter,
+    conversationStageUsers,
+    setConversationStageUsers,
+    conversationStageCardsLoading,
+    setConversationStageCardsLoading,
+    selectedConversationStage,
+    setSelectedConversationStage,
+    conversationStageTableActive,
+    setConversationStageTableActive,
+    isRefreshingWhatsAppData,
+    setIsRefreshingWhatsAppData,
+    callStats,
+    setCallStats,
+    followUpDate,
+    setFollowUpDate,
+    followUpTime,
+    setFollowUpTime,
+    followUpStats,
+    setFollowUpStats,
+    allSelectedUsers,
+    setAllSelectedUsers,
+    isOpen,
+    setIsOpen,
+    followUpFilter,
+    setFollowUpFilter,
+    followUpLeads,
+    setFollowUpLeads,
+    followUpTableUsers,
+    setFollowUpTableUsers,
+    loadingFollowUpTable,
+    setLoadingFollowUpTable,
+    followUpDueAlert,
+    setFollowUpDueAlert,
+    showOnboardModal,
+    setShowOnboardModal,
+    onboardModalUser,
+    setOnboardModalUser,
+    onboardData,
+    setOnboardData,
+    uploadingOnboard,
+    setUploadingOnboard,
+    paidUsersStatus,
+    setPaidUsersStatus,
+    searchQuery,
+    setSearchQuery,
+    filterStatus,
+    setFilterStatus,
+    filterDate,
+    setFilterDate,
+    leadSourceFilter,
+    setLeadSourceFilter,
+    remarkCountFilter,
+    setRemarkCountFilter,
+    franchiseLeadsFilter,
+    setFranchiseLeadsFilter,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    currentPage,
+    setCurrentPage,
+    activeModal,
+    setActiveModal,
+    serviceUser,
+    setServiceUser,
+    isRefreshingMetaLeads,
+    setIsRefreshingMetaLeads,
+    bulkWaSelectedUserIds,
+    setBulkWaSelectedUserIds,
+    bulkWaShowPanel,
+    setBulkWaShowPanel,
+    bulkWaSendDate,
+    setBulkWaSendDate,
+    bulkWaSending,
+    setBulkWaSending,
+    templateWaSendingId,
+    setTemplateWaSendingId,
+    bulkWaResult,
+    setBulkWaResult,
+    allUserIds,
+    setAllUserIds,
+    planRemarks,
+    setplanRemarks,
+    tableRef,
+    bottomRef,
+    fetchingConversationStageKeysRef,
+    handleOpenServiceModal,
+    fetchConversationStagesOnLoad,
+    getConversationStageDisplay,
+    isAgent,
+    isManager,
+    preConversationFilteredUsers,
+    filteredUsers,
+    fetchAllUserIds,
+    agentFollowUpFilterLabel,
+    followUpVoiceItems,
+    defaultRemarks,
+    FOLLOW_UP_REMARKS,
+    handleDefaultRemarkClick,
+    showToast,
+    stageOptions,
+    fetchChatHistoryForUser,
+    updateConversationStageCache,
+    fetchWhatsAppHistoryForUser,
+    closeChatHistoryModal,
+    handleSearch,
+    handleRefreshMetaLeads,
+    stats,
+    setStats,
+    fetchAgentStats,
+    fetchUsers,
+    uploadToS3,
+    fetchRevenue,
+    fetchAllUserPostsCounts,
+    syncWhatsAppUsersToDatabase,
+    fetchAgentTodayDemos,
+    fetchChatbotSummaryMetrics,
+    fetchChatbotMetricUsers,
+    fetchConversationStageUsers,
+    handleRefreshWhatsAppData,
+    clearChatbotMetricFilter,
+    handleChatbotMetricCardClick,
+    handleConversationStageFilterChange,
+    fetchIssues,
+    fetchTodayUsersCount,
+    handleAssignChange,
+    handleRoundRobinAssign,
+    handleLeadStageChange,
+    handleLeadStatusChange,
+    handleUserSourceChange,
+    getAgentName,
+    handleUpgradePlan,
+    confirmPlanChange,
+    confirmDeleteUser,
+    confirmBulkDeleteUsers,
+    getBulkWaCampaignByDate,
+    toggleBulkWaUserId,
+    selectAllBulkWaOnPage,
+    sendBulkUserManagementWhatsApp,
+    getSelectedWhatsAppUsersPayload,
+    sendTemplateWhatsApp,
+    handleAddUser,
+    handleViewPosts,
+    handleOpenWalletModal,
+    handleUpdateWallet,
+    AdminPanelButton,
+    handleOpenRemarksModal,
+    sendRemarkWhatsApp,
+    handleAddRemark,
+    handleVoiceCall,
+    handleMeetingSubmit,
+    handleOnboardSubmit,
+    clearFilters,
+    handlePageChange,
+    groupedUsers,
+    currentLeadTotal,
   };
 }

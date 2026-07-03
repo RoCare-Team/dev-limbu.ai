@@ -82,37 +82,192 @@ import {
 
 export default function UserManagement() {
   const {
-    users, loading, updating, selectedUser, setSelectedUser, selectedPlan,
-    setSelectedPlan, addingUser, setAddingUser, showAddExpoLeadModal, setShowAddExpoLeadModal, newUser,
-    setNewUser, viewingUserPosts, setViewingUserPosts, userPosts, setUserPosts, loadingPosts,
-    fullViewImage, setFullViewImage, pagination, updatingWallet, walletModalUser, setWalletModalUser,
-    walletUpdate, setWalletUpdate, toast, setToast, userPostsData, remarksModalUser,
-    setRemarksModalUser, remarksInput, setRemarksInput, remarksHistory, loadingRemarks, chatHistoryModal,
-    subscriptionPlans, selectedCycle, setSelectedCycle, planStartDate, setPlanStartDate, utrNumber,
-    setUtrNumber, planAmount, setPlanAmount, planExpiryDate, gstNumber, setGstNumber,
-    planScreenshot, setPlanScreenshot, chatbotSummaryMetrics, chatbotMetricFilter, chatbotMetricTableActive, chatbotMetricLoading,
-    agentTodayDemos, chatbotChatDayFilter, setChatbotChatDayFilter, issues, showIssuesModal, setShowIssuesModal,
-    role, deleteUserModal, setDeleteUserModal, bulkDeleteModalOpen, setBulkDeleteModalOpen, isDeleting,
-    agents, assigneeFilter, setAssigneeFilter, stageStats, showMeetingModal, setShowMeetingModal,
-    meetingData, setMeetingData, todayStats, agentTodayLeads, leadStatusStats, leadStatusFilter,
-    setLeadStatusFilter, leadStageFilter, setLeadStageFilter, conversationStageFilter, setConversationStageUsers, selectedConversationStage,
-    setSelectedConversationStage, conversationStageTableActive, setConversationStageTableActive, isRefreshingWhatsAppData, callStats, followUpDate,
-    setFollowUpDate, followUpTime, setFollowUpTime, followUpStats, isOpen, setIsOpen,
-    followUpFilter, setFollowUpFilter, loadingFollowUpTable, followUpDueAlert, setFollowUpDueAlert, showOnboardModal,
-    setShowOnboardModal, onboardModalUser, setOnboardModalUser, onboardData, setOnboardData, uploadingOnboard,
-    paidUsersStatus, searchQuery, setSearchQuery, filterStatus, filterDate, setFilterDate,
-    leadSourceFilter, setLeadSourceFilter, remarkCountFilter, setRemarkCountFilter, franchiseLeadsFilter, setFranchiseLeadsFilter,
-    customStartDate, setCustomStartDate, customEndDate, setCustomEndDate, currentPage, activeModal,
-    setActiveModal, serviceUser, setServiceUser, isRefreshingMetaLeads, bulkWaSelectedUserIds, bulkWaSendDate,
-    setBulkWaSendDate, bulkWaSending, templateWaSendingId, bulkWaResult, setBulkWaResult, allUserIds,
-    planRemarks, setplanRemarks, handleOpenServiceModal, getConversationStageDisplay, isAgent, filteredUsers,
-    agentFollowUpFilterLabel, defaultRemarks, FOLLOW_UP_REMARKS, handleDefaultRemarkClick, stageOptions, fetchChatHistoryForUser,
-    closeChatHistoryModal, handleSearch, handleRefreshMetaLeads, stats, fetchUsers, handleRefreshWhatsAppData,
-    clearChatbotMetricFilter, handleChatbotMetricCardClick, handleConversationStageFilterChange, handleAssignChange, handleRoundRobinAssign, handleLeadStageChange,
-    handleLeadStatusChange, handleUserSourceChange, getAgentName, handleUpgradePlan, confirmPlanChange, confirmDeleteUser,
-    confirmBulkDeleteUsers, toggleBulkWaUserId, selectAllBulkWaOnPage, sendBulkUserManagementWhatsApp, sendTemplateWhatsApp, handleAddUser,
-    handleViewPosts, handleOpenWalletModal, handleUpdateWallet, AdminPanelButton, handleOpenRemarksModal, handleAddRemark,
-    handleVoiceCall, handleMeetingSubmit, handleOnboardSubmit, clearFilters, handlePageChange, groupedUsers,
+    users,
+    loading,
+    updating,
+    selectedUser,
+    setSelectedUser,
+    selectedPlan,
+    setSelectedPlan,
+    addingUser,
+    setAddingUser,
+    showAddExpoLeadModal,
+    setShowAddExpoLeadModal,
+    newUser,
+    setNewUser,
+    viewingUserPosts,
+    setViewingUserPosts,
+    userPosts,
+    setUserPosts,
+    loadingPosts,
+    fullViewImage,
+    setFullViewImage,
+    pagination,
+    updatingWallet,
+    walletModalUser,
+    setWalletModalUser,
+    walletUpdate,
+    setWalletUpdate,
+    toast,
+    setToast,
+    userPostsData,
+    remarksModalUser,
+    setRemarksModalUser,
+    remarksInput,
+    setRemarksInput,
+    remarksHistory,
+    loadingRemarks,
+    chatHistoryModal,
+    subscriptionPlans,
+    selectedCycle,
+    setSelectedCycle,
+    planStartDate,
+    setPlanStartDate,
+    utrNumber,
+    setUtrNumber,
+    planAmount,
+    setPlanAmount,
+    planExpiryDate,
+    gstNumber,
+    setGstNumber,
+    planScreenshot,
+    setPlanScreenshot,
+    chatbotSummaryMetrics,
+    chatbotMetricFilter,
+    chatbotMetricTableActive,
+    chatbotMetricLoading,
+    agentTodayDemos,
+    chatbotChatDayFilter,
+    setChatbotChatDayFilter,
+    issues,
+    showIssuesModal,
+    setShowIssuesModal,
+    role,
+    deleteUserModal,
+    setDeleteUserModal,
+    bulkDeleteModalOpen,
+    setBulkDeleteModalOpen,
+    isDeleting,
+    agents,
+    assigneeFilter,
+    setAssigneeFilter,
+    stageStats,
+    showMeetingModal,
+    setShowMeetingModal,
+    meetingData,
+    setMeetingData,
+    todayStats,
+    agentTodayLeads,
+    leadStatusStats,
+    leadStatusFilter,
+    setLeadStatusFilter,
+    leadStageFilter,
+    setLeadStageFilter,
+    conversationStageFilter,
+    setConversationStageUsers,
+    selectedConversationStage,
+    setSelectedConversationStage,
+    conversationStageTableActive,
+    setConversationStageTableActive,
+    isRefreshingWhatsAppData,
+    callStats,
+    followUpDate,
+    setFollowUpDate,
+    followUpTime,
+    setFollowUpTime,
+    followUpStats,
+    isOpen,
+    setIsOpen,
+    followUpFilter,
+    setFollowUpFilter,
+    loadingFollowUpTable,
+    followUpDueAlert,
+    setFollowUpDueAlert,
+    showOnboardModal,
+    setShowOnboardModal,
+    onboardModalUser,
+    setOnboardModalUser,
+    onboardData,
+    setOnboardData,
+    uploadingOnboard,
+    paidUsersStatus,
+    searchQuery,
+    setSearchQuery,
+    filterStatus,
+    filterDate,
+    setFilterDate,
+    leadSourceFilter,
+    setLeadSourceFilter,
+    remarkCountFilter,
+    setRemarkCountFilter,
+    franchiseLeadsFilter,
+    setFranchiseLeadsFilter,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    currentPage,
+    activeModal,
+    setActiveModal,
+    serviceUser,
+    setServiceUser,
+    isRefreshingMetaLeads,
+    bulkWaSelectedUserIds,
+    bulkWaSendDate,
+    setBulkWaSendDate,
+    bulkWaSending,
+    templateWaSendingId,
+    bulkWaResult,
+    setBulkWaResult,
+    allUserIds,
+    planRemarks,
+    setplanRemarks,
+    handleOpenServiceModal,
+    getConversationStageDisplay,
+    isAgent,
+    filteredUsers,
+    agentFollowUpFilterLabel,
+    defaultRemarks,
+    FOLLOW_UP_REMARKS,
+    handleDefaultRemarkClick,
+    stageOptions,
+    fetchChatHistoryForUser,
+    closeChatHistoryModal,
+    handleSearch,
+    handleRefreshMetaLeads,
+    stats,
+    fetchUsers,
+    handleRefreshWhatsAppData,
+    clearChatbotMetricFilter,
+    handleChatbotMetricCardClick,
+    handleConversationStageFilterChange,
+    handleAssignChange,
+    handleRoundRobinAssign,
+    handleLeadStageChange,
+    handleLeadStatusChange,
+    handleUserSourceChange,
+    getAgentName,
+    handleUpgradePlan,
+    confirmPlanChange,
+    confirmDeleteUser,
+    confirmBulkDeleteUsers,
+    toggleBulkWaUserId,
+    selectAllBulkWaOnPage,
+    sendBulkUserManagementWhatsApp,
+    sendTemplateWhatsApp,
+    handleAddUser,
+    handleViewPosts,
+    handleOpenWalletModal,
+    handleUpdateWallet,
+    AdminPanelButton,
+    handleOpenRemarksModal,
+    handleAddRemark,
+    handleVoiceCall,
+    handleMeetingSubmit,
+    handleOnboardSubmit,
+    clearFilters,
+    handlePageChange,
+    groupedUsers,
     currentLeadTotal,
   } = useUserManagementLogic();
 
@@ -227,41 +382,42 @@ export default function UserManagement() {
           {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
 
           {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
-          
 
-                  <UserFiltersPanel
-          agentFollowUpFilterLabel={agentFollowUpFilterLabel}
-          agents={agents}
-          assigneeFilter={assigneeFilter}
-          clearFilters={clearFilters}
-          conversationStageFilter={conversationStageFilter}
-          customEndDate={customEndDate}
-          customStartDate={customStartDate}
-          filterDate={filterDate}
-          filterStatus={filterStatus}
-          followUpFilter={followUpFilter}
-          franchiseLeadsFilter={franchiseLeadsFilter}
-          handleConversationStageFilterChange={handleConversationStageFilterChange}
-          handleSearch={handleSearch}
-          isAgent={isAgent}
-          leadSourceFilter={leadSourceFilter}
-          leadStageFilter={leadStageFilter}
-          leadStatusFilter={leadStatusFilter}
-          remarkCountFilter={remarkCountFilter}
-          role={role}
-          searchQuery={searchQuery}
-          setAssigneeFilter={setAssigneeFilter}
-          setCustomEndDate={setCustomEndDate}
-          setCustomStartDate={setCustomStartDate}
-          setFilterDate={setFilterDate}
-          setFranchiseLeadsFilter={setFranchiseLeadsFilter}
-          setLeadSourceFilter={setLeadSourceFilter}
-          setLeadStageFilter={setLeadStageFilter}
-          setLeadStatusFilter={setLeadStatusFilter}
-          setRemarkCountFilter={setRemarkCountFilter}
-          setSearchQuery={setSearchQuery}
-          stageOptions={stageOptions}
-        />
+          <UserFiltersPanel
+            agentFollowUpFilterLabel={agentFollowUpFilterLabel}
+            agents={agents}
+            assigneeFilter={assigneeFilter}
+            clearFilters={clearFilters}
+            conversationStageFilter={conversationStageFilter}
+            customEndDate={customEndDate}
+            customStartDate={customStartDate}
+            filterDate={filterDate}
+            filterStatus={filterStatus}
+            followUpFilter={followUpFilter}
+            franchiseLeadsFilter={franchiseLeadsFilter}
+            handleConversationStageFilterChange={
+              handleConversationStageFilterChange
+            }
+            handleSearch={handleSearch}
+            isAgent={isAgent}
+            leadSourceFilter={leadSourceFilter}
+            leadStageFilter={leadStageFilter}
+            leadStatusFilter={leadStatusFilter}
+            remarkCountFilter={remarkCountFilter}
+            role={role}
+            searchQuery={searchQuery}
+            setAssigneeFilter={setAssigneeFilter}
+            setCustomEndDate={setCustomEndDate}
+            setCustomStartDate={setCustomStartDate}
+            setFilterDate={setFilterDate}
+            setFranchiseLeadsFilter={setFranchiseLeadsFilter}
+            setLeadSourceFilter={setLeadSourceFilter}
+            setLeadStageFilter={setLeadStageFilter}
+            setLeadStatusFilter={setLeadStatusFilter}
+            setRemarkCountFilter={setRemarkCountFilter}
+            setSearchQuery={setSearchQuery}
+            stageOptions={stageOptions}
+          />
 
           <Paper
             elevation={0}
@@ -512,7 +668,7 @@ export default function UserManagement() {
                         <button
                           type="button"
                           onClick={() => setIsOpen(true)}
-                          className="group bg-white px-6 py-3 rounded-2xl
+                            className="group bg-white px-6 py-3 rounded-2xl
                             flex items-center gap-2 text-green-600 font-semibold
                             shadow-md hover:shadow-xl hover:-translate-y-1
                             hover:scale-105 active:scale-95
@@ -526,11 +682,11 @@ export default function UserManagement() {
                         </button>
 
                         <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-blue-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
+                           className="group bg-white px-6 py-3 rounded-2xl
+                           flex items-center gap-2 text-blue-600 font-semibold
+                           shadow-md hover:shadow-xl hover:-translate-y-1
+                           hover:scale-105 active:scale-95
+                           transition-all duration-300"
                         >
                           <Send
                             size={20}
@@ -540,11 +696,12 @@ export default function UserManagement() {
                         </button>
 
                         <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-purple-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
+                          className="
+                           group bg-white px-6 py-3 rounded-2xl
+                           flex items-center gap-2 text-purple-600 font-semibold
+                           shadow-md hover:shadow-xl hover:-translate-y-1
+                           hover:scale-105 active:scale-95
+                           transition-all duration-300"
                         >
                           <Mail
                             size={20}
@@ -554,11 +711,11 @@ export default function UserManagement() {
                         </button>
 
                         <button
-                          className="group bg-white px-6 py-3 rounded-2xl
-                                        flex items-center gap-2 text-orange-600 font-semibold
-                                        shadow-md hover:shadow-xl hover:-translate-y-1
-                                        hover:scale-105 active:scale-95
-                                        transition-all duration-300"
+                           className="group bg-white px-6 py-3 rounded-2xl
+                           flex items-center gap-2 text-orange-600 font-semibold
+                           shadow-md hover:shadow-xl hover:-translate-y-1
+                           hover:scale-105 active:scale-95
+                           transition-all duration-300"
                         >
                           <Smartphone
                             size={20}
@@ -740,20 +897,34 @@ export default function UserManagement() {
                                   bulkWaSelectedUserIds={bulkWaSelectedUserIds}
                                   chatbotMetricFilter={chatbotMetricFilter}
                                   getAgentName={getAgentName}
-                                  getConversationStageDisplay={getConversationStageDisplay}
+                                  getConversationStageDisplay={
+                                    getConversationStageDisplay
+                                  }
                                   AdminPanelButton={AdminPanelButton}
                                   handleAssignChange={handleAssignChange}
                                   handleLeadStageChange={handleLeadStageChange}
-                                  handleLeadStatusChange={handleLeadStatusChange}
-                                  handleOpenRemarksModal={handleOpenRemarksModal}
-                                  handleOpenServiceModal={handleOpenServiceModal}
+                                  handleLeadStatusChange={
+                                    handleLeadStatusChange
+                                  }
+                                  handleOpenRemarksModal={
+                                    handleOpenRemarksModal
+                                  }
+                                  handleOpenServiceModal={
+                                    handleOpenServiceModal
+                                  }
                                   handleOpenWalletModal={handleOpenWalletModal}
-                                  handleRoundRobinAssign={handleRoundRobinAssign}
+                                  handleRoundRobinAssign={
+                                    handleRoundRobinAssign
+                                  }
                                   handleUpgradePlan={handleUpgradePlan}
-                                  handleUserSourceChange={handleUserSourceChange}
+                                  handleUserSourceChange={
+                                    handleUserSourceChange
+                                  }
                                   handleViewPosts={handleViewPosts}
                                   handleVoiceCall={handleVoiceCall}
-                                  fetchChatHistoryForUser={fetchChatHistoryForUser}
+                                  fetchChatHistoryForUser={
+                                    fetchChatHistoryForUser
+                                  }
                                   toggleBulkWaUserId={toggleBulkWaUserId}
                                   setDeleteUserModal={setDeleteUserModal}
                                   setFullViewImage={setFullViewImage}
@@ -790,7 +961,7 @@ export default function UserManagement() {
                   Showing {filteredUsers.length} users
                 </span>
                 <span className="text-gray-400"> · </span>
-                <span className="text-indigo-700 font-medium">    
+                <span className="text-indigo-700 font-medium">
                   follow-up: {agentFollowUpFilterLabel}
                 </span>
               </p>
@@ -917,9 +1088,7 @@ export default function UserManagement() {
           loadingPosts={loadingPosts}
           userPosts={userPosts}
           totalCount={userPosts.length}
-          postedCount={
-            userPosts.filter((p) => p.status === "posted").length
-          }
+          postedCount={userPosts.filter((p) => p.status === "posted").length}
           rejectedCount={
             userPosts.filter((p) => p.status === "rejected").length
           }
@@ -976,15 +1145,6 @@ export default function UserManagement() {
           setOnboardData={setOnboardData}
           uploadingOnboard={uploadingOnboard}
           handleOnboardSubmit={handleOnboardSubmit}
-        />
-
-        {/* Meeting Schedule Modal */}
-        <MeetingModal
-          showMeetingModal={showMeetingModal}
-          setShowMeetingModal={setShowMeetingModal}
-          meetingData={meetingData}
-          setMeetingData={setMeetingData}
-          handleMeetingSubmit={handleMeetingSubmit}
         />
 
         {/* 💰 USER ONBOARD REVENUE USERS MODAL ✅ NEW */}

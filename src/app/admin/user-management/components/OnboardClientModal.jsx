@@ -21,9 +21,7 @@ export default function OnboardClientModal({
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">
-              Onboard Client
-            </h2>
+            <h2 className="text-xl font-bold text-gray-800">Onboard Client</h2>
             <p className="text-sm text-gray-500 mt-1">
               {onboardModalUser.fullName}
             </p>

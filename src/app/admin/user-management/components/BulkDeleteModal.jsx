@@ -25,8 +25,8 @@ export default function BulkDeleteModal({
             {bulkWaSelectedUserIds.length > 1 ? "s" : ""}?
           </h3>
           <p className="text-gray-500 text-sm mb-6">
-            Selected leads will be permanently removed from user
-            management. This action cannot be undone.
+            Selected leads will be permanently removed from user management.
+            This action cannot be undone.
           </p>
           <div className="flex gap-3 w-full">
             <button

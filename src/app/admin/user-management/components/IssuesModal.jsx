@@ -4,16 +4,18 @@ import { X } from "lucide-react";
 
 // Extracted verbatim from user-management/page.jsx (Reported Issues modal).
 // Behaviour is unchanged — only moved into its own component.
-export default function IssuesModal({ showIssuesModal, setShowIssuesModal, issues }) {
+export default function IssuesModal({
+  showIssuesModal,
+  setShowIssuesModal,
+  issues,
+}) {
   if (!showIssuesModal) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-3xl p-8 w-full max-w-5xl max-h-[80vh] overflow-hidden shadow-2xl flex flex-col">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">
-            Reported Issues
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800">Reported Issues</h2>
           <button
             onClick={() => setShowIssuesModal(false)}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -51,9 +53,7 @@ export default function IssuesModal({ showIssuesModal, setShowIssuesModal, issue
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-800 font-medium">
                     <div>{issue.fullName || "Unknown"}</div>
-                    <div className="text-xs text-gray-500">
-                      {issue.mobile}
-                    </div>
+                    <div className="text-xs text-gray-500">{issue.mobile}</div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600 max-w-md">
                     {issue.issue}

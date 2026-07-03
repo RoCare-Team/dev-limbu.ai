@@ -4,7 +4,10 @@ import { X } from "lucide-react";
 
 // Extracted verbatim from user-management/page.jsx (full-view image overlay).
 // Behaviour is unchanged — only moved into its own component.
-export default function FullViewImageModal({ fullViewImage, setFullViewImage }) {
+export default function FullViewImageModal({
+  fullViewImage,
+  setFullViewImage,
+}) {
   if (!fullViewImage) return null;
 
   return (

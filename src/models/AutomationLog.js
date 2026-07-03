@@ -34,6 +34,13 @@ const automationLogSchema = new mongoose.Schema(
   {
     runId: { type: String, index: true },   // groups all plans of one cron invocation
     phase: { type: String, index: true },    // publish | fill-queue | publish-scheduled
+    // How this post was queued: 'automation' (auto plan) vs 'manual' (user scheduled it).
+    source: {
+      type: String,
+      enum: ["automation", "manual"],
+      default: "automation",
+      index: true,
+    },
     trigger: { type: String, default: "" },  // cron flags (force/dryRun/manual/tick)
 
     userId: { type: String, index: true },

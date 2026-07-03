@@ -63,11 +63,15 @@ export async function GET(request) {
     const postId = searchParams.get("postId")?.trim();
     const phase = searchParams.get("phase")?.trim();
     const outcome = searchParams.get("outcome")?.trim();
+    const source = searchParams.get("source")?.trim();       // automation | manual
+    const q = searchParams.get("q")?.trim();                 // free-text on userId
     if (userId) query.userId = userId;
     if (runId) query.runId = runId;
     if (postId) query.postId = postId;
     if (phase) query.phase = phase;
     if (outcome) query.outcome = outcome;
+    if (source === "automation" || source === "manual") query.source = source;
+    if (q) query.userId = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
 
     const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50));
 
@@ -85,12 +89,22 @@ export async function GET(request) {
 
     // Quick rollup so you can eyeball health at a glance.
     const summary = { total: docs.length, success: 0, failed: 0, skipped: 0, unknown: 0 };
-    for (const d of docs) summary[d.outcome] = (summary[d.outcome] || 0) + 1;
+    const bySource = {
+      automation: { total: 0, success: 0, failed: 0, skipped: 0, unknown: 0 },
+      manual: { total: 0, success: 0, failed: 0, skipped: 0, unknown: 0 },
+    };
+    for (const d of docs) {
+      summary[d.outcome] = (summary[d.outcome] || 0) + 1;
+      const s = bySource[d.source] || bySource.automation;
+      s.total++;
+      s[d.outcome] = (s[d.outcome] || 0) + 1;
+    }
 
     return NextResponse.json({
       success: true,
       summary,
-      filters: { userId, runId, postId, phase, outcome, limit },
+      bySource,
+      filters: { userId, runId, postId, phase, outcome, source, q, limit },
       logs: docs,
     });
   } catch (error) {

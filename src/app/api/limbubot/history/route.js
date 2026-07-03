@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import dbConnect from "@/lib/dbConnect";
+import ChatbotMessage from "@/models/ChatbotMessage";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,43 @@ export async function GET(req) {
       );
     }
 
+    // ── DB-first: serve real-time history captured by the webhook. Falls
+    // through to the external API below only when we have nothing stored yet
+    // (e.g. old conversations from before the webhook was live). ──
+    try {
+      await dbConnect();
+      const waId = `wa_${phone}`;
+      const phone10 = phone.length === 12 ? phone.slice(2) : phone;
+      const rows = await ChatbotMessage.find({
+        $or: [{ waId }, { phone: phone10 }],
+      })
+        .sort({ timestamp: 1, createdAt: 1 })
+        .lean();
+
+      if (rows.length > 0) {
+        const history = rows.map((m) => ({
+          id: m.wamid || String(m._id),
+          role: m.direction === "outbound" ? "assistant" : "user",
+          type: m.type || "text",
+          content: String(m.content || ""),
+          status: "",
+          time: m.timestamp ? new Date(m.timestamp).toISOString() : "",
+          created_at: m.createdAt ? new Date(m.createdAt).toISOString() : "",
+        }));
+
+        return NextResponse.json({
+          success: true,
+          source: "db",
+          user_id: `wa_${phone}`,
+          contact: { name: rows[rows.length - 1]?.name || "" },
+          history,
+        });
+      }
+    } catch (dbErr) {
+      // DB glitch → fall back to the external API rather than failing.
+      console.error("[limbubot/history] db read failed:", dbErr.message);
+    }
+
     const url = new URL(LIMBUBOT_HISTORY_BASE);
     url.searchParams.set("phone", phone);
 
@@ -87,6 +126,7 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
+      source: "external",
       user_id: data?.user_id || `wa_${phone}`,
       contact: data?.contact || null,
       history: Array.isArray(data?.history)

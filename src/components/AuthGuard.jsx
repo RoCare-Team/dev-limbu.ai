@@ -65,6 +65,7 @@ export default function AuthGuard({ children }) {
       "/connect-google-business",
       "/connect-business",
       "/bussiness",
+      "/automation-logs"
     ];
 
     const allowedAdminRoles = [

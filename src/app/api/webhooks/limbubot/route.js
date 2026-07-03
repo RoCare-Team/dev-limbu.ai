@@ -1,8 +1,29 @@
 import { NextResponse } from "next/server";
-import { recordIncomingChatbotMessage } from "@/lib/limbuBotUserSync";
+import fs from "fs";
+import path from "path";
+import { recordChatbotMessage } from "@/lib/limbuBotUserSync";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
+
+// ── Dedicated webhook log file ──────────────────────────────────────────────
+// Every hit is appended as one JSON line (JSONL) so you can `tail -f` it and
+// confirm the webhook is firing. Override the path with WEBHOOK_LOG_FILE.
+const WEBHOOK_LOG_FILE =
+  process.env.WEBHOOK_LOG_FILE || "/home/ec2-user/logs/webhook-limbubot.log";
+
+try {
+  fs.mkdirSync(path.dirname(WEBHOOK_LOG_FILE), { recursive: true });
+} catch {
+  /* ignore — falls back to console only */
+}
+
+function logWebhook(entry) {
+  const line = JSON.stringify({ ts: new Date().toISOString(), ...entry });
+  // console (pm2 logs) + file, both non-blocking
+  console.log(`[webhooks/limbubot] ${line}`);
+  fs.appendFile(WEBHOOK_LOG_FILE, line + "\n", () => {});
+}
 
 /**
  * Real-time LimbuBot / WhatsApp webhook.
@@ -16,43 +37,17 @@ export const maxDuration = 30;
  *                "timestamp": "1782990842", "replied_to_wamid": null }
  * }
  *
- * Auth: if LIMBUBOT_WEBHOOK_SECRET is set, the sender must pass it as
- * `?token=<secret>` or header `x-webhook-secret`. If not set, all requests
- * are accepted (configure the secret in production).
+ * Open endpoint — no auth/secret. LimbuBot just POSTs here directly.
  */
-
-const WEBHOOK_SECRET = process.env.LIMBUBOT_WEBHOOK_SECRET || "";
-
-function isAuthorized(req, searchParams) {
-  if (!WEBHOOK_SECRET) return true; // not configured → open
-  const token =
-    searchParams.get("token") || req.headers.get("x-webhook-secret") || "";
-  return token === WEBHOOK_SECRET;
-}
 
 // Optional verification handshake (some providers GET the URL first).
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const challenge = searchParams.get("challenge");
-  if (!isAuthorized(req, searchParams)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
-  }
   return new Response(challenge || "ok", { status: 200 });
 }
 
 export async function POST(req) {
-  const { searchParams } = new URL(req.url);
-
-  if (!isAuthorized(req, searchParams)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
-  }
-
   let payload;
   try {
     payload = await req.json();
@@ -63,14 +58,21 @@ export async function POST(req) {
     );
   }
 
-  // We only act on inbound message events. Everything else is acked so the
-  // provider doesn't retry.
+  const phone = payload?.contact?.phone || "";
+  const name = payload?.contact?.name || "";
+  const content = String(payload?.message?.content || "").slice(0, 80);
+
+  // We handle inbound (user) and outbound (bot reply) message events. Anything
+  // else is acked so the provider doesn't retry.
   const event = String(payload?.event || "");
-  if (event && event !== "message.received") {
+  const HANDLED_EVENTS = ["message.received", "message.sent"];
+  if (event && !HANDLED_EVENTS.includes(event)) {
+    logWebhook({ status: "ignored", event, phone, name });
     return NextResponse.json({ success: true, ignored: event });
   }
 
   if (!payload?.contact?.phone || !payload?.message) {
+    logWebhook({ status: "bad-request", event, phone, name });
     return NextResponse.json(
       { success: false, error: "Missing contact.phone or message" },
       { status: 400 },
@@ -78,10 +80,20 @@ export async function POST(req) {
   }
 
   try {
-    const result = await recordIncomingChatbotMessage(payload);
+    const result = await recordChatbotMessage(payload);
+    logWebhook({
+      status: "ok",
+      action: result?.action || "handled",
+      direction: result?.direction || null,
+      phone: result?.phone || phone,
+      name,
+      tag: result?.metaTag || null,
+      userId: result?.userId || null,
+      msg: content,
+    });
     return NextResponse.json({ success: true, result });
   } catch (err) {
-    console.error("[webhooks/limbubot]", err);
+    logWebhook({ status: "error", phone, name, error: err.message, msg: content });
     // 200 so a transient failure doesn't cause endless provider retries;
     // the error is logged for us to inspect.
     return NextResponse.json(

@@ -57,6 +57,7 @@ import {
   effectivePlanForPostingClock,
 } from '@/lib/automationCronQueryParams';
 import { createRunLogger } from '@/lib/automationRunLogger';
+import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -170,25 +171,28 @@ function isGalleryOnlyFailure(failList) {
  * nothing succeeded — that step is intermittent on freshly generated images.
  * Returns { ok, httpStatus, data }
  */
-async function postToGmb({ account, locationData, imageUrl, description, accessToken }, log) {
-  // ── Build payload for GMB publish (same upstream as manual) ──────────────
+async function postToGmb({ account, locationData, imageUrl, description, accessToken, postId, userId }, log) {
+  // ── Build payload for GMB publish — EXACT manual-flow shape ──────────────
+  // Diagnostic proof: the SAME image fails with "Photo gallery upload failed"
+  // when sent WITHOUT postId/userId (and with skipDbUpdate:true), but SUCCEEDS
+  // when sent WITH postId/userId and no skipDbUpdate. The upstream photo-upload
+  // step needs postId/userId, so mirror the manual payload exactly.
   const payload = {
+    postId:      postId || '',
+    userId:      userId || '',
     account,
     locationData,          // [{ city, cityName, bookUrl, account }]
     output:      imageUrl || '',
+    video_url:   '',
     description,
     accessToken: accessToken || '',
-    // Mirror the WORKING manual flow exactly: checkmark 'both' (image attaches to
-    // the post AND the photo gallery) PLUS the full payload (post_type, cta, …).
-    checkmark:   'both',
+    checkmark:   'both',   // image attaches to the post AND the photo gallery
     post_type:   'standard',
     cta:         'learn_more',
-    video_url:   '',
     startDate:   '',
     endDate:     '',
     tittle:      '',
     wait_video:  false,
-    skipDbUpdate: true,
   };
 
   console.log('[CRON] 📮 postToGmb payload (exact same as manual post):', JSON.stringify({
@@ -450,7 +454,7 @@ export async function GET(request) {
     manualTriggerEffective ? 'manual' : '',
     cronParams.testNow ? 'testNow' : '',
   ].filter(Boolean).join(' ');
-  const run = createRunLogger({ phase: 'publish', trigger: triggerStr });
+  const run = createRunLogger({ phase: 'publish', trigger: triggerStr, source: 'automation' });
 
   for (const plan of activePlans) {
     const {
@@ -541,13 +545,15 @@ export async function GET(request) {
     }
 
     if (endDate && zonedYmdString(runNow, tz) > zonedYmdString(endDate, tz)) {
-      let pkgExp = null;
-      const uPkg = await resolvePlanUser(userRef, userId, 'packageExpiryDate');
-      if (uPkg?.packageExpiryDate) pkgExp = new Date(uPkg.packageExpiryDate);
+      // Use the LATEST of packageExpiryDate and subscription.expiry — a renewal
+      // may have updated only subscription.expiry, leaving packageExpiryDate stale
+      // (that wrongly deactivated active users).
+      const uPkg = await resolvePlanUser(userRef, userId, 'packageExpiryDate subscription');
+      const pkgExp = getEffectivePackageExpiry(uPkg);
       if (pkgExp && pkgExp.getTime() > runNow.getTime()) {
         await AutomationPlan.updateOne({ _id: planId }, { $set: { endDate: pkgExp } });
         plan.endDate = pkgExp;
-        log(`Extended endDate to package expiry (${pkgExp.toISOString()}) — plan end was stale`);
+        log(`Extended endDate to effective plan expiry (${pkgExp.toISOString()}) — plan end was stale`);
       } else {
         log(`Skip — end date passed: ${endDate}`);
         slog.skip('guard:end-date', `end date passed (${endDate}) — plan deactivated`);
@@ -692,16 +698,21 @@ export async function GET(request) {
     console.log('[CRON] 🔑 Stored refreshToken length:', storedRefreshToken?.length || 0);
 
     if (wantGmb) {
-      if (!accessToken && storedRefreshToken) {
-        log('No accessToken stored — refreshing using refreshToken…');
+      // ALWAYS refresh when a refreshToken exists. Google access tokens expire in
+      // ~1h, so the stored token is almost always stale. Diagnostic proved the
+      // stale token creates the post but the PHOTO upload fails ("Photo gallery
+      // upload failed") — a fresh token fixes it. Fall back to stored on failure.
+      if (storedRefreshToken) {
+        log('Refreshing Google access token (proactive — stored token is likely expired)…');
         try {
           accessToken = await refreshGoogleToken(storedRefreshToken, planId);
-          log(`✓ Access token obtained via refresh (length=${accessToken.length})`);
+          log(`✓ Fresh access token obtained via refresh (length=${accessToken.length})`);
         } catch (tokenErr) {
-          log(`⚠ Token refresh failed: ${tokenErr.message} — will attempt post without token`);
+          log(`⚠ Token refresh failed: ${tokenErr.message} — falling back to stored token (may be expired)`);
+          accessToken = storedAccessToken;
         }
       } else if (accessToken) {
-        log(`✓ Using stored accessToken (length=${accessToken.length})`);
+        log(`✓ Using stored accessToken (no refreshToken to refresh with, length=${accessToken.length})`);
       } else {
         log(`⚠ No accessToken and no refreshToken — re-save user-settings to fix`);
       }
@@ -869,34 +880,41 @@ export async function GET(request) {
     if (wantGmb) {
       log(`Posting to GMB — account=${account}  locations=${locations.length}  tokenLen=${accessToken?.length || 0}`);
 
-      gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken }, log);
+      // Retry loop: the upstream photo step ("Photo gallery upload failed") is
+      // intermittent — the same payload succeeds on one run and fails the next.
+      // Retry a few times; on an auth error refresh the token before retrying.
+      const MAX_GMB_ATTEMPTS = Math.max(1, Number(process.env.AUTOMATION_GMB_RETRIES) || 3);
+      const GMB_RETRY_DELAY_MS = Math.max(1000, Number(process.env.AUTOMATION_GMB_RETRY_DELAY_MS) || 4000);
 
-      log(`GMB attempt 1`, {
-        ok: gmbResult.ok,
-        httpStatus: gmbResult.httpStatus,
-        authError: gmbResult.authError,
-        succeeded: gmbResult.succeeded,
-        failed: gmbResult.failed,
-        parsedResponse: gmbResult.data,
-        rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 12000),
-      });
+      for (let attempt = 1; attempt <= MAX_GMB_ATTEMPTS; attempt++) {
+        gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken, postId: savedPostId, userId: resolvedUserId }, log);
 
-      if (!gmbResult.ok && (gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && storedRefreshToken) {
-        log(`⚠ Google auth rejected (httpStatus=${gmbResult.httpStatus} authError=${gmbResult.authError}) — refreshing using refreshToken and retrying…`);
-        try {
-          accessToken = await refreshGoogleToken(storedRefreshToken, planId);
-          log(`✓ New accessToken obtained (length=${accessToken.length}) — retrying GMB post`);
+        log(`GMB attempt ${attempt}/${MAX_GMB_ATTEMPTS}`, {
+          ok: gmbResult.ok,
+          httpStatus: gmbResult.httpStatus,
+          authError: gmbResult.authError,
+          succeeded: gmbResult.succeeded,
+          failed: gmbResult.failed,
+          parsedResponse: gmbResult.data,
+          rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 4000),
+        });
 
-          gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken }, log);
+        if (gmbResult.ok) break;
 
-          log(`GMB retry`, {
-            ok: gmbResult.ok,
-            httpStatus: gmbResult.httpStatus,
-            parsedResponse: gmbResult.data,
-            rawBodyPreview: String(gmbResult.rawBody || '').slice(0, 12000),
-          });
-        } catch (refreshErr) {
-          log(`✗ Token refresh for retry failed: ${refreshErr.message}`);
+        // Auth failure → refresh token before the next attempt.
+        if ((gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && storedRefreshToken) {
+          log(`⚠ Google auth rejected (httpStatus=${gmbResult.httpStatus}) — refreshing token before retry…`);
+          try {
+            accessToken = await refreshGoogleToken(storedRefreshToken, planId);
+            log(`✓ New accessToken obtained (length=${accessToken.length})`);
+          } catch (refreshErr) {
+            log(`✗ Token refresh failed: ${refreshErr.message}`);
+          }
+        }
+
+        if (attempt < MAX_GMB_ATTEMPTS) {
+          log(`↻ Retrying GMB post in ${GMB_RETRY_DELAY_MS}ms (transient failure — e.g. Photo gallery upload)…`);
+          await new Promise((r) => setTimeout(r, GMB_RETRY_DELAY_MS));
         }
       }
 

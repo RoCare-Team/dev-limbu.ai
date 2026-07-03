@@ -53,7 +53,7 @@ export async function GET(request) {
 
   const stats = { found: candidates.length, filled: 0, failed: 0, skipped: 0 };
 
-  const run = createRunLogger({ phase: 'fill-queue', trigger: 'generate' });
+  const run = createRunLogger({ phase: 'fill-queue', trigger: 'generate', source: 'automation' });
 
   for (const c of candidates) {
     const slog = run.plan({ userId: c.userId, planId: c.automationPlanId, postId: c._id });

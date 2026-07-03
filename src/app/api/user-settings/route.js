@@ -6,6 +6,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
 import { zonedYmdString } from '@/utils/postingScheduleWindow';
+import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 import AutomationPlan from '@/models/AutomationPlan';
 import Post from '@/models/PostStatus';
 
@@ -74,8 +75,10 @@ export async function GET(request) {
     const gmbProjects = gmbUser?.projects || [];
 
     const planLimit  = getPlanPostLimit(user.paidPackage, user.planDuration);
-    const isValidPlan =
-      user.packageExpiryDate && new Date(user.packageExpiryDate) > new Date();
+    // Latest of packageExpiryDate and subscription.expiry — a renewal may have
+    // updated only one field, so trust whichever is further in the future.
+    const effectiveExpiryGet = getEffectivePackageExpiry(user);
+    const isValidPlan = !!(effectiveExpiryGet && effectiveExpiryGet > new Date());
 
     const planLookupIds = [...new Set([queryUserId, user.userId, user._id?.toString()].filter(Boolean))];
     const explicitUserId = queryUserId?.trim() || '';
@@ -413,16 +416,20 @@ export async function POST(request) {
     const scheduleStartDate = startDate ? new Date(startDate) : new Date();
     let scheduleEndDate = endDate ? new Date(endDate) : null;
 
+    // Effective expiry = latest of packageExpiryDate and subscription.expiry. A
+    // renewal that only updated subscription.expiry left packageExpiryDate stale,
+    // which produced an empty schedule (all dates past the stale expiry).
+    const effectivePkgExpiry = getEffectivePackageExpiry(user);
+
     // Stale endDate (e.g. old save) blocks all crons while package may still be valid — extend on save
-    if (automationEnabled && user.packageExpiryDate) {
-      const pkgExp = new Date(user.packageExpiryDate);
-      const pkgOk = pkgExp.getTime() > Date.now();
+    if (automationEnabled && effectivePkgExpiry) {
+      const pkgOk = effectivePkgExpiry.getTime() > Date.now();
       const todayYmd = zonedYmdString(new Date(), postingTz);
       if (pkgOk && scheduleEndDate) {
         const endYmd = zonedYmdString(scheduleEndDate, postingTz);
         if (endYmd < todayYmd) {
-          scheduleEndDate = pkgExp;
-          console.warn('[user-settings] endDate was in the past — extended to packageExpiryDate so automation can run');
+          scheduleEndDate = effectivePkgExpiry;
+          console.warn('[user-settings] endDate was in the past — extended to effective plan expiry so automation can run');
         }
       }
     }
@@ -435,9 +442,9 @@ export async function POST(request) {
           .filter((d) => d && !Number.isNaN(d.getTime()));
       } else {
         const effectiveExpiry =
-          scheduleEndDate && user.packageExpiryDate
-            ? new Date(Math.min(scheduleEndDate.getTime(), new Date(user.packageExpiryDate).getTime()))
-            : scheduleEndDate || user.packageExpiryDate || null;
+          scheduleEndDate && effectivePkgExpiry
+            ? new Date(Math.min(scheduleEndDate.getTime(), effectivePkgExpiry.getTime()))
+            : scheduleEndDate || effectivePkgExpiry || null;
 
         schedule = calculatePostingSchedule({
           startDate:   scheduleStartDate,

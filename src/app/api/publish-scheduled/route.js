@@ -428,7 +428,14 @@ export async function GET(req) {
       }
 
       const postId = post._id.toString();
-      const slog = run.plan({ userId: post.userId, planId: post.automationPlanId, postId });
+      const slog = run.plan({
+        userId: post.userId,
+        planId: post.automationPlanId,
+        postId,
+        // Automation-queued posts came from an auto plan; everything else here was
+        // scheduled manually by the user via the Schedule modal.
+        source: post.automationQueued ? "automation" : "manual",
+      });
       slog.info("post:start", `scheduledDate=${post.scheduledDate?.toISOString?.() || ""}`);
       log(`📝 Processing post ${postId}`);
 

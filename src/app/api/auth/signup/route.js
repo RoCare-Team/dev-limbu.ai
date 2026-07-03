@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs"; // password ko hash karta hai (encrypt nahi, hash
 import mongoose from "mongoose"; // custom schema banane ke liye
 
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
+import { getEffectivePackageExpiry } from "@/utils/userPlanExpiry";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
 
 // Define Setting Schema for Round Robin
@@ -275,6 +276,22 @@ export async function GET(req) {
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 404,
       });
+    }
+
+    // Self-heal a stale packageExpiryDate: a renewal may have updated
+    // subscription.expiry (shown on /profile) while packageExpiryDate — the field
+    // automation/user-settings read — stayed stale, wrongly showing "expired".
+    // Sync it forward (never shorten) so every reader sees the real expiry.
+    try {
+      const eff = getEffectivePackageExpiry(user);
+      const cur = user.packageExpiryDate ? new Date(user.packageExpiryDate).getTime() : 0;
+      if (eff && eff.getTime() > cur) {
+        user.packageExpiryDate = eff;
+        await user.save();
+        console.log(`[auth/signup] Synced packageExpiryDate → ${eff.toISOString()} for ${userId} (was ${cur ? new Date(cur).toISOString() : 'unset'})`);
+      }
+    } catch (e) {
+      console.warn("[auth/signup] packageExpiryDate self-heal skipped:", e.message);
     }
 
     return new Response(JSON.stringify(user), { status: 200 });

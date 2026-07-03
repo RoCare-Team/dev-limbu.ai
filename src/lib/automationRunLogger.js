@@ -26,14 +26,15 @@ const clip = (v, n) => (v == null ? "" : String(v).slice(0, n));
 const errText = (e) =>
   e == null ? "" : clip(e && e.message ? e.message : e, 2000);
 
-export function createRunLogger({ phase = "", trigger = "", runId } = {}) {
+export function createRunLogger({ phase = "", trigger = "", source = "automation", runId } = {}) {
   const id = runId || genRunId();
   const docs = [];
 
-  function plan({ userId = "", planId = "", postId = "" } = {}) {
+  function plan({ userId = "", planId = "", postId = "", source: planSource } = {}) {
     const doc = {
       runId: id,
       phase,
+      source: planSource || source,
       trigger,
       userId: clip(userId, 200),
       planId: planId ? String(planId) : "",

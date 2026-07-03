@@ -622,16 +622,12 @@ export default function RevenueUsersPage() {
   };
 
   // ✅ Plan name resolve karo (purane onboard records me `plan` field khaali hota hai)
-  //    Priority: record.plan -> notes ("Plan upgrade to X") -> user.paidPackage
+  //    Priority: record.plan (jo transaction pe save hua) -> user.paidPackage (DB me actual plan)
+  //    notes use nahi karte — kuch records me notes galat/purana hota hai.
   const getPlanName = (p) => {
     if (!p) return "";
 
     if (p.plan && p.plan.trim()) return p.plan;
-
-    if (typeof p.notes === "string") {
-      const m = p.notes.match(/plan\s+upgrade\s+to\s+(.+)/i);
-      if (m && m[1].trim()) return m[1].trim();
-    }
 
     if (p.userPaidPackage && p.userPaidPackage.trim()) return p.userPaidPackage;
 
@@ -1370,7 +1366,13 @@ export default function RevenueUsersPage() {
                               (p) => p._id === selectedPackagePlan[u.leadId],
                             ) || sortedPlans[0];
 
-                          // ✅ Ek hi expiry field use karo (badge + column same rahe)
+                          // ✅ Start/Expiry DB se: pehle record ki apni date,
+                          //    warna User document ki package date (jo DB me actual hai).
+                          const startDate =
+                            currentPlan.packageStartDate ||
+                            currentPlan.userPackageStartDate ||
+                            currentPlan.createdAt;
+
                           const effectiveExpiry =
                             currentPlan.packageExpiryDate ||
                             currentPlan.userPackageExpiryDate;
@@ -1464,11 +1466,7 @@ export default function RevenueUsersPage() {
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">
-                                {formatDateIST(
-                                  currentPlan.packageStartDate ||
-                                    currentPlan.userPackageStartDate ||
-                                    currentPlan.createdAt,
-                                )}
+                                {formatDateIST(startDate)}
                               </td>
 
                               <td className="px-6 py-4 text-sm text-gray-600">

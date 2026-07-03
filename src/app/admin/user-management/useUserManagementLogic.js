@@ -1895,9 +1895,9 @@ export default function useUserManagementLogic() {
     setSelectedUser(user);
     setSelectedPlan(user.paidPackage || "Basic Plan");
     setSelectedCycle(user.planDuration || "monthly");
-    const start = user.packageStartDate
-      ? new Date(user.packageStartDate).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0];
+    // ✅ Naya plan add karte waqt hamesha TODAY ki date aaye (purani date nahi),
+    //    taki galat/purani date wali entry na ho. Expiry auto = today + duration.
+    const start = new Date().toISOString().split("T")[0];
     setPlanStartDate(start);
     setUtrNumber("");
     setGstNumber(""); // Reset amount

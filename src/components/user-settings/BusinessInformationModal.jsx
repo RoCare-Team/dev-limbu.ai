@@ -1093,16 +1093,18 @@ const SERVICE_PRICE_TYPES = [
   { value: "free", label: "Free" },
   { value: "fixed", label: "Fixed" },
 ];
-/** Hydrate raw Google serviceItems [{title, description, priceType, price}] into UI items. */
+/** Hydrate raw Google serviceItems [{title, description, priceType, price, category}] into UI items. */
 function hydrateServiceItems(list) {
   return (Array.isArray(list) ? list : []).map((s) => ({
     title: String(s?.title || "").trim(),
     description: String(s?.description || "").trim(),
     priceType: s?.priceType || "none",
     price: s?.price != null ? String(s.price) : "",
+    // Category (gcid) this service belongs to — empty means the primary category.
+    category: String(s?.category || s?.categoryGcid || "").replace(/^categories\//, "").trim(),
   }));
 }
-/** Collapse UI items back to the shape the API expects (title + description + price). */
+/** Collapse UI items back to the shape the API expects (title + description + price + category). */
 function serviceItemsForGoogle(list) {
   return (Array.isArray(list) ? list : [])
     .map((s) => ({
@@ -1110,6 +1112,7 @@ function serviceItemsForGoogle(list) {
       description: String(s?.description || "").trim(),
       priceType: s?.priceType || "none",
       price: s?.price || "",
+      category: String(s?.category || "").replace(/^categories\//, "").trim(),
     }))
     .filter((s) => s.title);
 }
@@ -1179,25 +1182,209 @@ function csvRowsToServiceItems(rows) {
 // Each service is { title, description, priceType, price }. AI generates title +
 // description; user reviews in the ConfirmModal before they replace the list. Saved as
 // Google free-form serviceItems with a real ServiceItem.price (Money).
-function ServiceItemsEditor({ items, onChange, aiContext, businessName, categoryHint, onSave, savePending }) {
-  const [loading, setLoading] = useState(false);
-  const [pending, setPending] = useState(null); // [{ title, description }]
+// One editable service row (title + description + price + per-row AI description).
+function ServiceRow({ it, gi, onUpdate, onRemove, onGenDesc, descBusy }) {
+  return (
+    <div style={{ marginBottom: 10, padding: "12px 13px", borderRadius: 12, border: "1.5px solid #eef2f6", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <input
+          value={it.title || ""}
+          onChange={(e) => onUpdate(gi, "title", e.target.value)}
+          placeholder="Service title (e.g. RO Water Purifier Installation)"
+          maxLength={140}
+          style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit", color: "#0f172a" }}
+        />
+        <button
+          type="button"
+          onClick={() => onRemove(gi)}
+          aria-label="Remove service"
+          style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      <div style={{ position: "relative" }}>
+        <textarea
+          value={it.description || ""}
+          onChange={(e) => onUpdate(gi, "description", e.target.value)}
+          placeholder="Short description (optional, max 300 chars)"
+          maxLength={300}
+          rows={2}
+          style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px 9px 11px", paddingRight: it.title ? 96 : 11, borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
+        />
+        {it.title && String(it.title).trim() ? (
+          <button
+            type="button"
+            onClick={() => void onGenDesc(gi)}
+            disabled={descBusy}
+            title="Generate description from the title with AI"
+            style={{
+              position: "absolute", top: 7, right: 7,
+              display: "inline-flex", alignItems: "center", gap: 5,
+              padding: "5px 9px", borderRadius: 8,
+              border: `1px solid ${!(it.description || "").trim() ? "#CA8A04" : "#FDE047"}`,
+              background: descBusy ? "#FEF9C3" : !(it.description || "").trim() ? "#CA8A04" : "#FEFCE8",
+              color: descBusy ? "#854D0E" : !(it.description || "").trim() ? "#fff" : "#854D0E",
+              fontSize: 11, fontWeight: 800, cursor: descBusy ? "wait" : "pointer", fontFamily: "inherit",
+            }}
+          >
+            <SparkIcon size={11} /> {descBusy ? "…" : "AI"}
+          </button>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>Price</span>
+        <select
+          value={it.priceType || "none"}
+          onChange={(e) => onUpdate(gi, "priceType", e.target.value)}
+          style={{ padding: "8px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer" }}
+        >
+          {SERVICE_PRICE_TYPES.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+        {it.priceType === "fixed" && (
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <span style={{ position: "absolute", left: 10, color: "#94a3b8", fontSize: 12.5 }}>₹</span>
+            <input
+              value={it.price || ""}
+              onChange={(e) => onUpdate(gi, "price", e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder="Service price (INR)"
+              inputMode="decimal"
+              style={{ width: 150, padding: "8px 11px 8px 22px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a" }}
+            />
+          </div>
+        )}
+        <span style={{ fontSize: 10.5, color: "#94a3b8" }}>Saved to Google&apos;s service price field.</span>
+      </div>
+    </div>
+  );
+}
+
+// Services editor — grouped BY CATEGORY (primary + each sub-category). Every service
+// is { title, description, priceType, price, category } where `category` is the gcid
+// it belongs to (empty = primary). Each category gets its own section with three easy
+// ways to add services: one-click (Google's predefined types for that exact category),
+// manual (+ Add service), and CSV import. AI generate is a per-category fallback for
+// categories Google has no predefined types for. Saved as free-form serviceItems
+// tagged with their category.
+function ServiceItemsEditor({
+  items,
+  onChange,
+  aiContext,
+  businessName,
+  categoryHint,
+  onSave,
+  savePending,
+  categories,
+  regionCode,
+  languageCode,
+  accountId,
+}) {
+  const list = Array.isArray(items) ? items : [];
   const [err, setErr] = useState("");
   const [descBusyIdx, setDescBusyIdx] = useState(-1);
+  const [csvTargetGcid, setCsvTargetGcid] = useState("");
+  const [aiBusyGcid, setAiBusyGcid] = useState(null);
+  const [pending, setPending] = useState(null); // { gcid, items: [{ title, description }] }
+  const [predefined, setPredefined] = useState({}); // { gcid: [{ serviceTypeId, displayName }] }
   const fileRef = useRef(null);
-  const list = Array.isArray(items) ? items : [];
 
-  // Generate a description for ONE service from its title (small per-row AI button).
-  const genDescription = async (i) => {
-    const title = String(list[i]?.title || "").trim();
+  // The category sections. In GMB-sync mode we get the real primary + sub-categories;
+  // otherwise fall back to a single un-tagged section so the editor still works.
+  const sections = useMemo(() => {
+    const real = (Array.isArray(categories) ? categories : []).filter((c) => c && c.gcid);
+    if (real.length) {
+      return real.map((c, i) => ({
+        gcid: c.gcid,
+        displayName: c.displayName || (i === 0 ? "Primary category" : "Category"),
+        primary: c.primary ?? i === 0,
+      }));
+    }
+    return [{ gcid: "", displayName: categoryHint?.[0] || "Services", primary: true }];
+  }, [categories, categoryHint]);
+
+  const defaultGcid = sections[0]?.gcid || "";
+  const knownGcids = useMemo(() => new Set(sections.map((s) => s.gcid).filter(Boolean)), [sections]);
+
+  // Which section an item belongs to: its own category if it's one of ours, else primary.
+  const sectionGcidFor = useCallback(
+    (it) => {
+      const c = String(it?.category || "").replace(/^categories\//, "").trim();
+      return c && knownGcids.has(c) ? c : defaultGcid;
+    },
+    [knownGcids, defaultGcid]
+  );
+
+  // Group items -> Map(gcid -> [{ it, gi }]), keeping the global index for edits.
+  const grouped = useMemo(() => {
+    const map = new Map(sections.map((s) => [s.gcid, []]));
+    list.forEach((it, gi) => {
+      const g = sectionGcidFor(it);
+      if (!map.has(g)) map.set(g, []);
+      map.get(g).push({ it, gi });
+    });
+    return map;
+  }, [list, sections, sectionGcidFor]);
+
+  // Predefined Google service types per category (the one-click source). Live, no DB.
+  const gcidsKey = useMemo(() => sections.map((s) => s.gcid).filter(Boolean).join(","), [sections]);
+  useEffect(() => {
+    if (!gcidsKey) { setPredefined({}); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const params = new URLSearchParams({
+          names: gcidsKey,
+          regionCode: regionCode || "IN",
+          languageCode: languageCode || "en",
+          accountId: accountId || "",
+        });
+        const res = await fetch(`/api/gmb/category-service-types?${params.toString()}`);
+        const data = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        const out = {};
+        for (const [g, v] of Object.entries(data.byCategory || {})) {
+          out[g] = Array.isArray(v?.serviceTypes) ? v.serviceTypes : [];
+        }
+        setPredefined(out);
+      } catch {
+        /* one-click just won't show — manual / CSV / AI still work */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gcidsKey, regionCode, languageCode, accountId]);
+
+  // ── Mutations (all update the flat list) ──────────────────────────────────────
+  const updateItem = (gi, key, val) =>
+    onChange(list.map((it, idx) => (idx === gi ? { ...it, [key]: val } : it)));
+  const removeItem = (gi) => onChange(list.filter((_, idx) => idx !== gi));
+  const addManual = (gcid) =>
+    onChange([...list, { title: "", description: "", priceType: "none", price: "", category: gcid }]);
+  const addPredefined = (gcid, displayName) => {
+    const dn = String(displayName || "").trim();
+    if (!dn) return;
+    const target = gcid || defaultGcid;
+    const exists = list.some(
+      (it) => sectionGcidFor(it) === target && String(it.title || "").trim().toLowerCase() === dn.toLowerCase()
+    );
+    if (exists) return;
+    onChange([...list, { title: dn, description: "", priceType: "none", price: "", category: gcid }]);
+  };
+
+  // Per-row AI description.
+  const genDescription = async (gi) => {
+    const title = String(list[gi]?.title || "").trim();
     if (!title) return;
-    setDescBusyIdx(i);
+    setDescBusyIdx(gi);
     try {
+      const gcid = sectionGcidFor(list[gi]);
+      const catName = sections.find((s) => s.gcid === gcid)?.displayName || categoryHint?.[0] || "";
       const ctx = {
         ...(aiContext || {}),
         businessNameHint: businessName,
-        categoryHints: categoryHint,
-        primaryCategory: categoryHint?.[0] || "",
+        categoryHints: catName ? [catName] : categoryHint,
+        primaryCategory: catName || categoryHint?.[0] || "",
       };
       const res = await fetch("/api/user-settings/business-optimization-ai", {
         method: "POST",
@@ -1205,12 +1392,9 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
         body: JSON.stringify({ mode: "serviceDescription", title, context: ctx }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error || "Could not generate description");
-        return;
-      }
+      if (!res.ok) { toast.error(data.error || "Could not generate description"); return; }
       const desc = String(data.description || "").trim();
-      if (desc) update(i, "description", desc.slice(0, 300));
+      if (desc) updateItem(gi, "description", desc.slice(0, 300));
     } catch {
       toast.error("Could not generate description");
     } finally {
@@ -1218,15 +1402,12 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
     }
   };
 
-  const update = (i, key, val) => onChange(list.map((it, idx) => (idx === i ? { ...it, [key]: val } : it)));
-  const add = () => onChange([...list, { title: "", description: "", priceType: "none", price: "" }]);
-  const remove = (i) => onChange(list.filter((_, idx) => idx !== i));
-
-  const importCsv = async (file) => {
+  // CSV import into ONE category.
+  const importCsvInto = async (gcid, file) => {
     if (!file) return;
     try {
       const text = await file.text();
-      const parsed = csvRowsToServiceItems(parseCsv(text));
+      const parsed = csvRowsToServiceItems(parseCsv(text)).map((s) => ({ ...s, category: gcid }));
       if (!parsed.length) {
         setErr("No valid rows found. Use columns: Service, Description, Price.");
         return;
@@ -1239,177 +1420,157 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
     }
   };
 
-  const generate = async () => {
-    setLoading(true);
+  // AI generate (fallback) for ONE category -> review -> append tagged to that category.
+  const generateFor = async (gcid, displayName) => {
+    setAiBusyGcid(gcid || "__primary__");
     setErr("");
     try {
-      const ctx = { ...(aiContext || {}), businessNameHint: businessName, categoryHints: categoryHint };
+      const hints = displayName ? [displayName] : categoryHint;
+      const ctx = {
+        ...(aiContext || {}),
+        businessNameHint: businessName,
+        categoryHints: hints,
+        primaryCategory: displayName || categoryHint?.[0] || "",
+      };
       const res = await fetch("/api/user-settings/business-optimization-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "serviceItems", context: ctx }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setErr(data.error || "AI generation failed. Check OPENAI_API_KEY.");
-        return;
-      }
+      if (!res.ok) { setErr(data.error || "AI generation failed. Check OPENAI_API_KEY."); return; }
       const gen = Array.isArray(data.items) ? data.items : [];
-      if (!gen.length) {
-        setErr("AI returned no services. Try again.");
-        return;
-      }
-      setPending(gen.map((p) => ({ title: String(p.title || "").trim(), description: String(p.description || "").trim() })));
+      if (!gen.length) { setErr("AI returned no services. Try again."); return; }
+      setPending({
+        gcid,
+        items: gen.map((p) => ({ title: String(p.title || "").trim(), description: String(p.description || "").trim() })),
+      });
     } catch {
       setErr("AI generation failed. Try again.");
     } finally {
-      setLoading(false);
+      setAiBusyGcid(null);
     }
   };
 
   const applyPending = () => {
-    if (pending) onChange(pending);
+    if (pending) {
+      const tagged = pending.items
+        .filter((p) => p.title)
+        .map((p) => ({ title: p.title, description: p.description, priceType: "none", price: "", category: pending.gcid }));
+      onChange([...list, ...tagged]);
+    }
     setPending(null);
   };
 
+  const smallBtn = (extra) => ({
+    display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px", borderRadius: 9,
+    fontSize: 12, fontWeight: 700, fontFamily: "inherit", cursor: "pointer", ...extra,
+  });
+
   return (
     <div style={{ marginBottom: 20, paddingBottom: 20, borderBottom: "1px solid #eef2f6" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Services</div>
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-            Title + optional description + price. Or import a CSV with columns <strong>Service, Description, Price</strong>.
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => void generate()}
-            disabled={loading}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
-              borderRadius: 9, border: "1.5px solid #FEF08A", cursor: loading ? "wait" : "pointer",
-              background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)", color: "#854D0E",
-              fontSize: 12, fontWeight: 700, fontFamily: "inherit",
-            }}
-          >
-            <SparkIcon /> {loading ? "Generating…" : "AI generate"}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: "none" }}
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void importCsv(f); }}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 13px",
-              borderRadius: 9, border: "1.5px solid #FDE047", cursor: "pointer",
-              background: "#fff", color: "#854D0E", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 15V3M7 8l5-5 5 5M5 21h14" /></svg>
-            Import CSV
-          </button>
-          <button
-            type="button"
-            onClick={add}
-            style={{
-              padding: "7px 13px", borderRadius: 9, border: "1.5px solid #e2e8f0", cursor: "pointer",
-              background: "#fff", color: "#475569", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
-            }}
-          >
-            + Add service
-          </button>
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Services by category</div>
+        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+          Every category has its own services. Add with one click from Google&apos;s suggestions, type your own, or import a CSV (<strong>Service, Description, Price</strong>).
         </div>
       </div>
 
-      {list.length === 0 ? (
-        <div style={{ padding: "16px 14px", borderRadius: 12, border: "1px dashed #cbd5e1", background: "#f8fafc", color: "#94a3b8", fontSize: 12.5, textAlign: "center" }}>
-          No services yet. Use <strong style={{ color: "#CA8A04" }}>AI generate</strong> or <strong>+ Add service</strong>.
-        </div>
-      ) : (
-        list.map((it, i) => (
-          <div key={i} style={{ marginBottom: 10, padding: "12px 13px", borderRadius: 12, border: "1.5px solid #eef2f6", background: "#fff" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <input
-                value={it.title || ""}
-                onChange={(e) => update(i, "title", e.target.value)}
-                placeholder="Service title (e.g. RO Water Purifier Installation)"
-                maxLength={140}
-                style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 13, fontWeight: 600, fontFamily: "inherit", color: "#0f172a" }}
-              />
-              <button
-                type="button"
-                onClick={() => remove(i)}
-                aria-label="Remove service"
-                style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-            <div style={{ position: "relative" }}>
-              <textarea
-                value={it.description || ""}
-                onChange={(e) => update(i, "description", e.target.value)}
-                placeholder="Short description (optional, max 300 chars)"
-                maxLength={300}
-                rows={2}
-                style={{ width: "100%", boxSizing: "border-box", padding: "9px 11px 9px 11px", paddingRight: it.title ? 96 : 11, borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155", resize: "vertical" }}
-              />
-              {it.title && String(it.title).trim() ? (
-                <button
-                  type="button"
-                  onClick={() => void genDescription(i)}
-                  disabled={descBusyIdx === i}
-                  title="Generate description from the title with AI"
-                  style={{
-                    position: "absolute", top: 7, right: 7,
-                    display: "inline-flex", alignItems: "center", gap: 5,
-                    padding: "5px 9px", borderRadius: 8,
-                    border: `1px solid ${!(it.description || "").trim() ? "#CA8A04" : "#FDE047"}`,
-                    background: descBusyIdx === i ? "#FEF9C3" : !(it.description || "").trim() ? "#CA8A04" : "#FEFCE8",
-                    color: descBusyIdx === i ? "#854D0E" : !(it.description || "").trim() ? "#fff" : "#854D0E",
-                    fontSize: 11, fontWeight: 800, cursor: descBusyIdx === i ? "wait" : "pointer", fontFamily: "inherit",
-                  }}
-                >
-                  <SparkIcon size={11} /> {descBusyIdx === i ? "…" : "AI"}
-                </button>
-              ) : null}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#64748b" }}>Price</span>
-              <select
-                value={it.priceType || "none"}
-                onChange={(e) => update(i, "priceType", e.target.value)}
-                style={{ padding: "8px 11px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a", background: "#fff", cursor: "pointer" }}
-              >
-                {SERVICE_PRICE_TYPES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              {it.priceType === "fixed" && (
-                <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                  <span style={{ position: "absolute", left: 10, color: "#94a3b8", fontSize: 12.5 }}>₹</span>
-                  <input
-                    value={it.price || ""}
-                    onChange={(e) => update(i, "price", e.target.value.replace(/[^\d.]/g, ""))}
-                    placeholder="Service price (INR)"
-                    inputMode="decimal"
-                    style={{ width: 150, padding: "8px 11px 8px 22px", borderRadius: 9, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#0f172a" }}
-                  />
-                </div>
-              )}
-              <span style={{ fontSize: 10.5, color: "#94a3b8" }}>
-                Saved to Google&apos;s service price field.
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".csv,text/csv"
+        style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void importCsvInto(csvTargetGcid, f); }}
+      />
+
+      {sections.map((section) => {
+        const sectionItems = grouped.get(section.gcid) || [];
+        const added = new Set(sectionItems.map(({ it }) => String(it.title || "").trim().toLowerCase()));
+        const chips = (predefined[section.gcid] || []).filter((t) => !added.has(t.displayName.toLowerCase()));
+        const aiBusy = aiBusyGcid === (section.gcid || "__primary__");
+        return (
+          <div key={section.gcid || "__primary__"} style={{ marginBottom: 16, padding: 14, borderRadius: 14, border: "1.5px solid #F1E4B8", background: "#FFFDF5" }}>
+            {/* Section header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13.5, fontWeight: 800, color: "#713F12" }}>
+                {section.displayName}
+                <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 6, background: section.primary ? "#CA8A04" : "#FEF08A", color: section.primary ? "#fff" : "#854D0E" }}>
+                  {section.primary ? "Primary" : "Sub"}
+                </span>
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#a1863b", background: "#FEF9C3", border: "1px solid #FEF08A", borderRadius: 20, padding: "2px 9px" }}>
+                {sectionItems.length} service{sectionItems.length === 1 ? "" : "s"}
               </span>
             </div>
+
+            {/* One-click predefined Google service types */}
+            {chips.length ? (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#854D0E", textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 7, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <SparkIcon size={12} /> One-click from Google
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {chips.map((t) => (
+                    <button
+                      key={t.serviceTypeId || t.displayName}
+                      type="button"
+                      onClick={() => addPredefined(section.gcid, t.displayName)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5, padding: "6px 12px", borderRadius: 20, background: "#fff", color: "#854D0E", fontWeight: 700, border: "1.5px dashed #FDE047", cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "#FEFCE8"; e.currentTarget.style.borderStyle = "solid"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderStyle = "dashed"; }}
+                    >
+                      <span style={{ color: "#CA8A04", fontWeight: 900 }}>+</span> {t.displayName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Rows */}
+            {sectionItems.length === 0 ? (
+              <div style={{ padding: "12px", borderRadius: 10, border: "1px dashed #E4CE86", background: "#fff", color: "#a1863b", fontSize: 12, textAlign: "center", marginBottom: 10 }}>
+                No services in this category yet — add one below.
+              </div>
+            ) : (
+              sectionItems.map(({ it, gi }) => (
+                <ServiceRow
+                  key={gi}
+                  it={it}
+                  gi={gi}
+                  onUpdate={updateItem}
+                  onRemove={removeItem}
+                  onGenDesc={genDescription}
+                  descBusy={descBusyIdx === gi}
+                />
+              ))
+            )}
+
+            {/* Per-category actions */}
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+              <button type="button" onClick={() => addManual(section.gcid)} style={smallBtn({ border: "1.5px solid #e2e8f0", background: "#fff", color: "#475569" })}>
+                + Add service
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCsvTargetGcid(section.gcid); fileRef.current?.click(); }}
+                style={smallBtn({ border: "1.5px solid #FDE047", background: "#fff", color: "#854D0E" })}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 15V3M7 8l5-5 5 5M5 21h14" /></svg>
+                Import CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => void generateFor(section.gcid, section.displayName)}
+                disabled={aiBusy}
+                style={smallBtn({ border: "1.5px solid #FEF08A", background: "linear-gradient(135deg, #FFFDF5, #FEF9C3)", color: "#854D0E", cursor: aiBusy ? "wait" : "pointer" })}
+              >
+                <SparkIcon /> {aiBusy ? "Generating…" : "AI generate"}
+              </button>
+            </div>
           </div>
-        ))
-      )}
+        );
+      })}
 
       {err ? <div style={{ marginTop: 8, fontSize: 12, color: "#b91c1c", fontWeight: 600 }}>{err}</div> : null}
 
@@ -1433,7 +1594,7 @@ function ServiceItemsEditor({ items, onChange, aiContext, businessName, category
       {pending && (
         <ConfirmModal
           field="Services"
-          aiContent={pending.map((p) => (p.description ? `${p.title} — ${p.description}` : p.title))}
+          aiContent={pending.items.map((p) => (p.description ? `${p.title} — ${p.description}` : p.title))}
           onConfirm={applyPending}
           onCancel={() => setPending(null)}
         />
@@ -1468,8 +1629,8 @@ function useCategorySearch(regionCode, languageCode, accountId) {
     [base]
   );
 
-  // Name-similarity sub-category suggestions for a chosen primary (served from the
-  // synced Mongo catalog by token overlap).
+  // Name-similarity sub-category suggestions for a chosen primary (fetched live from
+  // Google and ranked by token overlap — no local catalog).
   const suggest = useCallback(
     async (displayName, exclude = []) => {
       const dn = String(displayName || "").trim();
@@ -1634,7 +1795,7 @@ function CategoryEditor({
   );
 
   // Suggest Google-supported sub-categories related to the primary category, ranked
-  // by name similarity from the synced Mongo catalog.
+  // by name similarity. Categories come live from Google — show all of them.
   useEffect(() => {
     const dn = primary?.displayName || "";
     if (disabled || !dn) { setSuggested([]); return; }
@@ -1642,7 +1803,7 @@ function CategoryEditor({
     (async () => {
       const r = await suggest(dn, excludeNames);
       if (cancelled) return;
-      setSuggested(r.slice(0, 8));
+      setSuggested(r);
     })();
     return () => { cancelled = true; };
   }, [primary?.displayName, disabled, suggest, excludeNames]);
@@ -3059,6 +3220,21 @@ export default function BusinessInformationPanel({
   const [categoryDirty, setCategoryDirty] = useState(false);
   const [categorySaving, setCategorySaving] = useState(false);
 
+  // Category sections for the services editor — primary first, then each sub-category.
+  // Each service is filed under one of these. Empty in non-sync mode (editor falls back
+  // to a single un-tagged section).
+  const serviceCategories = useMemo(() => {
+    const norm = (n) => String(n || "").replace(/^categories\//, "").trim();
+    const out = [];
+    if (categoryPrimary?.name) {
+      out.push({ gcid: norm(categoryPrimary.name), displayName: categoryPrimary.displayName || "Primary category", primary: true });
+    }
+    for (const c of categoryAdditional) {
+      if (c?.name) out.push({ gcid: norm(c.name), displayName: c.displayName || "Category", primary: false });
+    }
+    return out;
+  }, [categoryPrimary, categoryAdditional]);
+
   // Capabilities (from location metadata) decide which optional editors appear.
   const [capabilities, setCapabilities] = useState({});
 
@@ -3355,9 +3531,10 @@ export default function BusinessInformationPanel({
         await onSyncToGmb({
           description: desc,
           ...(serviceItemsDirty ? { serviceItems: serviceItemsClean } : {}),
-          // Phone is intentionally not synced to Google.
+          primaryPhone: (fields.phone || "").trim(),
           websiteUri: (fields.website || "").trim(),
           chatUrl: (fields.chatUrl || "").trim(),
+          bookingUrl: (fields.bookingUrl || "").trim(),
           serviceAreaPlaces: places,
           ...(hoursDirty ? { regularHours: { periods: fields.regularHoursPeriods || [] } } : {}),
           ...(dirtyAttrs.length ? { attributes: dirtyAttrs } : {}),
@@ -3559,9 +3736,10 @@ export default function BusinessInformationPanel({
       const payload = {};
       if (fieldId === "description") payload.description = clampGmbDescription(text);
       if (fieldId === "services") payload.services = text;
-      // Phone is intentionally not synced to Google (no primaryPhone here).
+      if (fieldId === "phone") payload.primaryPhone = text;
       if (fieldId === "website") payload.websiteUri = text;
       if (fieldId === "chatUrl") payload.chatUrl = text;
+      if (fieldId === "bookingUrl") payload.bookingUrl = text;
       if (Object.keys(payload).length === 0) return;
       try {
         await onSyncToGmb(payload);
@@ -4074,6 +4252,10 @@ export default function BusinessInformationPanel({
                       categoryHint={categoryHint}
                       onSave={gmbSyncMode ? handleSaveServiceItems : undefined}
                       savePending={syncToGmbPending}
+                      categories={gmbSyncMode ? serviceCategories : []}
+                      regionCode={categoryRegionCode}
+                      languageCode="en"
+                      accountId={activeEnriched?.accountId || ""}
                     />
                     <DescriptionGenerator
                       aiContext={optimizationContext}
@@ -4105,23 +4287,24 @@ export default function BusinessInformationPanel({
 
               {tab === "contact" && (
                 <div style={{ animation: "slideIn .25s ease" }}>
-                  <SectionBlock title="Contact" hint="Phone is manual only. Website and WhatsApp use Edit → Save / Cancel; website can use AI Website Builder while editing.">
+                  <SectionBlock title="Contact" hint="Phone, WhatsApp, Website and Booking all use Edit → Save / Cancel and sync to Google. For WhatsApp just enter the number — the chat link is built automatically.">
                     <FieldRow
                       label="Phone number"
                       fieldId="phone"
                       value={fields.phone}
                       onChange={setField("phone")}
                       manualOnly
-                      manualHint="Shown from Google. Phone is NOT updated to Google from here — change it in Google Business Profile."
+                      onSaveField={gmbSyncMode ? handleFieldSave : undefined}
+                      manualHint="Saved to Google as the primary phone. Enter a 10-digit number (or with +country code)."
                     />
                     <FieldRow
-                      label="Chat / WhatsApp"
+                      label="WhatsApp number"
                       fieldId="chatUrl"
                       value={fields.chatUrl}
                       onChange={setField("chatUrl")}
                       manualOnly
                       onSaveField={handleFieldSave}
-                      manualHint="https://wa.me/… or full WhatsApp URL. Saved to Google attribute url_whatsapp."
+                      manualHint="Just enter the WhatsApp number — the wa.me chat link is built automatically and saved to Google (url_whatsapp)."
                     />
                     <FieldRow
                       label="Website"
@@ -4141,7 +4324,8 @@ export default function BusinessInformationPanel({
                       value={fields.bookingUrl}
                       onChange={setField("bookingUrl")}
                       manualOnly
-                      manualHint="Not synced to Google from here — keep for your own reference."
+                      onSaveField={gmbSyncMode ? handleFieldSave : undefined}
+                      manualHint="Full URL (https://…). Saved to Google as the appointment link (url_appointment) when your category supports it."
                       noBottomRule
                     />
                   </SectionBlock>

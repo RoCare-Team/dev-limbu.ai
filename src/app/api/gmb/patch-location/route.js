@@ -10,6 +10,7 @@ import {
   locationResourceUrl,
   buildTitlePatchBody,
   buildProfileDescriptionPatchBody,
+  buildPhoneNumbersPatchBody,
   buildWebsiteUriPatchBody,
   buildStorefrontAddressPatchBody,
   buildLatLngPatchBody,
@@ -166,13 +167,20 @@ async function patchLocationResource(accessToken, locationId, updateMask, patchB
 
 // Services use freeFormServiceItem which must reference one of the location's category
 // gcids — fetch the primary category so the caller doesn't have to send it.
-async function fetchPrimaryCategoryGcid(accessToken, locationId) {
+// Primary + additional category gcids for a location. `primary` is used as the
+// default category for untagged services; `all` is the allow-list so a service can
+// only be filed under a category the location actually has.
+async function fetchLocationCategoryGcids(accessToken, locationId) {
   const url = `${GMB_BASE}/locations/${encodeURIComponent(locationId)}?readMask=categories`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
-  if (!res.ok) return '';
+  if (!res.ok) return { primary: '', all: [] };
   const d = await res.json().catch(() => ({}));
-  const nm = d?.categories?.primaryCategory?.name || '';
-  return nm.replace(/^categories\//, ''); // e.g. "gcid:water_purification_company"
+  const norm = (n) => String(n || '').replace(/^categories\//, '').trim(); // e.g. "gcid:water_purification_company"
+  const primary = norm(d?.categories?.primaryCategory?.name);
+  const additional = Array.isArray(d?.categories?.additionalCategories)
+    ? d.categories.additionalCategories.map((c) => norm(c?.name)).filter(Boolean)
+    : [];
+  return { primary, all: [primary, ...additional].filter(Boolean) };
 }
 
 // Generic attributes PATCH — one call for all attributes, using a combined
@@ -318,8 +326,11 @@ export async function POST(request) {
                   description: String(s.description || '').trim(),
                   priceType: String(s.priceType || 'none').toLowerCase(),
                   price: s.price,
+                  // Which category this service is filed under (empty = primary). Kept so
+                  // buildServiceItemsPatchBody can tag each item with its own category.
+                  category: String(s.category || s.categoryGcid || '').replace(/^categories\//, '').trim(),
                 }
-              : { title: String(s || '').trim(), description: '', priceType: 'none', price: '' }
+              : { title: String(s || '').trim(), description: '', priceType: 'none', price: '', category: '' }
           )
           .filter((s) => s.title)
       : null;
@@ -335,6 +346,17 @@ export async function POST(request) {
     if (!whatsappUri && chatUrlIn) {
       whatsappUri = normalizeWhatsappUri(chatUrlIn, '');
     }
+    // Phone -> Google phoneNumbers.primaryPhone. Accept `primaryPhone` or `phone`.
+    const primaryPhone = normalizePhone(
+      typeof body.primaryPhone === 'string' && body.primaryPhone.trim()
+        ? body.primaryPhone
+        : typeof body.phone === 'string'
+          ? body.phone
+          : ''
+    );
+    // Booking / appointment link -> Google attributes/url_appointment (URL type,
+    // category-gated exactly like url_whatsapp).
+    const bookingUri = normalizeWebsiteUri(body.bookingUrl);
     const serviceAreaText = typeof body.serviceAreaText === 'string' ? body.serviceAreaText : '';
     const serviceAreaPlacesIn = Array.isArray(body.serviceAreaPlaces) ? body.serviceAreaPlaces : [];
     const serviceAreaPlaces = serviceAreaPlacesIn.map((s) => String(s).trim()).filter(Boolean);
@@ -412,6 +434,8 @@ export async function POST(request) {
       (serviceItemsIn && serviceItemsIn.length > 0) ||
       websiteUri ||
       whatsappUri ||
+      primaryPhone ||
+      bookingUri ||
       Boolean(serviceAreaBody) ||
       serviceAreaNames.length > 0 ||
       (latlng && Number.isFinite(latlng.latitude) && Number.isFinite(latlng.longitude)) ||
@@ -462,7 +486,16 @@ export async function POST(request) {
       });
     }
 
-    // Phone number is intentionally never PATCHed to Google here (per requirement).
+    // Phone -> Google phoneNumbers.primaryPhone (Business Information API).
+    if (primaryPhone) {
+      const r = await patchLocationResource(
+        accessToken,
+        locationId,
+        LOCATION_UPDATE_MASKS.phoneNumbers,
+        buildPhoneNumbersPatchBody(primaryPhone)
+      );
+      results.push({ field: 'phoneNumbers', ...r });
+    }
 
     if (websiteUri) {
       const r = await patchLocationResource(
@@ -537,6 +570,10 @@ export async function POST(request) {
     if (whatsappUri && !attrItems.some((a) => a.name === 'attributes/url_whatsapp')) {
       attrItems.push({ name: 'attributes/url_whatsapp', valueType: 'URL', values: whatsappUri });
     }
+    // Booking / appointment link — same gated URL-attribute path as WhatsApp.
+    if (bookingUri && !attrItems.some((a) => a.name === 'attributes/url_appointment')) {
+      attrItems.push({ name: 'attributes/url_appointment', valueType: 'URL', values: bookingUri });
+    }
 
     if (attrItems.length) {
       let available = new Set();
@@ -584,7 +621,7 @@ export async function POST(request) {
     // over the legacy comma-separated services string when both are sent.
     const servicesPayload = serviceItemsIn && serviceItemsIn.length ? serviceItemsIn : services;
     if (servicesPayload && (Array.isArray(servicesPayload) ? servicesPayload.length : true)) {
-      const gcid = await fetchPrimaryCategoryGcid(accessToken, locationId);
+      const { primary: gcid, all: allowedGcids } = await fetchLocationCategoryGcids(accessToken, locationId);
       if (!gcid) {
         results.push({
           field: 'serviceItems',
@@ -593,11 +630,14 @@ export async function POST(request) {
           data: { error: { message: 'No primary category on this location — cannot set services.' } },
         });
       } else {
+        // Each service is filed under its own category (primary or a sub-category);
+        // untagged services default to the primary. allowedGcids guards against
+        // sending a category the location no longer has.
         const r = await patchLocationResource(
           accessToken,
           locationId,
           LOCATION_UPDATE_MASKS.serviceItems,
-          buildServiceItemsPatchBody(servicesPayload, gcid)
+          buildServiceItemsPatchBody(servicesPayload, gcid, { allowedGcids })
         );
         results.push({ field: 'serviceItems', ...r });
       }

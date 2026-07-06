@@ -4,7 +4,7 @@ import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
+import { getPlanPostLimit, calculatePostingSchedule } from '@/utils/userSettingsHelpers';
 import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 import AutomationPlan from '@/models/AutomationPlan';
@@ -474,8 +474,11 @@ export async function POST(request) {
       : null;
     const projectPostQueue =
       gmbUserPostQueue?.projects?.find((p) => p.googleId === user.gmbProjectId) || null;
+    // Delay-queue (generate → publish chain) is the automation flow for any GMB plan.
+    // We no longer require a matching GmbUser project — the AutomationPlan already
+    // stores fresh access/refresh tokens (from session), so the queued posts use those.
     const useDelayPostQueue =
-      !!(automationEnabled && schedule.length > 0 && projectPostQueue && hasGmb);
+      !!(automationEnabled && schedule.length > 0 && hasGmb);
 
     // ── Upsert AutomationPlan (one record per userId, always) ─────────────────
     // IMPORTANT: Do NOT deactivate first and then search active:true — that
@@ -651,7 +654,8 @@ export async function POST(request) {
       await PostModel.deleteMany({ userId: automationQueueUserId, automationQueued: true });
     }
 
-    if (useDelayPostQueue && projectPostQueue) {
+    let automationTiming = null;
+    if (useDelayPostQueue) {
       // Use the GMB locations the user actually selected (safeLocations) — same
       // source the legacy publish cron uses. Falling back to a single
       // resolvedBusiness.locationId dropped every extra location (multi-location
@@ -674,36 +678,58 @@ export async function POST(request) {
       const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
       const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
 
-      const genDelayMin = Math.min(
-        120,
-        Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 10)
+      // ── Automation timing: publish-driven chain (test vs production) ─────────
+      // The queued posts form a chain where each post is GENERATED a fixed delay
+      // after the PREVIOUS post PUBLISHES (not on a fixed daily/weekly cadence).
+      //
+      //   TEST_MODE (AUTOMATION_TEST_MODE=true):  fast 5-minute loop
+      //     save → +5m generate → +5m publish → +5m generate next → +5m publish → …
+      //   PRODUCTION (default):
+      //     save → +30m generate → +24h publish → +30m generate next → +24h publish → …
+      //
+      // Overridable via env (production only; TEST_MODE always uses 5m everywhere).
+      const TEST_MODE = ['true', '1', 'yes'].includes(
+        String(process.env.AUTOMATION_TEST_MODE || '').trim().toLowerCase()
       );
-      const pubAfterH = Math.min(
-        168,
-        Math.max(1, Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 12)
-      );
-      const GEN_MS = genDelayMin * 60 * 1000;
-      const PUB_MS = pubAfterH * 60 * 60 * 1000;
-      const SAVE_TS = Date.now();
-      const stepDays = getFrequencyStep(safeFrequency);
 
-      let genTs = SAVE_TS + GEN_MS;
+      // Delay from SAVE to the first post's generation (minutes).
+      const initialGenMin = TEST_MODE
+        ? 5
+        : Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 30));
+      // Delay from a post's generation to its own publish (minutes). Default 24h.
+      const publishAfterMin = TEST_MODE
+        ? 5
+        : Math.min(
+            10080, // 7 days
+            Math.max(
+              1,
+              Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_MINUTES) ||
+                (Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 24) * 60
+            )
+          );
+      // Delay from a post's publish to the NEXT post's generation (minutes). Default 30m.
+      const nextGenAfterPublishMin = TEST_MODE
+        ? 5
+        : Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_NEXT_GENERATE_AFTER_MINUTES) || 30));
+
+      const INITIAL_GEN_MS = initialGenMin * 60 * 1000;
+      const PUB_MS = publishAfterMin * 60 * 1000;
+      const NEXT_GEN_MS = nextGenAfterPublishMin * 60 * 1000;
+      const SAVE_TS = Date.now();
+
+      let genTs = SAVE_TS + INITIAL_GEN_MS;
+      let prevPublishTs = null;
       const postsData = [];
       for (let idx = 0; idx < schedule.length; idx++) {
         if (idx > 0) {
-          if (safeFrequency === 'custom') {
-            const d0 = new Date(schedule[idx - 1]);
-            d0.setHours(0, 0, 0, 0);
-            const d1 = new Date(schedule[idx]);
-            d1.setHours(0, 0, 0, 0);
-            genTs += d1.getTime() - d0.getTime();
-          } else {
-            genTs += stepDays * 86400000;
-          }
+          // Next post generates a fixed delay AFTER the previous post publishes.
+          genTs = prevPublishTs + NEXT_GEN_MS;
         }
 
         const generateContentAt = new Date(genTs);
-        const publishAt = new Date(genTs + PUB_MS);
+        const publishTs = genTs + PUB_MS;
+        const publishAt = new Date(publishTs);
+        prevPublishTs = publishTs;
         const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
         const line = `${keyword} — ${businessName || 'your business'}`;
 
@@ -721,8 +747,9 @@ export async function POST(request) {
           automationQueued:    true,
           automationPlanId:    plan._id,
           aiOutput:            '',
-          accessToken:         projectPostQueue.accessToken || '',
-          refreshToken:        projectPostQueue.refreshToken || '',
+          // Prefer the plan's fresh session tokens; fall back to GmbUser project tokens.
+          accessToken:         planAccessToken  || projectPostQueue?.accessToken  || '',
+          refreshToken:        planRefreshToken || projectPostQueue?.refreshToken || '',
           // 'both' = attach the generated image to the GMB post (publish-scheduled
           // sends post_type/cta too). 'post' alone published text-only — no image.
           checkmark:           'both',
@@ -755,8 +782,20 @@ export async function POST(request) {
       });
 
       await PostModel.insertMany(postsData, { ordered: false });
+      automationTiming = {
+        mode: TEST_MODE ? 'test' : 'production',
+        generateAfterSaveMinutes: initialGenMin,
+        publishAfterGenerateMinutes: publishAfterMin,
+        nextGenerateAfterPublishMinutes: nextGenAfterPublishMin,
+        postsQueued: postsData.length,
+        firstGenerateAt: postsData[0]?.generateContentAt || null,
+        firstPublishAt: postsData[0]?.scheduledDate || null,
+      };
       console.log(
-        `[user-settings] ✅ Created ${postsData.length} queued Posts (generate +${genDelayMin}m, publish +${pubAfterH}h) userId=${finalUserId}`
+        `[user-settings] ✅ Created ${postsData.length} queued Posts ` +
+        `[${TEST_MODE ? 'TEST' : 'PROD'} mode — generate +${initialGenMin}m after save, ` +
+        `publish +${publishAfterMin}m after generate, next generate +${nextGenAfterPublishMin}m after publish] ` +
+        `userId=${finalUserId}`
       );
     }
 
@@ -767,6 +806,7 @@ export async function POST(request) {
       keywordsChanged,
       plan:               plan.planDetails,
       businessName,
+      automationTiming,
     });
   } catch (error) {
     console.error('POST /api/user-settings error:', error);

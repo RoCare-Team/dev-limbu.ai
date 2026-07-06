@@ -7,11 +7,11 @@
     },
     {
       "path": "/api/publish-scheduled",
-      "schedule": "*/20 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/automation-fill-queue",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/auto-post",

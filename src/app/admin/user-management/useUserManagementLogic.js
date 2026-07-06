@@ -629,17 +629,6 @@ export default function useUserManagementLogic() {
 
   const fetchChatHistoryForUser = async (user) => {
     const historyUserId = getLimbuBotHistoryUserId(user);
-    if (Array.isArray(user.chatbotHistory) && user.chatbotHistory.length > 0) {
-      setChatHistoryModal({
-        open: true,
-        user,
-        userId: historyUserId,
-        history: user.chatbotHistory,
-        loading: false,
-        error: "",
-      });
-      return;
-    }
 
     if (!historyUserId || historyUserId === "wa_") {
       showToast("No WhatsApp number found for this user", "error");

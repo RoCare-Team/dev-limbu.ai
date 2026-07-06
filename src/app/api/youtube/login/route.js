@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { resolveDashboardUserIdByPhone } from "@/lib/metaChatbotResolveUser";
 import { buildYoutubeLinkedinStatePayload } from "@/lib/chatbotPlatformOAuthState";
-import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -30,7 +29,7 @@ export async function GET(req) {
     return NextResponse.json({ error: "userId or phone required" }, { status: 400 });
   }
 
-  const baseUrl = resolveOAuthRedirectOrigin(req);
+  const baseUrl = "https://limbu.ai"; //resolveOAuthRedirectOrigin(req);
   const redirectUri = `${baseUrl}/api/youtube/callback`;
   const state = buildYoutubeLinkedinStatePayload({
     userId,

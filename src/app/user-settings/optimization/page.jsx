@@ -250,9 +250,16 @@ export default function OptimizationPage() {
                 ? payload.services.trim()
                 : undefined,
             serviceItems: Array.isArray(payload?.serviceItems) ? payload.serviceItems : undefined,
-            // Phone is intentionally not synced to Google.
+            primaryPhone:
+              typeof payload?.primaryPhone === "string" && payload.primaryPhone.trim()
+                ? payload.primaryPhone.trim()
+                : undefined,
             websiteUri: payload?.websiteUri,
             chatUrl: payload?.chatUrl,
+            bookingUrl:
+              typeof payload?.bookingUrl === "string" && payload.bookingUrl.trim()
+                ? payload.bookingUrl.trim()
+                : undefined,
             serviceAreaText: payload?.serviceAreaText,
             serviceAreaPlaces:
               Array.isArray(payload?.serviceAreaPlaces) && payload.serviceAreaPlaces.length

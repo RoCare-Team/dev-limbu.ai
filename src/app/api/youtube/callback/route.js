@@ -7,7 +7,6 @@ import {
   youtubeSuccessRedirect,
   youtubeErrorRedirect,
 } from "@/lib/chatbotPlatformOAuthState";
-import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 
 export async function GET(req) {
   try {
@@ -16,7 +15,7 @@ export async function GET(req) {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
-    const baseUrl = resolveOAuthRedirectOrigin(req);
+    const baseUrl = "https://limbu.ai"; //resolveOAuthRedirectOrigin(req);
     const redirectUri = `${baseUrl}/api/youtube/callback`;
 
     const parsed = parseYoutubeLinkedinOAuthState(stateParam);

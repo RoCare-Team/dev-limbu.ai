@@ -33,7 +33,7 @@ export default function RevenueStats({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
-      {/* TOTAL Revenue USERS */}
+      {/* TOTAL USERS */}
       <div
         onClick={() => setCardFilter("")}
         className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
@@ -44,7 +44,7 @@ export default function RevenueStats({
       }`}
       >
         <div>
-          <p className="text-sm text-gray-500">Total Revenue Users</p>
+          <p className="text-sm text-gray-500">Total Onboard Users</p>
           <h2 className="text-2xl font-bold text-dark mt-2">{totalUsers}</h2>
         </div>
 
@@ -53,9 +53,7 @@ export default function RevenueStats({
         </div>
       </div>
 
-      
-
-      {/* TODAY Revenue USERS */}
+      {/* TODAY'S NEW USERS */}
       <div
         onClick={() => setCardFilter("today_users")}
         className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
@@ -66,7 +64,7 @@ export default function RevenueStats({
       }`}
       >
         <div>
-          <p className="text-sm text-gray-500">Today Revenue Users</p>
+          <p className="text-sm text-gray-500">Today's New Users</p>
 
           <h2 className="text-2xl font-bold text-gray-700 mt-2">
             {todayUsers.length}
@@ -110,7 +108,7 @@ export default function RevenueStats({
         </div>
       </div>
 
-      {/* TODAY REVENUE */}
+      {/* TODAY'S REVENUE */}
       <div
         onClick={() => setCardFilter("today_revenue")}
         className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
@@ -122,7 +120,7 @@ export default function RevenueStats({
       >
         <div>
           <p className="text-sm text-gray-500 whitespace-nowrap">
-            Today Revenue
+            Today's Revenue
           </p>
 
           <h2 className="text-2xl font-bold text-gray-700 mt-2">
@@ -137,39 +135,39 @@ export default function RevenueStats({
 
       {activeView === "package" && (
         <>
+          {/* TOTAL PLANS */}
+          <div
+            onClick={() => setCardFilter("")}
+            className={`bg-blue-20 rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer
+              ${
+                cardFilter === ""
+                  ? "border-blue-600 ring-2 ring-blue-600"
+                  : "border border-green-200"
+              }`}
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-gray-500 text-ls">Total Plans</p>
 
-            <div
-        onClick={() => setCardFilter("")}
-        className={`bg-blue-20 rounded-3xl p-5 shadow-sm hover:shadow-md transition cursor-pointer
-          ${
-            cardFilter === ""
-              ? "border-blue-600 ring-2 ring-blue-600"
-              : "border border-green-200"
-          }`}
-        >
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-gray-500 text-ls">Total Plans</p>
+                <h2 className="text-2xl font-bold text-gray-700 mt-3">
+                  {totalPlans}
+                </h2>
+              </div>
 
-            <h2 className="text-2xl font-bold text-gray-700 mt-3">
-              {totalPlans}
-            </h2>
+              <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center">
+                <Layers className="w-6 h-6 text-gray-700" />
+              </div>
+            </div>
           </div>
 
-          <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center">
-            <Layers className="w-6 h-6 text-gray-700" />
-          </div>
-        </div>
-      </div>
-
-          {/* BASIC */}
+          {/* BASIC PLAN USERS */}
           <div
             onClick={() => setCardFilter("basic")}
             className={`bg-indigo-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
                 ${cardFilter === "basic" ? "border-indigo-500" : "border-indigo-200"}`}
           >
             <div>
-              <p className="text-sm text-gray-600">Basic Plan</p>
+              <p className="text-sm text-gray-600">Basic Plan Users</p>
 
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
@@ -185,14 +183,14 @@ export default function RevenueStats({
             </div>
           </div>
 
-          {/* PROFESSIONAL */}
+          {/* PROFESSIONAL PLAN USERS */}
           <div
             onClick={() => setCardFilter("professional")}
             className={`bg-blue-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
                     ${cardFilter === "professional" ? "border-blue-500" : "border-blue-200"}`}
           >
             <div>
-              <p className="text-sm text-gray-600">Professional</p>
+              <p className="text-sm text-gray-600">Professional Plan Users</p>
 
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
@@ -207,7 +205,8 @@ export default function RevenueStats({
               <Briefcase size={24} />
             </div>
           </div>
-          {/* PREMIUM */}
+
+          {/* PREMIUM PLAN USERS */}
           <div
             onClick={() => setCardFilter("premium")}
             className={`bg-purple-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
@@ -218,7 +217,7 @@ export default function RevenueStats({
                   }`}
           >
             <div>
-              <p className="text-sm text-gray-600">Premium</p>
+              <p className="text-sm text-gray-600">Premium Plan Users</p>
 
               <h2 className="text-2xl font-bold text-gray-700 mt-2">
                 {
@@ -234,15 +233,14 @@ export default function RevenueStats({
             </div>
           </div>
 
-          {/* TODAY EXPIRE */}
-
+          {/* EXPIRING TODAY */}
           <div
             onClick={() => setCardFilter("today")}
             className={`bg-orange-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
                   ${cardFilter === "today" ? "border-orange-500" : "border-orange-200"}`}
           >
             <div>
-              <p className="text-sm text-gray-600">Today Expire Users</p>
+              <p className="text-sm text-gray-600">Expiring Today</p>
 
               <h2 className="text-2xl font-bold text-orange-600 mt-2">
                 {
@@ -253,6 +251,7 @@ export default function RevenueStats({
                     if (!expiry) return false;
 
                     const expiryDate = new Date(expiry);
+                    if (isNaN(expiryDate.getTime())) return false;
                     const today = new Date();
 
                     return (
@@ -270,7 +269,7 @@ export default function RevenueStats({
             </div>
           </div>
 
-          {/* NEXT 7 DAYS */}
+          {/* EXPIRING IN NEXT 7 DAYS */}
           <div
             onClick={() => setCardFilter("7days")}
             className={`bg-yellow-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
@@ -281,7 +280,7 @@ export default function RevenueStats({
                 }`}
           >
             <div>
-              <p className="text-sm text-gray-600">Next 7 Days Expire</p>
+              <p className="text-sm text-gray-600">Expiring in Next 7 Days</p>
 
               <h2 className="text-2xl font-bold text-yellow-600 mt-2">
                 {
@@ -292,10 +291,13 @@ export default function RevenueStats({
                     if (!expiry) return false;
 
                     const expiryDate = new Date(expiry);
+                    if (isNaN(expiryDate.getTime())) return false;
+                    expiryDate.setHours(0, 0, 0, 0);
 
                     const today = new Date();
-                    const next7Days = new Date();
+                    today.setHours(0, 0, 0, 0);
 
+                    const next7Days = new Date(today);
                     next7Days.setDate(today.getDate() + 7);
 
                     return expiryDate >= today && expiryDate <= next7Days;
@@ -309,7 +311,7 @@ export default function RevenueStats({
             </div>
           </div>
 
-          {/* THIS MONTH */}
+          {/* EXPIRING THIS MONTH */}
           <div
             onClick={() => setCardFilter("this_month")}
             className={`bg-blue-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer
@@ -320,7 +322,7 @@ export default function RevenueStats({
                   }`}
           >
             <div>
-              <p className="text-sm text-gray-600">This Month Expire</p>
+              <p className="text-sm text-gray-600">Expiring This Month</p>
 
               <h2 className="text-2xl font-bold text-blue-600 mt-2">
                 {
@@ -347,7 +349,7 @@ export default function RevenueStats({
             </div>
           </div>
 
-          {/* EXPIRED */}
+          {/* EXPIRED USERS */}
           <div
             onClick={() => setCardFilter("expired")}
             className={`bg-red-50 border rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between cursor-pointer

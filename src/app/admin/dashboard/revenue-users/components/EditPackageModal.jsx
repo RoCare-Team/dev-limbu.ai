@@ -19,6 +19,10 @@ export default function EditPackageModal({
   setEditExpiryDate,
     editProofImage,
   setEditProofImage,
+  editGstNumber = "",
+  setEditGstNumber = () => {},
+  editUtrNumber = "",
+  setEditUtrNumber = () => {},
   updating,
   handleUpdatePackage,
 }) {
@@ -89,6 +93,42 @@ export default function EditPackageModal({
           focus:ring-violet-500 focus:border-violet-500
           outline-none transition"
         />
+      </div>
+
+      {/* UTR + GST */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium text-gray-600 mb-2 block">
+            UTR / Transaction ID
+          </label>
+
+          <input
+            value={editUtrNumber}
+            onChange={(e) => setEditUtrNumber(e.target.value)}
+            placeholder="Enter UTR / Transaction ID"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl
+            bg-gray-50 focus:bg-white focus:ring-2
+            focus:ring-violet-500 focus:border-violet-500
+            outline-none transition"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-gray-600 mb-2 block">
+            GST Number
+          </label>
+
+          <input
+            value={editGstNumber}
+            onChange={(e) => setEditGstNumber(e.target.value.toUpperCase())}
+            placeholder="e.g. 22AAAAA1111A1Z5"
+            maxLength={15}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl
+            bg-gray-50 focus:bg-white focus:ring-2
+            focus:ring-violet-500 focus:border-violet-500
+            outline-none transition uppercase font-mono tracking-wider text-sm"
+          />
+        </div>
       </div>
 
       {/* Remarks */}

@@ -63,7 +63,10 @@ const FORMS = [
 
 const STATUS_STEPS = [
   { label: "Active", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  { label: "Follow Up", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+  {
+    label: "Follow Up",
+    color: "bg-yellow-100 text-yellow-700 border-yellow-200",
+  },
   { label: "Inactive", color: "bg-gray-100 text-gray-700 border-gray-200" },
   { label: "Onboard", color: "bg-green-100 text-green-700 border-green-200" },
 ];
@@ -102,7 +105,7 @@ const QUICK_REMARKS = [
   "Call Back Later",
   "Wrong Number",
   "Switch Off",
-  "Meeting Scheduled"
+  "Meeting Scheduled",
 ];
 
 /** Same as user-management: these open the follow-up date picker */
@@ -178,8 +181,11 @@ function getFranchiseFuBucketBounds(filter) {
 /* ---------------- NORMALIZE LEAD ---------------- */
 const normalizeLead = (lead) => {
   // Treat "Cold" as "None" for backward compatibility
-  const normalizedQuality = (lead.lead_quality === "Cold" || !lead.lead_quality) ? "None" : lead.lead_quality;
-  
+  const normalizedQuality =
+    lead.lead_quality === "Cold" || !lead.lead_quality
+      ? "None"
+      : lead.lead_quality;
+
   const obj = {
     id: lead.id,
     created_time: lead.created_time,
@@ -210,6 +216,13 @@ export default function FranchiseLeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalLeads, setTotalLeads] = useState(0);
+  const [dbStats, setDbStats] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    followup: 0,
+    onboard: 0,
+  });
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLead, setSelectedLead] = useState(null);
@@ -237,10 +250,23 @@ export default function FranchiseLeadsPage() {
   const [showAddLeadModal, setShowAddLeadModal] = useState(false);
   const [newLead, setNewLead] = useState({ lead_quality: "None" });
   const [showMeetingModal, setShowMeetingModal] = useState(false);
-  const [meetingData, setMeetingData] = useState({ date: "", link: "", meetingId: "", passcode: "" });
+  const [meetingData, setMeetingData] = useState({
+    date: "",
+    link: "",
+    meetingId: "",
+    passcode: "",
+  });
+
+  const [selectedRows, setSelectedRows] = useState([]);
+  const handleSelectRow = (rowId) => {
+    setSelectedRows((prev) =>
+      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+    );
+  };
 
   // State add karo component ke top me
-const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(false);
+  const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] =
+    useState(false);
 
   const handleFilterChange = (setter, value) => {
     setFilterLoading(true);
@@ -261,7 +287,9 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   });
   const [franchiseFollowUpFilter, setFranchiseFollowUpFilter] = useState("all");
   /** All scheduled follow-ups (filter=all) for voice alerts + pending strip */
-  const [franchiseFollowUpLeadsAll, setFranchiseFollowUpLeadsAll] = useState([]);
+  const [franchiseFollowUpLeadsAll, setFranchiseFollowUpLeadsAll] = useState(
+    [],
+  );
   const [franchiseFollowUpLeadsAllLoaded, setFranchiseFollowUpLeadsAllLoaded] =
     useState(false);
 
@@ -270,18 +298,23 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
     () => franchiseFollowUpFilter !== "all",
     [franchiseFollowUpFilter],
   );
-  const [franchiseFollowUpsLoading, setFranchiseFollowUpsLoading] = useState(false);
+  const [franchiseFollowUpsLoading, setFranchiseFollowUpsLoading] =
+    useState(false);
   const [franchiseByAgentOpen, setFranchiseByAgentOpen] = useState(false);
-  const [franchiseFollowLeadsOpen, setFranchiseFollowLeadsOpen] = useState(false);
+  const [franchiseFollowLeadsOpen, setFranchiseFollowLeadsOpen] =
+    useState(false);
   /** franchiseAdmin: pending strip — Call Not Picked vs Call Back Later */
-  const [franchisePendingRemarkTab, setFranchisePendingRemarkTab] = useState(
-    "call_not_picked",
-  );
-  
+  const [franchisePendingRemarkTab, setFranchisePendingRemarkTab] =
+    useState("call_not_picked");
+
   // Revenue state
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [revenueModalLead, setRevenueModalLead] = useState(null);
-  const [revenueData, setRevenueData] = useState({ amount: "", screenshot: null, notes: "" });
+  const [revenueData, setRevenueData] = useState({
+    amount: "",
+    screenshot: null,
+    notes: "",
+  });
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [revenueCount, setRevenueCount] = useState(0);
@@ -289,7 +322,7 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   const [fullViewImage, setFullViewImage] = useState(null);
   const [onboardBreakdown, setOnboardBreakdown] = useState([]);
   const [editingLeadId, setEditingLeadId] = useState(null);
-  const [editNameValue, setEditNameValue] = useState('');
+  const [editNameValue, setEditNameValue] = useState("");
   const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
 
   const franchiseFollowUpFilterLabel = useMemo(() => {
@@ -385,32 +418,36 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   const fetchRevenue = async () => {
     const userEmail = localStorage.getItem("email");
     const userRole = localStorage.getItem("role");
-    
+
     if (!userEmail || !userRole) return;
 
     try {
       const res = await fetch(
-        `/api/franchise-revenue?email=${userEmail}&role=${userRole}`
+        `/api/franchise-revenue?email=${userEmail}&role=${userRole}`,
       );
-      
+
+      console.log("frenchiese response: ", res);
+
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
           // For superAdmin, show only franchise revenue on this page
-          if (userRole === 'superAdmin' || userRole === 'superFranchiseAdmin') {
+          if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
             setTotalRevenue(data.totalFranchiseRevenue || 0);
             setRevenueCount(data.franchiseLeadCount || 0);
           } else {
             setTotalRevenue(data.totalRevenue || 0);
             setRevenueCount(data.count || 0);
           }
-          
+
           // Check for paid leads and update status
           const status = {};
           if (data.revenue) {
             data.revenue
-              .filter(rev => rev.type === 'franchise_lead' && rev.paymentScreenshot)
-              .forEach(rev => {
+              .filter(
+                (rev) => rev.type === "franchise_lead" && rev.paymentScreenshot,
+              )
+              .forEach((rev) => {
                 if (!status[rev.leadId]) {
                   status[rev.leadId] = rev.paymentScreenshot;
                 }
@@ -419,16 +456,19 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
           }
 
           // Calculate Onboard Leads Breakdown for super admins
-          if ((userRole === 'superAdmin' || userRole === 'superFranchiseAdmin') && data.revenue) {
+          if (
+            (userRole === "superAdmin" || userRole === "superFranchiseAdmin") &&
+            data.revenue
+          ) {
             const breakdown = data.revenue
-              .filter(rev => rev.type === 'franchise_lead')
+              .filter((rev) => rev.type === "franchise_lead")
               .reduce((acc, rev) => {
                 const adminId = rev.onboardedBy?._id;
                 if (!adminId) return acc;
 
                 if (!acc[adminId]) {
                   acc[adminId] = {
-                    name: rev.onboardedBy.fullName || 'Unknown Admin',
+                    name: rev.onboardedBy.fullName || "Unknown Admin",
                     count: 0,
                     revenue: 0,
                   };
@@ -437,7 +477,9 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
                 acc[adminId].revenue += rev.amount || 0;
                 return acc;
               }, {});
-            setOnboardBreakdown(Object.values(breakdown).sort((a, b) => b.revenue - a.revenue));
+            setOnboardBreakdown(
+              Object.values(breakdown).sort((a, b) => b.revenue - a.revenue),
+            );
           }
         }
       }
@@ -453,33 +495,80 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
     const userEmail = localStorage.getItem("email");
 
+    // Dynamic Date Calculation on Frontend
+    let startDateParam = "";
+    let endDateParam = "";
+    const now = new Date();
+
+    if (dateRange === "today") {
+      startDateParam = new Date(now.toDateString()).toISOString();
+    } else if (dateRange === "week") {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      startDateParam = new Date(d.toDateString()).toISOString();
+    } else if (dateRange === "month") {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      startDateParam = new Date(d.toDateString()).toISOString();
+    } else if (dateRange === "custom" && customStartDate && customEndDate) {
+      startDateParam = customStartDate;
+      endDateParam = customEndDate;
+    }
+
     try {
-      const res = await fetch(
-        `/api/franchise-leads?formId=${formId}&limit=3000&summary=true&email=${userEmail || ""}` +
-          `&remarkFilter=${encodeURIComponent(remarkFilter)}&remarkCountFilter=${encodeURIComponent(remarkCountFilter)}`
-      );
-      
+      const queryParams = new URLSearchParams({
+        formId: formId,
+        page: currentPage.toString(),
+        limit: PAGE_SIZE.toString(),
+        email: userEmail || "",
+        status: statusFilter,
+        assigneeId: assigneeFilter,
+        lead_quality: qualityFilter,
+        remarkFilter: remarkFilter,
+        remarkCountFilter: remarkCountFilter,
+        search: search,
+        startDate: startDateParam,
+        endDate: endDateParam,
+      });
+
+      const res = await fetch(`/api/franchise-leads?${queryParams.toString()}`);
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
 
       if (data.success) {
         const normalizedLeads = data.leads.map(normalizeLead);
         setLeads(normalizedLeads);
-        setTotalLeads(data.summary?.total_count || normalizedLeads.length);
-        
-        // Populate remark history from fetched leads
+
+        // Use filtered_count for active total pagination
+        setTotalLeads(data.summary?.filtered_count || normalizedLeads.length);
+
+        // Save overall database summary statistics
+        if (data.summary) {
+          setDbStats({
+            total: data.summary.total_count || 0,
+            active: data.summary.active_count || 0,
+            inactive: data.summary.inactive_count || 0,
+            followup: data.summary.followup_count || 0,
+            onboard: data.summary.onboard_count || 0,
+          });
+        }
+
+        // Populate remark history
         const history = {};
-        normalizedLeads.forEach(lead => {
+        normalizedLeads.forEach((lead) => {
           if (lead.remarks && lead.remarks.length > 0) {
-            history[lead.id] = lead.remarks.map(r => ({
-              text: r.text,
-              timestamp: new Date(r.addedAt).toLocaleString(),
-              user: r.addedBy,
-              followUpDate: r.followUpDate,
-            })).reverse(); // Show newest first
+            history[lead.id] = lead.remarks
+              .map((r) => ({
+                text: r.text,
+                timestamp: new Date(r.addedAt).toLocaleString(),
+                user: r.addedBy,
+                followUpDate: r.followUpDate,
+              }))
+              .reverse();
           }
         });
         setRemarkHistory(history);
@@ -565,14 +654,22 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
     fetchFranchiseAdmins();
   }, [formId, fetchFranchiseAdmins]);
 
+  // Re-fetch API whenever page or any filter parameter changes
   useEffect(() => {
-    if (!remarkFilterMounted.current) {
-      remarkFilterMounted.current = true;
-      return;
-    }
-
     fetchLeads();
-  }, [remarkFilter, remarkCountFilter]);
+  }, [
+    formId,
+    currentPage,
+    statusFilter,
+    assigneeFilter,
+    remarkFilter,
+    remarkCountFilter,
+    qualityFilter,
+    search,
+    dateRange,
+    customStartDate,
+    customEndDate,
+  ]);
 
   /* ---------------- FETCH ADMINS & ROLE ---------------- */
   useEffect(() => {
@@ -607,10 +704,16 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   useEffect(() => {
     const email = localStorage.getItem("email");
     const r = localStorage.getItem("role");
-    if (!email || !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")) return;
+    if (
+      !email ||
+      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+    )
+      return;
     (async () => {
       try {
-        const cRes = await fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`);
+        const cRes = await fetch(
+          `/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`,
+        );
         const cData = await cRes.json();
         if (cData.success) setFranchiseCallStats(cData.stats);
       } catch (e) {
@@ -622,13 +725,17 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   useEffect(() => {
     const email = localStorage.getItem("email");
     const r = localStorage.getItem("role");
-    if (!email || !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")) return;
+    if (
+      !email ||
+      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+    )
+      return;
     let cancelled = false;
     (async () => {
       setFranchiseFollowUpsLoading(true);
       try {
         const res = await fetch(
-          `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`
+          `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`,
         );
         const data = await res.json();
         if (!cancelled && data.success) {
@@ -707,28 +814,29 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
     // Date filter
     if (dateRange !== "all") {
       const now = new Date();
-      result = result.filter(lead => {
+      result = result.filter((lead) => {
         if (!lead.created_time) return false;
         const leadDate = new Date(lead.created_time); // Lead date
         const leadDateOnly = new Date(leadDate.toDateString()); // Normalize to midnight
         const todayOnly = new Date(now.toDateString());
-        
-        if (dateRange === "today") return leadDateOnly.getTime() === todayOnly.getTime();
+
+        if (dateRange === "today")
+          return leadDateOnly.getTime() === todayOnly.getTime();
         if (dateRange === "week") {
-            const diffTime = Math.abs(todayOnly - leadDateOnly);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays <= 7;
+          const diffTime = Math.abs(todayOnly - leadDateOnly);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 7;
         }
         if (dateRange === "month") {
-            const diffTime = Math.abs(todayOnly - leadDateOnly);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays <= 30;
+          const diffTime = Math.abs(todayOnly - leadDateOnly);
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return diffDays <= 30;
         }
         if (dateRange === "custom" && customStartDate && customEndDate) {
-            const start = new Date(customStartDate);
-            const end = new Date(customEndDate);
-            end.setHours(23, 59, 59, 999); // Include the end date fully
-            return leadDate >= start && leadDate <= end;
+          const start = new Date(customStartDate);
+          const end = new Date(customEndDate);
+          end.setHours(23, 59, 59, 999); // Include the end date fully
+          return leadDate >= start && leadDate <= end;
         }
         return true;
       });
@@ -756,45 +864,53 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
     // Status filter
     if (statusFilter !== "All") {
-      result = result.filter(lead => lead.status === statusFilter);
+      result = result.filter((lead) => lead.status === statusFilter);
     }
 
     // Assignee Filter
     if (assigneeFilter !== "All") {
       if (assigneeFilter === "Unassigned") {
-        result = result.filter(lead => !lead.assignedFranchiseAdmin);
+        result = result.filter((lead) => !lead.assignedFranchiseAdmin);
       } else {
-        result = result.filter(lead => lead.assignedFranchiseAdmin?._id === assigneeFilter);
+        result = result.filter(
+          (lead) => lead.assignedFranchiseAdmin?._id === assigneeFilter,
+        );
       }
     }
 
     // Remark Filter
     if (remarkFilter !== "All") {
       if (remarkFilter === "Has Remarks") {
-        result = result.filter(lead => lead.remarks && lead.remarks.length > 0);
+        result = result.filter(
+          (lead) => lead.remarks && lead.remarks.length > 0,
+        );
       } else if (remarkFilter === "No Remarks") {
-        result = result.filter(lead => !lead.remarks || lead.remarks.length === 0);
+        result = result.filter(
+          (lead) => !lead.remarks || lead.remarks.length === 0,
+        );
       } else {
-        result = result.filter(lead => lead.remarks?.some(r => r.text === remarkFilter));
+        result = result.filter((lead) =>
+          lead.remarks?.some((r) => r.text === remarkFilter),
+        );
       }
     }
 
     // Remark Count Filter
     if (remarkCountFilter !== "All") {
       if (remarkCountFilter === "1 Remark") {
-        result = result.filter(lead => lead.remarks?.length === 1);
+        result = result.filter((lead) => lead.remarks?.length === 1);
       } else if (remarkCountFilter === "2 Remarks") {
-        result = result.filter(lead => lead.remarks?.length === 2);
+        result = result.filter((lead) => lead.remarks?.length === 2);
       } else if (remarkCountFilter === "3 Remarks") {
-        result = result.filter(lead => lead.remarks?.length === 3);
+        result = result.filter((lead) => lead.remarks?.length === 3);
       } else if (remarkCountFilter === "More than 3 Remarks") {
-        result = result.filter(lead => (lead.remarks?.length || 0) > 3);
+        result = result.filter((lead) => (lead.remarks?.length || 0) > 3);
       }
     }
 
     // Quality Filter
     if (qualityFilter !== "All") {
-      result = result.filter(lead => lead.lead_quality === qualityFilter);
+      result = result.filter((lead) => lead.lead_quality === qualityFilter);
     }
 
     // Follow-up bucket cards — narrow main table to leads in the selected window
@@ -845,8 +961,8 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   /* ---------------- ADMIN COUNTS ---------------- */
   const adminCounts = useMemo(() => {
     const counts = { Unassigned: 0 };
-    franchiseAdmins.forEach(admin => counts[admin._id] = 0); // Initialize
-    leads.forEach(lead => {
+    franchiseAdmins.forEach((admin) => (counts[admin._id] = 0)); // Initialize
+    leads.forEach((lead) => {
       const adminId = lead.assignedFranchiseAdmin?._id || "Unassigned";
       counts[adminId] = (counts[adminId] || 0) + 1;
     });
@@ -854,11 +970,7 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   }, [leads, franchiseAdmins]);
 
   /* ---------------- PAGINATION ---------------- */
-  const paginatedLeads = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    return filteredLeads.slice(start, end);
-  }, [filteredLeads, currentPage, PAGE_SIZE]);
+  const paginatedLeads = leads;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -878,25 +990,37 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
   /* ---------------- STATS ---------------- */
   const stats = useMemo(() => {
-    const sourceData = filteredLeads;
-
-    const today = sourceData.filter((l) => {
-      if (!l.created_time) return false;
-      return new Date(l.created_time).toDateString() === new Date().toDateString();
-    }).length;
-
-    const activeCount = sourceData.filter(l => l.status === "Active").length;
-    const followUpCount = sourceData.filter(l => l.status === "Follow Up").length;
-    const onboardCount = sourceData.filter(l => l.status === "Onboard").length;
-    const inactiveCount = sourceData.filter(l => l.status === "Inactive").length;
-
     const baseStats = [
-      { label: "Total Leads", value: sourceData.length, icon: Users, color: "text-blue-600" },
-      { label: "New Today", value: today, icon: TrendingUp, color: "text-green-600" },
-      { label: "Active", value: activeCount, icon: Activity, color: "text-blue-600" },
-      { label: "Follow Up", value: followUpCount, icon: Clock, color: "text-yellow-600" },
-      { label: "Onboard", value: onboardCount, icon: UserCheck, color: "text-green-600" },
-      { label: "Inactive", value: inactiveCount, icon: UserX, color: "text-gray-600" },
+      {
+        label: "Total Leads",
+        value: dbStats.total,
+        icon: Users,
+        color: "text-blue-600",
+      },
+      {
+        label: "Active",
+        value: dbStats.active,
+        icon: Activity,
+        color: "text-blue-600",
+      },
+      {
+        label: "Follow Up",
+        value: dbStats.followup,
+        icon: Clock,
+        color: "text-yellow-600",
+      },
+      {
+        label: "Onboard",
+        value: dbStats.onboard,
+        icon: UserCheck,
+        color: "text-green-600",
+      },
+      {
+        label: "Inactive",
+        value: dbStats.inactive,
+        icon: UserX,
+        color: "text-gray-600",
+      },
     ];
 
     // Add Revenue stat
@@ -904,27 +1028,27 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
       label: "Total Revenue",
       value: `₹${totalRevenue.toLocaleString()}`,
       icon: DollarSign,
-      color: "text-emerald-600", 
+      color: "text-emerald-600",
       subtitle: `${revenueCount} Franchises`,
     });
 
     return baseStats;
-  }, [dateFilteredLeads, totalRevenue, revenueCount]);
+  }, [dbStats, totalRevenue, revenueCount]);
 
   /* ---------------- STATUS CHANGE ---------------- */
   const handleStatusChange = async (id, newStatus) => {
     try {
       const res = await fetch(`/api/franchise-leads`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: id, status: newStatus })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: id, status: newStatus }),
       });
-      
+
       if (res.ok) {
         setLeads((prev) =>
           prev.map((lead) =>
-            lead.id === id ? { ...lead, status: newStatus } : lead
-          )
+            lead.id === id ? { ...lead, status: newStatus } : lead,
+          ),
         );
       } else {
         console.error("Failed to update status");
@@ -939,15 +1063,15 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
     // Optimistic update
     setLeads((prev) =>
       prev.map((lead) =>
-        lead.id === id ? { ...lead, lead_quality: newQuality } : lead
-      )
+        lead.id === id ? { ...lead, lead_quality: newQuality } : lead,
+      ),
     );
 
     try {
       await fetch(`/api/franchise-leads`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: id, lead_quality: newQuality })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: id, lead_quality: newQuality }),
       });
     } catch (error) {
       console.error("Error updating quality:", error);
@@ -961,7 +1085,10 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
       const res = await fetch("/api/franchise-leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, assignedFranchiseAdminId: newAdminId || null }),
+        body: JSON.stringify({
+          leadId,
+          assignedFranchiseAdminId: newAdminId || null,
+        }),
       });
       const data = await res.json();
 
@@ -969,9 +1096,12 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
         setLeads((prevLeads) =>
           prevLeads.map((lead) =>
             lead.id === leadId
-              ? { ...lead, assignedFranchiseAdmin: data.lead.assignedFranchiseAdmin }
-              : lead
-          )
+              ? {
+                  ...lead,
+                  assignedFranchiseAdmin: data.lead.assignedFranchiseAdmin,
+                }
+              : lead,
+          ),
         );
       } else {
         alert(data.message || "Failed to assign lead");
@@ -1017,17 +1147,23 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
   const handleBulkAssign = async () => {
     if (!bulkAssignee || selectedLeads.length === 0) return;
-    if (!confirm(`Assign ${selectedLeads.length} leads to selected admin?`)) return;
+    if (!confirm(`Assign ${selectedLeads.length} leads to selected admin?`))
+      return;
 
     setLoading(true);
     try {
-      await Promise.all(selectedLeads.map(leadId => 
-        fetch("/api/franchise-leads", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ leadId, assignedFranchiseAdminId: bulkAssignee }),
-        })
-      ));
+      await Promise.all(
+        selectedLeads.map((leadId) =>
+          fetch("/api/franchise-leads", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              leadId,
+              assignedFranchiseAdminId: bulkAssignee,
+            }),
+          }),
+        ),
+      );
       await fetchLeads();
       setSelectedLeads([]);
       setBulkAssignee("");
@@ -1212,7 +1348,10 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
         setRevenueData({ amount: "", screenshot: null, notes: "" });
         fetchRevenue(); // Refresh revenue data
         // Optimistically update the UI to show the "Paid" tag
-        setLeadRevenueStatus(prev => ({ ...prev, [revenueModalLead.id]: true }));
+        setLeadRevenueStatus((prev) => ({
+          ...prev,
+          [revenueModalLead.id]: true,
+        }));
       } else {
         toast.error(data.message || "Failed to add revenue");
       }
@@ -1234,15 +1373,19 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
       const res = await fetch("/api/franchise-leads", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId, full_name: editNameValue.trim() })
+        body: JSON.stringify({ leadId, full_name: editNameValue.trim() }),
       });
       const data = await res.json();
       if (data.success) {
         // Optimistic update already happened, but refresh to be safe
         toast.success("Name updated successfully");
-        setLeads(prev => prev.map(lead =>
-          lead.id === leadId ? { ...lead, full_name: editNameValue.trim() } : lead
-        ));
+        setLeads((prev) =>
+          prev.map((lead) =>
+            lead.id === leadId
+              ? { ...lead, full_name: editNameValue.trim() }
+              : lead,
+          ),
+        );
         handleCancelEdit();
       } else {
         toast.error(data.message || "Failed to update name");
@@ -1258,7 +1401,7 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
   const handleCancelEdit = () => {
     setEditingLeadId(null);
-    setEditNameValue('');
+    setEditNameValue("");
   };
 
   /* ---------------- DELETE LEAD ---------------- */
@@ -1288,15 +1431,22 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
 
   const handleBulkDelete = async () => {
     if (selectedLeads.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selectedLeads.length} leads? This cannot be undone.`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedLeads.length} leads? This cannot be undone.`,
+      )
+    )
+      return;
 
     setLoading(true);
     try {
-      await Promise.all(selectedLeads.map(leadId => 
-        fetch(`/api/franchise-leads?leadId=${leadId}`, {
-          method: "DELETE",
-        })
-      ));
+      await Promise.all(
+        selectedLeads.map((leadId) =>
+          fetch(`/api/franchise-leads?leadId=${leadId}`, {
+            method: "DELETE",
+          }),
+        ),
+      );
       await fetchLeads();
       setSelectedLeads([]);
     } catch (err) {
@@ -1315,7 +1465,7 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
   //   }
 
   //   // Optimistic update
-  //   setLeads(prev => prev.map(lead => 
+  //   setLeads(prev => prev.map(lead =>
   //     lead.id === leadId ? { ...lead, full_name: editNameValue.trim() } : lead
   //   ));
 
@@ -1352,11 +1502,11 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
     const remarkMap = {
       "Call Not Picked": "call_not_picked",
       "Not Interested": "not_interested",
-      "Interested": "interested",
+      Interested: "interested",
       "Call Back Later": "call_back",
       "Wrong Number": "wrong_number",
       "Switch Off": "switch_off",
-      "Meeting Scheduled": "meeting_scheduled_online"
+      "Meeting Scheduled": "meeting_scheduled_online",
     };
 
     const remark = remarkMap[remarkType];
@@ -1375,26 +1525,26 @@ const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] = useState(f
       return false;
     }
 
-  let executiveMobile = lead.assignedFranchiseAdmin?.mobileNumber;
+    let executiveMobile = lead.assignedFranchiseAdmin?.mobileNumber;
 
-if (!executiveMobile && typeof window !== "undefined") {
-  const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
-  const email = (localStorage.getItem("email") || "").toLowerCase();
+    if (!executiveMobile && typeof window !== "undefined") {
+      const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
+      const email = (localStorage.getItem("email") || "").toLowerCase();
 
-  const adminMobileMap = {
-    omprakash: "9355105058",
-    karan: "9311203803",
-    nagendra: "9311203803",
-  };
+      const adminMobileMap = {
+        omprakash: "9355105058",
+        karan: "9311203803",
+        nagendra: "9311203803",
+      };
 
-  const matchedAdmin = Object.keys(adminMobileMap).find(
-    key => adminName.includes(key) || email.includes(key)
-  );
+      const matchedAdmin = Object.keys(adminMobileMap).find(
+        (key) => adminName.includes(key) || email.includes(key),
+      );
 
-  if (matchedAdmin) {
-    executiveMobile = adminMobileMap[matchedAdmin];
-  }
-}
+      if (matchedAdmin) {
+        executiveMobile = adminMobileMap[matchedAdmin];
+      }
+    }
 
     const payload = {
       destination: phone,
@@ -1423,13 +1573,13 @@ if (!executiveMobile && typeof window !== "undefined") {
         meetingDate: payload.meetingDate,
         meetingLink: payload.meetingLink,
         meetingId: payload.meetingId,
-        passcode: payload.passcode
+        passcode: payload.passcode,
       };
       fetch("/api/admin/email-send-remarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(emailPayload),
-      }).catch(err => console.error("Email send failed", err));
+      }).catch((err) => console.error("Email send failed", err));
     }
 
     try {
@@ -1442,7 +1592,9 @@ if (!executiveMobile && typeof window !== "undefined") {
       const data = await res.json();
 
       if (data.success) {
-        toast.success("Success! Remark has been successfully sent to the user via WhatsApp.");
+        toast.success(
+          "Success! Remark has been successfully sent to the user via WhatsApp.",
+        );
         return true;
       } else {
         toast.error(`Failed: ${data.message}`);
@@ -1516,32 +1668,36 @@ if (!executiveMobile && typeof window !== "undefined") {
 
     try {
       const res = await fetch(`/api/franchise-leads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          leadId: remarkModalLead.id, 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          leadId: remarkModalLead.id,
           text: newRemark,
           addedBy: "Admin",
           agentId: agentId,
           agentName: agentName,
           adminEmail: localStorage.getItem("email") || undefined,
-          ...(effectiveFollowUpIso ? { followUpDate: effectiveFollowUpIso } : {}),
-        })
+          ...(effectiveFollowUpIso
+            ? { followUpDate: effectiveFollowUpIso }
+            : {}),
+        }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        const updatedRemarks = data.remarks.map(r => ({
-          text: r.text,
-          timestamp: new Date(r.addedAt).toLocaleString(),
-          user: r.addedBy,
-          followUpDate: r.followUpDate,
-        })).reverse();
+        const updatedRemarks = data.remarks
+          .map((r) => ({
+            text: r.text,
+            timestamp: new Date(r.addedAt).toLocaleString(),
+            user: r.addedBy,
+            followUpDate: r.followUpDate,
+          }))
+          .reverse();
 
-        setRemarkHistory(prev => ({
+        setRemarkHistory((prev) => ({
           ...prev,
-          [remarkModalLead.id]: updatedRemarks
+          [remarkModalLead.id]: updatedRemarks,
         }));
         setNewRemark("");
         setFollowUpDateFranchise("");
@@ -1549,15 +1705,16 @@ if (!executiveMobile && typeof window !== "undefined") {
         const email = localStorage.getItem("email");
         if (email) {
           fetch(
-            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`
+            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`,
           )
             .then((r) => r.json())
             .then((d) => {
-              if (d.success) setFranchiseFollowUpStats((prev) => ({ ...prev, ...d.stats }));
+              if (d.success)
+                setFranchiseFollowUpStats((prev) => ({ ...prev, ...d.stats }));
             })
             .catch(() => {});
           fetch(
-            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=all`
+            `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=all`,
           )
             .then((r) => r.json())
             .then((d) => {
@@ -1567,7 +1724,9 @@ if (!executiveMobile && typeof window !== "undefined") {
               }
             })
             .catch(() => {});
-          fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`)
+          fetch(
+            `/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`,
+          )
             .then((r) => r.json())
             .then((d) => {
               if (d.success) setFranchiseCallStats(d.stats);
@@ -1591,7 +1750,7 @@ if (!executiveMobile && typeof window !== "undefined") {
 
     // Save Remark
     const remarkText = `Meeting Scheduled on ${meetingData.date}`;
-    
+
     const agentId =
       remarkModalLead.assignedFranchiseAdmin?._id ||
       localStorage.getItem("adminId") ||
@@ -1603,30 +1762,37 @@ if (!executiveMobile && typeof window !== "undefined") {
 
     try {
       const res = await fetch(`/api/franchise-leads`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: remarkModalLead.id,
           text: remarkText,
           addedBy: "Admin",
           agentId: agentId,
-          agentName: agentName
-        })
+          agentName: agentName,
+        }),
       });
       const data = await res.json();
       if (data.success) {
-        const updatedRemarks = data.remarks.map(r => ({
-          text: r.text,
-          timestamp: new Date(r.addedAt).toLocaleString(),
-          user: r.addedBy,
-          followUpDate: r.followUpDate,
-        })).reverse();
-        setRemarkHistory(prev => ({ ...prev, [remarkModalLead.id]: updatedRemarks }));
+        const updatedRemarks = data.remarks
+          .map((r) => ({
+            text: r.text,
+            timestamp: new Date(r.addedAt).toLocaleString(),
+            user: r.addedBy,
+            followUpDate: r.followUpDate,
+          }))
+          .reverse();
+        setRemarkHistory((prev) => ({
+          ...prev,
+          [remarkModalLead.id]: updatedRemarks,
+        }));
         setShowMeetingModal(false);
         setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
         const email = localStorage.getItem("email");
         if (email) {
-          fetch(`/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`)
+          fetch(
+            `/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`,
+          )
             .then((r) => r.json())
             .then((d) => {
               if (d.success) setFranchiseCallStats(d.stats);
@@ -1640,37 +1806,34 @@ if (!executiveMobile && typeof window !== "undefined") {
   };
 
   // Send Message button par click hote hi
-// selected lead ke phone_number par WhatsApp template chala jayega
+  // selected lead ke phone_number par WhatsApp template chala jayega
 
   const handleSendTemplateMessage = async () => {
-  if (!selectedLead && selectedLeads.length === 0) {
-    toast.error("Please select at least one lead");
-    return;
-  }
+    if (!selectedLead && selectedLeads.length === 0) {
+      toast.error("Please select at least one lead");
+      return;
+    }
 
-  let leadToSend = selectedLead;
+    let leadToSend = selectedLead;
 
-  if (!leadToSend && selectedLeads.length > 0) {
-    const selectedId = franchiseLeadIdKey(selectedLeads[0]);
-    leadToSend = leads.find(
-      (lead) => franchiseLeadIdKey(lead.id) === selectedId
-    );
-  }
+    if (!leadToSend && selectedLeads.length > 0) {
+      const selectedId = franchiseLeadIdKey(selectedLeads[0]);
+      leadToSend = leads.find(
+        (lead) => franchiseLeadIdKey(lead.id) === selectedId,
+      );
+    }
 
-  if (!leadToSend) {
-    toast.error("Lead not found");
-    return;
-  }
+    if (!leadToSend) {
+      toast.error("Lead not found");
+      return;
+    }
 
-  setSendingFranchiseMsg(true);
+    setSendingFranchiseMsg(true);
 
-  try {
-    const firstName =
-      leadToSend.full_name?.split(" ")[0] || "firstname";
+    try {
+      const firstName = leadToSend.full_name?.split(" ")[0] || "firstname";
 
-    const response = await fetch(
-      "/api/franchise-leads/send-template",
-      {
+      const response = await fetch("/api/franchise-leads/send-template", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1679,54 +1842,66 @@ if (!executiveMobile && typeof window !== "undefined") {
           phone: leadToSend.phone_number,
           firstName: firstName,
         }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Message sent to ${leadToSend.full_name}`);
+        setIsWhatsappTemplateModalOpen(false);
+        setSelectedLeads([]);
+      } else {
+        toast.error(data.message || "Failed to send message");
       }
-    );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      toast.success(
-        `Message sent to ${leadToSend.full_name}`
-      );
-      setIsWhatsappTemplateModalOpen(false);
-      setSelectedLeads([]);
-    } else {
-      toast.error(data.message || "Failed to send message");
+    } catch (error) {
+      console.error("WhatsApp send error:", error);
+      toast.error("Failed to send WhatsApp template");
+    } finally {
+      setSendingFranchiseMsg(false);
     }
-  } catch (error) {
-    console.error("WhatsApp send error:", error);
-    toast.error("Failed to send WhatsApp template");
-  } finally {
-    setSendingFranchiseMsg(false);
-  }
-};
+  };
 
   /* ---------------- EXPORT TO CSV ---------------- */
   const handleExport = () => {
-    const headers = ["Name", "City", "Occupation", "Investment", "Phone", "Email", "Date", "Status"];
+    const headers = [
+      "Name",
+      "City",
+      "Occupation",
+      "Investment",
+      "Phone",
+      "Email",
+      "Date",
+      "Status",
+    ];
     const csvContent = [
       headers.join(","),
-      ...filteredLeads.map(lead => [
-        lead.full_name || "",
-        lead.city || "",
-        lead["what_is_your_current_occupation?"] || "",
-        lead.mention_investment_rang || "",
-        lead.phone_number || "",
-        lead.email || "",
-        lead.created_time ? new Date(lead.created_time).toLocaleDateString() : "",
-        lead.status || ""
-      ].map(field => `"${field}"`).join(","))
+      ...filteredLeads.map((lead) =>
+        [
+          lead.full_name || "",
+          lead.city || "",
+          lead["what_is_your_current_occupation?"] || "",
+          lead.mention_investment_rang || "",
+          lead.phone_number || "",
+          lead.email || "",
+          lead.created_time
+            ? new Date(lead.created_time).toLocaleDateString()
+            : "",
+          lead.status || "",
+        ]
+          .map((field) => `"${field}"`)
+          .join(","),
+      ),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `franchise-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `franchise-leads-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   };
 
-  const totalPages = Math.ceil(filteredLeads.length / PAGE_SIZE);
+  const totalPages = Math.ceil(totalLeads / PAGE_SIZE);
 
   const selectedIvrAtLabel = selectedLead
     ? formatIvrInterestedAtDisplay(selectedLead.ivrMeInterestedAt)
@@ -1736,7 +1911,6 @@ if (!executiveMobile && typeof window !== "undefined") {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
       <Toaster position="top-right" />
       <div className="max-w-6xl mx-auto space-y-6">
-
         {/* HEADER */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex flex-col lg:flex-row justify-between gap-4">
@@ -1747,11 +1921,12 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </div>
                 Franchise Leads Dashboard
               </h1>
-              <p className="text-gray-500 mt-2">Manage and track your franchise leads efficiently</p>
+              <p className="text-gray-500 mt-2">
+                Manage and track your franchise leads efficiently
+              </p>
             </div>
 
             <div className="flex flex-wrap gap-2">
-
               {/* <button
                 onClick={handleExport}
                 className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl bg-white hover:bg-gray-50 transition-colors"
@@ -1760,7 +1935,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Export
               </button> */}
 
-              {(role === "superFranchiseAdmin" || role === "superAdmin" || role==="franchiseAdmin") && (
+              {(role === "superFranchiseAdmin" ||
+                role === "superAdmin" ||
+                role === "franchiseAdmin") && (
                 <button
                   onClick={() => setShowAddLeadModal(true)}
                   className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm"
@@ -1775,18 +1952,21 @@ if (!executiveMobile && typeof window !== "undefined") {
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm disabled:opacity-50"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </button>
             </div>
           </div>
 
-
           {/* FILTERS */}
           <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Filters:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Filters:
+              </span>
             </div>
 
             {filterLoading && (
@@ -1803,7 +1983,9 @@ if (!executiveMobile && typeof window !== "undefined") {
             >
               <option value="All">All Status</option>
               {STATUS_STEPS.map((s) => (
-                <option key={s.label} value={s.label}>{s.label}</option>
+                <option key={s.label} value={s.label}>
+                  {s.label}
+                </option>
               ))}
             </select>
 
@@ -1816,27 +1998,35 @@ if (!executiveMobile && typeof window !== "undefined") {
                 <option value="All">All Assignees</option>
                 <option value="Unassigned">Unassigned</option>
                 {franchiseAdmins.map((admin) => (
-                  <option key={admin._id} value={admin._id}>{admin.fullName}</option>
+                  <option key={admin._id} value={admin._id}>
+                    {admin.fullName}
+                  </option>
                 ))}
               </select>
             )}
 
             <select
               value={remarkFilter}
-              onChange={(e) => handleFilterChange(setRemarkFilter, e.target.value)}
+              onChange={(e) =>
+                handleFilterChange(setRemarkFilter, e.target.value)
+              }
               className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Remarks</option>
               <option value="Has Remarks">Has Remarks</option>
               <option value="No Remarks">No Remarks</option>
               {QUICK_REMARKS.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>
+                  {r}
+                </option>
               ))}
             </select>
 
             <select
               value={remarkCountFilter}
-              onChange={(e) => handleFilterChange(setRemarkCountFilter, e.target.value)}
+              onChange={(e) =>
+                handleFilterChange(setRemarkCountFilter, e.target.value)
+              }
               className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="All">All Remark Counts</option>
@@ -1853,7 +2043,9 @@ if (!executiveMobile && typeof window !== "undefined") {
             >
               <option value="All">All Qualities</option>
               {LEAD_QUALITIES.map((q) => (
-                <option key={q.value} value={q.value}>{q.label}</option>
+                <option key={q.value} value={q.value}>
+                  {q.label}
+                </option>
               ))}
             </select>
 
@@ -1887,7 +2079,14 @@ if (!executiveMobile && typeof window !== "undefined") {
               </div>
             )}
 
-            {(search || statusFilter !== "All" || dateRange !== "all" || remarkFilter !== "All" || remarkCountFilter !== "All" || qualityFilter !== "All" || ivrLeadTab !== "all" || assigneeFilter !== "All") && (
+            {(search ||
+              statusFilter !== "All" ||
+              dateRange !== "all" ||
+              remarkFilter !== "All" ||
+              remarkCountFilter !== "All" ||
+              qualityFilter !== "All" ||
+              ivrLeadTab !== "all" ||
+              assigneeFilter !== "All") && (
               <button
                 onClick={() => {
                   setSearch("");
@@ -1911,7 +2110,9 @@ if (!executiveMobile && typeof window !== "undefined") {
 
           {/* All leads vs IVR interested — one active at a time */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 pt-4 mt-2 border-t border-gray-100">
-            <span className="text-sm font-medium text-gray-600 shrink-0">Lead list</span>
+            <span className="text-sm font-medium text-gray-600 shrink-0">
+              Lead list
+            </span>
             <div
               className="inline-flex flex-wrap p-1 bg-slate-100/90 rounded-xl gap-1 border border-slate-200/80"
               role="tablist"
@@ -1930,7 +2131,7 @@ if (!executiveMobile && typeof window !== "undefined") {
               >
                 All leads
                 <span className="ml-1.5 tabular-nums text-slate-500 font-bold">
-                  ({baseFilteredLeads.length})
+                  ({totalLeads})
                 </span>
               </button>
               <button
@@ -1955,8 +2156,9 @@ if (!executiveMobile && typeof window !== "undefined") {
             </div>
             {ivrLeadTab === "ivr" && (
               <p className="text-xs text-violet-700/90 sm:ml-auto max-w-md leading-snug">
-                Showing only leads marked IVR interested (press keys during IVR). Use{" "}
-                <strong>All leads</strong> to see everyone with your current filters.
+                Showing only leads marked IVR interested (press keys during
+                IVR). Use <strong>All leads</strong> to see everyone with your
+                current filters.
               </p>
             )}
           </div>
@@ -1967,7 +2169,9 @@ if (!executiveMobile && typeof window !== "undefined") {
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-red-900">Error Loading Leads</h3>
+              <h3 className="font-semibold text-red-900">
+                Error Loading Leads
+              </h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
               <button
                 onClick={fetchLeads}
@@ -1979,42 +2183,56 @@ if (!executiveMobile && typeof window !== "undefined") {
           </div>
         )}
 
-{/* STATS */}
+        {/* STATS */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          {loading ? (
-            [...Array(7)].map((_, i) => (
-              <div key={`stat-skeleton-${i}`} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 animate-pulse">
-                <div className="w-12 h-12 bg-gray-200 rounded-xl mb-3 mx-auto" />
-                <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
-                <div className="h-8 bg-gray-200 rounded w-full" />
-                <div className="h-3 bg-gray-200 rounded w-1/2 mt-2" />
-              </div>
-            ))
-          ) : (
-            stats.map((s, i) => (
-              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow">
-                <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
-                <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">{s.label}</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">{s.value}</p>
-                {s.subtitle && (
-                  <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
-                )}
-              </div>
-            ))
-          )}
+          {loading
+            ? [...Array(7)].map((_, i) => (
+                <div
+                  key={`stat-skeleton-${i}`}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 animate-pulse"
+                >
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl mb-3 mx-auto" />
+                  <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
+                  <div className="h-8 bg-gray-200 rounded w-full" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2 mt-2" />
+                </div>
+              ))
+            : stats.map((s, i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"
+                >
+                  <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
+                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                    {s.label}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {s.value}
+                  </p>
+                  {s.subtitle && (
+                    <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
+                  )}
+                </div>
+              ))}
         </div>
 
-        {["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(role) && (
+        {["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(
+          role,
+        ) && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex flex-wrap items-center gap-2">
               <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                 <Phone className="text-indigo-600" size={18} />
               </div>
               <div className="min-w-0 flex-1">
-                <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">Calls &amp; follow-ups</h2>
+                <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
+                  Calls &amp; follow-ups
+                </h2>
                 <p className="text-[11px] text-gray-500">
                   Franchise lead calls and scheduled follow-ups
-                  {role === "franchiseAdmin" ? " (your activity)" : " (all agents)"}
+                  {role === "franchiseAdmin"
+                    ? " (your activity)"
+                    : " (all agents)"}
                 </p>
               </div>
               {(role === "superAdmin" || role === "superFranchiseAdmin") && (
@@ -2031,17 +2249,23 @@ if (!executiveMobile && typeof window !== "undefined") {
 
             <div className="p-4 md:p-5 space-y-5">
               <div>
-                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Calls</p>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                  Calls
+                </p>
                 {role === "franchiseAdmin" ? (
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-3 border border-violet-100">
-                      <p className="text-[10px] font-semibold uppercase text-violet-600">Calls today</p>
+                      <p className="text-[10px] font-semibold uppercase text-violet-600">
+                        Calls today
+                      </p>
                       <p className="text-2xl font-bold text-violet-800 mt-1 tabular-nums">
                         {franchiseCallStats?.myCallsToday ?? "—"}
                       </p>
                     </div>
                     <div className="bg-gradient-to-br from-blue-50 to-sky-50 rounded-xl p-3 border border-blue-100">
-                      <p className="text-[10px] font-semibold uppercase text-blue-600">Total calls</p>
+                      <p className="text-[10px] font-semibold uppercase text-blue-600">
+                        Total calls
+                      </p>
                       <p className="text-2xl font-bold text-blue-800 mt-1 tabular-nums">
                         {franchiseCallStats?.myCallsTotal ?? "—"}
                       </p>
@@ -2050,29 +2274,39 @@ if (!executiveMobile && typeof window !== "undefined") {
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
                     <div className="shrink-0 bg-blue-50 border border-blue-200 rounded-xl p-4 min-w-[140px] flex flex-col justify-center">
-                      <span className="text-[11px] text-blue-700 font-semibold uppercase">Total today</span>
+                      <span className="text-[11px] text-blue-700 font-semibold uppercase">
+                        Total today
+                      </span>
                       <span className="text-2xl font-bold text-blue-900 tabular-nums">
                         {franchiseCallStats?.totalCallsToday ?? "—"}
                       </span>
-                      <span className="text-[10px] text-blue-600/80">all agents</span>
+                      <span className="text-[10px] text-blue-600/80">
+                        all agents
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0 overflow-x-auto pb-1 -mx-1 px-1">
                       <div className="flex gap-2 min-w-min">
-                        {(franchiseCallStats?.todayCallsByAgent || []).map((agent) => (
-                          <div
-                            key={agent.agentName || agent._id}
-                            className="min-w-[112px] max-w-[140px] bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
-                          >
-                            <span
-                              className="text-[10px] text-gray-500 truncate capitalize"
-                              title={agent.agentName}
+                        {(franchiseCallStats?.todayCallsByAgent || []).map(
+                          (agent) => (
+                            <div
+                              key={agent.agentName || agent._id}
+                              className="min-w-[112px] max-w-[140px] bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col"
                             >
-                              {agent.agentName || "—"}
-                            </span>
-                            <span className="text-xl font-bold text-gray-900 tabular-nums">{agent.count}</span>
-                            <span className="text-[9px] text-gray-400">calls</span>
-                          </div>
-                        ))}
+                              <span
+                                className="text-[10px] text-gray-500 truncate capitalize"
+                                title={agent.agentName}
+                              >
+                                {agent.agentName || "—"}
+                              </span>
+                              <span className="text-xl font-bold text-gray-900 tabular-nums">
+                                {agent.count}
+                              </span>
+                              <span className="text-[9px] text-gray-400">
+                                calls
+                              </span>
+                            </div>
+                          ),
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2087,24 +2321,79 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </p>
                 <div
                   className={`grid grid-cols-2 gap-2 ${
-                    role === "franchiseAdmin" ? "md:grid-cols-3 lg:grid-cols-5" : "md:grid-cols-4"
+                    role === "franchiseAdmin"
+                      ? "md:grid-cols-3 lg:grid-cols-5"
+                      : "md:grid-cols-4"
                   }`}
                 >
-                  {(
-                    role === "franchiseAdmin"
-                      ? [
-                          { key: "all", label: "All leads", count: leads.length, bg: "bg-gray-600", ring: "ring-gray-400" },
-                          { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
-                          { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
-                          { key: "next7days", label: "Next 7 Days", count: franchiseFollowUpStats.next7DaysFollowUps, bg: "bg-violet-500", ring: "ring-violet-400" },
-                          { key: "thisMonth", label: "This Month", count: franchiseFollowUpStats.thisMonthFollowUps, bg: "bg-emerald-500", ring: "ring-emerald-400" },
-                        ]
-                      : [
-                          { key: "today", label: "Today", count: franchiseFollowUpStats.todayFollowUps, bg: "bg-amber-500", ring: "ring-amber-400" },
-                          { key: "tomorrow", label: "Tomorrow", count: franchiseFollowUpStats.tomorrowFollowUps, bg: "bg-rose-500", ring: "ring-rose-400" },
-                          { key: "thisMonth", label: "This Month", count: franchiseFollowUpStats.thisMonthFollowUps, bg: "bg-emerald-500", ring: "ring-emerald-400" },
-                          { key: "all", label: "All Time", count: franchiseFollowUpStats.totalFollowUps, bg: "bg-gray-600", ring: "ring-gray-400" },
-                        ]
+                  {(role === "franchiseAdmin"
+                    ? [
+                        {
+                          key: "all",
+                          label: "All leads",
+                          count: leads.length,
+                          bg: "bg-gray-600",
+                          ring: "ring-gray-400",
+                        },
+                        {
+                          key: "today",
+                          label: "Today",
+                          count: franchiseFollowUpStats.todayFollowUps,
+                          bg: "bg-amber-500",
+                          ring: "ring-amber-400",
+                        },
+                        {
+                          key: "tomorrow",
+                          label: "Tomorrow",
+                          count: franchiseFollowUpStats.tomorrowFollowUps,
+                          bg: "bg-rose-500",
+                          ring: "ring-rose-400",
+                        },
+                        {
+                          key: "next7days",
+                          label: "Next 7 Days",
+                          count: franchiseFollowUpStats.next7DaysFollowUps,
+                          bg: "bg-violet-500",
+                          ring: "ring-violet-400",
+                        },
+                        {
+                          key: "thisMonth",
+                          label: "This Month",
+                          count: franchiseFollowUpStats.thisMonthFollowUps,
+                          bg: "bg-emerald-500",
+                          ring: "ring-emerald-400",
+                        },
+                      ]
+                    : [
+                        {
+                          key: "today",
+                          label: "Today",
+                          count: franchiseFollowUpStats.todayFollowUps,
+                          bg: "bg-amber-500",
+                          ring: "ring-amber-400",
+                        },
+                        {
+                          key: "tomorrow",
+                          label: "Tomorrow",
+                          count: franchiseFollowUpStats.tomorrowFollowUps,
+                          bg: "bg-rose-500",
+                          ring: "ring-rose-400",
+                        },
+                        {
+                          key: "thisMonth",
+                          label: "This Month",
+                          count: franchiseFollowUpStats.thisMonthFollowUps,
+                          bg: "bg-emerald-500",
+                          ring: "ring-emerald-400",
+                        },
+                        {
+                          key: "all",
+                          label: "All Time",
+                          count: franchiseFollowUpStats.totalFollowUps,
+                          bg: "bg-gray-600",
+                          ring: "ring-gray-400",
+                        },
+                      ]
                   ).map(({ key, label, count, bg, ring }) => {
                     const active = franchiseFollowUpFilter === key;
                     return (
@@ -2118,11 +2407,21 @@ if (!executiveMobile && typeof window !== "undefined") {
                             : "bg-gray-50 text-gray-700 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                         }`}
                       >
-                        <p className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}>
+                        <p
+                          className={`text-[10px] font-bold uppercase tracking-wide ${active ? "text-white/80" : "text-gray-500"}`}
+                        >
                           Follow-ups
                         </p>
-                        <p className={`text-xl font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}>{count}</p>
-                        <p className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}>{label}</p>
+                        <p
+                          className={`text-xl font-black mt-0.5 ${active ? "text-white" : "text-gray-800"}`}
+                        >
+                          {count}
+                        </p>
+                        <p
+                          className={`text-[10px] mt-0.5 ${active ? "text-white/70" : "text-gray-400"}`}
+                        >
+                          {label}
+                        </p>
                       </button>
                     );
                   })}
@@ -2134,7 +2433,10 @@ if (!executiveMobile && typeof window !== "undefined") {
                   <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/80 p-3 md:p-4 shadow-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                       <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
-                        <AlertCircle size={14} className="text-orange-500 shrink-0" />
+                        <AlertCircle
+                          size={14}
+                          className="text-orange-500 shrink-0"
+                        />
                         Pending follow-ups (due or overdue)
                       </p>
                       <p className="text-[10px] text-slate-500 font-medium">
@@ -2150,7 +2452,8 @@ if (!executiveMobile && typeof window !== "undefined") {
                         {
                           id: "call_not_picked",
                           label: "Call Not Picked",
-                          count: franchisePendingByRemark.call_not_picked.length,
+                          count:
+                            franchisePendingByRemark.call_not_picked.length,
                           activeClass:
                             "bg-orange-500 text-white shadow-md ring-2 ring-orange-300",
                           idleClass:
@@ -2159,7 +2462,8 @@ if (!executiveMobile && typeof window !== "undefined") {
                         {
                           id: "call_back_later",
                           label: "Call Back Later",
-                          count: franchisePendingByRemark.call_back_later.length,
+                          count:
+                            franchisePendingByRemark.call_back_later.length,
                           activeClass:
                             "bg-teal-600 text-white shadow-md ring-2 ring-teal-300",
                           idleClass:
@@ -2211,8 +2515,10 @@ if (!executiveMobile && typeof window !== "undefined") {
                           : franchisePendingRemarkTab === "call_back_later"
                             ? franchisePendingByRemark.call_back_later
                             : franchisePendingByRemark.other;
-                      const isCnp = franchisePendingRemarkTab === "call_not_picked";
-                      const isCbl = franchisePendingRemarkTab === "call_back_later";
+                      const isCnp =
+                        franchisePendingRemarkTab === "call_not_picked";
+                      const isCbl =
+                        franchisePendingRemarkTab === "call_back_later";
                       const cardBorder = isCnp
                         ? "border-orange-200 hover:border-orange-400 hover:bg-orange-50/50"
                         : isCbl
@@ -2295,7 +2601,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                     >
                       <div className="flex items-center gap-2">
                         <UserCheck size={13} className="text-indigo-500" />
-                        <span className="text-xs font-bold text-gray-700">Follow-ups by agent</span>
+                        <span className="text-xs font-bold text-gray-700">
+                          Follow-ups by agent
+                        </span>
                         <span className="text-[10px] font-semibold bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
                           {(franchiseFollowUpStats.byAgent || []).length} agents
                         </span>
@@ -2313,103 +2621,123 @@ if (!executiveMobile && typeof window !== "undefined") {
                         <table className="w-full text-xs min-w-[640px]">
                           <thead className="sticky top-0 z-10 shadow-sm">
                             <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-100">
-
-                               <th className="px-4 py-2.5 text-center">
-          <input
-            type="checkbox"
-            checked={
-              (franchiseFollowUpStats.byAgent || []).length > 0 &&
-              selectedRows.length ===
-                (franchiseFollowUpStats.byAgent || []).length
-            }
-            onChange={(e) => handleSelectAll(e.target.checked)}
-            className="w-4 h-4 accent-blue-600 cursor-pointer"
-          />
-        </th>
+                              <th className="px-4 py-2.5 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    (franchiseFollowUpStats.byAgent || [])
+                                      .length > 0 &&
+                                    selectedRows.length ===
+                                      (franchiseFollowUpStats.byAgent || [])
+                                        .length
+                                  }
+                                  onChange={(e) =>
+                                    handleSelectAll(e.target.checked)
+                                  }
+                                  className="w-4 h-4 accent-blue-600 cursor-pointer"
+                                />
+                              </th>
 
                               <th className="px-4 py-2.5 text-left">Agent</th>
-                              <th className="px-3 py-2.5 text-center text-sky-600">Today</th>
-                              <th className="px-3 py-2.5 text-center text-rose-600">Tomorrow</th>
-                              <th className="px-3 py-2.5 text-center text-violet-600">7 Days</th>
-                              <th className="px-3 py-2.5 text-center text-green-600">Month</th>
-                              <th className="px-3 py-2.5 text-center text-amber-600">Total</th>
+                              <th className="px-3 py-2.5 text-center text-sky-600">
+                                Today
+                              </th>
+                              <th className="px-3 py-2.5 text-center text-rose-600">
+                                Tomorrow
+                              </th>
+                              <th className="px-3 py-2.5 text-center text-violet-600">
+                                7 Days
+                              </th>
+                              <th className="px-3 py-2.5 text-center text-green-600">
+                                Month
+                              </th>
+                              <th className="px-3 py-2.5 text-center text-amber-600">
+                                Total
+                              </th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
-                            {(franchiseFollowUpStats.byAgent || []).map((agent, idx) => {
-                              const colors = [
-                                "bg-indigo-500",
-                                "bg-teal-500",
-                                "bg-violet-500",
-                                "bg-rose-500",
-                                "bg-amber-500",
-                                "bg-blue-500",
-                              ];
-                              const c = colors[idx % colors.length];
-                              const name = agent.agentName || "Unknown";
-                              return (
-                                <tr key={`franchise-fu-agent-${idx}`} className="hover:bg-gray-50 transition-colors">
-
+                            {(franchiseFollowUpStats.byAgent || []).map(
+                              (agent, idx) => {
+                                const colors = [
+                                  "bg-indigo-500",
+                                  "bg-teal-500",
+                                  "bg-violet-500",
+                                  "bg-rose-500",
+                                  "bg-amber-500",
+                                  "bg-blue-500",
+                                ];
+                                const c = colors[idx % colors.length];
+                                const name = agent.agentName || "Unknown";
+                                const rowId = agent._id || agent.agentName || String(idx);
+                                return (
+                                  <tr
+                                    key={`franchise-fu-agent-${idx}`}
+                                    className="hover:bg-gray-50 transition-colors"
+                                  >
                                     {/* Row Checkbox */}
-            <td className="px-4 py-2.5 text-center">
-              <input
-                type="checkbox"
-                checked={selectedRows.includes(rowId)}
-                onChange={() => handleSelectRow(rowId)}
-                className="w-4 h-4 accent-blue-600 cursor-pointer"
-              />
-            </td>
+                                    <td className="px-4 py-2.5 text-center">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedRows.includes(rowId)}
+                                        onChange={() => handleSelectRow(rowId)}
+                                        className="w-4 h-4 accent-blue-600 cursor-pointer"
+                                      />
+                                    </td>
 
-                                  <td className="px-4 py-2.5">
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}
-                                      >
-                                        {String(name).charAt(0).toUpperCase()}
+                                    <td className="px-4 py-2.5">
+                                      <div className="flex items-center gap-2">
+                                        <div
+                                          className={`w-6 h-6 rounded-full ${c} text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0`}
+                                        >
+                                          {String(name).charAt(0).toUpperCase()}
+                                        </div>
+                                        <span className="font-medium text-gray-800 capitalize truncate max-w-[140px]">
+                                          {name}
+                                        </span>
                                       </div>
-                                      <span className="font-medium text-gray-800 capitalize truncate max-w-[140px]">
-                                        {name}
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span
+                                        className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                      >
+                                        {agent.today || 0}
                                       </span>
-                                    </div>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <span
-                                      className={`font-bold ${agent.today > 0 ? "text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
-                                    >
-                                      {agent.today || 0}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <span
-                                      className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
-                                    >
-                                      {agent.tomorrow || 0}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <span
-                                      className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
-                                    >
-                                      {agent.next7days || 0}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <span
-                                      className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
-                                    >
-                                      {agent.thisMonth || 0}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2.5 text-center">
-                                    <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
-                                      {agent.total || 0}
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span
+                                        className={`font-bold ${agent.tomorrow > 0 ? "text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                      >
+                                        {agent.tomorrow || 0}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span
+                                        className={`font-bold ${agent.next7days > 0 ? "text-violet-700 bg-violet-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                      >
+                                        {agent.next7days || 0}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span
+                                        className={`font-bold ${agent.thisMonth > 0 ? "text-green-700 bg-green-50 px-2 py-0.5 rounded-full" : "text-gray-300"}`}
+                                      >
+                                        {agent.thisMonth || 0}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-center">
+                                      <span className="font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                                        {agent.total || 0}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              },
+                            )}
                             <tr className="bg-gray-50 font-bold border-t-2 border-gray-200">
-                              <td className="px-4 py-2 text-xs text-gray-600 font-bold">ALL AGENTS</td>
+                              <td className="px-4 py-2 text-xs text-gray-600 font-bold">
+                                ALL AGENTS
+                              </td>
                               <td className="px-3 py-2 text-center text-sky-700 font-black">
                                 {franchiseFollowUpStats.todayFollowUps}
                               </td>
@@ -2486,36 +2814,47 @@ if (!executiveMobile && typeof window !== "undefined") {
                             <th className="px-3 py-2 font-semibold">Phone</th>
                             <th className="px-3 py-2 font-semibold">Agent</th>
                             <th className="px-3 py-2 font-semibold">Remark</th>
-                            <th className="px-3 py-2 font-semibold text-right">Follow-up</th>
+                            <th className="px-3 py-2 font-semibold text-right">
+                              Follow-up
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                          {(franchiseFollowUpStats.leads || []).map((lead, idx) => (
-                            <tr key={idx} className="hover:bg-violet-50/40">
-                              <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
-                                {lead.fullName || lead.leadId || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{lead.phone || "—"}</td>
-                              <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
-                                {lead.agentName || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate" title={lead.remark}>
-                                {lead.remark || "—"}
-                              </td>
-                              <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
-                                {lead.followUpDate
-                                  ? new Date(lead.followUpDate).toLocaleString("en-IN", {
-                                      day: "numeric",
-                                      month: "short",
-                                      year: "2-digit",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                      hour12: true,
-                                    })
-                                  : "—"}
-                              </td>
-                            </tr>
-                          ))}
+                          {(franchiseFollowUpStats.leads || []).map(
+                            (lead, idx) => (
+                              <tr key={idx} className="hover:bg-violet-50/40">
+                                <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                                  {lead.fullName || lead.leadId || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                  {lead.phone || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-gray-700 capitalize whitespace-nowrap">
+                                  {lead.agentName || "—"}
+                                </td>
+                                <td
+                                  className="px-3 py-2 text-gray-500 max-w-[200px] truncate"
+                                  title={lead.remark}
+                                >
+                                  {lead.remark || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-right whitespace-nowrap text-violet-700 font-semibold">
+                                  {lead.followUpDate
+                                    ? new Date(
+                                        lead.followUpDate,
+                                      ).toLocaleString("en-IN", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                        hour12: true,
+                                      })
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ),
+                          )}
                         </tbody>
                       </table>
                     )}
@@ -2525,139 +2864,117 @@ if (!executiveMobile && typeof window !== "undefined") {
             </div>
           </div>
         )}
-        
-        {/* Onboard Leads Breakdown */}
-        {/* {(role === "superAdmin" || role === "superFranchiseAdmin") && onboardBreakdown.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Onboard Leads Breakdown</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {onboardBreakdown.map((adminData, index) => (
-                <div key={index} className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold ${getAvatarColor(adminData.name)}`}>
-                    {adminData.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-800">{adminData.name}</p>
-                    <div className="mt-1 flex gap-4">
-                      <div>
-                        <p className="text-lg font-bold text-blue-600">{adminData.count}</p>
-                        <p className="text-xs text-gray-500">Leads</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-green-600">₹{adminData.revenue.toLocaleString()}</p>
-                        <p className="text-xs text-gray-500">Revenue</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )} */}
 
         {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
-       {(role === "superFranchiseAdmin" || role === "superAdmin") && franchiseAdmins.length > 0 && (
-  <div className="flex flex-wrap gap-3 pb-2">
+        {(role === "superFranchiseAdmin" || role === "superAdmin") &&
+          franchiseAdmins.length > 0 && (
+            <div className="flex flex-wrap gap-3 pb-2">
+              {/* Unassigned Count */}
+              <div
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
+              >
+                <User className="w-3 h-3" />
+                <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
+              </div>
 
-    {/* Unassigned Count */}
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}>
-      <User className="w-3 h-3" />
-      <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
-    </div>
+              {franchiseAdmins.map((admin) => {
+                const count = adminCounts[admin._id] || 0;
 
-    {franchiseAdmins.map(admin => {
-      const count = adminCounts[admin._id] || 0;
-
-      return (
-        <div
-          key={admin._id}
-          className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm text-sm font-medium transition-all duration-200
+                return (
+                  <div
+                    key={admin._id}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm text-sm font-medium transition-all duration-200
             ${getAvatarColor(admin.fullName)} 
-            ${!admin.isActive ? 'opacity-60' : ''}`}
-        >
-          <User className="w-4 h-4" />
-          <span className="font-semibold">
-            {admin.fullName}: {count}
-          </span>
+            ${!admin.isActive ? "opacity-60" : ""}`}
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="font-semibold">
+                      {admin.fullName}: {count}
+                    </span>
 
-          {/* STATUS TOGGLE BUTTON */}
-          <button
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/admin/franchise-admins", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    adminId: admin._id,
-                    isActive: !admin.isActive
-                  })
-                });
+                    {/* STATUS TOGGLE BUTTON */}
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(
+                            "/api/admin/franchise-admins",
+                            {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                adminId: admin._id,
+                                isActive: !admin.isActive,
+                              }),
+                            },
+                          );
 
-                const data = await res.json();
+                          const data = await res.json();
 
-                if (data.success) {
-                  fetchFranchiseAdmins();
-                }
-              } catch (error) {
-                console.error("Error toggling admin status:", error);
-              }
-            }}
-            className={`ml-2 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border
+                          if (data.success) {
+                            fetchFranchiseAdmins();
+                          }
+                        } catch (error) {
+                          console.error("Error toggling admin status:", error);
+                        }
+                      }}
+                      className={`ml-2 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border
               ${
                 admin.isActive
                   ? "bg-green-500 text-white hover:bg-green-600 border-green-600"
                   : "bg-red-500 text-white hover:bg-red-600 border-red-600"
               }`}
-          >
-            {admin.isActive ? (
-              <>
-                <UserCheck className="w-3 h-3" />
-                Active
-              </>
-            ) : (
-              <>
-                <UserX className="w-3 h-3" />
-                Inactive
-              </>
-            )}
-          </button>
-        </div>
-      );
-    })}
-  </div>
-)}
-
-          {/* SEARCH BAR */}
-          <div className="mt-6 mb-2">
-{franchiseFollowUpTableActive && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
-                  <span className="text-indigo-600/90">Table filter:</span>
-                  <span className="text-rose-700">{franchiseFollowUpFilterLabel}</span>
-                </span>
-                {franchiseFollowUpFilter !== "all" && (
-                  <button
-                    type="button"
-                    onClick={() => setFranchiseFollowUpFilter("all")}
-                    className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    Clear — all leads
-                  </button>
-                )}
-              </div>
-            )}
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search name, phone, email, city or occupation..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 hover:bg-white transition-all shadow-sm"
-              />
+                    >
+                      {admin.isActive ? (
+                        <>
+                          <UserCheck className="w-3 h-3" />
+                          Active
+                        </>
+                      ) : (
+                        <>
+                          <UserX className="w-3 h-3" />
+                          Inactive
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+          )}
+
+        {/* SEARCH BAR */}
+        <div className="mt-6 mb-2">
+          {franchiseFollowUpTableActive && (
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-gradient-to-r from-rose-50 via-indigo-50 to-indigo-50 text-indigo-900 border border-indigo-200/70 shadow-sm">
+                <span className="text-indigo-600/90">Table filter:</span>
+                <span className="text-rose-700">
+                  {franchiseFollowUpFilterLabel}
+                </span>
+              </span>
+              {franchiseFollowUpFilter !== "all" && (
+                <button
+                  type="button"
+                  onClick={() => setFranchiseFollowUpFilter("all")}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear — all leads
+                </button>
+              )}
+            </div>
+          )}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search name, phone, email, city or occupation..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 hover:bg-white transition-all shadow-sm"
+            />
           </div>
+        </div>
 
         {canSelectFranchiseLeads && filteredLeads.length > 0 && (
           <div className="mt-2 mb-1 flex flex-wrap items-center gap-2">
@@ -2677,8 +2994,10 @@ if (!executiveMobile && typeof window !== "undefined") {
         {canSelectFranchiseLeads && selectedLeads.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl flex flex-wrap items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center gap-3">
-              <span className="font-semibold text-blue-800">{selectedLeads.length} leads selected</span>
-              <button 
+              <span className="font-semibold text-blue-800">
+                {selectedLeads.length} leads selected
+              </span>
+              <button
                 onClick={() => setSelectedLeads([])}
                 className="text-xs text-blue-600 hover:text-blue-800 underline"
               >
@@ -2695,7 +3014,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                   >
                     <option value="">Select Admin to Assign</option>
                     {franchiseAdmins.map((admin) => (
-                      <option key={admin._id} value={admin._id}>{admin.fullName}</option>
+                      <option key={admin._id} value={admin._id}>
+                        {admin.fullName}
+                      </option>
                     ))}
                   </select>
                   <button
@@ -2722,24 +3043,24 @@ if (!executiveMobile && typeof window !== "undefined") {
                 Send to WhatsApp
               </button>
 
-                  {/* WhatsApp Template Button */}
-<button
-  type="button"
-  onClick={() => setIsWhatsappTemplateModalOpen(true)}
-  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
->
-  <Send className="w-4 h-4" />
-  WhatsApp Template
-</button>
+              {/* WhatsApp Template Button */}
+              <button
+                type="button"
+                onClick={() => setIsWhatsappTemplateModalOpen(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                WhatsApp Template
+              </button>
 
               {role === "superAdmin" && (
-              <button
-                onClick={handleBulkDelete}
-                disabled={loading}
-                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Selected
-              </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={loading}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete Selected
+                </button>
               )}
             </div>
           </div>
@@ -2748,134 +3069,162 @@ if (!executiveMobile && typeof window !== "undefined") {
         {/* TABLE */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="max-h-[600px] overflow-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10 shadow-sm">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  {canSelectFranchiseLeads && (
+                    <th className="px-6 py-4 text-left">
+                      <input
+                        type="checkbox"
+                        title="Select all on this page"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                        checked={
+                          paginatedLeads.length > 0 &&
+                          paginatedLeads.every((l) =>
+                            selectedLeadIdSet.has(franchiseLeadIdKey(l.id)),
+                          )
+                        }
+                        onChange={handleSelectAll}
+                      />
+                    </th>
+                  )}
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
+                      Name
+                      <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
+                      Date
+                      <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Source
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Remarks
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
+                      Status
+                      <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Assign To
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Contact
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    WhatsApp
+                  </th>
+
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
+                      City
+                      <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
+                    </div>
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Occupation
+                  </th>
+                  <th className="px-2 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
+                      Investment
+                      <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-gray-100">
+                {loading ||
+                (franchiseFollowUpTableActive && franchiseFollowUpsLoading) ? (
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <tr key={`skeleton-${i}`} className="animate-pulse">
+                        {canSelectFranchiseLeads && (
+                          <td className="px-6 py-4">
+                            <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
+                          </td>
+                        )}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
+                            <div className="space-y-2">
+                              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+                              <div className="h-2.5 bg-gray-200 rounded w-20 animate-pulse" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-8 bg-gray-200 rounded w-24 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-6 bg-gray-200 rounded w-16 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-6 bg-gray-200 rounded w-28 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="w-20 h-6 bg-gray-200 rounded-full animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-8 bg-gray-200 rounded w-32 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+                            <div className="h-3 bg-gray-200 rounded w-20 animate-pulse" />
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="w-6 h-6 bg-gray-200 rounded-full animate-pulse ml-auto" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-4 bg-gray-200 rounded w-24 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="h-4 bg-gray-200 rounded w-28 animate-pulse" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 h-8">
+                            <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
+                            <Banknote className="w-3.5 h-3.5 text-transparent" />
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                ) : paginatedLeads.length === 0 ? (
                   <tr>
-                    {canSelectFranchiseLeads && (
-                      <th className="px-6 py-4 text-left">
-                        <input 
-                          type="checkbox" 
-                          title="Select all on this page"
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
-                          checked={
-                            paginatedLeads.length > 0 &&
-                            paginatedLeads.every((l) =>
-                              selectedLeadIdSet.has(franchiseLeadIdKey(l.id)),
-                            )
-                          }
-                          onChange={handleSelectAll}
-                        />
-                      </th>
-                    )}
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
-                        Name
-                        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
-                        Date
-                        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Source
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Remarks
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
-                        Status
-                        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Assign To
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Contact
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      WhatsApp
-                    </th>
-            
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
-                        City
-                        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
-                      </div>
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      Occupation
-                    </th>
-                    <th className="px-2 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                      <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
-                        Investment
-                        <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
-                      </div>
-                    </th>
+                    <td colSpan="8" className="py-16 text-center">
+                      <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 font-medium">
+                        No leads found
+                      </p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Try adjusting your filters or search
+                      </p>
+                    </td>
                   </tr>
-                </thead>
-
-                <tbody className="divide-y divide-gray-100">
-{loading || (franchiseFollowUpTableActive && franchiseFollowUpsLoading) ? (
-  <>
-    {[...Array(5)].map((_, i) => (
-      <tr key={`skeleton-${i}`} className="animate-pulse">
-        {canSelectFranchiseLeads && (
-          <td className="px-6 py-4">
-            <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
-          </td>
-        )}
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
-              <div className="h-2.5 bg-gray-200 rounded w-20 animate-pulse" />
-            </div>
-          </div>
-        </td>
-        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded w-24 animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded w-16 animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded w-28 animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="w-20 h-6 bg-gray-200 rounded-full animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded w-32 animate-pulse" /></td>
-        <td className="px-6 py-4">
-          <div className="space-y-1">
-            <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
-            <div className="h-3 bg-gray-200 rounded w-20 animate-pulse" />
-          </div>
-        </td>
-        <td className="px-6 py-4"><div className="w-6 h-6 bg-gray-200 rounded-full animate-pulse ml-auto" /></td>
-        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24 animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-28 animate-pulse" /></td>
-        <td className="px-6 py-4"><div className="flex items-center gap-2 h-8"><div className="h-4 bg-gray-200 rounded w-20 animate-pulse" /><Banknote className="w-3.5 h-3.5 text-transparent" /></div></td>
-      </tr>
-    ))}
-  </>
-) : paginatedLeads.length === 0 ? (
-
-                    <tr>
-                      <td colSpan="8" className="py-16 text-center">
-                        <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 font-medium">No leads found</p>
-                        <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or search</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedLeads.map((lead, idx) => {
-                      const ivrAtLabel = formatIvrInterestedAtDisplay(
-                        lead.ivrMeInterestedAt,
-                      );
-                      return (
-                      <tr key={lead.id} className="hover:bg-blue-50/50 transition-colors">
+                ) : (
+                  paginatedLeads.map((lead, idx) => {
+                    const ivrAtLabel = formatIvrInterestedAtDisplay(
+                      lead.ivrMeInterestedAt,
+                    );
+                    return (
+                      <tr
+                        key={lead.id}
+                        className="hover:bg-blue-50/50 transition-colors"
+                      >
                         {canSelectFranchiseLeads && (
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <input 
-                              type="checkbox" 
+                            <input
+                              type="checkbox"
                               title="Select lead"
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
                               checked={selectedLeadIdSet.has(
@@ -3016,14 +3365,21 @@ if (!executiveMobile && typeof window !== "undefined") {
                           <div className="mt-1">
                             <select
                               value={lead.lead_quality}
-                              onChange={(e) => handleQualityChange(lead.id, e.target.value)}
+                              onChange={(e) =>
+                                handleQualityChange(lead.id, e.target.value)
+                              }
                               className={`text-[10px] font-semibold px-2 py-0.5 rounded border cursor-pointer focus:outline-none ${
-                                LEAD_QUALITIES.find(q => q.value === lead.lead_quality)?.color || "bg-gray-100 text-gray-600 border-gray-200"
+                                LEAD_QUALITIES.find(
+                                  (q) => q.value === lead.lead_quality,
+                                )?.color ||
+                                "bg-gray-100 text-gray-600 border-gray-200"
                               }`}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {LEAD_QUALITIES.map(q => (
-                                <option key={q.value} value={q.value}>{q.label}</option>
+                              {LEAD_QUALITIES.map((q) => (
+                                <option key={q.value} value={q.value}>
+                                  {q.label}
+                                </option>
                               ))}
                             </select>
                           </div>
@@ -3031,12 +3387,16 @@ if (!executiveMobile && typeof window !== "undefined") {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {lead.created_time ? new Date(lead.created_time).toLocaleString() : "-"}
+                            {lead.created_time
+                              ? new Date(lead.created_time).toLocaleString()
+                              : "-"}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${lead.source === 'manual' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                            {lead.source === 'manual' ? 'Manual' : 'Meta'}
+                          <span
+                            className={`px-2 py-1 rounded text-xs font-medium ${lead.source === "manual" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}
+                          >
+                            {lead.source === "manual" ? "Manual" : "Meta"}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -3081,43 +3441,63 @@ if (!executiveMobile && typeof window !== "undefined") {
                                 </button>
                               )}
                             </div>
-                            <div 
-  className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
-    remarkHistory[lead.id]?.[0]?.text 
-      ? "bg-blue-50 text-blue-800 border-blue-100" 
-      : "text-gray-400 border-transparent italic"
-  }`}
-  title={remarkHistory[lead.id]?.[0]?.text || ""}
->
-  {remarkHistory[lead.id]?.[0]?.text || "No remarks"}
-</div>
-
+                            <div
+                              className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
+                                remarkHistory[lead.id]?.[0]?.text
+                                  ? "bg-blue-50 text-blue-800 border-blue-100"
+                                  : "text-gray-400 border-transparent italic"
+                              }`}
+                              title={remarkHistory[lead.id]?.[0]?.text || ""}
+                            >
+                              {remarkHistory[lead.id]?.[0]?.text ||
+                                "No remarks"}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
                             value={lead.status}
-                            onChange={(e) => handleStatusChange(lead.id, e.target.value)}
+                            onChange={(e) =>
+                              handleStatusChange(lead.id, e.target.value)
+                            }
                             className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-                              STATUS_STEPS.find(s => s.label === lead.status)?.color || "bg-gray-100 text-gray-700 border-gray-200"
+                              STATUS_STEPS.find((s) => s.label === lead.status)
+                                ?.color ||
+                              "bg-gray-100 text-gray-700 border-gray-200"
                             } cursor-pointer hover:shadow-sm transition-shadow`}
                           >
                             {STATUS_STEPS.map((s) => (
-                              <option key={s.label} value={s.label}>{s.label}</option>
+                              <option key={s.label} value={s.label}>
+                                {s.label}
+                              </option>
                             ))}
                           </select>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {(role === "superFranchiseAdmin" || role === "superAdmin") ? (
-                            <div className={`relative inline-block rounded-lg border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}>
+                          {role === "superFranchiseAdmin" ||
+                          role === "superAdmin" ? (
+                            <div
+                              className={`relative inline-block rounded-lg border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}
+                            >
                               <select
                                 className="appearance-none bg-transparent px-3 py-1.5 pr-8 rounded-lg text-xs font-bold focus:outline-none w-full max-w-[160px] cursor-pointer"
                                 value={lead.assignedFranchiseAdmin?._id || ""}
-                                onChange={(e) => handleAssignChange(lead.id, e.target.value)}
+                                onChange={(e) =>
+                                  handleAssignChange(lead.id, e.target.value)
+                                }
                               >
-                                <option value="" className="text-gray-500 bg-white">-- Unassigned --</option>
+                                <option
+                                  value=""
+                                  className="text-gray-500 bg-white"
+                                >
+                                  -- Unassigned --
+                                </option>
                                 {franchiseAdmins.map((admin) => (
-                                  <option key={admin._id} value={admin._id} className="text-gray-900 bg-white">
+                                  <option
+                                    key={admin._id}
+                                    value={admin._id}
+                                    className="text-gray-900 bg-white"
+                                  >
                                     {admin.fullName}
                                   </option>
                                 ))}
@@ -3127,8 +3507,11 @@ if (!executiveMobile && typeof window !== "undefined") {
                               </div>
                             </div>
                           ) : (
-                            <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}>
-                              {lead.assignedFranchiseAdmin?.fullName || "Unassigned"}
+                            <span
+                              className={`px-3 py-1.5 rounded-full text-xs font-bold border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}
+                            >
+                              {lead.assignedFranchiseAdmin?.fullName ||
+                                "Unassigned"}
                             </span>
                           )}
                         </td>
@@ -3147,7 +3530,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div className="relative group cursor-pointer">
-                              <div className={`p-2 rounded-full ${lead.whatsapp_count > 0 ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+                              <div
+                                className={`p-2 rounded-full ${lead.whatsapp_count > 0 ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-400"}`}
+                              >
                                 <MessageCircle className="w-5 h-5" />
                               </div>
                               {lead.whatsapp_count > 0 && (
@@ -3173,25 +3558,33 @@ if (!executiveMobile && typeof window !== "undefined") {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1.5 text-gray-600">
                             <Banknote className="w-3.5 h-3.5 text-gray-400" />
-                            <span className="text-sm">{lead.mention_investment_rang || "-"}</span>
+                            <span className="text-sm">
+                              {lead.mention_investment_rang || "-"}
+                            </span>
                           </div>
                         </td>
-                    
                       </tr>
                     );
                   })
-                  )}
-                </tbody>
-              </table>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* PAGINATION */}
           {!loading && paginatedLeads.length > 0 && (
             <div className="px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50 border-t border-gray-100">
-          <p className="text-sm text-gray-600">
-                Showing <span className="font-medium">{(currentPage - 1) * PAGE_SIZE + 1}</span> to{" "}
-                <span className="font-medium">{Math.min(currentPage * PAGE_SIZE, filteredLeads.length)}</span> of{" "}
-                <span className="font-medium">{filteredLeads.length}</span> leads
+              <p className="text-sm text-gray-600">
+                Showing{" "}
+                <span className="font-medium">
+                  {(currentPage - 1) * PAGE_SIZE + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-medium">
+                  {Math.min(currentPage * PAGE_SIZE, totalLeads)}
+                </span>{" "}
+                of <span className="font-medium">{totalLeads}</span>{" "}
+                leads
                 {franchiseFollowUpTableActive && (
                   <span className="block text-xs text-indigo-600 font-medium mt-1">
                     Follow-up window: {franchiseFollowUpFilterLabel}
@@ -3238,7 +3631,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                 </div>
 
                 <button
-                  disabled={currentPage * PAGE_SIZE >= filteredLeads.length}
+                  disabled={currentPage * PAGE_SIZE >= totalLeads}
                   onClick={() => setCurrentPage((p) => p + 1)}
                   className="p-2 border border-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white transition-colors"
                 >
@@ -3252,12 +3645,20 @@ if (!executiveMobile && typeof window !== "undefined") {
 
       {/* LEAD DETAIL MODAL */}
       {selectedLead && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedLead(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setSelectedLead(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 flex justify-between items-start">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-2xl font-bold">{selectedLead.full_name}</h2>
+                  <h2 className="text-2xl font-bold">
+                    {selectedLead.full_name}
+                  </h2>
                   {selectedLead.ivrMeInterested && (
                     <span className="inline-flex flex-col items-start gap-0.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/20 text-white border border-white/40">
                       <span>IVR interested</span>
@@ -3286,35 +3687,50 @@ if (!executiveMobile && typeof window !== "undefined") {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-gray-500 font-medium uppercase">City</label>
+                  <label className="text-xs text-gray-500 font-medium uppercase">
+                    City
+                  </label>
                   <p className="text-gray-900 mt-1 flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-gray-400" />
                     {selectedLead.city || "-"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 font-medium uppercase">Occupation</label>
-                  <p className="text-gray-900 mt-1">{selectedLead["what_is_your_current_occupation?"] || "-"}</p>
+                  <label className="text-xs text-gray-500 font-medium uppercase">
+                    Occupation
+                  </label>
+                  <p className="text-gray-900 mt-1">
+                    {selectedLead["what_is_your_current_occupation?"] || "-"}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 font-medium uppercase">Investment Range</label>
+                  <label className="text-xs text-gray-500 font-medium uppercase">
+                    Investment Range
+                  </label>
                   <p className="text-gray-900 mt-1 flex items-center gap-2">
                     <Banknote className="w-4 h-4 text-gray-400" />
                     {selectedLead.mention_investment_rang || "-"}
                   </p>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 font-medium uppercase">Status</label>
-                  <p className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    STATUS_STEPS.find(s => s.label === selectedLead.status)?.color || "bg-gray-100 text-gray-700"
-                  }`}>
+                  <label className="text-xs text-gray-500 font-medium uppercase">
+                    Status
+                  </label>
+                  <p
+                    className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                      STATUS_STEPS.find((s) => s.label === selectedLead.status)
+                        ?.color || "bg-gray-100 text-gray-700"
+                    }`}
+                  >
                     {selectedLead.status}
                   </p>
                 </div>
               </div>
 
               <div className="border-t pt-4">
-                <label className="text-xs text-gray-500 font-medium uppercase">Contact Information</label>
+                <label className="text-xs text-gray-500 font-medium uppercase">
+                  Contact Information
+                </label>
                 <div className="mt-3 space-y-2">
                   <p className="text-gray-900 flex items-center gap-2">
                     <Phone className="w-4 h-4 text-gray-400" />
@@ -3328,10 +3744,14 @@ if (!executiveMobile && typeof window !== "undefined") {
               </div>
 
               <div className="border-t pt-4">
-                <label className="text-xs text-gray-500 font-medium uppercase">Created Date</label>
+                <label className="text-xs text-gray-500 font-medium uppercase">
+                  Created Date
+                </label>
                 <p className="text-gray-900 mt-1 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-gray-400" />
-                  {selectedLead.created_time ? new Date(selectedLead.created_time).toLocaleString() : "-"}
+                  {selectedLead.created_time
+                    ? new Date(selectedLead.created_time).toLocaleString()
+                    : "-"}
                 </p>
               </div>
 
@@ -3353,12 +3773,22 @@ if (!executiveMobile && typeof window !== "undefined") {
 
       {/* REMARKS MODAL */}
       {remarkModalLead && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setRemarkModalLead(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setRemarkModalLead(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-start">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Remarks History</h2>
-                <p className="text-gray-500 mt-1">{remarkModalLead.full_name}</p>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Remarks History
+                </h2>
+                <p className="text-gray-500 mt-1">
+                  {remarkModalLead.full_name}
+                </p>
               </div>
               <button
                 onClick={() => setRemarkModalLead(null)}
@@ -3375,7 +3805,7 @@ if (!executiveMobile && typeof window !== "undefined") {
                   type="text"
                   value={newRemark}
                   onChange={(e) => setNewRemark(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleRemarkSubmit()}
+                  onKeyPress={(e) => e.key === "Enter" && handleRemarkSubmit()}
                   placeholder="Type a new remark..."
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
@@ -3402,13 +3832,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calendar size={13} className="text-amber-600" />
-                      <span className="text-xs font-bold text-amber-700">Schedule Follow-up</span>
+                      <span className="text-xs font-bold text-amber-700">
+                        Schedule Follow-up
+                      </span>
                       {followUpDateFranchise && (
                         <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold max-w-[55%] truncate text-right">
                           {(() => {
                             const rawT =
                               followUpTimeFranchise &&
-                              /^\d{1,2}:\d{2}$/.test(followUpTimeFranchise.trim())
+                              /^\d{1,2}:\d{2}$/.test(
+                                followUpTimeFranchise.trim(),
+                              )
                                 ? followUpTimeFranchise.trim()
                                 : "10:00";
                             const [hh, mm] = rawT.split(":");
@@ -3451,7 +3885,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                           <button
                             key={label}
                             type="button"
-                            onClick={() => setFollowUpDateFranchise(isActive ? "" : val)}
+                            onClick={() =>
+                              setFollowUpDateFranchise(isActive ? "" : val)
+                            }
                             className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
                               isActive
                                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
@@ -3468,13 +3904,17 @@ if (!executiveMobile && typeof window !== "undefined") {
                         type="date"
                         value={followUpDateFranchise}
                         min={new Date().toISOString().split("T")[0]}
-                        onChange={(e) => setFollowUpDateFranchise(e.target.value)}
+                        onChange={(e) =>
+                          setFollowUpDateFranchise(e.target.value)
+                        }
                         className="flex-1 min-w-[140px] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
                       />
                       <input
                         type="time"
                         value={followUpTimeFranchise}
-                        onChange={(e) => setFollowUpTimeFranchise(e.target.value)}
+                        onChange={(e) =>
+                          setFollowUpTimeFranchise(e.target.value)
+                        }
                         className="w-[120px] text-xs border border-amber-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
                         title="Follow-up time"
                       />
@@ -3493,7 +3933,8 @@ if (!executiveMobile && typeof window !== "undefined") {
                     </div>
                     {role === "franchiseAdmin" && (
                       <p className="text-[10px] text-amber-800/90 mt-1">
-                        Date and time are required when using Call Not Picked or Call Back Later.
+                        Date and time are required when using Call Not Picked or
+                        Call Back Later.
                       </p>
                     )}
                   </div>
@@ -3511,38 +3952,49 @@ if (!executiveMobile && typeof window !== "undefined") {
 
               {/* Remarks History */}
               <div className="border-t pt-6">
-                <h3 className="text-sm font-semibold text-gray-700 uppercase mb-4">Remark History</h3>
-                
+                <h3 className="text-sm font-semibold text-gray-700 uppercase mb-4">
+                  Remark History
+                </h3>
+
                 {remarkHistory[remarkModalLead.id]?.length > 0 ? (
                   <div className="space-y-3">
                     {remarkHistory[remarkModalLead.id].map((remark, idx) => (
                       <div
                         key={idx}
                         className={`p-4 rounded-xl border-2 ${
-                          idx === 0 ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'
+                          idx === 0
+                            ? "bg-green-50 border-green-200"
+                            : "bg-gray-50 border-gray-200"
                         }`}
                       >
                         <div className="flex justify-between items-start mb-2">
-                          <span className="text-xs font-semibold text-gray-600 uppercase">Remark</span>
+                          <span className="text-xs font-semibold text-gray-600 uppercase">
+                            Remark
+                          </span>
                           {idx === 0 && (
                             <span className="px-2 py-0.5 bg-green-600 text-white text-xs rounded-full font-medium">
                               Latest
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-900 font-medium mb-2">{remark.text}</p>
+                        <p className="text-gray-900 font-medium mb-2">
+                          {remark.text}
+                        </p>
                         {remark.followUpDate && (
                           <p className="text-[11px] text-amber-700 font-semibold mb-1.5 flex items-center gap-1">
                             <Calendar className="w-3 h-3 shrink-0" />
                             Follow-up:{" "}
-                            {new Date(remark.followUpDate).toLocaleString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              hour12: true,
-                            })}
+                            {new Date(remark.followUpDate).toLocaleString(
+                              "en-IN",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              },
+                            )}
                           </p>
                         )}
                         <p className="text-xs text-gray-500 flex items-center gap-1">
@@ -3556,7 +4008,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                   <div className="text-center py-12">
                     <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500 font-medium">No remarks yet</p>
-                    <p className="text-sm text-gray-400 mt-1">Add your first remark above</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Add your first remark above
+                    </p>
                   </div>
                 )}
               </div>
@@ -3567,68 +4021,104 @@ if (!executiveMobile && typeof window !== "undefined") {
 
       {/* ADD LEAD MODAL */}
       {showAddLeadModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowAddLeadModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setShowAddLeadModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-800">Add New Lead</h2>
-              <button onClick={() => setShowAddLeadModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button
+                onClick={() => setShowAddLeadModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Full Name</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.full_name || ""}
-                    onChange={(e) => setNewLead({ ...newLead, full_name: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, full_name: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Phone Number
+                  </label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.phone_number || ""}
-                    onChange={(e) => setNewLead({ ...newLead, phone_number: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, phone_number: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
                   <input
                     type="email"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.email || ""}
-                    onChange={(e) => setNewLead({ ...newLead, email: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, email: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">City</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    City
+                  </label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.city || ""}
-                    onChange={(e) => setNewLead({ ...newLead, city: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, city: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Occupation</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Occupation
+                  </label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.occupation || ""}
-                    onChange={(e) => setNewLead({ ...newLead, occupation: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({ ...newLead, occupation: e.target.value })
+                    }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Investment Range</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Investment Range
+                  </label>
                   <input
                     type="text"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={newLead.investment_range || ""}
-                    onChange={(e) => setNewLead({ ...newLead, investment_range: e.target.value })}
+                    onChange={(e) =>
+                      setNewLead({
+                        ...newLead,
+                        investment_range: e.target.value,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -3657,7 +4147,9 @@ if (!executiveMobile && typeof window !== "undefined") {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-800">Schedule Meeting</h2>
+              <h2 className="text-xl font-bold text-gray-800">
+                Schedule Meeting
+              </h2>
               <button
                 onClick={() => setShowMeetingModal(false)}
                 className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
@@ -3668,44 +4160,63 @@ if (!executiveMobile && typeof window !== "undefined") {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Date & Time</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Date & Time
+                </label>
                 <input
                   type="datetime-local"
                   value={meetingData.date}
-                  onChange={(e) => setMeetingData({ ...meetingData, date: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, date: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting Link</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting Link
+                </label>
                 <input
                   type="text"
                   placeholder="https://zoom.us/..."
                   value={meetingData.link}
-                  onChange={(e) => setMeetingData({ ...meetingData, link: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, link: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meeting ID</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Meeting ID
+                </label>
                 <input
                   type="text"
                   placeholder="Meeting ID"
                   value={meetingData.meetingId}
-                  onChange={(e) => setMeetingData({ ...meetingData, meetingId: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({
+                      ...meetingData,
+                      meetingId: e.target.value,
+                    })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Passcode (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Passcode (Optional)
+                </label>
                 <input
                   type="text"
                   placeholder="123456"
                   value={meetingData.passcode}
-                  onChange={(e) => setMeetingData({ ...meetingData, passcode: e.target.value })}
+                  onChange={(e) =>
+                    setMeetingData({ ...meetingData, passcode: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -3727,8 +4238,12 @@ if (!executiveMobile && typeof window !== "undefined") {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">OnBoarded Franchise</h2>
-                <p className="text-sm text-gray-500 mt-1">{revenueModalLead.full_name}</p>
+                <h2 className="text-xl font-bold text-gray-800">
+                  OnBoarded Franchise
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {revenueModalLead.full_name}
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -3751,7 +4266,9 @@ if (!executiveMobile && typeof window !== "undefined") {
                   type="number"
                   placeholder="Enter amount"
                   value={revenueData.amount}
-                  onChange={(e) => setRevenueData({ ...revenueData, amount: e.target.value })}
+                  onChange={(e) =>
+                    setRevenueData({ ...revenueData, amount: e.target.value })
+                  }
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
@@ -3779,19 +4296,27 @@ if (!executiveMobile && typeof window !== "undefined") {
                   >
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
                     <span className="text-sm text-gray-600">
-                      {revenueData.screenshot ? revenueData.screenshot.name : "Click to upload screenshot"}
+                      {revenueData.screenshot
+                        ? revenueData.screenshot.name
+                        : "Click to upload screenshot"}
                     </span>
-                    <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10MB</span>
+                    <span className="text-xs text-gray-400 mt-1">
+                      PNG, JPG up to 10MB
+                    </span>
                   </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes (Optional)
+                </label>
                 <textarea
                   placeholder="Add any additional notes..."
                   value={revenueData.notes}
-                  onChange={(e) => setRevenueData({ ...revenueData, notes: e.target.value })}
+                  onChange={(e) =>
+                    setRevenueData({ ...revenueData, notes: e.target.value })
+                  }
                   rows="3"
                   className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
                 />
@@ -3799,7 +4324,11 @@ if (!executiveMobile && typeof window !== "undefined") {
 
               <button
                 onClick={handleRevenueSubmit}
-                disabled={uploadingScreenshot || !revenueData.amount || !revenueData.screenshot}
+                disabled={
+                  uploadingScreenshot ||
+                  !revenueData.amount ||
+                  !revenueData.screenshot
+                }
                 className="w-full py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {uploadingScreenshot ? (
@@ -3843,110 +4372,111 @@ if (!executiveMobile && typeof window !== "undefined") {
       )}
 
       {/* WhatsApp Template Modal */}
-  {/* WhatsApp Template Modal */}
-        {/* WhatsApp Template Modal */}
       {/* WhatsApp Template Modal */}
-        {/* WhatsApp Template Modal */}
-{isWhatsappTemplateModalOpen && (
-  <div className="fixed inset-0 z-50 bg-black/70 p-4">
-    {/* Center the modal and keep viewport fixed */}
-    <div className="h-full flex items-center justify-center">
-      {/* Modal Box with internal scrolling */}
-      <div className="w-full max-w-[430px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
-        
-        {/* Header (Fixed) */}
-        <div className="bg-[#0b6e5e] px-4 py-3 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
-              W
-            </div>
-            <h2 className="text-white font-semibold text-lg">
-              WhatsApp Preview
-            </h2>
-          </div>
+      {/* WhatsApp Template Modal */}
+      {/* WhatsApp Template Modal */}
+      {/* WhatsApp Template Modal */}
+      {isWhatsappTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4">
+          {/* Center the modal and keep viewport fixed */}
+          <div className="h-full flex items-center justify-center">
+            {/* Modal Box with internal scrolling */}
+            <div className="w-full max-w-[430px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+              {/* Header (Fixed) */}
+              <div className="bg-[#0b6e5e] px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+                    W
+                  </div>
+                  <h2 className="text-white font-semibold text-lg">
+                    WhatsApp Preview
+                  </h2>
+                </div>
 
-          <button
-            onClick={() => setIsWhatsappTemplateModalOpen(false)}
-            className="text-white/90 hover:text-white text-3xl leading-none"
-          >
-            ×
-          </button>
-        </div>
+                <button
+                  onClick={() => setIsWhatsappTemplateModalOpen(false)}
+                  className="text-white/90 hover:text-white text-3xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto bg-[#f3efea] p-4">
-          {/* Message Card */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            {/* Message Content */}
-            <div className="p-5 text-[14px] text-gray-700 leading-8">
-              <p className="mb-6">Hi {"{{1}}"},</p>
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto bg-[#f3efea] p-4">
+                {/* Message Card */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  {/* Message Content */}
+                  <div className="p-5 text-[14px] text-gray-700 leading-8">
+                    <p className="mb-6">Hi {"{{1}}"},</p>
 
-              <p className="mb-6">
-                Your franchise enquiry details for Limbu AI are available.
-              </p>
+                    <p className="mb-6">
+                      Your franchise enquiry details for Limbu AI are available.
+                    </p>
 
-              <p className="mb-6">
-                This includes information related to franchise onboarding,
-                business operations, and account-related franchise resources.
-              </p>
+                    <p className="mb-6">
+                      This includes information related to franchise onboarding,
+                      business operations, and account-related franchise
+                      resources.
+                    </p>
 
-              <p className="mb-6">
-                To access your franchise details and related information, chat
-                with the Limbu AI Assistant.
-              </p>
+                    <p className="mb-6">
+                      To access your franchise details and related information,
+                      chat with the Limbu AI Assistant.
+                    </p>
 
-              {/* Extra content for testing scroll */}
-              <p className="mb-6">
-                Additional message content can go here. If the content becomes
-                longer, only this middle section will scroll.
-              </p>
+                    {/* Extra content for testing scroll */}
+                    <p className="mb-6">
+                      Additional message content can go here. If the content
+                      becomes longer, only this middle section will scroll.
+                    </p>
 
-              <p className="mb-6">
-                More content... More content... More content... More content...
-              </p>
+                    <p className="mb-6">
+                      More content... More content... More content... More
+                      content...
+                    </p>
 
-              <div className="text-[12px] text-gray-400 text-right">
-                12:00 PM ✓✓
+                    <div className="text-[12px] text-gray-400 text-right">
+                      12:00 PM ✓✓
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <button
+                    type="button"
+                    className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+                  >
+                    Chat Now
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+                  >
+                    Need Support
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer (Fixed) */}
+              <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSendTemplateMessage}
+                  disabled={sendingFranchiseMsg}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
+                >
+                  {sendingFranchiseMsg ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {sendingFranchiseMsg ? "Sending..." : "Send Message"}
+                </button>
               </div>
             </div>
-
-            {/* Action Buttons */}
-            <button
-              type="button"
-              className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
-            >
-              Chat Now
-            </button>
-
-            <button
-              type="button"
-              className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
-            >
-              Need Support
-            </button>
           </div>
         </div>
-
-        {/* Footer (Fixed) */}
-        <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
-          <button
-  type="button"
-  onClick={handleSendTemplateMessage}
-  disabled={sendingFranchiseMsg}
-  className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
->
-  {sendingFranchiseMsg ? (
-    <Loader2 className="w-5 h-5 animate-spin" />
-  ) : (
-    <Send className="w-5 h-5" />
-  )}
-  {sendingFranchiseMsg ? "Sending..." : "Send Message"}
-</button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       <FollowUpDueAlertModal
         alert={followUpDueAlert}

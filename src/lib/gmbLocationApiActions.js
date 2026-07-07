@@ -117,10 +117,22 @@ export function buildServiceMoney(priceType, price, currencyCode = 'INR') {
  * Verified format: { serviceItems: [{ price?: Money, freeFormServiceItem: {
  * category: 'gcid:...', label: { displayName, description?, languageCode } } }] } with
  * updateMask=serviceItems. `price` is Google's own service price field (Money).
+ *
+ * Each service may carry its OWN category (primary or one of the additional/sub
+ * categories) via `s.category` — so services are grouped per category, exactly the
+ * way Google models them. When an item has no category (or one not in
+ * `opts.allowedGcids`), it falls back to `categoryGcid` (the primary). Pass the
+ * location's full category set as `opts.allowedGcids` so an item can never be tagged
+ * with a category the location doesn't actually have (Google rejects that).
  */
 export function buildServiceItemsPatchBody(services, categoryGcid, opts = {}) {
-  const gcid = String(categoryGcid || '').replace(/^categories\//, '').trim();
+  const normGcid = (n) => String(n || '').replace(/^categories\//, '').trim();
+  const defaultGcid = normGcid(categoryGcid);
   const currencyCode = opts.currencyCode || 'INR';
+  const allowed =
+    Array.isArray(opts.allowedGcids) && opts.allowedGcids.length
+      ? new Set(opts.allowedGcids.map(normGcid).filter(Boolean))
+      : null;
 
   let list;
   if (Array.isArray(services)) {
@@ -131,28 +143,34 @@ export function buildServiceItemsPatchBody(services, categoryGcid, opts = {}) {
             description: s.description || '',
             priceType: s.priceType || 'none',
             price: s.price,
+            category: s.category || s.categoryGcid || '',
           }
-        : { displayName: String(s || ''), description: '', priceType: 'none', price: '' }
+        : { displayName: String(s || ''), description: '', priceType: 'none', price: '', category: '' }
     );
   } else {
     list = String(services || '')
       .split(',')
-      .map((s) => ({ displayName: s, description: '', priceType: 'none', price: '' }));
+      .map((s) => ({ displayName: s, description: '', priceType: 'none', price: '', category: '' }));
   }
 
   const items = list
-    .map((s) => ({
-      displayName: String(s.displayName || '').trim(),
-      description: String(s.description || '').trim(),
-      priceType: s.priceType || 'none',
-      price: s.price,
-    }))
-    .filter((s) => s.displayName)
+    .map((s) => {
+      const cat = normGcid(s.category);
+      const gcid = cat && (!allowed || allowed.has(cat)) ? cat : defaultGcid;
+      return {
+        displayName: String(s.displayName || '').trim(),
+        description: String(s.description || '').trim(),
+        priceType: s.priceType || 'none',
+        price: s.price,
+        gcid,
+      };
+    })
+    .filter((s) => s.displayName && s.gcid)
     .slice(0, 100)
     .map((s) => {
       const item = {
         freeFormServiceItem: {
-          category: gcid,
+          category: s.gcid,
           label: {
             displayName: s.displayName.slice(0, 140),
             ...(s.description ? { description: s.description.slice(0, 300) } : {}),

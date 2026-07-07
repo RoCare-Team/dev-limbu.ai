@@ -151,6 +151,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
         : '';
   // Structured services (title + description). Prefer a pre-flattened list, else
   // derive from raw GMB serviceItems (free-form label carries the description).
+  const normGcid = (n) => String(n || '').replace(/^categories\//, '').trim();
   const serviceItemsList = Array.isArray(loc.serviceItemsList)
     ? loc.serviceItemsList
         .map((s) => ({
@@ -158,6 +159,8 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
           description: String(s?.description || '').trim(),
           priceType: s?.priceType || 'none',
           price: s?.price != null ? String(s.price) : '',
+          // Which category this service belongs to (empty = primary).
+          category: normGcid(s?.category || s?.categoryGcid),
         }))
         .filter((s) => s.title)
     : Array.isArray(loc.serviceItems)
@@ -167,7 +170,10 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
             const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
             const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
             const { priceType, price } = parseServiceMoney(it?.price);
-            return title ? { title, description, priceType, price } : null;
+            const category = normGcid(
+              it?.freeFormServiceItem?.category || it?.structuredServiceItem?.category
+            );
+            return title ? { title, description, priceType, price, category } : null;
           })
           .filter(Boolean)
       : [];

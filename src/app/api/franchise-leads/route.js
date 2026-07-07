@@ -14,7 +14,8 @@ const SettingSchema = new mongoose.Schema({
   key: String,
   value: mongoose.Schema.Types.Mixed,
 });
-const Setting = mongoose.models.settings || mongoose.model("settings", SettingSchema);
+const Setting =
+  mongoose.models.settings || mongoose.model("settings", SettingSchema);
 
 // ==================
 // HELPER FUNCTION
@@ -41,7 +42,10 @@ function formatLeadForResponse(leadDoc) {
       { name: "email", values: [leadDoc.email] },
       { name: "phone_number", values: [leadDoc.phone] },
       { name: "city", values: [leadDoc.city] },
-      { name: "what_is_your_current_occupation?", values: [leadDoc.occupation] },
+      {
+        name: "what_is_your_current_occupation?",
+        values: [leadDoc.occupation],
+      },
       { name: "mention_investment_rang", values: [leadDoc.investment] },
     ],
     // Flat fields for frontend
@@ -61,7 +65,7 @@ function formatLeadForResponse(leadDoc) {
 }
 
 // ==================
-// GET: FETCH LEADS OR SINGLE LEAD WITH REMARKS
+// GET: FETCH LEADS OR SINGLE LEAD WITH REMARKS (FULLY UPDATED & PAGINATED)
 // ==================
 export async function GET(req) {
   try {
@@ -71,240 +75,198 @@ export async function GET(req) {
     const formId = searchParams.get("formId");
     const leadId = searchParams.get("leadId");
     const email = searchParams.get("email");
+    
+    // Filters from client side
+    const status = searchParams.get("status") || "All";
+    const assigneeId = searchParams.get("assigneeId") || "All";
+    const lead_quality = searchParams.get("lead_quality") || "All";
+    const search = searchParams.get("search");
     const remarkFilter = searchParams.get("remarkFilter");
     const remarkCountFilter = searchParams.get("remarkCountFilter");
-    
-    let limit = parseInt(searchParams.get("limit") || "500", 10);
-    if (isNaN(limit) || limit < 1) limit = 500;
-    if (limit > 3000) limit = 3000;
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    // Pagination parameters
+    let page = parseInt(searchParams.get("page") || "1", 10);
+    let limit = parseInt(searchParams.get("limit") || "50", 10);
+    if (page < 1) page = 1;
+    if (limit < 1) limit = 50;
+    if (limit > 100) limit = 100; // Safe pagination limit
 
     // ========== FETCH SINGLE LEAD WITH REMARKS ==========
     if (leadId) {
-      const lead = await Lead.findOne({ leadId }).populate("assignedFranchiseAdminId", "fullName email role").lean();
-      
+      const lead = await Lead.findOne({ leadId })
+        .populate("assignedFranchiseAdminId", "fullName email role")
+        .lean();
       if (!lead) {
         return NextResponse.json(
           { success: false, message: "Lead not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
-
       return NextResponse.json({
         success: true,
-        lead: {
-          id: lead.leadId,
-          fullName: lead.fullName,
-          email: lead.email,
-          phone: lead.phone,
-          city: lead.city,
-          occupation: lead.occupation,
-          investment: lead.investment,
-          status: lead.status,
-          lead_quality: lead.lead_quality || "None",
-          createdTime: lead.createdTime,
-          remarks: lead.remarks || [],
-          assignedFranchiseAdmin: lead.assignedFranchiseAdminId,
-          ivrMeInterested: lead.ivrMeInterested === true,
-          ivrMeInterestedAt: isoOrNull(lead.ivrMeInterestedAt),
-        },
+        lead: formatLeadForResponse(lead),
       });
     }
 
-    // ========== FETCH ALL LEADS FROM META ==========
     if (!formId) {
       return NextResponse.json(
         { success: false, message: "formId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const META_TOKEN = process.env.META_ACCESS_TOKEN;
+    // ==========================================
+    // 1. BUILD QUERY FILTER (Base Stats Query)
+    // ==========================================
+    const baseStatsQuery = { formId };
 
-    if (!META_TOKEN) {
-      return NextResponse.json(
-        { success: false, message: "META_ACCESS_TOKEN not configured" },
-        { status: 500 }
-      );
-    }
-
-    // 🔍 CHECK ADMIN ROLE FOR FILTERING
-    let filterAdminId = null;
+    // Role-based security check: If restricted agent, only show assigned leads
     if (email) {
       const admin = await Admin.findOne({ email });
       if (admin && admin.role === "franchiseAdmin") {
-        filterAdminId = admin._id.toString();
+        baseStatsQuery.assignedFranchiseAdminId = admin._id;
+      } else if (assigneeId && assigneeId !== "All") {
+        // If superAdmin or similar, respect the manual assignee filter selection
+        if (assigneeId === "Unassigned") {
+          baseStatsQuery.assignedFranchiseAdminId = null;
+        } else if (mongoose.Types.ObjectId.isValid(assigneeId)) {
+          baseStatsQuery.assignedFranchiseAdminId = new mongoose.Types.ObjectId(assigneeId);
+        }
       }
     }
 
-    await syncFranchiseLeadsIvrInterestFromCalls(Lead);
-
-    const metaRes = await fetch(
-      `https://graph.facebook.com/v19.0/${formId}/leads?limit=${limit}&access_token=${META_TOKEN}`
-    );
-
-    let metaLeads = [];
-    if (metaRes.ok) {
-      const metaData = await metaRes.json();
-      metaLeads = metaData.data || [];
-    } else {
-      console.warn(`Meta API error: ${metaRes.status} — continuing with DB/manual leads only`);
+    // Lead Quality Filter
+    if (lead_quality && lead_quality !== "All") {
+      baseStatsQuery.lead_quality = lead_quality;
     }
-    const metaLeadIds = metaLeads.map((l) => l.id);
 
-    // 🚀 OPTIMIZATION: Fetch all existing leads in ONE query
-    const existingLeadsDocs = await Lead.find({
-      leadId: { $in: metaLeadIds },
-    }).populate("assignedFranchiseAdminId", "fullName email role").lean();
+    // Search Query (Text search matching fields)
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      baseStatsQuery.$or = [
+        { fullName: searchRegex },
+        { phone: searchRegex },
+        { email: searchRegex },
+        { city: searchRegex },
+        { occupation: searchRegex },
+      ];
+    }
 
-    const existingLeadsMap = new Map();
-    existingLeadsDocs.forEach((doc) => existingLeadsMap.set(doc.leadId, doc));
+    // Date Range Filters
+    if (startDate || endDate) {
+      baseStatsQuery.createdTime = {};
+      if (startDate) {
+        baseStatsQuery.createdTime.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the whole end day
+        baseStatsQuery.createdTime.$lte = end;
+      }
+    }
 
-    // 🔄 ROUND ROBIN SETUP
-    const franchiseAdmins = await Admin.find({ role: "franchiseAdmin", isActive: true }).sort({ createdAt: 1 });
-    let rr = await Setting.findOne({ key: "franchiseLeadRRIndex" });
-    let rrIndex = rr?.value || 0;
-
-    const newLeadsToInsert = [];
-    const allLeadsResponse = [];
-
-    for (const lead of metaLeads) {
-      if (existingLeadsMap.has(lead.id)) {
-        const existingDoc = existingLeadsMap.get(lead.id);
-        
-        // 🔍 FILTER: If franchiseAdmin, only show assigned leads
-        if (filterAdminId) {
-          const assigned = existingDoc.assignedFranchiseAdminId;
-          const assignedId = assigned?._id ? assigned._id.toString() : assigned?.toString();
-          if (assignedId !== filterAdminId) continue;
-        }
-        allLeadsResponse.push(formatLeadForResponse(existingDoc));
+    // Remarks and Remark Counts Query Filters
+    if (remarkFilter && remarkFilter !== "All") {
+      if (remarkFilter === "Has Remarks") {
+        baseStatsQuery["remarks.0"] = { $exists: true };
+      } else if (remarkFilter === "No Remarks") {
+        baseStatsQuery.remarks = { $size: 0 };
       } else {
-        const normalizedLead = {
-          leadId: lead.id,
-          formId: formId,
-          fullName: extractField(lead.field_data, "full_name"),
-          email: extractField(lead.field_data, "email"),
-          phone: extractField(lead.field_data, "phone_number"),
-          city: extractField(lead.field_data, "city"),
-          occupation: extractField(lead.field_data, "what_is_your_current_occupation?"),
-          startTime: extractField(lead.field_data, "when_do_you_want_to_start?"),
-          investment: extractField(lead.field_data, "mention_investment_rang"),
-          verified: extractField(lead.field_data, "phone_number_verified") === "true",
-          createdTime: new Date(lead.created_time),
-          source: "meta",
-          status: "Active",
-          lead_quality: "None",
-          remarks: [],
-        };
-
-        // 🔄 ASSIGN ADMIN
-        let assignedAdminObj = null;
-        if (franchiseAdmins.length > 0) {
-          const assignedAdmin = franchiseAdmins[rrIndex % franchiseAdmins.length];
-          normalizedLead.assignedFranchiseAdminId = assignedAdmin._id;
-          assignedAdminObj = assignedAdmin;
-          rrIndex++;
-        }
-
-        newLeadsToInsert.push(normalizedLead);
-        
-        // Prepare for response (with populated admin)
-        const leadForResponse = { ...normalizedLead, assignedFranchiseAdminId: assignedAdminObj };
-        allLeadsResponse.push(formatLeadForResponse(leadForResponse));
+        baseStatsQuery["remarks.text"] = remarkFilter;
       }
     }
 
-    if (newLeadsToInsert.length > 0) {
-      await Lead.insertMany(newLeadsToInsert, { ordered: false });
-      // Update Round Robin Index
-      await Setting.findOneAndUpdate(
-        { key: "franchiseLeadRRIndex" },
-        { value: rrIndex },
-        { upsert: true }
-      );
+    if (remarkCountFilter && remarkCountFilter !== "All") {
+      if (remarkCountFilter === "1 Remark") {
+        baseStatsQuery.remarks = { $size: 1 };
+      } else if (remarkCountFilter === "2 Remarks") {
+        baseStatsQuery.remarks = { $size: 2 };
+      } else if (remarkCountFilter === "3 Remarks") {
+        baseStatsQuery.remarks = { $size: 3 };
+      } else if (remarkCountFilter === "More than 3 Remarks") {
+        baseStatsQuery["remarks.3"] = { $exists: true }; // Checks if index 3 (4th element) exists
+      }
     }
 
-    let combinedLeads;
-
-    if (filterAdminId) {
-      const adminOid = mongoose.Types.ObjectId.isValid(filterAdminId)
-        ? new mongoose.Types.ObjectId(filterAdminId)
-        : null;
-      if (!adminOid) {
-        return NextResponse.json(
-          { success: false, message: "Invalid admin id" },
-          { status: 400 },
-        );
+    // ==========================================
+    // 2. GET STATUS AGGREGATION USING MONGOOSE FACET (High Performance)
+    // ==========================================
+    const facetResult = await Lead.aggregate([
+      { $match: baseStatsQuery },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          active: [
+            { $match: { status: "Active" } },
+            { $count: "count" }
+          ],
+          inactive: [
+            { $match: { status: "Inactive" } },
+            { $count: "count" }
+          ],
+          followup: [
+            { $match: { status: "Follow Up" } },
+            { $count: "count" }
+          ],
+          onboard: [
+            { $match: { status: "Onboard" } },
+            { $count: "count" }
+          ]
+        }
       }
-      const metaResponseIds = new Set(allLeadsResponse.map((l) => l.id));
-      const allAssignedDocs = await Lead.find({
-        assignedFranchiseAdminId: adminOid,
-      })
-        .populate("assignedFranchiseAdminId", "fullName email role")
-        .lean();
+    ]);
 
-      const extraAssigned = allAssignedDocs
-        .filter((doc) => !metaResponseIds.has(doc.leadId))
-        .map(formatLeadForResponse);
+    const stats = facetResult[0] || {};
+    const totalCount = stats.total?.[0]?.count || 0;
+    const activeCount = stats.active?.[0]?.count || 0;
+    const inactiveCount = stats.inactive?.[0]?.count || 0;
+    const followupCount = stats.followup?.[0]?.count || 0;
+    const onboardCount = stats.onboard?.[0]?.count || 0;
 
-      combinedLeads = [...allLeadsResponse, ...extraAssigned].sort(
-        (a, b) => new Date(b.created_time) - new Date(a.created_time),
-      );
-    } else {
-      const manualLeads = await Lead.find({ source: "manual" })
-        .populate("assignedFranchiseAdminId", "fullName email role")
-        .sort({ createdTime: -1 })
-        .lean();
-
-      const formattedManualLeads = manualLeads.map(formatLeadForResponse);
-      combinedLeads = [...allLeadsResponse, ...formattedManualLeads].sort(
-        (a, b) => new Date(b.created_time) - new Date(a.created_time),
-      );
+    // ==========================================
+    // 3. APPLY CURRENT STATUS FILTER FOR LEADS PAGINATION
+    // ==========================================
+    const finalLeadsQuery = { ...baseStatsQuery };
+    if (status && status !== "All") {
+      finalLeadsQuery.status = status;
     }
 
-    const filteredLeads = combinedLeads.filter((lead) => {
-      let valid = true;
-      const remarkCount = (lead.remarks?.length || 0);
+    // Counts matching exact filters with current page context (for pagination UI calculations)
+    const filteredTotalCount = await Lead.countDocuments(finalLeadsQuery);
 
-      if (remarkFilter && remarkFilter !== "All") {
-        if (remarkFilter === "Has Remarks") {
-          valid = remarkCount > 0;
-        } else if (remarkFilter === "No Remarks") {
-          valid = remarkCount === 0;
-        } else {
-          valid = lead.remarks?.some((r) => r.text === remarkFilter) || false;
-        }
-      }
+    // Fetch paginated chunk of leads
+    const dbLeads = await Lead.find(finalLeadsQuery)
+      .populate("assignedFranchiseAdminId", "fullName email role")
+      .sort({ createdTime: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
 
-      if (valid && remarkCountFilter && remarkCountFilter !== "All") {
-        if (remarkCountFilter === "1 Remark") {
-          valid = remarkCount === 1;
-        } else if (remarkCountFilter === "2 Remarks") {
-          valid = remarkCount === 2;
-        } else if (remarkCountFilter === "3 Remarks") {
-          valid = remarkCount === 3;
-        } else if (remarkCountFilter === "More than 3 Remarks") {
-          valid = remarkCount > 3;
-        }
-      }
-
-      return valid;
-    });
+    const formattedLeads = dbLeads.map(formatLeadForResponse);
 
     return NextResponse.json({
       success: true,
-      message: "Leads synced successfully",
+      message: "Leads fetched successfully",
       summary: {
-        total_count: filteredLeads.length,
+        total_count: totalCount,          // Overall total database matching filters
+        active_count: activeCount,        // Unfiltered database Active count matching search
+        inactive_count: inactiveCount,    // Unfiltered database Inactive count matching search
+        followup_count: followupCount,    // Unfiltered database Follow Up count matching search
+        onboard_count: onboardCount,      // Unfiltered database Onboard count matching search
+        filtered_count: filteredTotalCount, // Total matching current active status tab
+        page,
+        limit,
+        total_pages: Math.ceil(filteredTotalCount / limit),
       },
-      leads: filteredLeads,
-      newLeadsSaved: newLeadsToInsert.length,
+      leads: formattedLeads,
     });
   } catch (error) {
-    console.error("Meta Lead Sync Error:", error);
+    console.error("Fetch Leads Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -322,12 +284,20 @@ export async function POST(req) {
     // CASE 1: ADD REMARK (If leadId is present)
     // ---------------------------------------------------------
     if (body.leadId) {
-      const { leadId, text, addedBy, followUpDate, agentId, agentName, adminEmail } = body;
+      const {
+        leadId,
+        text,
+        addedBy,
+        followUpDate,
+        agentId,
+        agentName,
+        adminEmail,
+      } = body;
 
       if (!text?.trim()) {
         return NextResponse.json(
           { success: false, message: "text is required for remarks" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -356,7 +326,9 @@ export async function POST(req) {
         (!fu || Number.isNaN(fu.getTime()));
 
       if (needsFuCarry) {
-        const existing = await Lead.findOne({ leadId }).select("remarks").lean();
+        const existing = await Lead.findOne({ leadId })
+          .select("remarks")
+          .lean();
         const prev = [...(existing?.remarks || [])]
           .reverse()
           .find((r) => r.followUpDate);
@@ -390,13 +362,13 @@ export async function POST(req) {
       const updatedLead = await Lead.findOneAndUpdate(
         { leadId },
         { $push: pushOps },
-        { new: true }
+        { new: true },
       ).lean();
 
       if (!updatedLead) {
         return NextResponse.json(
           { success: false, message: "Lead not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -443,7 +415,7 @@ export async function POST(req) {
     console.error("API Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -461,7 +433,7 @@ export async function PATCH(req) {
     if (!leadId) {
       return NextResponse.json(
         { success: false, message: "leadId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -472,7 +444,7 @@ export async function PATCH(req) {
       if (!validStatuses.includes(status)) {
         return NextResponse.json(
           { success: false, message: "Invalid status value" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateFields.status = status;
@@ -483,7 +455,7 @@ export async function PATCH(req) {
       if (!validQualities.includes(lead_quality)) {
         return NextResponse.json(
           { success: false, message: "Invalid lead quality value" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updateFields.lead_quality = lead_quality;
@@ -493,29 +465,29 @@ export async function PATCH(req) {
       updateFields.assignedFranchiseAdminId = assignedFranchiseAdminId;
     }
 
-    const updatedLead = await Lead.findOneAndUpdate(
-      { leadId },
-      updateFields,
-      { new: true }
-    ).populate("assignedFranchiseAdminId", "fullName email role").lean();
+    const updatedLead = await Lead.findOneAndUpdate({ leadId }, updateFields, {
+      new: true,
+    })
+      .populate("assignedFranchiseAdminId", "fullName email role")
+      .lean();
 
     if (!updatedLead) {
       return NextResponse.json(
         { success: false, message: "Lead not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     return NextResponse.json({
       success: true,
       message: "Status updated successfully",
-      lead: formatLeadForResponse(updatedLead)
+      lead: formatLeadForResponse(updatedLead),
     });
   } catch (error) {
     console.error("Update Status Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -534,7 +506,7 @@ export async function DELETE(req) {
     if (!leadId) {
       return NextResponse.json(
         { success: false, message: "leadId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -545,14 +517,14 @@ export async function DELETE(req) {
       if (!lead) {
         return NextResponse.json(
           { success: false, message: "Lead not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
       if (remarkIndex < 0 || remarkIndex >= lead.remarks.length) {
         return NextResponse.json(
           { success: false, message: "Invalid remark index" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -572,7 +544,7 @@ export async function DELETE(req) {
     if (!deletedLead) {
       return NextResponse.json(
         { success: false, message: "Lead not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -584,7 +556,7 @@ export async function DELETE(req) {
     console.error("Delete Error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

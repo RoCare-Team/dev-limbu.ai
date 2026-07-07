@@ -1,271 +1,210 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import FranchiseRevenue from "@/models/FranchiseRevenue";
 
-const LIMBU_URL =
-  "https://whatsapp.limbu.ai/api/campaigns/send";
+const LIMBU_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
+const API_KEY =
+  process.env.LIMBU_AI_WHATSAPP_KEY ||
+  "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade";
+
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
 export async function POST(req) {
   try {
-    console.log("🚀 API HIT");
-
     await dbConnect();
 
     const body = await req.json();
-
-    console.log("📦 BODY =>", body);
-
     const { selectedRows, templateName } = body;
 
-    // ✅ CHECK USERS
     if (!selectedRows?.length) {
-      console.log("❌ NO USERS SELECTED");
-
       return NextResponse.json({
         success: false,
         message: "No users selected",
       });
     }
 
-    // ✅ FIND USERS
-  const users = await User.find({
-  userId: { $in: selectedRows },
-});
+    // ✅ Users (phone + name ke liye)
+    const users = await User.find({ userId: { $in: selectedRows } });
+    const userMap = {};
+    users.forEach((u) => (userMap[String(u.userId)] = u));
 
+    // ✅ FranchiseRevenue se latest expiry (User doc ki date null/stale ho sakti hai)
+    const revenues = await FranchiseRevenue.find({
+      leadId: { $in: selectedRows },
+      packageExpiryDate: { $ne: null },
+    })
+      .sort({ packageExpiryDate: -1 })
+      .lean();
 
-    // ✅ LOOP USERS
-    for (const user of users) {
+    const revExpiryMap = {};
+    for (const r of revenues) {
+      const key = String(r.leadId);
+      if (
+        !revExpiryMap[key] ||
+        new Date(r.packageExpiryDate) > new Date(revExpiryMap[key])
+      ) {
+        revExpiryMap[key] = r.packageExpiryDate;
+      }
+    }
 
-  let mobile =
-    user.mobile ||
-    user.phone ||
-    user.whatsappNumber;
+    const today = startOfDay(new Date());
 
-      // ❌ NO NUMBER
-      if (!mobile) {
-        console.log("❌ MOBILE NOT FOUND");
+    const results = [];
+    let sent = 0;
+    let skipped = 0;
+
+    // ✅ selectedRows pe loop (missing users bhi report honge)
+    for (const userId of selectedRows) {
+      const user = userMap[String(userId)];
+
+      if (!user) {
+        skipped++;
+        results.push({ userId, status: "skipped", reason: "user-not-found" });
         continue;
       }
 
-      // ✅ CLEAN NUMBER
+      let mobile = user.mobile || user.phone || user.whatsappNumber;
+      if (!mobile) {
+        skipped++;
+        results.push({ userId, status: "skipped", reason: "no-phone" });
+        continue;
+      }
       mobile = String(mobile).replace(/\D/g, "");
+      if (!mobile.startsWith("91")) mobile = `91${mobile}`;
 
-      if (!mobile.startsWith("91")) {
-        mobile = `91${mobile}`;
+      // Best-available expiry: User doc -> FranchiseRevenue
+      const expiryRaw = user.packageExpiryDate || revExpiryMap[String(userId)];
+
+      if (!expiryRaw) {
+        skipped++;
+        results.push({ userId, status: "skipped", reason: "no-expiry-date" });
+        continue;
       }
 
-      console.log("✅ FINAL MOBILE =>", mobile);
-
-      // =========================
-      // TEMPLATE PARAMS
-      // =========================
+      const expiry = startOfDay(expiryRaw);
+      const daysLeft = Math.round(
+        (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
 
       let templateParams = [];
 
-      // 🔥 TEMPLATE 1
+      // 🔥 EXPIRY REMINDER (expiring soon) — 1..7 din baaki
       if (templateName === "plan_expired_comdown") {
+        if (daysLeft > 7) {
+          skipped++;
+          results.push({
+            userId,
+            status: "skipped",
+            reason: `more-than-7-days-left (${daysLeft})`,
+          });
+          continue;
+        }
+        if (daysLeft < 0) {
+          skipped++;
+          results.push({
+            userId,
+            status: "skipped",
+            reason: `already-expired (${daysLeft}) — use "Plan Expired Template"`,
+          });
+          continue;
+        }
+        templateParams = [user.fullName || "User", String(Math.max(daysLeft, 0))];
+      }
 
-  const expiryDate = new Date(
-    user.packageExpiryDate
-  );
+      // 🔥 PLAN EXPIRED — expire ho chuka ho
+      else if (templateName === "limbu_ai_plan_expired") {
+        if (daysLeft > 0) {
+          skipped++;
+          results.push({
+            userId,
+            status: "skipped",
+            reason: `not-expired-yet (${daysLeft} days left) — use "Expiry Reminder Template"`,
+          });
+          continue;
+        }
+        templateParams = [
+          user.fullName || "User",
+          new Date(expiryRaw).toLocaleDateString("en-IN"),
+        ];
+      }
 
-  const today = new Date();
-
-  const diffTime =
-    expiryDate.getTime() - today.getTime();
-
-  const daysLeft = Math.ceil(
-    diffTime / (1000 * 60 * 60 * 24)
-  );
-
-  console.log("⏳ DAYS LEFT =>", daysLeft);
-
-  // ❌ IF MORE THAN 7 DAYS
-  if (daysLeft > 7) {
-
-    console.log(
-      "⛔ MORE THAN 7 DAYS LEFT - NOT SENDING"
-    );
-
-    continue;
-  }
-
-  // ❌ ALREADY EXPIRED
-  if (daysLeft <= 0) {
-
-    console.log(
-      "⛔ PLAN ALREADY EXPIRED"
-    );
-
-    continue;
-  }
-
-  // ✅ SEND TEMPLATE
-  templateParams = [
-    user.fullName || "User",
-    String(daysLeft),
-  ];
-}
-
-      // 🔥 TEMPLATE 2
-      else if (
-  templateName === "limbu_ai_plan_expired"
-) {
-
-  console.log(
-    "📨 TEMPLATE => limbu_ai_plan_expired"
-  );
-
-  const expiryDate = new Date(
-    user.packageExpiryDate
-  );
-
-  const today = new Date();
-
-  const diffTime =
-    expiryDate.getTime() - today.getTime();
-
-  const daysLeft = Math.ceil(
-    diffTime / (1000 * 60 * 60 * 24)
-  );
-
-  console.log("⏳ DAYS LEFT =>", daysLeft);
-
-  // ❌ PLAN NOT EXPIRED
-  if (daysLeft > 0) {
-
-    console.log(
-      "⛔ PLAN NOT EXPIRED YET"
-    );
-
-    continue;
-  }
-
-  // ✅ SEND EXPIRED TEMPLATE
-  templateParams = [
-
-    user.fullName || "User",
-
-    new Date(
-      user.packageExpiryDate
-    ).toLocaleDateString("en-IN"),
-  ];
-}
-
-      console.log(
-        "📨 TEMPLATE PARAMS =>",
-        templateParams
-      );
-
-      // =========================
-      // FINAL PAYLOAD
-      // =========================
+      // Unknown template — bhej do fallback params ke saath
+      else {
+        templateParams = [user.fullName || "User"];
+      }
 
       const payload = {
-
-  apiKey:
-    "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade",
-
-  campaignName: templateName,
-
-  destination: mobile,
-
-  userName: "Limbu AI",
-
-  templateParams: templateParams,
-
-  source: "api",
-
-  media: {},
-
-  buttons: [],
-
-  carouselCards: [],
-
-  location: {},
-
-  attributes: {},
-
-  paramsFallbackValue: {
-
-    FirstName:
-      user.fullName || "User",
-
-    LastName: "Customer",
-  },
-};
-
-      
-      // =========================
-      // SEND REQUEST
-      // =========================
+        apiKey: API_KEY,
+        campaignName: templateName,
+        destination: mobile,
+        userName: "Limbu AI",
+        templateParams,
+        source: "api",
+        media: {},
+        buttons: [],
+        carouselCards: [],
+        location: {},
+        attributes: {},
+        paramsFallbackValue: {
+          FirstName: user.fullName || "User",
+          LastName: "Customer",
+        },
+      };
 
       const response = await fetch(LIMBU_URL, {
         method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      // =========================
-      // RESPONSE TEXT
-      // =========================
-
-      const responseText =
-        await response.text();
-
-      console.log(
-        "📥 RAW RESPONSE =>",
-        responseText
-      );
-
-      // ✅ JSON PARSE
+      const responseText = await response.text();
       let result = {};
-
       try {
         result = JSON.parse(responseText);
-      } catch (err) {
-        console.log(
-          "❌ JSON PARSE ERROR =>",
-          err
-        );
+      } catch {
+        result = { raw: responseText };
       }
 
-     
-
-      // ❌ FAILED
-      if (!response.ok) {
-        console.log(
-          "❌ WHATSAPP FAILED =>",
-          result
-        );
+      if (response.ok && result?.success !== false) {
+        sent++;
+        results.push({ userId, status: "sent", mobile });
       } else {
-        console.log(
-          "✅ WHATSAPP SENT SUCCESSFULLY"
-        );
+        skipped++;
+        results.push({
+          userId,
+          status: "failed",
+          reason: result?.message || result?.raw || `http-${response.status}`,
+        });
       }
-
-      console.log("================================");
     }
 
+    // ✅ Honest response — 0 sent hua to success = false + wajah
+    const message =
+      sent > 0
+        ? `${sent} message(s) sent, ${skipped} skipped`
+        : `No message sent (${skipped} skipped). Reason(s): ${results
+            .map((r) => r.reason)
+            .filter(Boolean)
+            .join("; ")}`;
+
     return NextResponse.json({
-      success: true,
-      message: "Templates processed",
+      success: sent > 0,
+      sent,
+      skipped,
+      total: selectedRows.length,
+      message,
+      results,
     });
-
   } catch (error) {
-
-    console.log(
-      "🔥 SERVER ERROR =>",
-      error
-    );
-
+    console.log("🔥 SERVER ERROR =>", error);
     return NextResponse.json({
       success: false,
-      message: "Server error",
+      message: error.message || "Server error",
     });
   }
 }

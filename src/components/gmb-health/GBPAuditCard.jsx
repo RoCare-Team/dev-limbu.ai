@@ -730,7 +730,7 @@ const KeywordAnalysis = React.memo(({ keywords }) => {
         {found.size > 0 && (
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 mb-2 flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4" /> Ranking Keywords
+              <CheckCircle className="w-4 h-4" /> Include Keywords
             </p>
             <div className="flex flex-wrap gap-1.5">
               {[...found].map((k, i) => (

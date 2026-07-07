@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "dev:cron": "node scripts/dev-cron.mjs",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",

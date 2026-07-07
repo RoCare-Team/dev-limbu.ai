@@ -126,7 +126,7 @@ export async function GET(request) {
       userId: { $in: postUserIds },
       status: 'posted',
     })
-      .select('scheduledDateSource')
+      .select('scheduledDateSource updatedAt whenPosted')
       .lean();
 
     const usageByPlatform = { gmb: 0, fb: 0, ig: 0 };
@@ -137,6 +137,22 @@ export async function GET(request) {
           usageByPlatform[plat]++;
         }
       }
+    }
+
+    // How many posts went out *today* (in the plan's timezone) — for the "TODAY" status card.
+    const statusTz = activePlan?.postingTimezone || 'Asia/Kolkata';
+    const todayYmdForCount = zonedYmdString(new Date(), statusTz);
+    let postedToday = 0;
+    for (const p of postedDocs) {
+      let postedAt = p.updatedAt;
+      if (Array.isArray(p.whenPosted)) {
+        const times = p.whenPosted
+          .filter((w) => w?.posted && w?.postedDate)
+          .map((w) => new Date(w.postedDate).getTime())
+          .filter((t) => !Number.isNaN(t));
+        if (times.length) postedAt = new Date(Math.max(...times));
+      }
+      if (postedAt && zonedYmdString(postedAt, statusTz) === todayYmdForCount) postedToday++;
     }
 
     // ── Compute next scheduled post date ─────────────────────────────────────
@@ -181,6 +197,7 @@ export async function GET(request) {
         totalKeywords:     activePlan?.keywords?.length ?? 0,
         frequency:         activePlan?.frequency ?? 'daily',
         usageByPlatform,
+        postedToday,
       },
       plan: {
         package:             user.paidPackage,
@@ -678,39 +695,29 @@ export async function POST(request) {
       const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
       const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
 
-      // ── Automation timing: publish-driven chain (test vs production) ─────────
+      // ── Automation timing: publish-driven chain ─────────────────────────────
       // The queued posts form a chain where each post is GENERATED a fixed delay
-      // after the PREVIOUS post PUBLISHES (not on a fixed daily/weekly cadence).
+      // after the PREVIOUS post PUBLISHES (not on a fixed daily/weekly cadence):
       //
-      //   TEST_MODE (AUTOMATION_TEST_MODE=true):  fast 5-minute loop
-      //     save → +5m generate → +5m publish → +5m generate next → +5m publish → …
-      //   PRODUCTION (default):
-      //     save → +30m generate → +24h publish → +30m generate next → +24h publish → …
+      //   save → +30m generate → +24h publish → +30m generate next → +24h publish → …
       //
-      // Overridable via env (production only; TEST_MODE always uses 5m everywhere).
-      const TEST_MODE = ['true', '1', 'yes'].includes(
-        String(process.env.AUTOMATION_TEST_MODE || '').trim().toLowerCase()
-      );
-
-      // Delay from SAVE to the first post's generation (minutes).
-      const initialGenMin = TEST_MODE
-        ? 5
-        : Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 30));
+      // Chain length = schedule.length (bounded by plan post limit + end date), so it
+      // keeps running until the plan's posts are used up or the end date is reached.
+      // Defaults overridable via env for tuning.
+      const initialGenMin =
+        Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 30));
       // Delay from a post's generation to its own publish (minutes). Default 24h.
-      const publishAfterMin = TEST_MODE
-        ? 5
-        : Math.min(
-            10080, // 7 days
-            Math.max(
-              1,
-              Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_MINUTES) ||
-                (Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 24) * 60
-            )
-          );
+      const publishAfterMin = Math.min(
+        10080, // 7 days
+        Math.max(
+          1,
+          Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_MINUTES) ||
+            (Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 24) * 60
+        )
+      );
       // Delay from a post's publish to the NEXT post's generation (minutes). Default 30m.
-      const nextGenAfterPublishMin = TEST_MODE
-        ? 5
-        : Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_NEXT_GENERATE_AFTER_MINUTES) || 30));
+      const nextGenAfterPublishMin =
+        Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_NEXT_GENERATE_AFTER_MINUTES) || 30));
 
       const INITIAL_GEN_MS = initialGenMin * 60 * 1000;
       const PUB_MS = publishAfterMin * 60 * 1000;
@@ -783,7 +790,7 @@ export async function POST(request) {
 
       await PostModel.insertMany(postsData, { ordered: false });
       automationTiming = {
-        mode: TEST_MODE ? 'test' : 'production',
+        mode: 'production',
         generateAfterSaveMinutes: initialGenMin,
         publishAfterGenerateMinutes: publishAfterMin,
         nextGenerateAfterPublishMinutes: nextGenAfterPublishMin,
@@ -793,7 +800,7 @@ export async function POST(request) {
       };
       console.log(
         `[user-settings] ✅ Created ${postsData.length} queued Posts ` +
-        `[${TEST_MODE ? 'TEST' : 'PROD'} mode — generate +${initialGenMin}m after save, ` +
+        `[generate +${initialGenMin}m after save, ` +
         `publish +${publishAfterMin}m after generate, next generate +${nextGenAfterPublishMin}m after publish] ` +
         `userId=${finalUserId}`
       );

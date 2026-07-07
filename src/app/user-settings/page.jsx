@@ -652,6 +652,8 @@ export default function AutomationSettings({ onNavigateBack }) {
   // Posts used as tracked by the AutomationPlan (more accurate than User model)
   const [planPostsUsed, setPlanPostsUsed] = useState(null);
   const [autoStatus, setAutoStatus] = useState(null); // automationStatus from API
+  const [showForm, setShowForm] = useState(true);      // collapse settings form after save; Edit re-opens
+  const [savedKeywords, setSavedKeywords] = useState([]); // saved plan keywords (used/pending display)
 
   // Form state (Steps 2–6)
   const [automationEnabled, setAutomationEnabled] = useState(false);
@@ -798,6 +800,8 @@ export default function AutomationSettings({ onNavigateBack }) {
 
           // Store automation live status (next post, last post, counters)
           if (s.automationStatus) setAutoStatus(s.automationStatus);
+          // Active automation → show read-only status (form collapsed). Edit re-opens it.
+          setShowForm(!s.automationStatus?.enabled);
 
           // Restore saved automation settings
           if (as) {
@@ -806,6 +810,7 @@ export default function AutomationSettings({ onNavigateBack }) {
             if (as.startDate) setStartDate(toInputDate(as.startDate));
             if (as.endDate) setEndDate(toInputDate(as.endDate));
             setSelectedKeywords(as.keywords || []);
+            setSavedKeywords(as.keywords || []);
             setSkippedDates(as.skippedDates || []);
             if (as.frequency === "custom" && Array.isArray(as.schedule)) {
               setCustomDates(as.schedule.map(d => toInputDate(new Date(d))));
@@ -1098,6 +1103,8 @@ export default function AutomationSettings({ onNavigateBack }) {
       });
       setSaveStatus("success");
       setShowModal(true);
+      setSavedKeywords(selectedKeywords);
+      setShowForm(false); // collapse to read-only status view after a successful save
     } catch (e) {
       setSaveStatus("error");
       setError(e.message || "Save failed");
@@ -1405,9 +1412,18 @@ export default function AutomationSettings({ onNavigateBack }) {
                   <div style={{ fontSize: 12, color: "#166534" }}>Posts are being published automatically every day</div>
                 </div>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 700, background: "#bbf7d0", color: "#15803d", padding: "4px 12px", borderRadius: 20 }}>
-                ✅ RUNNING
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, background: "#bbf7d0", color: "#15803d", padding: "4px 12px", borderRadius: 20 }}>
+                  ✅ RUNNING
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowForm(true)}
+                  style={{ fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 20, border: "1px solid #86efac", background: "#fff", color: "#15803d", cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  ✏️ Edit settings
+                </button>
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: 12, padding: "0 20px 16px" }}>
@@ -1418,6 +1434,16 @@ export default function AutomationSettings({ onNavigateBack }) {
                   {autoStatus.nextScheduledDate
                     ? new Date(autoStatus.nextScheduledDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
                     : "Today (9 AM)"}
+                </div>
+              </div>
+
+              {/* Today */}
+              <div style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px" }}>
+                <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4 }}>📆 TODAY</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: (autoStatus.postedToday || 0) > 0 ? "#15803d" : "#b45309" }}>
+                  {(autoStatus.postedToday || 0) > 0
+                    ? `${autoStatus.postedToday} posted ✅`
+                    : "Not yet today ⏳"}
                 </div>
               </div>
 
@@ -1461,17 +1487,34 @@ export default function AutomationSettings({ onNavigateBack }) {
                 </div>
               </div>
 
-              {/* Keywords progress */}
-              <div style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px" }}>
-                <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4 }}>🔑 KEYWORDS</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
-                  {autoStatus.postIndex} <span style={{ color: "#9ca3af", fontWeight: 400 }}>/ {autoStatus.totalKeywords} used</span>
+              {/* Keywords progress — used / pending per keyword */}
+              <div style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px", gridColumn: "1 / -1" }}>
+                <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 6 }}>
+                  🔑 KEYWORDS <span style={{ color: "#9ca3af", fontWeight: 400 }}>— {autoStatus.postIndex} / {autoStatus.totalKeywords} used</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {(savedKeywords.length ? savedKeywords : selectedKeywords).map((kw, i) => {
+                    const used = i < (autoStatus.postIndex || 0);
+                    return (
+                      <span key={`${kw}-${i}`} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 16, border: `1px solid ${used ? "#bbf7d0" : "#e5e7eb"}`, background: used ? "#f0fdf4" : "#f9fafb", color: used ? "#15803d" : "#6b7280" }}>
+                        {kw}
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10, background: used ? "#22c55e" : "#e5e7eb", color: used ? "#fff" : "#6b7280" }}>
+                          {used ? "used" : "pending"}
+                        </span>
+                      </span>
+                    );
+                  })}
+                  {!(savedKeywords.length || selectedKeywords.length) && (
+                    <span style={{ fontSize: 12, color: "#9ca3af" }}>No keywords</span>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* Settings form — collapsed after save; the ✏️ Edit button re-opens it. */}
+        <div style={{ display: showForm ? "flex" : "none", flexDirection: "column", gap: 18 }}>
         {/* ── Step 1: Platforms & publish time (before enabling automation) ── */}
         <div style={{ border: "1px solid #e8ecf4", borderRadius: 16, padding: "18px 18px 20px", background: "linear-gradient(145deg,#ffffff 0%,#f8fafc 100%)", boxShadow: "0 4px 20px rgba(15,23,42,.04)" }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
@@ -2409,6 +2452,7 @@ export default function AutomationSettings({ onNavigateBack }) {
               ? <><span style={{ width: 15, height: 15, borderRadius: "50%", border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff", animation: "spin .7s linear infinite", display: "block" }} />Saving…</>
               : "💾 Save automation settings"}
           </button>
+        </div>
         </div>
       </div>
     </div>

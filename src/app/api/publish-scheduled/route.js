@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import User from "@/models/User";
+import AutomationPlan from "@/models/AutomationPlan";
 import FacebookPage from "@/models/FacebookPage";
 import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
 import { createRunLogger } from "@/lib/automationRunLogger";
+import { logPublish } from "@/lib/automationFileLogger";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -937,6 +939,36 @@ export async function GET(req) {
       }
 
       await post.save();
+
+      // Advance the automation plan's counters so the dashboard reflects progress:
+      // postIndex drives the used/pending keyword badges, postsUsed the PUBLISHED
+      // count + remaining. Only for automation-queued posts that actually posted.
+      if (post.status === "posted" && post.automationQueued && post.automationPlanId) {
+        try {
+          await AutomationPlan.updateOne(
+            { _id: post.automationPlanId },
+            {
+              $inc: { postIndex: 1, "planDetails.postsUsed": 1 },
+              $set: { lastPostDate: new Date() },
+            },
+          );
+        } catch (planErr) {
+          log(`⚠️ Failed to update AutomationPlan counters: ${planErr.message}`);
+        }
+      }
+
+      // Human-readable publish event → logs/automation-posts.log
+      logPublish({
+        ok: post.status === "posted",
+        userId: post.userId,
+        postId: post._id,
+        status: post.status,
+        gmb: hasGmb ? `${post.locations.filter((l) => l.isPosted).length}/${post.locations.length}` : "",
+        fb: hasFb ? `${post.fbPages.filter((p) => p.isPosted).length}/${post.fbPages.length}` : "",
+        ig: hasIg ? `${post.igPages.filter((a) => a.isPosted).length}/${post.igPages.length}` : "",
+        error: post.status === "posted" ? "" : post.error,
+      });
+
       stats.processed++;
     }
 

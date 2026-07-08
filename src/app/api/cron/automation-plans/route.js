@@ -58,6 +58,10 @@ import {
 } from '@/lib/automationCronQueryParams';
 import { createRunLogger } from '@/lib/automationRunLogger';
 import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
+import {
+  normalizeIndiaPhone,
+  sendDailyPostUpdateWhatsApp,
+} from '@/lib/dailyPostWhatsApp';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -1057,6 +1061,36 @@ export async function GET(request) {
     }
 
     // ── 11. Update AutomationPlan counters ────────────────────────────────────
+    // Daily WhatsApp notification to the same user's account number after post is ready.
+    try {
+      const notifyUser = await resolvePlanUser(userRef, userId, 'fullName phone mobileNumber');
+      const destination = normalizeIndiaPhone(notifyUser?.phone || notifyUser?.mobileNumber);
+      if (destination) {
+        const nameParts = String(notifyUser?.fullName || 'User').trim().split(/\s+/);
+        const waResult = await sendDailyPostUpdateWhatsApp({
+          destination,
+          firstName: nameParts[0] || 'User',
+          lastName: nameParts.slice(1).join(' ') || '',
+          postContent: postText,
+          imageUrl,
+        });
+
+        if (waResult.ok) {
+          log(`✓ Daily post WhatsApp sent to ${destination}`);
+          slog.pass('notify:whatsapp', `daily_post_update sent to ${destination}`);
+        } else {
+          log(`⚠ Daily post WhatsApp failed for ${destination}: ${waResult.error}`);
+          slog.fail('notify:whatsapp', `daily_post_update failed for ${destination}`, waResult.error);
+        }
+      } else {
+        log('⚠ Daily post WhatsApp skipped — user phone not found/invalid');
+        slog.skip('notify:whatsapp', 'user phone missing or invalid');
+      }
+    } catch (waErr) {
+      log(`⚠ Daily post WhatsApp exception: ${waErr.message}`);
+      slog.fail('notify:whatsapp', 'exception while sending daily_post_update', waErr.message);
+    }
+
     const newUsed      = postsUsed + 1;
     const newRemaining = Math.max(0, limit - newUsed);
 

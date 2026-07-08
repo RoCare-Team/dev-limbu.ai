@@ -15,10 +15,13 @@ import toast, { Toaster } from "react-hot-toast";
 import Link from "next/link";
 import { List } from "react-window";
 import { useKeywordPlanner } from "@/hooks/useKeywordPlanner";
-import SupportModal from "@/components/SupportModal";
+import { useAIKeywordResearch } from "@/hooks/useAIKeywordResearch";
+import { useKeywordExport } from "@/hooks/useKeywordExport";
 import SavedKeywordRow from "@/components/keywords-planner/SavedKeywordRow";
 import SearchInputBox from "@/components/keywords-planner/SearchInputBox";
 import VirtualizedRow from "@/components/keywords-planner/VirtualizedRow";
+import AIKeywordResearch from "@/components/keywords-planner/AIKeywordResearch";
+import SavedKeywordsExport from "@/components/keywords-planner/SavedKeywordsExport";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function KeywordPage() {
@@ -36,7 +39,23 @@ export default function KeywordPage() {
     selectedLocationId,
     selectedLocation,
     handleLocationChange,
+    currentSlug,
+    locationLabel,
   } = useKeywordPlanner();
+
+  const aiResearch = useAIKeywordResearch({
+    addKeyword,
+    savedKeywordsSet,
+    slug: currentSlug,
+    locationName: locationLabel,
+  });
+
+  const keywordExport = useKeywordExport({
+    businessName: selectedLocation?.title || "My Business",
+    locationName: locationLabel,
+    slug: currentSlug,
+    keywordCount: sortedSaved.length,
+  });
 
   const handleShowToast = useCallback((message, type) => {
     if (type === "success") {
@@ -128,6 +147,13 @@ export default function KeywordPage() {
 
           {/* Main Search Panel */}
           <div className="lg:col-span-8 space-y-8">
+
+            {/* AI Keyword Research */}
+            <AIKeywordResearch
+              {...aiResearch}
+              savedKeywordsSet={savedKeywordsSet}
+              isSaving={isSaving}
+            />
 
             {/* Isolated Search Box Component */}
             <SearchInputBox onSearch={searchKeywords} isSearching={isSearching} />
@@ -241,6 +267,8 @@ export default function KeywordPage() {
                     ))}
                   </div>
                 )}
+
+                <SavedKeywordsExport {...keywordExport} />
               </div>
             </div>
 

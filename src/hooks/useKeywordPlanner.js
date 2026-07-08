@@ -69,6 +69,15 @@ export function useKeywordPlanner() {
     return `${baseSlug}-${idPart}`;
   }, []);
 
+  const currentSlug = useMemo(() => {
+    return buildUniqueReviewSlug(selectedLocation, allLocations);
+  }, [selectedLocation, allLocations, buildUniqueReviewSlug]);
+
+  const locationLabel = useMemo(() => {
+    if (!selectedLocation) return "";
+    return [selectedLocation.title, selectedLocation.locality].filter(Boolean).join(" — ");
+  }, [selectedLocation]);
+
   const fetchSavedKeywords = useCallback(async () => {
     const userId = getLocalStorage("userId");
     if (!userId) return;
@@ -163,6 +172,7 @@ export function useKeywordPlanner() {
           slug,
           volume: keywordData.volume,
           competition: keywordData.competition,
+          source: keywordData.source || "google",
         }),
       });
       const data = await res.json();
@@ -170,14 +180,17 @@ export function useKeywordPlanner() {
       if (data.success && data.data) {
         toast.success(`'${keywordData.keyword}' saved to your list`);
         setSaved(prev => prev.map(k => k._id === tempKeyword._id ? data.data : k));
+        return { success: true };
       } else {
         setSaved(prev => prev.filter(k => k._id !== tempKeyword._id));
         toast.error(data.error || "Failed to save. Try again.");
+        return { success: false };
       }
     } catch (error) {
       console.error("Failed to add keyword:", error);
       setSaved(prev => prev.filter(k => k._id !== tempKeyword._id));
       toast.error("Something went wrong while saving.");
+      return { success: false };
     } finally {
       setIsSaving(null);
     }
@@ -230,5 +243,7 @@ export function useKeywordPlanner() {
     selectedLocationId,
     selectedLocation,
     handleLocationChange,
+    currentSlug,
+    locationLabel,
   };
 }

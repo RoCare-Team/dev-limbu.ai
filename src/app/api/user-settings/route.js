@@ -695,15 +695,20 @@ export async function POST(request) {
       const scheduledPlatforms = safePlatforms.filter((p) => ['gmb', 'fb', 'ig'].includes(p));
       const platformsForPost = scheduledPlatforms.length > 0 ? scheduledPlatforms : ['gmb'];
 
-      // ── Automation timing: publish-driven chain ─────────────────────────────
-      // The queued posts form a chain where each post is GENERATED a fixed delay
-      // after the PREVIOUS post PUBLISHES (not on a fixed daily/weekly cadence):
+      // ── Automation timing: PRODUCTION routine (generateAt + publishAt) ───────
+      // Each queued post carries BOTH timestamps and the two phases are fully
+      // independent: the fill-queue cron generates at generateContentAt (and sends
+      // the WhatsApp preview), the publish-scheduled cron publishes the
+      // *already-stored* content at scheduledDate (never regenerates).
       //
-      //   save → +30m generate → +24h publish → +30m generate next → +24h publish → …
+      // Routine (one post per cycle — never a rapid loop; timestamps are ~24h apart
+      // so only ONE post is ever in-flight at a time):
+      //   save → +30m generate (+ WhatsApp) → +24h publish
+      //        → +30m generate next → +24h publish → …  (per frequency, until the
+      //          plan's post limit / end date is reached).
       //
-      // Chain length = schedule.length (bounded by plan post limit + end date), so it
-      // keeps running until the plan's posts are used up or the end date is reached.
-      // Defaults overridable via env for tuning.
+      // Chain length = schedule.length (bounded by plan post limit + end date).
+      // Env overrides win over the production defaults below.
       const initialGenMin =
         Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_GENERATE_DELAY_MINUTES) || 30));
       // Delay from a post's generation to its own publish (minutes). Default 24h.
@@ -790,7 +795,7 @@ export async function POST(request) {
 
       await PostModel.insertMany(postsData, { ordered: false });
       automationTiming = {
-        mode: 'production',
+        mode: publishAfterMin >= 720 ? 'production' : 'test',
         generateAfterSaveMinutes: initialGenMin,
         publishAfterGenerateMinutes: publishAfterMin,
         nextGenerateAfterPublishMinutes: nextGenAfterPublishMin,

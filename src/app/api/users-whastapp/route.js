@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getKeywordResearchWhatsAppKey } from "@/lib/keywordResearchWhatsApp";
 
 const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
@@ -77,6 +78,16 @@ export async function POST(req) {
         };
         break;
 
+      case "keyword_research_update":
+        templateParams = ["$FirstName", "$LastName"];
+        if (reportUrl) {
+          media = {
+            url: reportUrl,
+            filename: body.reportFilename || "Keyword_Research_Report",
+          };
+        }
+        break;
+
       default:
         return NextResponse.json(
           { success: false, message: "Invalid campaignName" },
@@ -90,20 +101,29 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        apiKey: process.env.AISENSY_API_KEY,
+        apiKey:
+          campaignName === "keyword_research_update"
+            ? getKeywordResearchWhatsAppKey()
+            : process.env.LIMBU_AI_WHATSAPP_KEY1 || process.env.AISENSY_API_KEY,
         campaignName,
         destination: phone,
-        userName: "LimbuAI",
+        userName: campaignName === "keyword_research_update" ? "YOUR_BRAND_NAME" : "LimbuAI",
         templateParams,
-        source: "system-trigger",
+        source: campaignName === "keyword_research_update" ? "api" : "system-trigger",
         media,
         buttons: [],
         carouselCards: [],
         location: {},
         attributes: {},
-        paramsFallbackValue: {
-          FirstName: "User",
-        },
+        paramsFallbackValue:
+          campaignName === "keyword_research_update"
+            ? {
+                FirstName: firstName || body.firstName || "User",
+                LastName: body.lastName || "",
+              }
+            : {
+                FirstName: "User",
+              },
       }),
     });
 

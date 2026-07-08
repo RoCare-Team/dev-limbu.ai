@@ -73,7 +73,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await dbConnect();
-    const { userId, keyword, slug: clientSlug, volume, competition } = await req.json();
+    const { userId, keyword, slug: clientSlug, volume, competition, source } = await req.json();
 
     if (!userId || !keyword) {
       return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(req) {
       userId,
       keyword,
       slug,
-      source: "google",
+      source: source || "google",
       volume,
       competition,
     });

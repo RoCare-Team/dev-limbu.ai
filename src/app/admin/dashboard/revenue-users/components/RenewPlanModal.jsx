@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export default function RenewPlanModal({
   showRenewModal,
   setShowRenewModal,
@@ -18,12 +20,71 @@ export default function RenewPlanModal({
   revenuePlans,
   renewDuration,
   setRenewDuration,
+  // New props for GST Number
+  renewGstNumber,
+  setRenewGstNumber,
 }) {
+  // Fallback to local state if the parent component does not pass GST state
+  const [localGstNumber, setLocalGstNumber] = useState("");
+  const gstNumber = renewGstNumber !== undefined ? renewGstNumber : localGstNumber;
+  const setGstNumber = setRenewGstNumber !== undefined ? setRenewGstNumber : setLocalGstNumber;
+
   if (!showRenewModal) return null;
+
+  // Helper function to calculate total amount including standard 18% GST
+  const calculateTotalAmount = (planName, duration) => {
+    const selectedPlan = revenuePlans.find((p) => p.name === planName);
+    if (!selectedPlan) return 0;
+
+    let baseAmount = selectedPlan.monthly;
+
+    if (duration === "quarterly") {
+      baseAmount = baseAmount * 3;
+      baseAmount = baseAmount - baseAmount * 0.1; // 10% discount
+    } else if (duration === "yearly") {
+      baseAmount = baseAmount * 12;
+      baseAmount = baseAmount - baseAmount * 0.2; // 20% discount
+    }
+
+    const gstAmount = baseAmount * 0.18; // Standard 18% GST
+    return Math.round(baseAmount + gstAmount);
+  };
+
+  // Helper function to calculate expiry date based on start date and duration
+  const calculateExpiryDate = (startDate, duration) => {
+    if (!startDate) return "";
+    const expiry = new Date(startDate);
+
+    if (duration === "monthly") {
+      expiry.setMonth(expiry.getMonth() + 1);
+    } else if (duration === "quarterly") {
+      expiry.setMonth(expiry.getMonth() + 3);
+    } else if (duration === "yearly") {
+      expiry.setMonth(expiry.getMonth() + 12);
+    }
+
+    return expiry.toISOString().split("T")[0];
+  };
+
+  // Helper function to format date for input field (handles timezone correctly)
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return "";
+    // Ensure date string is in YYYY-MM-DD format
+    if (dateStr.includes("-") && dateStr.length === 10) {
+      return dateStr;
+    }
+    // If it's a Date object or needs conversion
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl my-6">
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl my-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 flex items-center justify-between">
           <div>
@@ -43,23 +104,19 @@ export default function RenewPlanModal({
 
         {/* Body */}
         <div className="p-6 space-y-4">
+          {/* Duration Toggles */}
           <div className="flex gap-2 mb-4">
             <button
               type="button"
               onClick={() => {
                 setRenewDuration("monthly");
-
-                const selectedPlan = revenuePlans.find(
-                  (p) => p.name === renewPlan,
-                );
-
-                if (!selectedPlan) return;
-
-                let amount = selectedPlan.monthly;
-
-                amount += amount * 0.18;
-
-                setRenewAmount(Math.round(amount));
+                const amount = calculateTotalAmount(renewPlan, "monthly");
+                setRenewAmount(amount);
+                // ✅ Recalculate expiry date when duration changes
+                if (renewStartDate) {
+                  const newExpiry = calculateExpiryDate(renewStartDate, "monthly");
+                  setRenewExpiryDate(newExpiry);
+                }
               }}
               className={`flex-1 rounded-xl py-2 ${
                 renewDuration === "monthly"
@@ -74,20 +131,13 @@ export default function RenewPlanModal({
               type="button"
               onClick={() => {
                 setRenewDuration("quarterly");
-
-                const selectedPlan = revenuePlans.find(
-                  (p) => p.name === renewPlan,
-                );
-
-                if (!selectedPlan) return;
-
-                let amount = selectedPlan.monthly * 3;
-
-                amount = amount - amount * 0.1;
-
-                amount += amount * 0.18;
-
-                setRenewAmount(Math.round(amount));
+                const amount = calculateTotalAmount(renewPlan, "quarterly");
+                setRenewAmount(amount);
+                // ✅ Recalculate expiry date when duration changes
+                if (renewStartDate) {
+                  const newExpiry = calculateExpiryDate(renewStartDate, "quarterly");
+                  setRenewExpiryDate(newExpiry);
+                }
               }}
               className={`flex-1 rounded-xl py-2 ${
                 renewDuration === "quarterly"
@@ -102,20 +152,13 @@ export default function RenewPlanModal({
               type="button"
               onClick={() => {
                 setRenewDuration("yearly");
-
-                const selectedPlan = revenuePlans.find(
-                  (p) => p.name === renewPlan,
-                );
-
-                if (!selectedPlan) return;
-
-                let amount = selectedPlan.monthly * 12;
-
-                amount = amount - amount * 0.2;
-
-                amount += amount * 0.18;
-
-                setRenewAmount(Math.round(amount));
+                const amount = calculateTotalAmount(renewPlan, "yearly");
+                setRenewAmount(amount);
+                // ✅ Recalculate expiry date when duration changes
+                if (renewStartDate) {
+                  const newExpiry = calculateExpiryDate(renewStartDate, "yearly");
+                  setRenewExpiryDate(newExpiry);
+                }
               }}
               className={`flex-1 rounded-xl py-2 ${
                 renewDuration === "yearly"
@@ -126,7 +169,8 @@ export default function RenewPlanModal({
               Yearly -20%
             </button>
           </div>
-          {/* Plan */}
+
+          {/* Plan Selection */}
           <div>
             <label className="text-sm font-medium text-gray-600">
               Plan Name
@@ -135,30 +179,14 @@ export default function RenewPlanModal({
             <select
               value={renewPlan}
               onChange={(e) => {
-                const selectedPlan = revenuePlans.find(
-                  (p) => p.name === e.target.value,
+                const selectedPlanName = e.target.value;
+                setRenewPlan(selectedPlanName);
+
+                const amount = calculateTotalAmount(
+                  selectedPlanName,
+                  renewDuration
                 );
-
-                if (!selectedPlan) return;
-
-                setRenewPlan(selectedPlan.name);
-
-                let amount = selectedPlan.monthly;
-
-                if (renewDuration === "quarterly") {
-                  amount = amount * 3; // 3 months
-                  amount = amount - amount * 0.1;
-                }
-
-                if (renewDuration === "yearly") {
-                  amount = amount * 12; // 12 months
-                  amount = amount - amount * 0.2;
-                }
-
-                // GST
-                amount += amount * 0.18;
-
-                setRenewAmount(Math.round(amount));
+                setRenewAmount(amount);
               }}
               className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
             >
@@ -172,16 +200,30 @@ export default function RenewPlanModal({
             </select>
           </div>
 
-          {/* Amount */}
+          {/* Amount Field */}
           <div>
             <label className="text-sm font-medium text-gray-600">Amount</label>
-
             <input
               type="number"
               value={renewAmount}
               onChange={(e) => setRenewAmount(e.target.value)}
               placeholder="Enter Amount"
               className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white"
+            />
+          </div>
+
+          {/* GST Number Field */}
+          <div>
+            <label className="text-sm font-medium text-gray-600">
+              GST Number (Optional)
+            </label>
+            <input
+              type="text"
+              value={gstNumber}
+              onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+              placeholder="e.g. 22AAAAA1111A1Z5"
+              maxLength={15}
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none focus:border-indigo-500 focus:bg-white uppercase text-sm font-mono tracking-wider"
             />
           </div>
 
@@ -194,25 +236,16 @@ export default function RenewPlanModal({
 
               <input
                 type="date"
-                value={renewStartDate}
+                value={formatDateForInput(renewStartDate)}
                 onChange={(e) => {
                   const startDate = e.target.value;
-
                   setRenewStartDate(startDate);
 
                   if (!startDate) return;
 
-                  const expiry = new Date(startDate);
-
-                  if (renewDuration === "monthly") {
-                    expiry.setMonth(expiry.getMonth() + 1);
-                  } else if (renewDuration === "quarterly") {
-                    expiry.setMonth(expiry.getMonth() + 3);
-                  } else {
-                    expiry.setMonth(expiry.getMonth() + 12);
-                  }
-
-                  setRenewExpiryDate(expiry.toISOString().split("T")[0]);
+                  // ✅ Use helper function to calculate expiry date
+                  const newExpiry = calculateExpiryDate(startDate, renewDuration);
+                  setRenewExpiryDate(newExpiry);
                 }}
                 className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
               />
@@ -225,8 +258,8 @@ export default function RenewPlanModal({
 
               <input
                 type="date"
-                value={renewExpiryDate}
-                readOnly
+                value={formatDateForInput(renewExpiryDate)}
+                onChange={(e) => setRenewExpiryDate(e.target.value)}
                 className="mt-2 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
               />
             </div>
@@ -258,7 +291,7 @@ export default function RenewPlanModal({
             />
           </div>
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex gap-3 pt-2">
             <button
               onClick={() => setShowRenewModal(false)}

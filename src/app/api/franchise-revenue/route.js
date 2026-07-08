@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-// import { uploadToS3 } from "";
 import {
   assertFranchiseBookingAccess,
   assertFranchiseBookingWriteAccess,
@@ -9,7 +8,7 @@ import {
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 import Admin from "@/models/Admin";
 import User from "@/models/User";
-import { generateInvoicePDFBuffer } from "@/app/api/admin/invoice-tax/route"; // ✅ new
+import { generateInvoicePDFBuffer } from "@/app/api/admin/invoice-tax/route"; 
 import { uploadToS3 } from "@/utils/s3Config";
 
 export async function GET(req) {
@@ -238,7 +237,6 @@ export async function GET(req) {
         userMap[String(item.leadId).trim()]?.packageExpiryDate || null,
       userPackageStartDate:
         userMap[String(item.leadId).trim()]?.packageStartDate || null,
-      // ✅ Fallback plan name (onboard records me plan "" hota hai)
       userPaidPackage:
         userMap[String(item.leadId).trim()]?.paidPackage || null,
     }));
@@ -303,7 +301,6 @@ export async function POST(req) {
       bookingSource,
     } = body;
 
-    // ✅ Validation — paymentScreenshot optional rakho franchise ke liye
     if (!leadId || !leadName || !amount) {
       return NextResponse.json(
         { success: false, message: "leadId, leadName and amount are required" },
@@ -311,7 +308,6 @@ export async function POST(req) {
       );
     }
 
-    // ✅ Admin dhundo — agar nahi mila to franchiseId se kaam chalao
     let admin = null;
     if (email) {
       admin = await Admin.findOne({ email }).lean();
@@ -324,7 +320,6 @@ export async function POST(req) {
       paymentScreenshot: paymentScreenshot || "",
       screenshot: paymentScreenshot || "",
 
-      // ✅ admin mile to use karo, nahi mila to null rakho
       onboardedBy: admin?._id?.toString() || franchiseId || "",
       onboardedByName: admin?.fullName || franchiseName || "",
       onboardedByRole: admin?.role || "franchiseAdmin",
@@ -339,7 +334,6 @@ export async function POST(req) {
       utrNumber: utrNumber || "",
       gstNumber: gstNumber || "",
 
-      // ✅ franchise fields
       franchiseId: franchiseId || null,
       franchiseName: franchiseName || null,
       bookingSource: bookingSource || "manual-upload",
@@ -353,13 +347,11 @@ export async function POST(req) {
 
     let updatedRevenue = newRevenue;
 
-    // ✅ Invoice generate + S3 upload
-
     console.log({
-  ...newRevenue.toObject(),
-  userEmail: userEmail || "",
-  userPhone: phone || "",
-});
+      ...newRevenue.toObject(),
+      userEmail: userEmail || "",
+      userPhone: phone || "",
+    });
 
     try {
       const invoiceBuffer = await generateInvoicePDFBuffer({
@@ -375,24 +367,21 @@ export async function POST(req) {
       );
 
       if (s3Result.success) {
-  await FranchiseRevenue.findByIdAndUpdate(
-    newRevenue._id,
-    {
-      invoiceUrl: s3Result.url,
-    },
-    { new: true }
-  );
-}
+        await FranchiseRevenue.findByIdAndUpdate(
+          newRevenue._id,
+          {
+            invoiceUrl: s3Result.url,
+          },
+          { new: true }
+        );
+      }
 
-updatedRevenue = await FranchiseRevenue.findById(
-  newRevenue._id
-).lean();
-
-// console.log("INVOICE URL =>", updatedRevenue?.invoiceUrl);
+      updatedRevenue = await FranchiseRevenue.findById(
+        newRevenue._id
+      ).lean();
 
     } catch (invoiceErr) {
       console.error("Invoice generation/upload failed:", invoiceErr);
-      // ✅ Revenue save hogi, invoice fail ho to bhi crash nahi hoga
     }
 
     await User.findOneAndUpdate(
@@ -413,10 +402,10 @@ updatedRevenue = await FranchiseRevenue.findById(
     );
 
     return NextResponse.json({
-  success: true,
-  message: "Revenue added successfully",
-  revenue: updatedRevenue,
-});
+      success: true,
+      message: "Revenue added successfully",
+      revenue: updatedRevenue,
+    });
   } catch (error) {
     console.error("Revenue Add Error:", error);
     return NextResponse.json(
@@ -451,8 +440,6 @@ export async function PATCH(req) {
       );
     }
 
-    let screenshotUrl = null;
-
     const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
       revenueId,
       { status },
@@ -480,6 +467,9 @@ export async function PATCH(req) {
   }
 }
 
+// ==================
+// PUT: UPDATE REVENUE DETAILS
+// ==================
 export async function PUT(req) {
   try {
     await dbConnect();
@@ -498,6 +488,10 @@ export async function PUT(req) {
     const gstNumber = formData.get("gstNumber");
     const notes = formData.get("notes");
 
+    // NEW: Retrieving newly added fields from formData
+    const utrNumber = formData.get("utrNumber");
+    const planDuration = formData.get("planDuration");
+
     if (!id) {
       return NextResponse.json(
         { success: false, message: "ID required" },
@@ -508,7 +502,6 @@ export async function PUT(req) {
     // ========================
     // 🔥 SERVICE UPDATE
     // ========================
-
     if (type === "service") {
       let screenshotUrl = null;
 
@@ -531,29 +524,36 @@ export async function PUT(req) {
         }
       }
 
+      const updatedServiceData = {
+        ...(amount !== undefined && {
+          amount: Number(amount) || 0,
+        }),
+
+        ...(notes !== undefined && { notes }),
+        ...(notes !== undefined && { remarks: notes }),
+
+        ...(packageStartDate && {
+          packageStartDate: new Date(packageStartDate),
+        }),
+
+        ...(packageExpiryDate && {
+          packageExpiryDate: new Date(packageExpiryDate),
+        }),
+
+        ...(screenshotUrl && {
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+        }),
+
+        // UPDATED: Injected support for saving incoming GST, UTR, and Plan Duration values
+        ...(gstNumber !== undefined && { gstNumber }),
+        ...(utrNumber !== undefined && { utrNumber }),
+        ...(planDuration !== undefined && { planDuration }),
+      };
+
       const updatedRevenue = await FranchiseRevenue.findByIdAndUpdate(
         id,
-        {
-          ...(amount !== undefined && {
-            amount: Number(amount) || 0,
-          }),
-
-          ...(notes !== undefined && { notes }),
-          ...(notes !== undefined && { remarks: notes }),
-
-          ...(packageStartDate && {
-            packageStartDate: new Date(packageStartDate),
-          }),
-
-          ...(packageExpiryDate && {
-            packageExpiryDate: new Date(packageExpiryDate),
-          }),
-
-          ...(screenshotUrl && {
-            paymentScreenshot: screenshotUrl,
-            screenshot: screenshotUrl,
-          }),
-        },
+        updatedServiceData,
         { new: true },
       );
 
@@ -577,7 +577,6 @@ export async function PUT(req) {
     // ========================
     // 📦 PACKAGE UPDATE
     // ========================
-
     let screenshotUrl = null;
 
     if (
@@ -599,26 +598,32 @@ export async function PUT(req) {
       }
     }
 
+    const updatedPackageData = {
+      ...(plan && { plan }),
+      ...(amount && { amount }),
+      ...(planRemarks && { planRemarks }),
+
+      ...(screenshotUrl && {
+        paymentScreenshot: screenshotUrl,
+        screenshot: screenshotUrl,
+      }),
+
+      ...(packageStartDate && {
+        packageStartDate: new Date(packageStartDate),
+      }),
+
+      ...(packageExpiryDate && {
+        packageExpiryDate: new Date(packageExpiryDate),
+      }),
+
+      // OPTIONAL HELPER: Adding GST and UTR support to package updates as well
+      ...(gstNumber !== undefined && { gstNumber }),
+      ...(utrNumber !== undefined && { utrNumber }),
+    };
+
     const updated = await FranchiseRevenue.findByIdAndUpdate(
       id,
-      {
-        ...(plan && { plan }),
-        ...(amount && { amount }),
-        ...(planRemarks && { planRemarks }),
-
-        ...(screenshotUrl && {
-          paymentScreenshot: screenshotUrl,
-          screenshot: screenshotUrl,
-        }),
-
-        ...(packageStartDate && {
-          packageStartDate: new Date(packageStartDate),
-        }),
-
-        ...(packageExpiryDate && {
-          packageExpiryDate: new Date(packageExpiryDate),
-        }),
-      },
+      updatedPackageData,
       { new: true },
     );
 
@@ -653,10 +658,10 @@ export async function PUT(req) {
     );
   }
 }
+
 // ==================
 // DELETE: DELETE REVENUE ENTRY
 // ==================
-
 export async function DELETE(req) {
   try {
     await dbConnect();

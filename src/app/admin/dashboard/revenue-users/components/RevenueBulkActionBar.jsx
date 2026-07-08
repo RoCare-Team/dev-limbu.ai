@@ -45,13 +45,14 @@ const handleSendTemplate = async (templateName) => {
 
     if (data.success) {
 
-      alert("WhatsApp template sent successfully");
+      alert(data.message || "WhatsApp template sent successfully");
 
       setShowWhatsappModal(false);
 
     } else {
 
-      alert(data.message || "Failed");
+      // Ab honest message aata hai — e.g. "already-expired, use Plan Expired Template"
+      alert(data.message || "Failed — koi message nahi bheja gaya");
     }
 
   } catch (error) {

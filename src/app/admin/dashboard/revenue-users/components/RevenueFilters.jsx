@@ -14,6 +14,8 @@ export default function RevenueFilters({
   setPlanFilter,
   statusFilter,
   setStatusFilter,
+  showFranchiseOnly,
+  setShowFranchiseOnly,
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-t-2xl px-5 py-4 shadow-sm">
@@ -91,6 +93,17 @@ export default function RevenueFilters({
           <option value="rejected">Rejected</option>
         </select>
 
+        {/* FRANCHISE USERS CHECKBOX */}
+        <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100 transition">
+          <input
+            type="checkbox"
+            checked={showFranchiseOnly}
+            onChange={(e) => setShowFranchiseOnly(e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
+          />
+          <span className="text-sm font-medium text-gray-700">Franchise Users</span>
+        </label>
+
         {/* CLEAR */}
         <button
           onClick={() => {
@@ -98,6 +111,7 @@ export default function RevenueFilters({
             setPlanFilter("");
             setStatusFilter("");
             setExpiryFilter("");
+            setShowFranchiseOnly(false);
           }}
           className="h-[42px] px-5 rounded-xl text-sm font-medium 
           bg-gray-100 hover:bg-gray-200 border border-gray-300 transition"

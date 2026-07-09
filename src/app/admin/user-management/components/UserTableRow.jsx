@@ -8,7 +8,9 @@ import {
   CheckCircle,
   ChevronDown,
   Crown,
+  Edit2,
   Eye,
+  FileText,
   Globe2,
   Mail,
   MessageCircle,
@@ -55,6 +57,9 @@ export default function UserTableRow({
   handleUserSourceChange,
   handleViewPosts,
   handleVoiceCall,
+  handleOpenEditUserModal,
+  handleOpenReportModal,
+  handleSendReportWhatsApp,
   fetchChatHistoryForUser,
   toggleBulkWaUserId,
   setDeleteUserModal,
@@ -114,7 +119,7 @@ export default function UserTableRow({
       {botUserId && (
         <tr className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
           <td
-            colSpan={role === "superAdmin" ? 14 : 13}
+            colSpan={role === "superAdmin" ? 15 : 14}
             className="px-6 pt-3 pb-1 border-b-0"
           >
             <div className="flex items-center gap-3">
@@ -583,6 +588,36 @@ export default function UserTableRow({
           )}
         </td>
 
+        {/* BUSINESS REPORT */}
+        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-1.5 items-start">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenReportModal(user);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-100 whitespace-nowrap"
+              title="Generate Business Report"
+            >
+              <FileText size={14} />
+              {user.businessReport?.pdfUrl ? "View / Regenerate" : "Generate"}
+            </button>
+            {user.businessReport?.pdfUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSendReportWhatsApp(user);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 whitespace-nowrap"
+                title="Send report on WhatsApp"
+              >
+                <MessageCircle size={14} />
+                WhatsApp
+              </button>
+            )}
+          </div>
+        </td>
+
         {/* ACTIONS */}
         <td className="px-6 py-4">
           <div className="flex items-center gap-1.5">
@@ -604,6 +639,18 @@ export default function UserTableRow({
             >
               <Phone size={14} />
             </button>
+            {(role === "superAdmin" || role === "admin" || role === "agent") && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenEditUserModal(user);
+                }}
+                className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg"
+                title="Edit Name & Email"
+              >
+                <Edit2 size={14} />
+              </button>
+            )}
             {role === "superAdmin" && (
               <button
                 onClick={(e) => {

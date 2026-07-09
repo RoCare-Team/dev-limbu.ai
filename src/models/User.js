@@ -245,6 +245,20 @@ const userSchema = new mongoose.Schema(
       city: { type: String, default: "" },
       category: { type: String, default: "" },
     },
+
+    /**
+     * Google Places "Generate Report" cache (per-user, 10-day freshness).
+     * `place` holds the raw Places searchText result the admin selected.
+     */
+    businessReport: {
+      placeId: { type: String, default: "" },
+      businessName: { type: String, default: "" },
+      city: { type: String, default: "" },
+      place: { type: mongoose.Schema.Types.Mixed, default: null },
+      pdfUrl: { type: String, default: "" },
+      fetchedAt: { type: Date, default: null },
+      generatedAt: { type: Date, default: null },
+    },
   },
   { timestamps: true }
 );

@@ -1363,6 +1363,38 @@ export async function PUT(req) {
       };
     }
 
+    /* -------- NAME / EMAIL UPDATE (admin & agent) -------- */
+    if (body.fullName !== undefined) {
+      const name = String(body.fullName).trim();
+      updateData.$set = {
+        ...updateData.$set,
+        fullName: name,
+      };
+    }
+
+    if (body.email !== undefined) {
+      const email = String(body.email).trim().toLowerCase();
+      if (email) {
+        const existingEmailUser = await User.findOne({
+          email,
+          userId: { $ne: userId },
+        });
+        if (existingEmailUser) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Email already exists. Please enter a unique email.",
+            },
+            { status: 400 },
+          );
+        }
+      }
+      updateData.$set = {
+        ...updateData.$set,
+        email,
+      };
+    }
+
     /* -------- ACQUISITION SOURCE (admin) -------- */
     if (
       body.source !== undefined &&

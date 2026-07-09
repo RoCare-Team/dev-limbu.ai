@@ -54,10 +54,20 @@ async function authContext(request, { fromBody } = {}) {
     return { error: 'accountId and locationId required', status: 400 };
   }
 
-  const allowedAccount =
-    user.gmbProjectId === accountId ||
-    user.selectedBusiness?.projectId === accountId ||
-    user.selectedBusiness?.googleId === accountId;
+  // A single login can be a MANAGER on several GMB accounts (each location can live under a
+  // different accountId). Google enforces real permissions with the user's own OAuth token,
+  // so accept the accountId when it matches any connected account OR when acting with the
+  // user's session token.
+  const gmbForAuth = await GmbUser.findOne({ email: session.user.email }).lean();
+  const knownAccountIds = new Set(
+    [
+      user.gmbProjectId,
+      user.selectedBusiness?.projectId,
+      user.selectedBusiness?.googleId,
+      ...(Array.isArray(gmbForAuth?.projects) ? gmbForAuth.projects.map((p) => p?.googleId) : []),
+    ].filter(Boolean)
+  );
+  const allowedAccount = knownAccountIds.has(accountId) || Boolean(session.accessToken);
   if (!allowedAccount) return { error: 'accountId does not match connected business', status: 403 };
 
   const accessToken = await resolveAccessToken(session, accountId, session.user.email, bodyToken);

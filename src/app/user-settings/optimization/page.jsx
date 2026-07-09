@@ -225,11 +225,16 @@ export default function OptimizationPage() {
 
   const handleSyncToGmb = useCallback(
     async (payload) => {
+      // The panel tells us which location is actually being edited — honor it so edits
+      // to a non-first location (e.g. a second branch) patch the right listing instead
+      // of always falling back to the first location.
       const locId =
+        String(payload?.locationId || "").trim() ||
         selectedLocations[0]?.locationId ||
         gmbLocations[0]?.locationId ||
         "";
-      if (!accountId || !locId) {
+      const acctId = String(payload?.accountId || "").trim() || accountId;
+      if (!acctId || !locId) {
         const msg = "Select a business with a Google location, then try again.";
         setError(msg);
         toast.error(msg);
@@ -242,7 +247,7 @@ export default function OptimizationPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            accountId,
+            accountId: acctId,
             locationId: locId,
             description: payload?.description,
             services:

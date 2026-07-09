@@ -114,7 +114,10 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   const postalCode = sa?.postalCode || '';
   const regionCode = sa?.regionCode || '';
   const fullAddress = [addressLines, locality, administrativeArea, postalCode, regionCode].filter(Boolean).join(', ');
-  const phone = loc.phoneNumbers?.primaryPhone || loc.phone || '';
+  // location-optimization flattens phoneNumbers.primaryPhone -> primaryPhone, so read
+  // that too — otherwise the real GMB phone is lost and the UI falls back to the app
+  // user's own mobile number.
+  const phone = loc.phoneNumbers?.primaryPhone || loc.primaryPhone || loc.phone || '';
   const websiteUrl = loc.websiteUri || loc.websiteUrl || '';
   const primaryCategory = loc.categories?.primaryCategory?.displayName || loc.primaryCategory || '';
   const primaryCategoryName = loc.categories?.primaryCategory?.name || loc.primaryCategoryId || '';

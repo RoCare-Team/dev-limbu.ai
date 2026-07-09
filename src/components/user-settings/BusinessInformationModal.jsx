@@ -3515,6 +3515,22 @@ export default function BusinessInformationPanel({
     [fields.regularHoursPeriods, hoursBaseline]
   );
 
+  // Every Google write MUST target the location the user is actually editing. The parent
+  // otherwise falls back to the first location, so editing a non-first location (e.g. a
+  // second branch) would silently update the wrong listing. Inject the active location
+  // (and its account) into every sync payload so the correct location is patched.
+  const syncToGmb = useCallback(
+    (payload) => {
+      if (typeof onSyncToGmb !== "function") return Promise.resolve();
+      return onSyncToGmb({
+        ...(activeEditorLocationId ? { locationId: activeEditorLocationId } : {}),
+        ...(activeEnriched?.accountId ? { accountId: activeEnriched.accountId } : {}),
+        ...payload,
+      });
+    },
+    [onSyncToGmb, activeEditorLocationId, activeEnriched?.accountId]
+  );
+
   const handleSave = useCallback(async () => {
     try {
       const desc = clampGmbDescription((fields.description || "").trim());
@@ -3528,7 +3544,7 @@ export default function BusinessInformationPanel({
       const serviceItemsClean = serviceItemsForGoogle(fields.serviceItems);
       const categoriesDirty = categoryDirty && Boolean(categoryPrimary?.name);
       if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
-        await onSyncToGmb({
+        await syncToGmb({
           description: desc,
           ...(serviceItemsDirty ? { serviceItems: serviceItemsClean } : {}),
           primaryPhone: (fields.phone || "").trim(),
@@ -3608,7 +3624,7 @@ export default function BusinessInformationPanel({
   const handleSaveServiceAreasToGoogle = useCallback(async () => {
     if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
     try {
-      await onSyncToGmb({
+      await syncToGmb({
         serviceAreaPlaces: Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces : [],
       });
     } catch (e) {
@@ -3620,7 +3636,7 @@ export default function BusinessInformationPanel({
     if (!gmbSyncMode || !activeEditorLocationId || typeof onSyncToGmb !== "function") return;
     const cleaned = serviceItemsForGoogle(fields.serviceItems);
     try {
-      await onSyncToGmb({ serviceItems: cleaned });
+      await syncToGmb({ serviceItems: cleaned });
     } catch (e) {
       toast.error(e.message || "Could not save services");
     }
@@ -3700,7 +3716,7 @@ export default function BusinessInformationPanel({
       if (!websiteUri) throw new Error("Website URL generation failed");
       setFields((f) => ({ ...f, website: websiteUri }));
       if (gmbSyncMode && activeEditorLocationId && typeof onSyncToGmb === "function") {
-        await onSyncToGmb({ websiteUri });
+        await syncToGmb({ websiteUri });
       }
       toast.success(
         gmbSyncMode && activeEditorLocationId
@@ -3742,7 +3758,7 @@ export default function BusinessInformationPanel({
       if (fieldId === "bookingUrl") payload.bookingUrl = text;
       if (Object.keys(payload).length === 0) return;
       try {
-        await onSyncToGmb(payload);
+        await syncToGmb(payload);
       } catch (e) {
         toast.error(e.message || "Could not sync this field");
       }
@@ -3756,7 +3772,7 @@ export default function BusinessInformationPanel({
       const a = categoryAttrs.find((x) => x.name === name);
       if (!a) return;
       try {
-        await onSyncToGmb({
+        await syncToGmb({
           attributes: [{ name: a.name, valueType: a.valueType, values: attrValues[a.name] }],
         });
         await reloadCategoryFields();
@@ -3781,7 +3797,7 @@ export default function BusinessInformationPanel({
     }
     setCategorySaving(true);
     try {
-      await onSyncToGmb({
+      await syncToGmb({
         categories: {
           primary: categoryPrimary.name,
           additional: categoryAdditional.map((c) => c.name).filter(Boolean),
@@ -4281,6 +4297,35 @@ export default function BusinessInformationPanel({
                       }
                       noBottomRule
                     />
+                    {gmbSyncMode ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleFieldSave({ fieldId: "description", value: fields.description })
+                          }
+                          disabled={syncToGmbPending || !String(fields.description || "").trim()}
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px",
+                            borderRadius: 12, border: "none",
+                            cursor: syncToGmbPending || !String(fields.description || "").trim() ? "not-allowed" : "pointer",
+                            background:
+                              syncToGmbPending || !String(fields.description || "").trim() ? "#f3f4f6" : "#CA8A04",
+                            color: syncToGmbPending || !String(fields.description || "").trim() ? "#9ca3af" : "#fff",
+                            fontSize: 14, fontWeight: 800, fontFamily: "inherit",
+                            boxShadow:
+                              syncToGmbPending || !String(fields.description || "").trim()
+                                ? "none"
+                                : "0 4px 14px rgba(202,138,4,.32)",
+                          }}
+                        >
+                          {syncToGmbPending ? "Saving…" : "Save description to Google"}
+                        </button>
+                        <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                          {String(fields.description || "").length} / {GMB_PROFILE_DESCRIPTION_MAX} chars — saves straight to your Google profile.
+                        </span>
+                      </div>
+                    ) : null}
                   </SectionBlock>
                 </div>
               )}

@@ -28,14 +28,20 @@ import {
   Reply,
   CalendarDays,
   Loader2, // बेहतर बटन UX के लिए स्पिनर इम्पोर्ट किया गया
+  MessageCircle,
+  Mail,
 } from "lucide-react";
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import toast from "react-hot-toast";
+import { getLocalStorage } from "@/utils/storage";
 
 export default function GBPAuditCard({ audit }) {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSendingWa, setIsSendingWa] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const router = useRouter();
 
@@ -56,8 +62,11 @@ export default function GBPAuditCard({ audit }) {
 
   const businessName = profile.business_name || "Your Business";
   const date = new Date().toLocaleString();
+  const monthLabel = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
-  const handleDownloadPDF = useCallback(async () => {
+  // returnBase64=true → resolve the PDF as a data-URI string (for email/WhatsApp)
+  // instead of triggering a browser download.
+  const handleDownloadPDF = useCallback(async (returnBase64 = false) => {
     try {
       setIsExporting(true);
       const { jsPDF } = await import("jspdf");
@@ -216,14 +225,89 @@ export default function GBPAuditCard({ audit }) {
         addFooter(pdf, idx + 1, totalPages);
       });
 
+      if (returnBase64) {
+        return pdf.output("datauristring");
+      }
       pdf.save(`Business-Health-${businessName.replace(/\s+/g, "-")}.pdf`);
     } catch (error) {
       console.error("PDF generation failed:", error);
+      if (returnBase64) throw error;
       alert("Failed to generate PDF. Please try again.");
     } finally {
       setIsExporting(false);
     }
   }, [businessName]);
+
+  const handleSendWhatsApp = useCallback(async () => {
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Please log in first");
+      return;
+    }
+    setIsSendingWa(true);
+    toast.loading("Preparing report & sending on WhatsApp...", { id: "gh-wa" });
+    try {
+      // Build the SAME full PDF as "Save PDF" and send it as a titled document.
+      let pdfBase64 = "";
+      try {
+        pdfBase64 = await handleDownloadPDF(true);
+      } catch (pdfErr) {
+        console.error("PDF build for WhatsApp failed:", pdfErr);
+      }
+
+      const res = await fetch("/api/gmb-health/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, businessName, monthLabel, pdfBase64 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Report sent on WhatsApp!", { id: "gh-wa" });
+      } else {
+        toast.error(data.error || "WhatsApp send failed", { id: "gh-wa" });
+      }
+    } catch (error) {
+      console.error("WhatsApp send error:", error);
+      toast.error("WhatsApp send failed. Please retry.", { id: "gh-wa" });
+    } finally {
+      setIsSendingWa(false);
+    }
+  }, [businessName, monthLabel, handleDownloadPDF]);
+
+  const handleSendEmail = useCallback(async () => {
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Please log in first");
+      return;
+    }
+    setIsSendingEmail(true);
+    toast.loading("Preparing report & sending email...", { id: "gh-email" });
+    try {
+      let pdfBase64 = "";
+      try {
+        pdfBase64 = await handleDownloadPDF(true);
+      } catch (pdfErr) {
+        console.error("PDF build for email failed:", pdfErr);
+      }
+
+      const res = await fetch("/api/gmb-health/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, businessName, monthLabel, pdfBase64 }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(data.message || "Report sent to your email!", { id: "gh-email" });
+      } else {
+        toast.error(data.error || "Email send failed", { id: "gh-email" });
+      }
+    } catch (error) {
+      console.error("Email send error:", error);
+      toast.error("Email send failed. Please retry.", { id: "gh-email" });
+    } finally {
+      setIsSendingEmail(false);
+    }
+  }, [businessName, monthLabel, handleDownloadPDF]);
 
   const handleShare = useCallback(async () => {
     if (!navigator.share) {
@@ -572,7 +656,7 @@ export default function GBPAuditCard({ audit }) {
         </Link>
 
         <button
-          onClick={handleDownloadPDF}
+          onClick={() => handleDownloadPDF()}
           disabled={isExporting}
           className="w-full sm:w-auto flex-1 max-w-[240px] py-4 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2 border-slate-200 hover:border-slate-350 text-slate-700 bg-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
         >
@@ -585,6 +669,42 @@ export default function GBPAuditCard({ audit }) {
             <>
               <Download className="w-4 h-4" />
               Save PDF
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={handleSendWhatsApp}
+          disabled={isSendingWa}
+          className="w-full sm:w-auto flex-1 max-w-[240px] py-4 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md"
+        >
+          {isSendingWa ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <MessageCircle className="w-4 h-4" />
+              Send WhatsApp
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={handleSendEmail}
+          disabled={isSendingEmail}
+          className="w-full sm:w-auto flex-1 max-w-[240px] py-4 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border-2 border-slate-200 hover:border-slate-350 text-slate-700 bg-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
+        >
+          {isSendingEmail ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Mail className="w-4 h-4" />
+              Email
             </>
           )}
         </button>

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -12,9 +12,48 @@ export function useKeywordExport({ businessName, locationName, slug, keywordCoun
   const [pdfStatus, setPdfStatus] = useState("pending");
   const [whatsappStatus, setWhatsappStatus] = useState("pending");
   const [emailStatus, setEmailStatus] = useState("pending");
+  const [approvalStatus, setApprovalStatus] = useState("pending");
+  const [isUpdatingApproval, setIsUpdatingApproval] = useState(false);
 
   const canGeneratePdf = keywordCount > 0;
   const canSend = pdfStatus === "generated" && !!pdfUrl;
+
+  // 👇 Restore last saved report (status + PDF) on load / when location changes,
+  //    so an approved report stays "approved" even after a refresh.
+  useEffect(() => {
+    const userId = getLocalStorage("userId");
+    if (!userId) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const qs = new URLSearchParams({ userId });
+        if (slug) qs.set("slug", slug);
+        const res = await fetch(`/api/keyword-research/export/status?${qs.toString()}`);
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (data.success && data.data) {
+          setReportId(data.data.reportId);
+          setPdfUrl(data.data.pdfUrl || "");
+          setPdfStatus(data.data.pdfStatus === "generated" ? "generated" : "pending");
+          setApprovalStatus(data.data.approvalStatus || "pending");
+        } else {
+          // No report for this location yet — reset to a clean slate
+          setReportId(null);
+          setPdfUrl("");
+          setPdfStatus("pending");
+          setApprovalStatus("pending");
+        }
+      } catch (err) {
+        console.error("Failed to restore report state:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   const generatePdf = useCallback(async () => {
     const userId = getLocalStorage("userId");
@@ -50,6 +89,7 @@ export function useKeywordExport({ businessName, locationName, slug, keywordCoun
       setReportId(data.data.reportId);
       setPdfUrl(data.data.pdfUrl);
       setPdfStatus("generated");
+      setApprovalStatus(data.data.approvalStatus || "pending");
       setWhatsappStatus("pending");
       setEmailStatus("pending");
       toast.success("PDF report generated!");
@@ -94,6 +134,41 @@ export function useKeywordExport({ businessName, locationName, slug, keywordCoun
       setIsSendingWhatsApp(false);
     }
   }, [reportId]);
+
+  const updateApprovalStatus = useCallback(async (nextStatus, note = "") => {
+    if (!reportId) return;
+
+    const userId = getLocalStorage("userId");
+    const prev = approvalStatus;
+    setApprovalStatus(nextStatus); // optimistic
+    setIsUpdatingApproval(true);
+
+    try {
+      const res = await fetch("/api/keyword-research/export/status", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId, userId, approvalStatus: nextStatus, approvalNote: note }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setApprovalStatus(prev);
+        toast.error(data.error || "Could not update status");
+        return;
+      }
+
+      const label =
+        nextStatus === "approved" ? "Approved" : nextStatus === "rejected" ? "Rejected" : "Pending";
+      toast.success(`Report marked as ${label}`);
+    } catch (err) {
+      console.error("Approval status error:", err);
+      setApprovalStatus(prev);
+      toast.error("Could not update status. Please retry.");
+    } finally {
+      setIsUpdatingApproval(false);
+    }
+  }, [reportId, approvalStatus]);
 
   const sendEmail = useCallback(async () => {
     if (!reportId) return;
@@ -141,5 +216,8 @@ export function useKeywordExport({ businessName, locationName, slug, keywordCoun
     isSendingEmail,
     whatsappStatus,
     emailStatus,
+    approvalStatus,
+    updateApprovalStatus,
+    isUpdatingApproval,
   };
 }

@@ -31,19 +31,21 @@ export async function sendDailyPostUpdateWhatsApp({
     campaignName: "daily_post_update",
     destination,
     userName: "YOUR_BRAND_NAME",
-    templateParams: ["$FirstName", "$LastName"],
+    // Pass ACTUAL values (like the working Insights-report Postman call), not
+    // "$FirstName" placeholder tokens.
+    templateParams: [firstName || "User", lastName || ""],
     source: "api",
     // Send the generated image as the template header media so it shows in WhatsApp.
-    // NOTE: image header media takes ONLY `url` — Meta rejects `filename` on an
-    // image param (filename is for document media only).
-    media: imageUrl ? { url: String(imageUrl) } : {},
+    // AiSensy expects the image as { type: "image", link: <url> } — NOT { url } and
+    // NOT { url, filename } (those give Meta errors #131053 / "Unexpected key filename").
+    media: imageUrl ? { type: "image", link: String(imageUrl) } : {},
     buttons: [],
     carouselCards: [],
     location: {},
-    attributes: {
-      postContent: String(postContent || "").slice(0, 1024),
-      imageUrl: String(imageUrl || "").slice(0, 512),
-    },
+    // Keep attributes EMPTY (exactly like the working Postman call). The image goes
+    // ONLY via media.link above — also setting imageUrl here made the provider try to
+    // attach the image twice, which triggered Meta "Media upload error (#131053)".
+    attributes: {},
     paramsFallbackValue: {
       FirstName: firstName || "firstname",
       LastName: lastName || "lastname",

@@ -9,15 +9,21 @@ import {
   RefreshCw,
   BarChart3,
   Loader2,
+  MessageCircle,
+  Mail,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import PerformanceInsightsReport from "./PerformanceInsightsReport";
-import { generatePerformanceInsightsPDF } from "@/lib/performancePdfGenerator";
+import {
+  generatePerformanceInsightsPDF,
+  buildPerformanceInsightsPdfBase64,
+} from "@/lib/performancePdfGenerator";
 import {
   savePerformanceInsights,
   calculateMetricsInRange,
   getReportPeriod,
 } from "@/lib/performanceInsightsUtils";
+import { getLocalStorage } from "@/utils/storage";
 
 const PerformanceInsightsModal = ({
   isOpen,
@@ -36,6 +42,8 @@ const PerformanceInsightsModal = ({
 }) => {
   const reportRef = useRef(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedInsight, setSavedInsight] = useState(null);
   const [displayData, setDisplayData] = useState(null);
@@ -352,6 +360,122 @@ const PerformanceInsightsModal = ({
       console.error("Error downloading PDF:", error);
       // Don't show duplicate toast here as generator already shows one
       setIsDownloading(false);
+    }
+  };
+
+  // Resolve the currently displayed report window (dynamic — whatever period is shown)
+  const getReportWindow = () => {
+    const start = displayData?.dateRange?.startDate
+      ? new Date(displayData.dateRange.startDate)
+      : currentStartDate;
+    const end = displayData?.dateRange?.endDate
+      ? new Date(displayData.dateRange.endDate)
+      : currentEndDate;
+    return { start, end };
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!displayData || !reportRef.current) {
+      toast.error("No report data to send");
+      return;
+    }
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Please log in first");
+      return;
+    }
+
+    const { start, end } = getReportWindow();
+    setIsSendingWhatsApp(true);
+    toast.loading("Preparing report & sending on WhatsApp...", { id: "insights-wa" });
+
+    try {
+      // Build the SAME dynamic PDF used for email/download and send it as the
+      // WhatsApp document (so the actual report goes, not a static image).
+      let pdfBase64 = "";
+      try {
+        pdfBase64 = await buildPerformanceInsightsPdfBase64(reportRef.current, {
+          businessName: displayData.businessName || businessName,
+        });
+      } catch (pdfErr) {
+        console.error("PDF build for WhatsApp failed:", pdfErr);
+      }
+
+      const res = await fetch("/api/performance-insights/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          businessName: displayData.businessName || businessName,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          pdfBase64,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(data.message || "Report sent on WhatsApp!", { id: "insights-wa" });
+      } else {
+        toast.error(data.error || "WhatsApp send failed", { id: "insights-wa" });
+      }
+    } catch (error) {
+      console.error("WhatsApp send error:", error);
+      toast.error("WhatsApp send failed. Please retry.", { id: "insights-wa" });
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!displayData || !reportRef.current) {
+      toast.error("No report data to send");
+      return;
+    }
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Please log in first");
+      return;
+    }
+
+    const { start, end } = getReportWindow();
+    setIsSendingEmail(true);
+    toast.loading("Preparing report & sending email...", { id: "insights-email" });
+
+    try {
+      let pdfBase64 = "";
+      try {
+        pdfBase64 = await buildPerformanceInsightsPdfBase64(reportRef.current, {
+          businessName: displayData.businessName || businessName,
+        });
+      } catch (pdfErr) {
+        console.error("PDF build for email failed:", pdfErr);
+        // Continue without attachment rather than blocking the email
+      }
+
+      const res = await fetch("/api/performance-insights/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          businessName: displayData.businessName || businessName,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          pdfBase64,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(data.message || "Report sent to your email!", { id: "insights-email" });
+      } else {
+        toast.error(data.error || "Email send failed", { id: "insights-email" });
+      }
+    } catch (error) {
+      console.error("Email send error:", error);
+      toast.error("Email send failed. Please retry.", { id: "insights-email" });
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -689,7 +813,7 @@ const PerformanceInsightsModal = ({
             </button>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex flex-wrap items-center gap-3">
             <button
               onClick={handleDownloadPDF}
               disabled={loading || isDownloading || !displayData}
@@ -701,6 +825,32 @@ const PerformanceInsightsModal = ({
                 <Download size={14} />
               )}
               {isDownloading ? "Generating..." : "Download Report ↗"}
+            </button>
+
+            <button
+              onClick={handleSendWhatsApp}
+              disabled={loading || isSendingWhatsApp || !displayData}
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 bg-[#25D366] text-white hover:bg-[#1da851] transition-colors shadow-lg disabled:opacity-60"
+            >
+              {isSendingWhatsApp ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <MessageCircle size={14} />
+              )}
+              {isSendingWhatsApp ? "Sending..." : "Send WhatsApp"}
+            </button>
+
+            <button
+              onClick={handleSendEmail}
+              disabled={loading || isSendingEmail || !displayData}
+              className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 bg-black text-white hover:bg-slate-800 transition-colors shadow-lg disabled:opacity-60"
+            >
+              {isSendingEmail ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Mail size={14} />
+              )}
+              {isSendingEmail ? "Sending..." : "Email"}
             </button>
           </div>
         </div>

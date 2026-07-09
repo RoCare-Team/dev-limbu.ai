@@ -8,6 +8,9 @@ import {
   Mail,
   RefreshCw,
   Download,
+  ThumbsUp,
+  ThumbsDown,
+  Clock,
 } from "lucide-react";
 
 function StatusBadge({ status }) {
@@ -26,6 +29,77 @@ function StatusBadge({ status }) {
   return null;
 }
 
+const APPROVAL_META = {
+  approved: {
+    label: "Approved",
+    icon: ThumbsUp,
+    cls: "text-green-700 bg-green-50 border-green-200",
+    dot: "bg-green-500",
+  },
+  rejected: {
+    label: "Rejected",
+    icon: ThumbsDown,
+    cls: "text-red-700 bg-red-50 border-red-200",
+    dot: "bg-red-500",
+  },
+  pending: {
+    label: "Pending Review",
+    icon: Clock,
+    cls: "text-amber-700 bg-amber-50 border-amber-200",
+    dot: "bg-amber-500",
+  },
+};
+
+function ApprovalSection({ approvalStatus, updateApprovalStatus, isUpdatingApproval }) {
+  const meta = APPROVAL_META[approvalStatus] || APPROVAL_META.pending;
+  const Icon = meta.icon;
+
+  return (
+    <div className="mt-4 pt-4 border-t border-black/5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[9px] font-black text-black uppercase tracking-widest">
+          Report Status
+        </span>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-widest ${meta.cls}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
+          <Icon className="w-3 h-3" />
+          {meta.label}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => updateApprovalStatus("approved")}
+          disabled={isUpdatingApproval || approvalStatus === "approved"}
+          className="py-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1 border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50"
+        >
+          <ThumbsUp className="w-3 h-3" /> Approve
+        </button>
+        <button
+          onClick={() => updateApprovalStatus("pending")}
+          disabled={isUpdatingApproval || approvalStatus === "pending"}
+          className="py-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1 border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+        >
+          <Clock className="w-3 h-3" /> Pending
+        </button>
+        <button
+          onClick={() => updateApprovalStatus("rejected")}
+          disabled={isUpdatingApproval || approvalStatus === "rejected"}
+          className="py-2 rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1 border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+        >
+          <ThumbsDown className="w-3 h-3" /> Reject
+        </button>
+      </div>
+
+      {approvalStatus === "rejected" && (
+        <p className="text-[8px] font-bold text-slate-400 tracking-wide mt-2 text-center normal-case">
+          Client ne changes maange — naye keywords add karke PDF dobara generate karein.
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function SavedKeywordsExport({
   canGeneratePdf,
   generatePdf,
@@ -39,6 +113,9 @@ export default function SavedKeywordsExport({
   isSendingEmail,
   whatsappStatus,
   emailStatus,
+  approvalStatus,
+  updateApprovalStatus,
+  isUpdatingApproval,
 }) {
   if (!canGeneratePdf) return null;
 
@@ -138,6 +215,14 @@ export default function SavedKeywordsExport({
           </>
         )}
       </div>
+
+      {pdfStatus === "generated" && (
+        <ApprovalSection
+          approvalStatus={approvalStatus}
+          updateApprovalStatus={updateApprovalStatus}
+          isUpdatingApproval={isUpdatingApproval}
+        />
+      )}
 
       <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-3 text-center">
         WhatsApp sends to your account mobile number

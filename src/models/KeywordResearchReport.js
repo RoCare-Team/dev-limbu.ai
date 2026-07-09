@@ -52,6 +52,14 @@ const KeywordResearchReportSchema = new mongoose.Schema(
     },
     emailError: { type: String, default: "" },
     reportType: { type: String, enum: ["ai", "saved"], default: "ai" },
+    // 👇 NEW: client approval workflow (internal — agency sets this)
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
+    approvalNote: { type: String, default: "" },
+    approvalUpdatedAt: { type: Date },
   },
   { timestamps: true }
 );

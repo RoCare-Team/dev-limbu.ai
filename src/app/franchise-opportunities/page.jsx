@@ -1073,7 +1073,7 @@ export default function FranchisePage() {
             </p>
 
             {/* Fully SVG Orbit diagram */}
-            <OrbitDiagram />
+            {/* <OrbitDiagram /> */}
 
             {/* Partner slot label */}
             <div className="text-center text-[11px] text-gray-400 uppercase tracking-wider mb-8 mt-2">

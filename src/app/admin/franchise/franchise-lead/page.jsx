@@ -321,6 +321,9 @@ export default function FranchiseLeadsPage() {
   const [leadRevenueStatus, setLeadRevenueStatus] = useState({}); // Track which leads have paid
   const [fullViewImage, setFullViewImage] = useState(null);
   const [onboardBreakdown, setOnboardBreakdown] = useState([]);
+  /** Whole-DB per-agent lead stats (super admins) — not limited to current page. */
+  const [agentStats, setAgentStats] = useState(null);
+  const [agentStatsLoading, setAgentStatsLoading] = useState(false);
   const [editingLeadId, setEditingLeadId] = useState(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [followUpDueAlert, setFollowUpDueAlert] = useState(null);
@@ -752,6 +755,33 @@ export default function FranchiseLeadsPage() {
     };
   }, [franchiseFollowUpFilter, leads.length]);
 
+  /* Whole-DB per-agent lead stats (super admins only) */
+  useEffect(() => {
+    const email = localStorage.getItem("email");
+    const r = localStorage.getItem("role");
+    if (!email || !["superAdmin", "superFranchiseAdmin"].includes(r || "")) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setAgentStatsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/franchise-agent-stats?email=${encodeURIComponent(email)}`,
+        );
+        const data = await res.json();
+        if (!cancelled && data.success) setAgentStats(data.stats);
+      } catch (e) {
+        console.error("Franchise agent stats fetch failed", e);
+      } finally {
+        if (!cancelled) setAgentStatsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [leads.length, role]);
+
   useEffect(() => {
     const email = localStorage.getItem("email");
     const r = localStorage.getItem("role");
@@ -958,16 +988,21 @@ export default function FranchiseLeadsPage() {
     [baseFilteredLeads],
   );
 
-  /* ---------------- ADMIN COUNTS ---------------- */
-  const adminCounts = useMemo(() => {
-    const counts = { Unassigned: 0 };
-    franchiseAdmins.forEach((admin) => (counts[admin._id] = 0)); // Initialize
-    leads.forEach((lead) => {
-      const adminId = lead.assignedFranchiseAdmin?._id || "Unassigned";
-      counts[adminId] = (counts[adminId] || 0) + 1;
+  /** Whole-DB per-agent stats keyed by admin id (super admin dashboard). */
+  const agentStatsById = useMemo(() => {
+    const m = new Map();
+    (agentStats?.perAgent || []).forEach((a) => m.set(String(a._id), a));
+    return m;
+  }, [agentStats]);
+
+  /** Revenue/onboard breakdown keyed by agent name (from paid revenue records). */
+  const revenueByAgentName = useMemo(() => {
+    const m = new Map();
+    (onboardBreakdown || []).forEach((o) => {
+      if (o.name) m.set(String(o.name).trim().toLowerCase(), o);
     });
-    return counts;
-  }, [leads, franchiseAdmins]);
+    return m;
+  }, [onboardBreakdown]);
 
   /* ---------------- PAGINATION ---------------- */
   const paginatedLeads = leads;
@@ -2865,82 +2900,318 @@ export default function FranchiseLeadsPage() {
           </div>
         )}
 
-        {/* ADMIN ASSIGNMENT SUMMARY (Only for Super Admin) */}
-        {(role === "superFranchiseAdmin" || role === "superAdmin") &&
-          franchiseAdmins.length > 0 && (
-            <div className="flex flex-wrap gap-3 pb-2">
-              {/* Unassigned Count */}
-              <div
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium ${getAvatarColor("Unassigned")}`}
-              >
-                <User className="w-3 h-3" />
-                <span>Unassigned: {adminCounts["Unassigned"] || 0}</span>
+        {/* ===== SUPER ADMIN: TODAY'S LEADS + TEAM PERFORMANCE ===== */}
+        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+          <div className="space-y-4">
+            {/* ---------- TODAY'S LEADS ---------- */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-white flex flex-wrap items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                  <Calendar className="text-emerald-600" size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
+                    Today&apos;s Leads
+                  </h2>
+                  <p className="text-[11px] text-gray-500">
+                    New franchise leads that came in today (India time)
+                  </p>
+                </div>
               </div>
 
-              {franchiseAdmins.map((admin) => {
-                const count = adminCounts[admin._id] || 0;
-
-                return (
-                  <div
-                    key={admin._id}
-                    className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm text-sm font-medium transition-all duration-200
-            ${getAvatarColor(admin.fullName)} 
-            ${!admin.isActive ? "opacity-60" : ""}`}
-                  >
-                    <User className="w-4 h-4" />
-                    <span className="font-semibold">
-                      {admin.fullName}: {count}
+              <div className="p-4 md:p-5">
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
+                  <div className="shrink-0 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-4 min-w-[150px] text-white flex flex-col justify-center shadow-md">
+                    <span className="text-[11px] font-semibold uppercase text-emerald-50 tracking-wide">
+                      Total today
                     </span>
-
-                    {/* STATUS TOGGLE BUTTON */}
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(
-                            "/api/admin/franchise-admins",
-                            {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                adminId: admin._id,
-                                isActive: !admin.isActive,
-                              }),
-                            },
-                          );
-
-                          const data = await res.json();
-
-                          if (data.success) {
-                            fetchFranchiseAdmins();
-                          }
-                        } catch (error) {
-                          console.error("Error toggling admin status:", error);
-                        }
-                      }}
-                      className={`ml-2 flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border
-              ${
-                admin.isActive
-                  ? "bg-green-500 text-white hover:bg-green-600 border-green-600"
-                  : "bg-red-500 text-white hover:bg-red-600 border-red-600"
-              }`}
-                    >
-                      {admin.isActive ? (
-                        <>
-                          <UserCheck className="w-3 h-3" />
-                          Active
-                        </>
-                      ) : (
-                        <>
-                          <UserX className="w-3 h-3" />
-                          Inactive
-                        </>
-                      )}
-                    </button>
+                    <span className="text-4xl font-black tabular-nums leading-tight mt-1">
+                      {agentStatsLoading && !agentStats
+                        ? "—"
+                        : (agentStats?.todayTotal ?? 0)}
+                    </span>
+                    <span className="text-[10px] text-emerald-50/90 mt-1">
+                      {agentStats?.todayAssigned ?? 0} assigned ·{" "}
+                      {agentStats?.todayUnassigned ?? 0} unassigned
+                    </span>
                   </div>
-                );
-              })}
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                      Today by agent
+                    </p>
+                    {(agentStats?.perAgent || []).filter((a) => a.today > 0)
+                      .length === 0 ? (
+                      <div className="flex items-center justify-center h-[72px] text-xs text-gray-400 border border-dashed border-gray-200 rounded-xl">
+                        No leads assigned to any agent today yet.
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {(agentStats?.perAgent || [])
+                          .filter((a) => a.today > 0)
+                          .sort((a, b) => b.today - a.today)
+                          .map((a) => (
+                            <div
+                              key={`today-${a._id}`}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium ${getAvatarColor(a.agentName)}`}
+                            >
+                              <User className="w-3.5 h-3.5" />
+                              <span className="font-semibold truncate max-w-[140px]">
+                                {a.agentName}
+                              </span>
+                              <span className="tabular-nums font-black bg-white/70 text-gray-900 px-2 py-0.5 rounded-full">
+                                {a.today}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* ---------- TEAM PERFORMANCE (per agent, whole DB) ---------- */}
+            {franchiseAdmins.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 md:px-5 md:py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-white flex flex-wrap items-center gap-2">
+                  <div className="w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
+                    <Users className="text-indigo-600" size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-base md:text-lg font-bold text-gray-900 leading-tight">
+                      Team performance
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Leads held &amp; onboarded per agent — across all leads,
+                      not just this page
+                    </p>
+                  </div>
+                  {agentStatsLoading && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Updating…
+                    </span>
+                  )}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[760px]">
+                    <thead>
+                      <tr className="text-gray-500 text-[10px] uppercase tracking-wide border-b border-gray-200 bg-gray-50">
+                        <th className="px-4 py-3 text-left">Agent</th>
+                        <th className="px-3 py-3 text-center">Total leads</th>
+                        <th className="px-3 py-3 text-center text-blue-600">
+                          Active
+                        </th>
+                        <th className="px-3 py-3 text-center text-yellow-600">
+                          Follow-up
+                        </th>
+                        <th className="px-3 py-3 text-center text-green-600">
+                          Onboard
+                        </th>
+                        <th className="px-3 py-3 text-center text-emerald-600">
+                          Today
+                        </th>
+                        <th className="px-3 py-3 text-center text-teal-700">
+                          Revenue
+                        </th>
+                        <th className="px-3 py-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {franchiseAdmins.map((admin) => {
+                        const s = agentStatsById.get(String(admin._id));
+                        const rev = revenueByAgentName.get(
+                          String(admin.fullName || "").trim().toLowerCase(),
+                        );
+                        return (
+                          <tr
+                            key={admin._id}
+                            className={`hover:bg-indigo-50/40 transition-colors ${!admin.isActive ? "opacity-60" : ""}`}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border ${getAvatarColor(admin.fullName)}`}
+                                >
+                                  {String(admin.fullName || "?")
+                                    .charAt(0)
+                                    .toUpperCase()}
+                                </div>
+                                <span className="font-semibold text-gray-800 capitalize truncate max-w-[160px]">
+                                  {admin.fullName}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 text-center font-black text-gray-900 tabular-nums">
+                              {s?.total ?? 0}
+                            </td>
+                            <td className="px-3 py-3 text-center tabular-nums">
+                              <span
+                                className={
+                                  s?.active
+                                    ? "font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full"
+                                    : "text-gray-300"
+                                }
+                              >
+                                {s?.active ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center tabular-nums">
+                              <span
+                                className={
+                                  s?.followUp
+                                    ? "font-bold text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full"
+                                    : "text-gray-300"
+                                }
+                              >
+                                {s?.followUp ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center tabular-nums">
+                              <span
+                                className={
+                                  s?.onboard
+                                    ? "font-black text-green-700 bg-green-50 px-2 py-0.5 rounded-full"
+                                    : "text-gray-300"
+                                }
+                              >
+                                {s?.onboard ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center tabular-nums">
+                              <span
+                                className={
+                                  s?.today
+                                    ? "font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full"
+                                    : "text-gray-300"
+                                }
+                              >
+                                {s?.today ?? 0}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3 text-center tabular-nums">
+                              {rev?.revenue ? (
+                                <span className="font-semibold text-teal-700">
+                                  ₹{rev.revenue.toLocaleString()}
+                                </span>
+                              ) : (
+                                <span className="text-gray-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch(
+                                      "/api/admin/franchise-admins",
+                                      {
+                                        method: "PATCH",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({
+                                          adminId: admin._id,
+                                          isActive: !admin.isActive,
+                                        }),
+                                      },
+                                    );
+                                    const data = await res.json();
+                                    if (data.success) fetchFranchiseAdmins();
+                                  } catch (error) {
+                                    console.error(
+                                      "Error toggling admin status:",
+                                      error,
+                                    );
+                                  }
+                                }}
+                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-semibold transition-all duration-200 cursor-pointer border ${
+                                  admin.isActive
+                                    ? "bg-green-500 text-white hover:bg-green-600 border-green-600"
+                                    : "bg-red-500 text-white hover:bg-red-600 border-red-600"
+                                }`}
+                              >
+                                {admin.isActive ? (
+                                  <>
+                                    <UserCheck className="w-3 h-3" />
+                                    Active
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserX className="w-3 h-3" />
+                                    Inactive
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* Unassigned row */}
+                      <tr className="bg-gray-50/60">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border bg-gray-100 text-gray-500 border-gray-200">
+                              <User className="w-4 h-4" />
+                            </div>
+                            <span className="font-semibold text-gray-500">
+                              Unassigned
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center font-black text-gray-700 tabular-nums">
+                          {agentStats?.unassigned?.total ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-gray-500">
+                          {agentStats?.unassigned?.active ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-gray-500">
+                          {agentStats?.unassigned?.followUp ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-gray-500">
+                          {agentStats?.unassigned?.onboard ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center tabular-nums text-gray-500">
+                          {agentStats?.unassigned?.today ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center text-gray-300">—</td>
+                        <td className="px-3 py-3 text-center text-gray-300">—</td>
+                      </tr>
+
+                      {/* Totals row */}
+                      <tr className="bg-indigo-50 font-bold border-t-2 border-indigo-200">
+                        <td className="px-4 py-3 text-xs text-indigo-800 font-black uppercase tracking-wide">
+                          All agents
+                        </td>
+                        <td className="px-3 py-3 text-center text-indigo-900 font-black tabular-nums">
+                          {agentStats?.totalLeads ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center text-blue-700 font-black tabular-nums">
+                          {dbStats.active}
+                        </td>
+                        <td className="px-3 py-3 text-center text-yellow-700 font-black tabular-nums">
+                          {dbStats.followup}
+                        </td>
+                        <td className="px-3 py-3 text-center text-green-700 font-black tabular-nums">
+                          {agentStats?.totalOnboard ?? dbStats.onboard}
+                        </td>
+                        <td className="px-3 py-3 text-center text-emerald-700 font-black tabular-nums">
+                          {agentStats?.todayTotal ?? 0}
+                        </td>
+                        <td className="px-3 py-3 text-center text-teal-700 font-black tabular-nums">
+                          ₹{totalRevenue.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-3 text-center text-gray-300">—</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* SEARCH BAR */}
         <div className="mt-6 mb-2">

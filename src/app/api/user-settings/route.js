@@ -4,7 +4,7 @@ import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { getPlanPostLimit, calculatePostingSchedule } from '@/utils/userSettingsHelpers';
+import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
 import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 import AutomationPlan from '@/models/AutomationPlan';
@@ -720,28 +720,23 @@ export async function POST(request) {
             (Number(process.env.AUTOMATION_QUEUE_PUBLISH_AFTER_HOURS) || 24) * 60
         )
       );
-      // Delay from a post's publish to the NEXT post's generation (minutes). Default 30m.
-      const nextGenAfterPublishMin =
-        Math.min(1440, Math.max(1, Number(process.env.AUTOMATION_QUEUE_NEXT_GENERATE_AFTER_MINUTES) || 30));
-
       const INITIAL_GEN_MS = initialGenMin * 60 * 1000;
       const PUB_MS = publishAfterMin * 60 * 1000;
-      const NEXT_GEN_MS = nextGenAfterPublishMin * 60 * 1000;
       const SAVE_TS = Date.now();
 
-      let genTs = SAVE_TS + INITIAL_GEN_MS;
-      let prevPublishTs = null;
+      // Generation cadence follows the plan FREQUENCY (daily=1 day, alternate=2,
+      // weekly=7). First post generates at save+30m; each following post generates
+      // one frequency-step later (so daily = one new post per day). Publish is always
+      // 24h after that post's own generation. One post per cycle — never a loop.
+      const stepDays = getFrequencyStep(safeFrequency);
+      const DAY_MS = 86400000;
+      const firstGenTs = SAVE_TS + INITIAL_GEN_MS;
+
       const postsData = [];
       for (let idx = 0; idx < schedule.length; idx++) {
-        if (idx > 0) {
-          // Next post generates a fixed delay AFTER the previous post publishes.
-          genTs = prevPublishTs + NEXT_GEN_MS;
-        }
-
+        const genTs = firstGenTs + idx * stepDays * DAY_MS;
         const generateContentAt = new Date(genTs);
-        const publishTs = genTs + PUB_MS;
-        const publishAt = new Date(publishTs);
-        prevPublishTs = publishTs;
+        const publishAt = new Date(genTs + PUB_MS);
         const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
         const line = `${keyword} — ${businessName || 'your business'}`;
 
@@ -798,16 +793,16 @@ export async function POST(request) {
         mode: publishAfterMin >= 720 ? 'production' : 'test',
         generateAfterSaveMinutes: initialGenMin,
         publishAfterGenerateMinutes: publishAfterMin,
-        nextGenerateAfterPublishMinutes: nextGenAfterPublishMin,
+        frequency: safeFrequency,
+        generationStepDays: stepDays,
         postsQueued: postsData.length,
         firstGenerateAt: postsData[0]?.generateContentAt || null,
         firstPublishAt: postsData[0]?.scheduledDate || null,
       };
       console.log(
         `[user-settings] ✅ Created ${postsData.length} queued Posts ` +
-        `[generate +${initialGenMin}m after save, ` +
-        `publish +${publishAfterMin}m after generate, next generate +${nextGenAfterPublishMin}m after publish] ` +
-        `userId=${finalUserId}`
+        `[first generate +${initialGenMin}m after save, then every ${stepDays} day(s) (freq=${safeFrequency}); ` +
+        `publish +${publishAfterMin}m after each generation] userId=${finalUserId}`
       );
     }
 

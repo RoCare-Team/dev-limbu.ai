@@ -196,6 +196,49 @@ export function useKeywordPlanner() {
     }
   }, [selectedLocation, allLocations, buildUniqueReviewSlug]);
 
+  // 👇 NEW: bulk import keywords from an Excel/CSV file
+  const [isImporting, setIsImporting] = useState(false);
+
+  const importKeywords = useCallback(async (rows) => {
+    const userId = getLocalStorage("userId");
+    if (!userId) {
+      toast.error("Please log in first");
+      return { success: false };
+    }
+    if (!Array.isArray(rows) || rows.length === 0) {
+      toast.error("File mein koi keyword nahi mila");
+      return { success: false };
+    }
+
+    setIsImporting(true);
+    const slug = buildUniqueReviewSlug(selectedLocation, allLocations);
+
+    try {
+      const res = await fetch("/api/keyword-research/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, slug, keywords: rows }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setSaved(data.data);
+        const parts = [`${data.imported} added`];
+        if (data.skipped > 0) parts.push(`${data.skipped} already existed`);
+        toast.success(`Import done — ${parts.join(", ")}`);
+        return { success: true };
+      }
+      toast.error(data.error || "Import failed");
+      return { success: false };
+    } catch (error) {
+      console.error("Failed to import keywords:", error);
+      toast.error("Something went wrong while importing.");
+      return { success: false };
+    } finally {
+      setIsImporting(false);
+    }
+  }, [selectedLocation, allLocations, buildUniqueReviewSlug]);
+
   const deleteKeyword = useCallback(async (id) => {
     setSaved(prev => prev.filter(item => item._id !== id));
 
@@ -238,6 +281,8 @@ export function useKeywordPlanner() {
     searchKeywords,
     addKeyword,
     deleteKeyword,
+    importKeywords,
+    isImporting,
     // 👇 NEW exports — page mein location selector banane ke liye
     allLocations,
     selectedLocationId,

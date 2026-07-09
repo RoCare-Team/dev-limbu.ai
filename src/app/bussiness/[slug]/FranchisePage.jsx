@@ -31,6 +31,7 @@ const PROFIT_CALCULATIONS = {
   starter: { investment: 50000 },
   standard: { investment: 100000 },
   premium: { investment: 500000 },
+  master: { investment: 2000000 },
 };
 
 const SITE_URL = "https://limbu.ai";
@@ -835,8 +836,10 @@ export default function FranchisePage({ params }) {
               </h2>
 
               <p className="mt-5 text-sm sm:text-base text-slate-500 font-bold leading-relaxed max-w-2xl mx-auto">
-                Flexible and scalable AI-powered infrastructure designed for
-                long-term franchise growth and operational simplicity.
+                Choose the model that fits your ambition — start as a{" "}
+                <span className="text-black">Partner Franchise</span> or scale
+                your own network as a{" "}
+                <span className="text-lemon-hover">Master Franchise</span>.
                 {cityName ? (
                   <>
                     {" "}
@@ -848,94 +851,231 @@ export default function FranchisePage({ params }) {
               </p>
             </div>
 
-            {/* Orbit Diagram */}
-            <div className="mb-8">
-              <OrbitDiagram />
-            </div>
+            {/* ================= TWO-TIER PLAN CARDS ================= */}
+            <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 relative z-10">
+              {/* ---------- PARTNER FRANCHISE ---------- */}
+              <div className="relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 sm:p-9 shadow-xl">
+                {/* Glow Effect */}
+                <div className="absolute -top-20 -right-20 w-56 h-56 bg-lemon-glow/10 blur-3xl rounded-full" />
 
-            {/* Pricing Card */}
-            <div className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
-              {/* Glow Effect */}
-              <div className="absolute -top-20 -right-20 w-56 h-56 bg-lemon-glow/10 blur-3xl rounded-full" />
+                <div className="relative z-10 flex-1">
+                  {/* Tier Label */}
+                  <div className="flex items-center justify-between mb-6">
+                    <span className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+                      <Users className="w-4 h-4 text-lemon-hover" />
+                      Partner Franchise
+                    </span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                      Starter
+                    </span>
+                  </div>
 
-              {/* Small Text */}
-              <div className="text-center text-[10px] sm:text-xs uppercase tracking-[0.28em] text-slate-400 font-black mb-8 relative z-10">
-                Partner Slots Included (10 Active Accounts)
-              </div>
-
-              {/* Price */}
-              <div className="relative z-10 text-center mb-8">
-                <div
-                  className="text-5xl font-black text-black tracking-tighter mb-2"
-                  style={{ fontFamily: "var(--font-heading)" }}
-                >
-                  ₹5,00,000
-                </div>
-
-                <div className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  + 18% GST • One-Time Fee
-                </div>
-              </div>
-
-              {/* Revenue Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-10 relative z-10">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Your Share
-                  </p>
-
-                  <p className="text-sm font-black text-black">50% Revenue</p>
-                </div>
-
-                <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Earning Potential
-                  </p>
-
-                  <p className="text-sm font-black text-black">₹1-3L / Month</p>
-                </div>
-              </div>
-
-              {/* Features */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 relative z-10">
-                {features.map((f, i) => (
-                  <div
-                    key={i}
-                    className="group relative overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-6 text-center hover:bg-white hover:shadow-xl hover:border-lemon-hover/40 transition-all duration-500"
-                  >
-                    {/* Hover Glow */}
-                    <div className="absolute -top-14 -right-14 w-32 h-32 bg-lemon-glow/10 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-all duration-500" />
-
-                    {/* Icon */}
-                    <div className="relative z-10 text-3xl mb-4">{f.icon}</div>
-
-                    {/* Title */}
-                    <h3
-                      className="relative z-10 text-sm sm:text-base font-black text-black mb-2 tracking-tight"
+                  {/* Price */}
+                  <div className="mb-1">
+                    <div
+                      className="text-4xl sm:text-5xl font-black text-black tracking-tighter"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
-                      {f.title}
-                    </h3>
-
-                    {/* Subtitle */}
-                    <p className="relative z-10 text-xs text-slate-500 font-bold leading-relaxed">
-                      {f.sub}
-                    </p>
-
-                    {/* Bottom Line */}
-                    <div className="absolute bottom-0 left-0 h-[3px] w-0 bg-lemon-hover group-hover:w-full transition-all duration-500" />
+                      ₹5,00,000
+                    </div>
+                    <div className="mt-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                      + 18% GST • One-Time Fee
+                    </div>
                   </div>
-                ))}
 
-                <div className="col-span-2 lg:col-span-4 flex justify-center mt-4">
-                  <button
-                    type="button" data-franchise-action="open" data-plan="premium"
-                    className="btn-lemon px-10 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all"
-                  >
-                    Choose This Plan ↗
-                  </button>
+                  {/* Revenue Split */}
+                  <div className="grid grid-cols-2 gap-3 my-7">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                      <p className="text-2xl font-black text-lemon-hover tracking-tight">
+                        50%
+                      </p>
+                      <p className="mt-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                        Direct Business
+                      </p>
+                    </div>
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
+                      <p className="text-2xl font-black text-black tracking-tight">
+                        ₹1-3L
+                      </p>
+                      <p className="mt-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                        Monthly Potential
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature List */}
+                  <ul className="space-y-3.5">
+                    {[
+                      "10 active partner slots included",
+                      "Unlimited users • no per-seat charges",
+                      "50% revenue share on your business",
+                      "Exclusive rights in your city",
+                    ].map((item, j) => (
+                      <li key={j} className="flex items-start gap-3">
+                        <CheckCircle className="w-4.5 h-4.5 text-lemon-hover shrink-0 mt-0.5" />
+                        <span className="text-[13px] font-bold text-slate-600 leading-snug">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  data-franchise-action="open"
+                  data-plan="premium"
+                  className="relative z-10 mt-8 w-full py-4 rounded-2xl border-2 border-black bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-black hover:text-lemon-glow transition-all duration-300"
+                >
+                  Get Partner Franchise ↗
+                </button>
+              </div>
+
+              {/* ---------- MASTER FRANCHISE (HIGHLIGHTED) ---------- */}
+              <div className="relative flex flex-col overflow-hidden rounded-[2rem] border-2 border-lemon-hover bg-black p-7 sm:p-9 shadow-2xl">
+                {/* Glow Effect */}
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-lemon-glow/25 blur-3xl rounded-full" />
+
+                {/* Ribbon */}
+                <div className="absolute top-6 right-6 z-20 bg-lemon-hover text-black text-[9px] font-black uppercase tracking-[0.18em] px-3.5 py-1.5 rounded-full shadow-lg">
+                  Maximum Earning
+                </div>
+
+                <div className="relative z-10 flex-1">
+                  {/* Tier Label */}
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-lemon-glow">
+                      <Award className="w-4 h-4" />
+                      Master Franchise
+                    </span>
+                  </div>
+
+                  {/* Price */}
+                  <div className="mb-1">
+                    <span className="inline-block mb-1.5 text-[10px] font-black text-lemon-glow uppercase tracking-[0.2em]">
+                      Starts From
+                    </span>
+                    <div
+                      className="text-4xl sm:text-5xl font-black text-white tracking-tighter"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      ₹20,00,000
+                    </div>
+                    <div className="mt-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                      + 18% GST • One-Time Fee
+                    </div>
+                  </div>
+
+                  {/* Revenue Split — the percentage process */}
+                  <div className="grid grid-cols-2 gap-3 my-7">
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center backdrop-blur-sm">
+                      <p className="text-2xl font-black text-lemon-glow tracking-tight">
+                        50%
+                      </p>
+                      <p className="mt-1 text-[9px] font-black text-slate-300 uppercase tracking-[0.15em]">
+                        Direct Business
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center backdrop-blur-sm">
+                      <p className="text-2xl font-black text-lemon-glow tracking-tight">
+                        6%
+                      </p>
+                      <p className="mt-1 text-[9px] font-black text-slate-300 uppercase tracking-[0.15em]">
+                        Channel Business
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Feature List */}
+                  <ul className="space-y-3.5">
+                    {[
+                      "Everything in Partner Franchise",
+                      "50% revenue share on direct business",
+                      "6% override on your channel network",
+                      "Appoint & manage sub-franchise partners",
+                      "Master rights over your entire territory",
+                    ].map((item, j) => (
+                      <li key={j} className="flex items-start gap-3">
+                        <CheckCircle className="w-4.5 h-4.5 text-lemon-glow shrink-0 mt-0.5" />
+                        <span className="text-[13px] font-bold text-slate-200 leading-snug">
+                          {item}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  data-franchise-action="open"
+                  data-plan="master"
+                  className="relative z-10 mt-8 w-full py-4 rounded-2xl bg-lemon-hover text-black text-xs font-black uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] transition-all duration-300"
+                >
+                  Become a Master Franchise ↗
+                </button>
+              </div>
+            </div>
+
+            {/* ================= EARNINGS PROCESS EXPLAINER ================= */}
+            <div className="relative z-10 mt-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-7 sm:p-9">
+              <div className="text-center mb-8">
+                <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] mb-2">
+                  How Your Earnings Work
+                </p>
+                <h3
+                  className="text-lg sm:text-2xl font-black text-black tracking-tight"
+                  style={{ fontFamily: "var(--font-heading)" }}
+                >
+                  Two Ways a Master Franchise Earns
+                </h3>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                {/* Direct Business */}
+                <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                      Direct Business
+                    </span>
+                    <span
+                      className="text-3xl font-black text-lemon-hover tracking-tighter"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      50%
+                    </span>
+                  </div>
+                  <p className="text-[13px] font-bold text-slate-500 leading-relaxed">
+                    Clients you onboard and service yourself. You keep{" "}
+                    <span className="text-black">50% of the revenue</span> from
+                    every business you sign directly.
+                  </p>
+                </div>
+
+                {/* Channel Business */}
+                <div className="relative rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                      Channel Business
+                    </span>
+                    <span
+                      className="text-3xl font-black text-lemon-hover tracking-tighter"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      6%
+                    </span>
+                  </div>
+                  <p className="text-[13px] font-bold text-slate-500 leading-relaxed">
+                    Business generated by the sub-franchise partners you appoint.
+                    You earn a{" "}
+                    <span className="text-black">6% channel override</span> on
+                    their revenue — passive income that scales with your network.
+                  </p>
                 </div>
               </div>
+
+              <p className="mt-6 text-center text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em]">
+                Direct 50% + Channel 6% = build once, earn from your whole network
+              </p>
             </div>
           </div>
         </div>

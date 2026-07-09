@@ -102,6 +102,7 @@ export async function POST(req) {
         reportId: report._id,
         pdfUrl: report.pdfUrl,
         pdfStatus: report.pdfStatus,
+        approvalStatus: report.approvalStatus || "pending",
         keywordCount: keywords.length,
       },
     });

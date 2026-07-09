@@ -7,6 +7,7 @@ const PROFIT_CALCULATIONS = {
   starter: { investment: 50000 },
   standard: { investment: 100000 },
   premium: { investment: 500000 },
+  master: { investment: 2000000 },
 };
 
 const MAX_PAYMENT = 495000;

@@ -46,7 +46,12 @@ function serviceItemsToList(items) {
       const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
       const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
       const { priceType, price } = parseServiceMoney(it?.price);
-      return title ? { title, description, priceType, price } : null;
+      // Preserve which category each service is filed under so the round-trip keeps the
+      // sub-category assignment instead of collapsing everything onto the primary.
+      const category = String(it?.freeFormServiceItem?.category || '')
+        .replace(/^categories\//, '')
+        .trim();
+      return title ? { title, description, priceType, price, category } : null;
     })
     .filter(Boolean);
 }
@@ -58,6 +63,40 @@ async function resolveAccessToken(session, accountId, email, bodyToken) {
   const gmb = await GmbUser.findOne({ email }).lean();
   const proj = gmb?.projects?.find((p) => p.googleId === accountId) || gmb?.projects?.[0];
   return proj?.accessToken || '';
+}
+
+// List every GMB account the token can access (owner + manager). Returns bare numeric ids.
+async function fetchAccessibleAccountIds(accessToken) {
+  const out = [];
+  let pageToken = null;
+  do {
+    // Use the same host the dashboard uses to list accounts (proven to work with the
+    // existing OAuth scopes) so managed accounts are enumerated reliably.
+    let url = `${GMB_BASE}/accounts?pageSize=100`;
+    if (pageToken) url += `&pageToken=${encodeURIComponent(pageToken)}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = {};
+    }
+    if (!res.ok) {
+      const err = new Error(data?.error?.message || `accounts ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    for (const a of Array.isArray(data.accounts) ? data.accounts : []) {
+      const id = String(a?.name || '').replace(/^accounts\//, '').trim();
+      if (id) out.push(id);
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return out;
 }
 
 async function fetchAllLocationsByAccount(accessToken, accountId) {
@@ -162,10 +201,20 @@ export async function GET(request) {
       return NextResponse.json({ error: 'accountId query param required' }, { status: 400 });
     }
 
-    const allowedAccount =
-      user.gmbProjectId === accountId ||
-      user.selectedBusiness?.projectId === accountId ||
-      user.selectedBusiness?.googleId === accountId;
+    // A single login can be a MANAGER on several GMB accounts (each location can live under
+    // a different accountId). Google enforces real permissions with the user's own OAuth
+    // token, so accept the accountId when it matches any connected account OR when acting
+    // with the user's session token.
+    const gmbForAuth = await GmbUser.findOne({ email: session.user.email }).lean();
+    const knownAccountIds = new Set(
+      [
+        user.gmbProjectId,
+        user.selectedBusiness?.projectId,
+        user.selectedBusiness?.googleId,
+        ...(Array.isArray(gmbForAuth?.projects) ? gmbForAuth.projects.map((p) => p?.googleId) : []),
+      ].filter(Boolean)
+    );
+    const allowedAccount = knownAccountIds.has(accountId) || Boolean(session.accessToken);
     if (!allowedAccount) {
       return NextResponse.json({ error: 'accountId does not match connected business' }, { status: 403 });
     }
@@ -177,18 +226,57 @@ export async function GET(request) {
       return NextResponse.json({ error: 'No Google access token — sign in again.' }, { status: 401 });
     }
 
-    let locations;
+    // The requested accountId may NOT be one this token can access (a manager logs in with
+    // their own Google account, and each listing can live under a different GMB account).
+    // So gather locations across EVERY account the token manages and tag each with its own
+    // accountId — that way the panel shows all editable listings and each patches correctly.
+    let mapped = [];
+    let firstError = null;
+
+    // 1) Try the requested account directly (fast path when it is accessible).
     try {
-      locations = await fetchAllLocationsByAccount(accessToken, accountId);
+      const direct = await fetchAllLocationsByAccount(accessToken, accountId);
+      mapped = direct.map((loc) => mapLocation(loc, accountId));
     } catch (e) {
-      const status = e.status === 401 || e.status === 403 ? e.status : 502;
+      firstError = e;
+    }
+
+    // 2) Aggregate across all accessible accounts (covers managed accounts + wrong id).
+    try {
+      const accountIds = await fetchAccessibleAccountIds(accessToken);
+      const seen = new Set(mapped.map((m) => m.locationId));
+      const perAccount = await Promise.all(
+        accountIds
+          .filter((id) => id !== accountId) // already fetched above
+          .map(async (id) => {
+            try {
+              const locs = await fetchAllLocationsByAccount(accessToken, id);
+              return locs.map((loc) => mapLocation(loc, id));
+            } catch {
+              return [];
+            }
+          })
+      );
+      for (const list of perAccount) {
+        for (const m of list) {
+          if (!seen.has(m.locationId)) {
+            seen.add(m.locationId);
+            mapped.push(m);
+          }
+        }
+      }
+    } catch (e) {
+      // If we already got the direct-account locations, ignore the account-list failure.
+      if (!mapped.length) firstError = firstError || e;
+    }
+
+    if (!mapped.length && firstError) {
+      const status = firstError.status === 401 || firstError.status === 403 ? firstError.status : 502;
       return NextResponse.json(
-        { error: e.message || 'Failed to load locations from Google' },
+        { error: firstError.message || 'Failed to load locations from Google' },
         { status }
       );
     }
-
-    const mapped = locations.map((loc) => mapLocation(loc, accountId));
 
     return NextResponse.json({ success: true, accountId, locations: mapped });
   } catch (e) {

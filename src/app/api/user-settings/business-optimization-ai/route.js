@@ -2,7 +2,11 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import OpenAI from 'openai';
-import { GMB_PROFILE_DESCRIPTION_MAX, clampGmbDescription } from '@/lib/gmbConstants';
+import {
+  GMB_PROFILE_DESCRIPTION_MAX,
+  GMB_PROFILE_DESCRIPTION_MIN,
+  clampGmbDescription,
+} from '@/lib/gmbConstants';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,13 +16,47 @@ function getClient() {
   return new OpenAI({ apiKey: key });
 }
 
+/**
+ * Ensure a GMB description uses nearly the full allowance (740–750 chars). gpt-4o-mini
+ * routinely under-writes, so if the draft is short we re-prompt (up to 2 passes) asking
+ * it to expand — adding real detail (services, areas served, experience, guarantees) —
+ * without padding or repetition. Always clamped to the 750 hard limit at the end.
+ */
+async function expandToMinDescription(openai, initial, context) {
+  let current = clampGmbDescription(String(initial || '').trim());
+  for (let attempt = 0; attempt < 2 && current.length < GMB_PROFILE_DESCRIPTION_MIN; attempt += 1) {
+    const need = GMB_PROFILE_DESCRIPTION_MIN - current.length;
+    const sys =
+      'You are a Google Business Profile copywriter. Expand the given description so it uses nearly the full length allowance. Add ONLY accurate, useful detail grounded in the JSON context (services offered, areas served, experience, guarantees, what makes the business trustworthy). Do NOT pad with filler, do NOT repeat sentences, keep it natural and SEO-friendly, keep the soft CTA at the end. Return ONLY the description text, no quotes, no markdown.';
+    const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nCurrent description (${current.length} chars):\n${current}\n\nTask: Rewrite it to be between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — it currently needs about ${need} more characters. ALWAYS finish the final sentence and end on a complete word; never stop mid-word or mid-sentence, and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Keep every fact accurate. Return ONLY the description text.`;
+    try {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 500,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const next = clampGmbDescription((completion.choices?.[0]?.message?.content || '').trim().replace(/^["']|["']$/g, ''));
+      // Keep whichever is longer so we never regress on length.
+      if (next.length > current.length) current = next;
+      else break;
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
 const FIELD_INSTRUCTIONS = {
   businessName:
     'Return a clean professional business name. Use the real business title from context when provided. Return ONLY the name, no quotes.',
   tagline:
     'Write a punchy 8–12 word tagline. Return ONLY the tagline.',
   description:
-    `Write a Google Business Profile description: SEO-friendly and accurate to the facts given. When the context provides them, weave in the business category (primaryCategory), the city (city/locality), the address/area, the target keyword(s), and the customer intent (what the searcher wants) naturally — do not list them as labels. Include locality/service areas and end with a soft CTA. HARD LIMIT: maximum ${GMB_PROFILE_DESCRIPTION_MAX} characters (including spaces). Stay under the limit. Return ONLY the description text.`,
+    `Write a Google Business Profile description: SEO-friendly and accurate to the facts given. When the context provides them, weave in the business category (primaryCategory), the city (city/locality), the address/area, the target keyword(s), and the customer intent (what the searcher wants) naturally — do not list them as labels. Include locality/service areas and end with a soft CTA. LENGTH: write between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — use nearly the full allowance but ALWAYS finish your final sentence and end on a complete word; never stop mid-word or mid-sentence, and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Return ONLY the description text.`,
   services:
     'List exactly 5 concrete services this business offers (from category + context). Return ONLY a JSON array of strings like ["a","b","c","d","e"] — no markdown.',
   phone:
@@ -166,7 +204,7 @@ export async function POST(request) {
       const count = Math.min(Math.max(Number(body?.count) || 3, 2), 3);
       const sys =
         'You are a Google Business Profile copywriter. Use ONLY facts from the JSON context. Return ONLY valid JSON, no markdown fences.';
-      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: Write ${count} DISTINCT Google Business Profile description options. For each: SEO-friendly and accurate; naturally weave in the business category (primaryCategory), city (city/locality), address/area, target keyword(s) and customer intent when present; end with a soft CTA. Vary the angle/tone across the options so they read differently. HARD LIMIT: each option max ${GMB_PROFILE_DESCRIPTION_MAX} characters (including spaces). Return ONLY: {"variants":["option 1","option 2"${count === 3 ? ',"option 3"' : ''}]}`;
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: Write ${count} DISTINCT Google Business Profile description options. For each: SEO-friendly and accurate; naturally weave in the business category (primaryCategory), city (city/locality), address/area, target keyword(s) and customer intent when present; end with a soft CTA. Vary the angle/tone across the options so they read differently. LENGTH (strict): each option MUST be between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — use nearly the full allowance, ALWAYS finish the final sentence and end on a complete word (never stop mid-word or mid-sentence), and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Do not return short options. Return ONLY: {"variants":["option 1","option 2"${count === 3 ? ',"option 3"' : ''}]}`;
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -189,13 +227,19 @@ export async function POST(request) {
         : Array.isArray(parsed)
           ? parsed
           : [];
-      const variants = rawVariants
+      const clamped = rawVariants
         .map((v) => clampGmbDescription(String(v || '').trim()))
         .filter(Boolean)
         .slice(0, 3);
-      if (!variants.length) {
+      if (!clamped.length) {
         return NextResponse.json({ error: 'AI returned no descriptions. Try again.' }, { status: 502 });
       }
+      // Grow any option that came back short so every variant uses the full 740–750 allowance.
+      const variants = await Promise.all(
+        clamped.map((v) =>
+          v.length < GMB_PROFILE_DESCRIPTION_MIN ? expandToMinDescription(openai, v, context) : Promise.resolve(v)
+        )
+      );
       return NextResponse.json({ success: true, variants });
     }
 
@@ -205,9 +249,11 @@ export async function POST(request) {
       if (!title) {
         return NextResponse.json({ error: 'title required for mode=serviceDescription' }, { status: 400 });
       }
+      const descCategory =
+        String(context?.primaryCategory || (Array.isArray(context?.categoryHints) ? context.categoryHints[0] : '') || '').trim();
       const sys =
-        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, primary category, city). Return ONLY the description sentence(s), no quotes, no markdown.';
-      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nService title: "${title}"\n\nTask: Write a concise, benefit-led description for THIS service — 1–2 sentences, max 250 characters, grounded in the business's primary category and city. No emojis, no quotes. Return ONLY the description text.`;
+        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, category, city). Ground the description in the specific service category provided. Return ONLY the description sentence(s), no quotes, no markdown.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nService category: "${descCategory || 'the primary category'}"\nService title: "${title}"\n\nTask: Write a concise, benefit-led description for THIS service — 1–2 sentences, max 250 characters, grounded in the category "${descCategory || 'the primary category'}" and the city. No emojis, no quotes. Return ONLY the description text.`;
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -229,11 +275,15 @@ export async function POST(request) {
     }
 
     if (mode === 'serviceItems') {
-      // Generate concrete services for the primary category, each with a title and a
+      // Generate concrete services for ONE specific category, each with a title and a
       // short description (Google free-form serviceItems support label descriptions).
+      // The category is the focus — the same business has different categories, and each
+      // must get DIFFERENT services specific to that category (not generic company-wide ones).
+      const targetCategory =
+        String(context?.primaryCategory || (Array.isArray(context?.categoryHints) ? context.categoryHints[0] : '') || '').trim();
       const sys =
-        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, primary category, city). Return ONLY valid JSON, no markdown.';
-      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTask: List 5 concrete services this business offers, grounded in its primary category. Each service has a short "title" (2–5 words, e.g. "RO Water Purifier Installation") and a "description" (1–2 sentences, max 250 characters, what it includes / benefit). Return ONLY: {"items":[{"title":"...","description":"..."}]}`;
+        'You are a Google Business Profile services copywriter. You generate services for ONE specific business category at a time. The services you return MUST be specific to that exact category — not generic services that apply to the whole business. Use facts from the JSON context (business name, city) for grounding. Return ONLY valid JSON, no markdown.';
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nTARGET CATEGORY: "${targetCategory || 'the primary category'}"\n\nTask: List 5 concrete services that specifically belong to the category "${targetCategory || 'the primary category'}". The titles and descriptions MUST be tailored to this exact category and be clearly different from what another category of the same business would offer. Each service has a short "title" (2–5 words, e.g. "RO Water Purifier Installation") and a "description" (1–2 sentences, max 250 characters, what it includes / benefit). Do NOT repeat generic services — make them distinctive to "${targetCategory || 'this category'}". Return ONLY: {"items":[{"title":"...","description":"..."}]}`;
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
@@ -322,6 +372,10 @@ export async function POST(request) {
     let text = completion.choices?.[0]?.message?.content?.trim() || '';
     if (fieldId === 'description') {
       text = clampGmbDescription(text);
+      // Grow short drafts so the description uses the full 740–750 allowance.
+      if (text.length < GMB_PROFILE_DESCRIPTION_MIN) {
+        text = await expandToMinDescription(openai, text, context);
+      }
     }
 
     if (fieldId === 'services') {

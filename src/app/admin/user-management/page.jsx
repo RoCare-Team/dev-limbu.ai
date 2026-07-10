@@ -52,6 +52,8 @@ import RemarksModal from "./components/RemarksModal";
 import AddUserModal from "./components/AddUserModal";
 import BulkDeleteModal from "./components/BulkDeleteModal";
 import DeleteUserModal from "./components/DeleteUserModal";
+import EditUserModal from "./components/EditUserModal";
+import GenerateReportModal from "./components/GenerateReportModal";
 import OnboardClientModal from "./components/OnboardClientModal";
 import MeetingModal from "./components/MeetingModal";
 import PlanUpgradeModal from "./components/PlanUpgradeModal";
@@ -145,6 +147,18 @@ export default function UserManagement() {
     role,
     deleteUserModal,
     setDeleteUserModal,
+    editUserModal,
+    setEditUserModal,
+    editUserData,
+    setEditUserData,
+    savingEditUser,
+    handleOpenEditUserModal,
+    handleUpdateUserInfo,
+    reportModalUser,
+    setReportModalUser,
+    handleSendReportWhatsApp,
+    applyUserReport,
+    showToast,
     bulkDeleteModalOpen,
     setBulkDeleteModalOpen,
     isDeleting,
@@ -841,6 +855,9 @@ export default function UserManagement() {
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Business Name
                       </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[140px]">
+                        Business Report
+                      </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Actions
                       </th>
@@ -854,7 +871,7 @@ export default function UserManagement() {
                     (chatbotMetricLoading && chatbotMetricTableActive) ? (
                       <tr>
                         <td
-                          colSpan={role === "superAdmin" ? 14 : 13}
+                          colSpan={role === "superAdmin" ? 15 : 14}
                           className="text-center py-14"
                         >
                           <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
@@ -878,7 +895,7 @@ export default function UserManagement() {
                               {/* 🔥 DATE HEADING */}
                               <tr>
                                 <td
-                                  colSpan={role === "superAdmin" ? 14 : 13}
+                                  colSpan={role === "superAdmin" ? 15 : 14}
                                   className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
                                 >
                                   {date} (Total: {users.length})
@@ -922,6 +939,13 @@ export default function UserManagement() {
                                   }
                                   handleViewPosts={handleViewPosts}
                                   handleVoiceCall={handleVoiceCall}
+                                  handleOpenEditUserModal={
+                                    handleOpenEditUserModal
+                                  }
+                                  handleOpenReportModal={setReportModalUser}
+                                  handleSendReportWhatsApp={
+                                    handleSendReportWhatsApp
+                                  }
                                   fetchChatHistoryForUser={
                                     fetchChatHistoryForUser
                                   }
@@ -939,7 +963,7 @@ export default function UserManagement() {
                           filteredUsers.length === 0 && (
                             <tr>
                               <td
-                                colSpan={role === "superAdmin" ? 14 : 13}
+                                colSpan={role === "superAdmin" ? 15 : 14}
                                 className="text-center py-12"
                               >
                                 No users found
@@ -1123,6 +1147,24 @@ export default function UserManagement() {
           setBulkDeleteModalOpen={setBulkDeleteModalOpen}
           confirmBulkDeleteUsers={confirmBulkDeleteUsers}
           isDeleting={isDeleting}
+        />
+
+        {/* Generate Business Report Modal */}
+        <GenerateReportModal
+          reportModalUser={reportModalUser}
+          setReportModalUser={setReportModalUser}
+          showToast={showToast}
+          onReportGenerated={applyUserReport}
+        />
+
+        {/* Edit User (Name & Email) Modal */}
+        <EditUserModal
+          editUserModal={editUserModal}
+          setEditUserModal={setEditUserModal}
+          editUserData={editUserData}
+          setEditUserData={setEditUserData}
+          savingEditUser={savingEditUser}
+          handleUpdateUserInfo={handleUpdateUserInfo}
         />
 
         {/* Delete User Confirmation Modal */}

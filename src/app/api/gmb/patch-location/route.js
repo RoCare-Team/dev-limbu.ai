@@ -289,13 +289,31 @@ export async function POST(request) {
       return NextResponse.json({ error: 'accountId and locationId required' }, { status: 400 });
     }
 
-    const allowedAccount =
-      user.gmbProjectId === accountId ||
-      user.selectedBusiness?.projectId === accountId ||
-      user.selectedBusiness?.googleId === accountId;
+    // A single login can be a MANAGER on several GMB accounts (each location can live
+    // under a different accountId). Authorization is ultimately enforced by Google on the
+    // request using the user's own OAuth token, so accept the accountId when it matches any
+    // account the user is connected to OR when we're acting with the user's own session
+    // token (Google will reject a location they can't actually manage).
+    const gmbForAuth = await GmbUser.findOne({ email: session.user.email }).lean();
+    const knownAccountIds = new Set(
+      [
+        user.gmbProjectId,
+        user.selectedBusiness?.projectId,
+        user.selectedBusiness?.googleId,
+        ...(Array.isArray(gmbForAuth?.projects) ? gmbForAuth.projects.map((p) => p?.googleId) : []),
+      ].filter(Boolean)
+    );
+    const allowedAccount = knownAccountIds.has(accountId) || Boolean(session.accessToken);
     if (!allowedAccount) {
       return NextResponse.json({ error: 'accountId does not match connected business' }, { status: 403 });
     }
+
+    console.log(
+      '[patch-location] target:',
+      'accountId=', accountId,
+      'locationId=', locationId,
+      'usingSessionToken=', Boolean(session.accessToken)
+    );
 
     const platformToken =
       typeof body.googleAccessToken === 'string'
@@ -469,6 +487,30 @@ export async function POST(request) {
         LOCATION_UPDATE_MASKS.categories,
         categoriesBody
       );
+      if (!r.ok) {
+        console.error(
+          '[patch-location] categories PATCH failed:',
+          'status=', r.status,
+          'body=', JSON.stringify(categoriesBody),
+          'googleError=', JSON.stringify(r.data?.error || r.data)
+        );
+      } else {
+        // Confirm what Google actually persisted (primary + additional gcids).
+        const saved = r.data?.categories || {};
+        console.log(
+          '[patch-location] categories saved (PATCH echo):',
+          'primary=', saved.primaryCategory?.name,
+          'additional=', JSON.stringify((saved.additionalCategories || []).map((c) => c.name))
+        );
+        // Independent re-read: proves whether Google truly stored it, or silently
+        // reverted the write (e.g. category pending review / not allowed as secondary).
+        try {
+          const verify = await fetchLocationCategoryGcids(accessToken, locationId);
+          console.log('[patch-location] categories verify (fresh GET):', JSON.stringify(verify));
+        } catch (e) {
+          console.warn('[patch-location] categories verify GET failed:', e.message);
+        }
+      }
       results.push({ field: 'categories', ...r });
     }
 
@@ -633,12 +675,27 @@ export async function POST(request) {
         // Each service is filed under its own category (primary or a sub-category);
         // untagged services default to the primary. allowedGcids guards against
         // sending a category the location no longer has.
+        const serviceItemsBody = buildServiceItemsPatchBody(servicesPayload, gcid, { allowedGcids });
+        console.log(
+          '[patch-location] serviceItems send:',
+          'primaryGcid=', gcid,
+          'allowedGcids=', JSON.stringify(allowedGcids),
+          'count=', serviceItemsBody.serviceItems.length,
+          'body=', JSON.stringify(serviceItemsBody)
+        );
         const r = await patchLocationResource(
           accessToken,
           locationId,
           LOCATION_UPDATE_MASKS.serviceItems,
-          buildServiceItemsPatchBody(servicesPayload, gcid, { allowedGcids })
+          serviceItemsBody
         );
+        if (!r.ok) {
+          console.error(
+            '[patch-location] serviceItems PATCH failed:',
+            'status=', r.status,
+            'googleError=', JSON.stringify(r.data?.error || r.data)
+          );
+        }
         results.push({ field: 'serviceItems', ...r });
       }
     }
@@ -723,10 +780,21 @@ export async function GET(request) {
       return NextResponse.json({ error: 'accountId and locationId query params required' }, { status: 400 });
     }
 
-    const allowedAccount =
-      user.gmbProjectId === accountId ||
-      user.selectedBusiness?.projectId === accountId ||
-      user.selectedBusiness?.googleId === accountId;
+    // A single login can be a MANAGER on several GMB accounts (each location can live
+    // under a different accountId). Authorization is ultimately enforced by Google on the
+    // request using the user's own OAuth token, so accept the accountId when it matches any
+    // account the user is connected to OR when we're acting with the user's own session
+    // token (Google will reject a location they can't actually manage).
+    const gmbForAuth = await GmbUser.findOne({ email: session.user.email }).lean();
+    const knownAccountIds = new Set(
+      [
+        user.gmbProjectId,
+        user.selectedBusiness?.projectId,
+        user.selectedBusiness?.googleId,
+        ...(Array.isArray(gmbForAuth?.projects) ? gmbForAuth.projects.map((p) => p?.googleId) : []),
+      ].filter(Boolean)
+    );
+    const allowedAccount = knownAccountIds.has(accountId) || Boolean(session.accessToken);
     if (!allowedAccount) {
       return NextResponse.json({ error: 'accountId does not match connected business' }, { status: 403 });
     }

@@ -102,6 +102,10 @@ export default function useUserManagementLogic() {
   const [showIssuesModal, setShowIssuesModal] = useState(false);
   const [role, setRole] = useState("");
   const [deleteUserModal, setDeleteUserModal] = useState(null);
+  const [editUserModal, setEditUserModal] = useState(null);
+  const [reportModalUser, setReportModalUser] = useState(null);
+  const [editUserData, setEditUserData] = useState({ fullName: "", email: "" });
+  const [savingEditUser, setSavingEditUser] = useState(false);
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [agents, setAgents] = useState([]);
@@ -1802,6 +1806,114 @@ export default function useUserManagementLogic() {
     }
   };
 
+  const handleOpenEditUserModal = (user) => {
+    setEditUserModal(user);
+    setEditUserData({
+      fullName: user.fullName || "",
+      email: user.email || "",
+    });
+  };
+
+  const handleUpdateUserInfo = async () => {
+    if (!editUserModal) return;
+
+    const fullName = String(editUserData.fullName || "").trim();
+    const email = String(editUserData.email || "").trim();
+
+    if (!fullName) {
+      showToast("Name cannot be empty", "error");
+      return;
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showToast("Please enter a valid email", "error");
+      return;
+    }
+
+    const userId = editUserModal.userId;
+    setSavingEditUser(true);
+    try {
+      const res = await fetch("/api/users", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, fullName, email }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast("User updated successfully", "success");
+        const patch = { fullName, email };
+        setUsers((prevUsers) =>
+          prevUsers.map((user) =>
+            user.userId === userId ? { ...user, ...patch } : user,
+          ),
+        );
+        setChatbotMetricUsers((prev) =>
+          prev.map((user) =>
+            user.userId === userId ? { ...user, ...patch } : user,
+          ),
+        );
+        setConversationStageUsers((prev) =>
+          prev.map((user) =>
+            user.userId === userId ? { ...user, ...patch } : user,
+          ),
+        );
+        setFollowUpTableUsers((prev) =>
+          prev.map((user) =>
+            user.userId === userId ? { ...user, ...patch } : user,
+          ),
+        );
+        setEditUserModal(null);
+      } else {
+        showToast(data.error || "Failed to update user", "error");
+      }
+    } catch (error) {
+      console.error("Update user info error:", error);
+      showToast("Something went wrong", "error");
+    } finally {
+      setSavingEditUser(false);
+    }
+  };
+
+  const handleSendReportWhatsApp = async (user) => {
+    try {
+      const res = await fetch("/api/admin/business-report/send-whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.userId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Report sent on WhatsApp", "success");
+      } else {
+        showToast(data.error || "Failed to send on WhatsApp", "error");
+      }
+    } catch (error) {
+      console.error("Send report WhatsApp error:", error);
+      showToast("Something went wrong", "error");
+    }
+  };
+
+  /** Reflect a freshly generated report in the table without a full refetch. */
+  const applyUserReport = (userId, pdfUrl) => {
+    const patch = (list) =>
+      list.map((u) =>
+        u.userId === userId
+          ? {
+              ...u,
+              businessReport: {
+                ...(u.businessReport || {}),
+                pdfUrl,
+                fetchedAt: new Date(),
+              },
+            }
+          : u,
+      );
+    setUsers(patch);
+    setChatbotMetricUsers(patch);
+    setConversationStageUsers(patch);
+    setFollowUpTableUsers(patch);
+  };
+
   const handleUserSourceChange = async (userId, newSource) => {
     try {
       const res = await fetch("/api/users", {
@@ -3061,6 +3173,14 @@ export default function useUserManagementLogic() {
     setRole,
     deleteUserModal,
     setDeleteUserModal,
+    editUserModal,
+    setEditUserModal,
+    reportModalUser,
+    setReportModalUser,
+    editUserData,
+    setEditUserData,
+    savingEditUser,
+    setSavingEditUser,
     bulkDeleteModalOpen,
     setBulkDeleteModalOpen,
     isDeleting,
@@ -3221,6 +3341,10 @@ export default function useUserManagementLogic() {
     handleRoundRobinAssign,
     handleLeadStageChange,
     handleLeadStatusChange,
+    handleOpenEditUserModal,
+    handleUpdateUserInfo,
+    handleSendReportWhatsApp,
+    applyUserReport,
     handleUserSourceChange,
     getAgentName,
     handleUpgradePlan,

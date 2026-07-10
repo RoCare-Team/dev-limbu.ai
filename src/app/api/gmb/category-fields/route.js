@@ -85,6 +85,13 @@ export async function GET(request) {
     }
 
     const user = await User.findOne({ email: session.user.email }).lean();
+
+    console.log('[gmb/category-fields GET]', {
+      email: session.user.email,
+      accountId: request.nextUrl.searchParams.get('accountId'),
+      locationId: request.nextUrl.searchParams.get('locationId'),
+    });
+    
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -105,10 +112,20 @@ export async function GET(request) {
       );
     }
 
-    const allowedAccount =
-      user.gmbProjectId === accountId ||
-      user.selectedBusiness?.projectId === accountId ||
-      user.selectedBusiness?.googleId === accountId;
+    // A single login can be a MANAGER on several GMB accounts (each location can live under
+    // a different accountId). Google enforces real permissions with the user's own OAuth
+    // token, so accept the accountId when it matches any connected account OR when acting
+    // with the user's session token.
+    const gmbForAuth = await GmbUser.findOne({ email: session.user.email }).lean();
+    const knownAccountIds = new Set(
+      [
+        user.gmbProjectId,
+        user.selectedBusiness?.projectId,
+        user.selectedBusiness?.googleId,
+        ...(Array.isArray(gmbForAuth?.projects) ? gmbForAuth.projects.map((p) => p?.googleId) : []),
+      ].filter(Boolean)
+    );
+    const allowedAccount = knownAccountIds.has(accountId) || Boolean(session.accessToken);
     if (!allowedAccount) {
       return NextResponse.json(
         { error: 'accountId does not match connected business' },

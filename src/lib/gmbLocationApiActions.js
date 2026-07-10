@@ -170,7 +170,10 @@ export function buildServiceItemsPatchBody(services, categoryGcid, opts = {}) {
     .map((s) => {
       const item = {
         freeFormServiceItem: {
-          category: s.gcid,
+          // Google's v1 API wants the full resource name (`categories/gcid:...`) here —
+          // the same convention as the categories PATCH. A bare `gcid:...` is silently
+          // rejected, so services never get added.
+          category: toCategoryResourceName(s.gcid),
           label: {
             displayName: s.displayName.slice(0, 140),
             ...(s.description ? { description: s.description.slice(0, 300) } : {}),
@@ -257,6 +260,17 @@ export function normalizeCategoryGcid(name) {
 }
 
 /**
+ * Google's Business Information API v1 requires the `Category.name` field to be the
+ * FULL resource name (`categories/gcid:...`) when writing. Internally we carry the
+ * bare `gcid:...` form, so re-add the prefix right before building the PATCH body —
+ * otherwise Google rejects the categories update and sub-categories never save.
+ */
+export function toCategoryResourceName(gcid) {
+  const bare = normalizeCategoryGcid(gcid);
+  return bare ? `categories/${bare}` : '';
+}
+
+/**
  * Build a `categories` PATCH body (updateMask=categories) from a primary category
  * gcid + optional list of additional (sub) category gcids. Google requires the
  * primary category; additional categories are capped at 9 per the API.
@@ -276,9 +290,12 @@ export function buildCategoriesPatchBody(primaryGcid, additionalGcids = []) {
     seen.add(g);
     uniqueAdditional.push(g);
   }
-  const categories = { primaryCategory: { name: primary } };
+  // Google requires the full resource name (`categories/gcid:...`) on writes.
+  const categories = { primaryCategory: { name: toCategoryResourceName(primary) } };
   if (uniqueAdditional.length) {
-    categories.additionalCategories = uniqueAdditional.slice(0, 9).map((name) => ({ name }));
+    categories.additionalCategories = uniqueAdditional
+      .slice(0, 9)
+      .map((name) => ({ name: toCategoryResourceName(name) }));
   } else {
     // Send an empty array so removing all sub-categories actually clears them.
     categories.additionalCategories = [];

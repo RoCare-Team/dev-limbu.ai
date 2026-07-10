@@ -56,8 +56,14 @@ function franchiseLeadIdKey(id) {
 
 const FORMS = [
   {
-    id: "1213106820766164",
+    // Current Meta franchise form (matches META_FRANCHISE_FORM_ID in metaFormLeadsConfig)
+    id: "1987842758631115",
     label: "Franchise Leads",
+  },
+  {
+    // Legacy franchise form — keep so older leads (with remarks/history) stay visible
+    id: "1213106820766164",
+    label: "Franchise Leads (Old)",
   },
 ];
 
@@ -212,7 +218,7 @@ const normalizeLead = (lead) => {
 };
 
 export default function FranchiseLeadsPage() {
-  const [formId] = useState(FORMS[0].id);
+  const [formId] = useState(FORMS.map((f) => f.id).join(","));
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalLeads, setTotalLeads] = useState(0);

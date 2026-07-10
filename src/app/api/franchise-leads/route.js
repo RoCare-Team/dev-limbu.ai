@@ -117,10 +117,17 @@ export async function GET(req) {
       );
     }
 
+    // Support one or more comma-separated form IDs (current + legacy franchise forms)
+    const formIds = String(formId)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     // ==========================================
     // 1. BUILD QUERY FILTER (Base Stats Query)
     // ==========================================
-    const baseStatsQuery = { formId };
+    const baseStatsQuery =
+      formIds.length > 1 ? { formId: { $in: formIds } } : { formId: formIds[0] };
 
     // Role-based security check: If restricted agent, only show assigned leads
     if (email) {

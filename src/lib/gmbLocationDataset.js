@@ -183,8 +183,10 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
   const hoursSummaryText = formatRegularHoursSummary(loc.regularHours?.periods);
   const storeCode = loc.storeCode || '';
   const languageCode = loc.languageCode || '';
-  const lat = loc.latlng?.latitude;
-  const lng = loc.latlng?.longitude;
+  // Google returns latlng.{latitude,longitude}; location-optimization flattens it to
+  // lat/lng — read both so radius search gets the precise listing pin.
+  const lat = loc.latlng?.latitude ?? loc.lat;
+  const lng = loc.latlng?.longitude ?? loc.lng;
 
   if (!locationId) locationId = resourceName || title;
   if (!locationId) return null;

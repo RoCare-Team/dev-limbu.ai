@@ -70,13 +70,13 @@ const FIELD_INSTRUCTIONS = {
   hoursSummary:
     'Summarize opening hours in Google Business style from context hoursSummary if present; otherwise infer from category. Plain text only.',
   specialHours:
-    'Short notes for holidays/special hours; plain text, one line per item or single paragraph.',
+    'List India public holidays and widely-observed festivals as short special-hours notes — e.g. Republic Day, Holi, Ram Navami, Good Friday, Eid al-Fitr, Independence Day, Raksha Bandhan, Janmashtami, Gandhi Jayanti, Dussehra, Diwali, Guru Nanak Jayanti, Christmas. Use INDIAN festivals only (never US holidays like Thanksgiving). One line per holiday as "Holiday name — Closed" (or the special timing if open). Plain text, no markdown.',
   yearEstablished:
-    'Return plausible "Est. YYYY" or four-digit year only.',
+    'Write a short "From the business" statement (2–3 sentences, first-person plural "we") grounded ONLY in the JSON context — the business name, its primary category, the services it offers, and its city/locality. Mention experience/what sets it apart. If (and only if) the context provides an establishment year, open with "Established in <year>,"; NEVER invent a year. No markdown, no quotes. Return ONLY the statement.',
   accessibility:
-    '3–5 accessibility/amenity labels, comma-separated.',
+    'List 3–6 realistic accessibility & amenity labels appropriate to this business category and location from context (e.g. "Wheelchair-accessible entrance", "Wheelchair-accessible parking", "Restroom", "Free parking", "Air-conditioned", "Card payments accepted"). Only include ones plausible for this category. Comma-separated, no sentences, no markdown.',
   additionalInfo:
-    'Two short sentences: parking, payments, specialties — grounded in context.',
+    'Write 2–3 short sentences of useful extra info grounded ONLY in the JSON context — parking, accepted payment methods (UPI/cards/cash common in India), languages served, specialities or standout services for this category and city. Accurate, no invented facts, no markdown.',
   primaryCategory:
     'Return the primary Google-style category display name (e.g. "Water Purification Company"). Return ONLY that phrase.',
   chatUrl:
@@ -241,6 +241,49 @@ export async function POST(request) {
         )
       );
       return NextResponse.json({ success: true, variants });
+    }
+
+    if (mode === 'holidays') {
+      // Generate India public holidays for a given year as structured dates the special-
+      // hours editor can insert and push to Google (each holiday = closed by default).
+      const year = Number.isFinite(Number(body?.year)) ? Math.trunc(Number(body.year)) : null;
+      if (!year || year < 2000 || year > 2100) {
+        return NextResponse.json({ error: 'A valid year is required for mode=holidays' }, { status: 400 });
+      }
+      const sys =
+        'You are a calendar assistant. Return the official public/gazetted holidays of INDIA for the requested year with exact dates. Include national holidays and the widely-observed festivals (Republic Day, Holi, Ram Navami, Mahavir Jayanti, Good Friday, Eid al-Fitr, Buddha Purnima, Eid al-Adha, Muharram, Independence Day, Raksha Bandhan, Janmashtami, Milad-un-Nabi, Gandhi Jayanti, Dussehra/Vijayadashami, Diwali, Guru Nanak Jayanti, Christmas). Give accurate dates for that specific year (festival dates change yearly). Return ONLY valid JSON, no markdown.';
+      const user = `Year: ${year}\n\nTask: List India's public holidays for ${year}. Return ONLY: {"holidays":[{"date":"YYYY-MM-DD","name":"Holiday name"}]} sorted by date. Use the correct ${year} dates for movable festivals.`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        temperature: 0.2,
+        max_tokens: 900,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+      });
+      const text = completion.choices?.[0]?.message?.content?.trim() || '';
+      let parsed;
+      try {
+        parsed = JSON.parse(text.replace(/^```(?:json)?|```$/gm, '').trim());
+      } catch {
+        return NextResponse.json({ error: 'Invalid JSON from model', raw: text.slice(0, 400) }, { status: 502 });
+      }
+      const rawList = Array.isArray(parsed?.holidays) ? parsed.holidays : Array.isArray(parsed) ? parsed : [];
+      const seen = new Set();
+      const holidays = rawList
+        .map((h) => ({
+          date: String(h?.date || '').trim(),
+          name: String(h?.name || h?.title || '').trim(),
+        }))
+        .filter((h) => /^\d{4}-\d{2}-\d{2}$/.test(h.date) && h.name && h.date.startsWith(String(year)))
+        .filter((h) => (seen.has(h.date) ? false : (seen.add(h.date), true)))
+        .sort((a, b) => a.date.localeCompare(b.date));
+      if (!holidays.length) {
+        return NextResponse.json({ error: 'No holidays returned. Try again.' }, { status: 502 });
+      }
+      return NextResponse.json({ success: true, year, holidays });
     }
 
     if (mode === 'serviceDescription') {

@@ -22,6 +22,7 @@ export const LOCATION_UPDATE_MASKS = {
   latlng: 'latlng',
   serviceArea: 'serviceArea',
   regularHours: 'regularHours',
+  specialHours: 'specialHours',
   serviceItems: 'serviceItems',
   categories: 'categories',
 };
@@ -63,6 +64,49 @@ export function buildLatLngPatchBody(latitude, longitude) {
 export function buildRegularHoursPatchBody(periods) {
   const p = Array.isArray(periods) ? periods : [];
   return { regularHours: { periods: p } };
+}
+
+/**
+ * Build a specialHours PATCH body (updateMask=specialHours) from a list of dated
+ * exceptions (e.g. India public holidays). Each item: { date: 'YYYY-MM-DD',
+ * closed?: boolean (default true), openTime?: 'HH:MM', closeTime?: 'HH:MM' }.
+ * Closed holidays only need startDate + closed:true. Google's specialHourPeriod uses
+ * a Date { year, month, day }. Past-dated and malformed entries are dropped.
+ */
+export function buildSpecialHoursPatchBody(items, { minYear } = {}) {
+  const list = Array.isArray(items) ? items : [];
+  const seen = new Set();
+  const periods = [];
+  for (const it of list) {
+    const raw = String(it?.date || '').trim();
+    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+    if (!m) continue;
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+    const day = Number(m[3]);
+    if (!year || month < 1 || month > 12 || day < 1 || day > 31) continue;
+    if (minYear && year < minYear) continue;
+    const key = `${year}-${month}-${day}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const startDate = { year, month, day };
+    const closed = it?.closed === false ? false : true; // holidays default to closed
+    if (closed) {
+      periods.push({ startDate, closed: true });
+    } else {
+      const parseHM = (s) => {
+        const hm = /^(\d{1,2}):(\d{2})$/.exec(String(s || '').trim());
+        if (!hm) return null;
+        return { hours: Number(hm[1]), minutes: Number(hm[2]) };
+      };
+      const openTime = parseHM(it.openTime) || { hours: 9, minutes: 0 };
+      const closeTime = parseHM(it.closeTime) || { hours: 18, minutes: 0 };
+      periods.push({ startDate, openTime, closeTime, closed: false });
+    }
+  }
+  // Google caps special-hour periods; keep it sane.
+  return { specialHours: { specialHourPeriods: periods.slice(0, 60) } };
 }
 
 /**

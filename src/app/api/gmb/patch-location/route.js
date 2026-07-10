@@ -16,6 +16,7 @@ import {
   buildLatLngPatchBody,
   buildServiceAreaPatchBody,
   buildRegularHoursPatchBody,
+  buildSpecialHoursPatchBody,
   buildServiceItemsPatchBody,
   buildAttributesPatchBody,
   buildCategoriesPatchBody,
@@ -211,20 +212,34 @@ function mapsApiKey() {
   );
 }
 
-// Region-ish result types acceptable as a Google Business "service area" place.
+// Place types Google Business ACCEPTS as a service area. Google rejects anything more
+// granular (neighborhood, sublocality_level_2+, premise/complex, POI, colloquial_area,
+// route) with INVALID_AREA_TYPE_FOR_SERVICE_AREA, so we must only send these.
 const SERVICE_AREA_REGION_TYPES = new Set([
   'locality',
-  'sublocality',
   'sublocality_level_1',
-  'sublocality_level_2',
-  'neighborhood',
   'administrative_area_level_1',
   'administrative_area_level_2',
   'administrative_area_level_3',
   'postal_code',
+]);
+
+// Types that must NEVER be sent even if the result also carries a broad tag like
+// "political" — these are what triggers INVALID_AREA_TYPE_FOR_SERVICE_AREA.
+const SERVICE_AREA_REJECTED_TYPES = new Set([
+  'neighborhood',
+  'sublocality_level_2',
+  'sublocality_level_3',
+  'sublocality_level_4',
+  'sublocality_level_5',
+  'premise',
+  'subpremise',
+  'point_of_interest',
+  'establishment',
   'colloquial_area',
-  'political',
-  'country',
+  'route',
+  'street_address',
+  'intersection',
 ]);
 
 /**
@@ -232,31 +247,73 @@ const SERVICE_AREA_REGION_TYPES = new Set([
  * Resolve each area name to { placeName, placeId } via the Geocoding API, preferring a
  * region-type result. Returns resolved infos + the names that could not be resolved.
  */
+// Over-nested names like "Dombivli, MIDC, Dombivli East, Kalyan, Maharashtra, India"
+// confuse Geocoding. Produce progressively simpler queries: full → first + state/country
+// → first + country → first alone, so the area still resolves to a valid region.
+function serviceAreaQueryVariants(q) {
+  const segs = q.split(',').map((s) => s.trim()).filter(Boolean);
+  const variants = [q];
+  if (segs.length >= 3) {
+    const tail = segs.slice(-2); // usually "<State PIN>", "India"
+    variants.push([segs[0], ...tail].join(', '));
+  }
+  if (segs.length >= 2) {
+    variants.push([segs[0], segs[segs.length - 1]].join(', '));
+    variants.push(segs[0]);
+  }
+  // De-dupe while preserving order.
+  return [...new Set(variants.map((v) => v.trim()).filter(Boolean))];
+}
+
+async function geocodeAcceptedRegion(query, apiKey) {
+  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+  url.searchParams.set('address', query);
+  url.searchParams.set('key', apiKey);
+  const res = await fetch(url.toString(), { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  const status = data.status || '';
+  const results = Array.isArray(data.results) ? data.results : [];
+  // Accept only a result whose types include an allowed region type AND include NO
+  // rejected (too-granular) type — otherwise Google fails the whole serviceArea PATCH.
+  const hit = results.find((r) => {
+    const types = r.types || [];
+    const hasAllowed = types.some((t) => SERVICE_AREA_REGION_TYPES.has(t));
+    const hasRejected = types.some((t) => SERVICE_AREA_REJECTED_TYPES.has(t));
+    return hasAllowed && !hasRejected && r.place_id;
+  });
+  return { hit, status, errorMessage: data.error_message || '' };
+}
+
 async function resolveServiceAreaPlaceInfos(names, apiKey) {
   const resolved = [];
   const unresolved = [];
+  const seenPlaceIds = new Set();
   let apiError = '';
   for (const raw of names) {
     const q = String(raw || '').trim();
     if (!q) continue;
-    try {
-      const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
-      url.searchParams.set('address', q);
-      url.searchParams.set('key', apiKey);
-      const res = await fetch(url.toString(), { cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
-      if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-        apiError = data.error_message || data.status; // e.g. REQUEST_DENIED (API not enabled)
+    let matched = null;
+    for (const variant of serviceAreaQueryVariants(q)) {
+      try {
+        const { hit, status, errorMessage } = await geocodeAcceptedRegion(variant, apiKey);
+        if (status && status !== 'OK' && status !== 'ZERO_RESULTS') {
+          apiError = errorMessage || status; // e.g. REQUEST_DENIED (API not enabled)
+        }
+        if (hit?.place_id) {
+          matched = hit;
+          break;
+        }
+      } catch {
+        /* try next variant */
       }
-      const results = Array.isArray(data.results) ? data.results : [];
-      const hit =
-        results.find((r) => (r.types || []).some((t) => SERVICE_AREA_REGION_TYPES.has(t))) || results[0];
-      if (hit?.place_id) {
-        resolved.push({ placeName: q, placeId: hit.place_id });
-      } else {
-        unresolved.push(q);
-      }
-    } catch {
+    }
+    if (matched?.place_id && !seenPlaceIds.has(matched.place_id)) {
+      seenPlaceIds.add(matched.place_id);
+      // Keep the original label for display; the placeId is what Google actually stores.
+      resolved.push({ placeName: q, placeId: matched.place_id });
+    } else if (matched?.place_id) {
+      // Same region as another already-added area — skip the duplicate silently.
+    } else {
       unresolved.push(q);
     }
   }
@@ -421,6 +478,10 @@ export async function POST(request) {
       body.regularHours && typeof body.regularHours === 'object' && Array.isArray(body.regularHours.periods);
     const regularHoursPeriods = hasRegularHoursPayload ? body.regularHours.periods : null;
 
+    // Special hours (holidays / exceptions): [{ date:'YYYY-MM-DD', closed?, openTime?, closeTime? }].
+    const specialHoursIn = Array.isArray(body.specialHours) ? body.specialHours : null;
+    const specialHoursBody = specialHoursIn ? buildSpecialHoursPatchBody(specialHoursIn) : null;
+
     // Service areas: names arrive from the UI (or legacy comma text). Google requires a
     // placeId per area, so resolve each name → { placeName, placeId } before PATCHing.
     const serviceAreaNames =
@@ -460,6 +521,7 @@ export async function POST(request) {
       title ||
       storefrontAddress ||
       Boolean(hasRegularHoursPayload) ||
+      Boolean(specialHoursBody && specialHoursBody.specialHours.specialHourPeriods.length) ||
       Boolean(categoriesBody) ||
       attributesIn.length > 0;
 
@@ -602,6 +664,23 @@ export async function POST(request) {
         buildRegularHoursPatchBody(regularHoursPeriods)
       );
       results.push({ field: 'regularHours', ...r });
+    }
+
+    if (specialHoursBody && specialHoursBody.specialHours.specialHourPeriods.length) {
+      const r = await patchLocationResource(
+        accessToken,
+        locationId,
+        LOCATION_UPDATE_MASKS.specialHours,
+        specialHoursBody
+      );
+      if (!r.ok) {
+        console.error(
+          '[patch-location] specialHours PATCH failed:',
+          'status=', r.status,
+          'googleError=', JSON.stringify(r.data?.error || r.data)
+        );
+      }
+      results.push({ field: 'specialHours', ...r });
     }
 
     // ── Attributes (category-driven + WhatsApp) ──────────────────────────────

@@ -276,6 +276,10 @@ export default function OptimizationPage() {
               Array.isArray(payload.regularHours.periods)
                 ? payload.regularHours
                 : undefined,
+            specialHours:
+              Array.isArray(payload?.specialHours) && payload.specialHours.length
+                ? payload.specialHours
+                : undefined,
             attributes:
               Array.isArray(payload?.attributes) && payload.attributes.length
                 ? payload.attributes

@@ -3670,11 +3670,39 @@ export default function FranchiseLeadsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-2 py-1 rounded text-xs font-medium ${lead.source === "manual" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}
-                          >
-                            {lead.source === "manual" ? "Manual" : "Meta"}
-                          </span>
+                          {(() => {
+                            const src = (lead.source || "meta").toLowerCase();
+                            const sourceStyles = {
+                              manual: {
+                                label: "Manual",
+                                cls: "bg-purple-100 text-purple-700",
+                              },
+                              chatbot: {
+                                label: "Chatbot",
+                                cls: "bg-green-100 text-green-700",
+                              },
+                              "limbu.ai": {
+                                label: "Limbu.ai",
+                                cls: "bg-teal-100 text-teal-700",
+                              },
+                              meta: {
+                                label: "Meta",
+                                cls: "bg-blue-100 text-blue-700",
+                              },
+                            };
+                            const conf =
+                              sourceStyles[src] || {
+                                label: lead.source || "Meta",
+                                cls: "bg-blue-100 text-blue-700",
+                              };
+                            return (
+                              <span
+                                className={`px-2 py-1 rounded text-xs font-medium ${conf.cls}`}
+                              >
+                                {conf.label}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col gap-2">

@@ -24,6 +24,7 @@ const LOCATION_READ_MASK = [
   'categories',
   'regularHours',
   'openInfo',
+  'latlng',
   'metadata',
 ].join(',');
 
@@ -154,6 +155,9 @@ function mapLocation(loc, accountId) {
     title: loc.title || '',
     address: formatAddress(addr),
     locality: addr?.locality || '',
+    // Precise listing coordinates (when Google exposes them) for accurate radius search.
+    lat: Number.isFinite(Number(loc.latlng?.latitude)) ? Number(loc.latlng.latitude) : null,
+    lng: Number.isFinite(Number(loc.latlng?.longitude)) ? Number(loc.latlng.longitude) : null,
     websiteUrl: loc.websiteUri || '',
     primaryPhone: loc.phoneNumbers?.primaryPhone || '',
     profileDescription: loc.profile?.description || '',

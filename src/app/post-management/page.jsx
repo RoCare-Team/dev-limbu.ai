@@ -702,13 +702,23 @@ export default function PostManagementPage() {
         clearInterval(timer);
         timer = null;
 
-        if (!res.success && !res.data && !res.output && !res.image) {
+        // ❌ Server ne saaf-saaf fail bola (e.g. generate-ad HTTP 500 / 429 quota)
+        if (!res.success) {
           throw new Error(
             res.error || res.message || "Image generation failed",
           );
         }
 
-        const data = res.success ? res.data : res;
+        const data = res.data || res;
+
+        // ✅ Success bola but koi image URL nahi aayi → tab bhi error dikhao
+        const imageUrl =
+          data.output || data.image || data.imageUrl || data.url || "";
+        if (!imageUrl) {
+          throw new Error(
+            res.error || res.message || "Image generation failed — no image returned",
+          );
+        }
 
         // ✅ FIX: console.log AFTER destructure, pi_des bhi add
         const { gmb_des, fb_des, ig_des, li_des, pin_des, pin_title, yt_des } =
@@ -728,7 +738,7 @@ export default function PostManagementPage() {
 
         const saved = await savePostAction({
           userId,
-          aiOutput: data.image || data.output,
+          aiOutput: imageUrl,
           description:
             data.description || gmb_des || fb_des || ig_des || "Generated",
           gmbDescription: gmb_des,

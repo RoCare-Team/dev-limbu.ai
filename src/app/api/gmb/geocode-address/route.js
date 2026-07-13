@@ -6,6 +6,39 @@ export const dynamic = 'force-dynamic';
 
 const USER_AGENT = 'GMB-Optimization/1.0';
 
+function mapsApiKey() {
+  return (
+    process.env.GOOGLE_MAPS_API_KEY_1 ||
+    process.env.GOOGLE_MAPS_API_KEY_2 ||
+    process.env.GOOGLE_MAPS_API_KEY_3 ||
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    ''
+  );
+}
+
+// Precise geocoding via Google Maps (preferred). Returns null so the caller can fall
+// back to OpenStreetMap when no key is set or Google can't find the address.
+async function geocodeWithGoogle(q, regionCode, apiKey) {
+  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+  url.searchParams.set('address', q);
+  url.searchParams.set('key', apiKey);
+  if (regionCode) url.searchParams.set('region', String(regionCode).toLowerCase());
+  const res = await fetch(url.toString(), { cache: 'no-store' });
+  const data = await res.json().catch(() => ({}));
+  if (data.status && data.status !== 'OK') {
+    return { error: data.error_message || data.status };
+  }
+  const hit = Array.isArray(data.results) ? data.results[0] : null;
+  const loc = hit?.geometry?.location;
+  if (!loc || !Number.isFinite(Number(loc.lat)) || !Number.isFinite(Number(loc.lng))) return null;
+  return {
+    lat: Number(loc.lat),
+    lng: Number(loc.lng),
+    displayName: hit.formatted_address || q,
+    placeId: hit.place_id || '',
+  };
+}
+
 function buildSearchQuery(body) {
   if (typeof body.query === 'string' && body.query.trim().length >= 3) {
     return body.query.trim();
@@ -43,6 +76,19 @@ export async function POST(request) {
     const q = buildSearchQuery(body);
     if (!q || q.length < 3) {
       return NextResponse.json({ error: 'Provide a query or address fields to geocode.' }, { status: 400 });
+    }
+
+    // Prefer precise Google geocoding when a key is available.
+    const apiKey = mapsApiKey();
+    if (apiKey) {
+      try {
+        const g = await geocodeWithGoogle(q, body.regionCode, apiKey);
+        if (g && !g.error) {
+          return NextResponse.json({ ...g, queryUsed: q });
+        }
+      } catch {
+        /* fall through to OSM */
+      }
     }
 
     const url = new URL('https://nominatim.openstreetmap.org/search');

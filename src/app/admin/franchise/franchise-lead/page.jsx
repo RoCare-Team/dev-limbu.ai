@@ -2886,7 +2886,7 @@ export default function FranchiseLeadsPage() {
                                       ).toLocaleString("en-IN", {
                                         day: "numeric",
                                         month: "short",
-                                        year: "digit",
+                                        year: "2-digit",
                                         hour: "2-digit",
                                         minute: "2-digit",
                                         hour12: true,

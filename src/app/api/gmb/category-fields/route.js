@@ -84,17 +84,11 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await User.findOne({ email: session.user.email }).lean();
-
-    console.log('[gmb/category-fields GET]', {
-      email: session.user.email,
-      accountId: request.nextUrl.searchParams.get('accountId'),
-      locationId: request.nextUrl.searchParams.get('locationId'),
-    });
-    
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    // The NextAuth (Google OAuth) email can differ from the app-login email — e.g. when
+    // the user connects a separate Google account to manage GMB. So the app `User` row is
+    // OPTIONAL here: authorization is enforced by the Google session token itself. Fall
+    // back to an empty object so a missing row never blocks a valid Google session.
+    const user = (await User.findOne({ email: session.user.email }).lean()) || {};
 
     const { searchParams } = new URL(request.url);
     const accountId =

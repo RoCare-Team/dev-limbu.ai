@@ -83,29 +83,31 @@ function buildImprovements(place, breakdown) {
   const reviews = place?.userRatingCount || 0;
   const rating = place?.rating;
 
+  // Framed as what Limbu AI will do to grow the business.
+  tips.push(
+    "Local visibility — Limbu ranks your business in the Google Map Pack (top-3) so nearby customers find you first.",
+  );
   if (reviews < 100)
     tips.push(
-      `Review count sirf ${reviews} hai — customers se aur reviews maango (target 100+).`,
-    );
-  if (breakdown.customer === 0)
-    tips.push(
-      "Customer photos 0 hain — sab owner-uploaded. Customers se real photos add karwao.",
+      `Only ${reviews} reviews — Limbu brings 100+ genuine reviews through automated WhatsApp review requests.`,
     );
   if (rating != null && rating < 4.5)
     tips.push(
-      `Rating ${rating} hai — services aur dynamic customer handling se ise 4.5+ le jao.`,
+      `Rating ${rating} — Limbu lifts it to 4.5+ with timely review replies and feedback management.`,
     );
-  if (!place?.websiteUri)
-    tips.push("Website link missing hai — GMB profile me official link update karo.");
-  if (!place?.regularOpeningHours)
-    tips.push("Business hours set nahi hain — accurate opening hours details add karo.");
-  
-  // Custom daily posts tip
+  if (breakdown.customer === 0)
+    tips.push(
+      "0 customer photos — Limbu collects real customer photos & content to strengthen your profile.",
+    );
   tips.push(
-    "Daily posts add karo (jaise offers, updates, customer tips) karke local visibility badhao.",
+    "More calls & leads — Limbu's Magic QR, WhatsApp chatbot and GMB call button drive direct inquiries.",
   );
+  if (!place?.websiteUri)
+    tips.push(
+      "No website — Limbu builds a business website + booking page to grow your online presence.",
+    );
   tips.push(
-    "Reviews ka constant reply aur updates daalke profile ko active aur trustworthy banao.",
+    "Weekly posts, offers and Q&A — Limbu's auto-content keeps your profile active and ranking higher.",
   );
   return tips.slice(0, 5);
 }
@@ -363,13 +365,17 @@ export async function generateBusinessReportPDFBuffer(place = {}) {
       hy += 15;
     });
   }
-  doc
-    .fillColor(muted)
-    .font("Helvetica-Oblique")
-    .fontSize(8)
-    .text("Saaton din khula, koi weekly off nahi.", M + 14, y + colH - 18, {
-      width: colW - 28,
-    });
+  const openAllWeek =
+    hrs.length === 1 && String(hrs[0].label).includes("–");
+  if (openAllWeek) {
+    doc
+      .fillColor(muted)
+      .font("Helvetica-Oblique")
+      .fontSize(8)
+      .text("Open all week, no weekly off.", M + 14, y + colH - 18, {
+        width: colW - 28,
+      });
+  }
 
   // Photo breakdown
   const px = M + colW + colGap;
@@ -408,7 +414,12 @@ export async function generateBusinessReportPDFBuffer(place = {}) {
   /* ---------- improvement areas ---------- */
   y += colH + 12;
   const tips = buildImprovements(place, breakdown);
-  const tipsH = 32 + tips.length * 16 + 10;
+  // measure each tip so multi-line bullets don't overlap
+  doc.font("Helvetica").fontSize(9);
+  const tipHeights = tips.map(
+    (t) => Math.max(14, doc.heightOfString(t, { width: CW - 46 }) + 5),
+  );
+  const tipsH = 32 + tipHeights.reduce((a, b) => a + b, 0) + 8;
   card(M, y, CW, tipsH, amberBg, amberBorder);
   
   // warning triangle (drawn manually for maximum rendering safety)
@@ -432,9 +443,9 @@ export async function generateBusinessReportPDFBuffer(place = {}) {
     .fillColor(amberText)
     .font("Helvetica-Bold")
     .fontSize(10)
-    .text("Improvement areas", M + 34, y + 12);
+    .text("How Limbu AI will grow your business", M + 34, y + 12);
   let ty = y + 32;
-  tips.forEach((t) => {
+  tips.forEach((t, i) => {
     doc
       .fillColor(amberText)
       .font("Helvetica-Bold")
@@ -444,8 +455,50 @@ export async function generateBusinessReportPDFBuffer(place = {}) {
       .fillColor("#7c4a03")
       .font("Helvetica")
       .fontSize(9)
-      .text(t, M + 30, ty, { width: CW - 46, lineBreak: false });
-    ty += 16;
+      .text(t, M + 30, ty, { width: CW - 46 });
+    ty += tipHeights[i];
+  });
+
+  /* ---------- About Limbu AI ---------- */
+  y += tipsH + 12;
+  const aboutH = 96;
+  card(M, y, CW, aboutH, "#eef4ff", "#dbe6ff");
+  doc
+    .fillColor(blue)
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text("About Limbu AI", M + 16, y + 12);
+  doc
+    .fillColor(dark)
+    .font("Helvetica")
+    .fontSize(8.8)
+    .text(
+      "Limbu AI is an all-in-one local growth platform that manages and optimizes your Google Business Profile — " +
+        "so you get more calls, leads and customers. Review automation, local SEO & Map Pack ranking, WhatsApp chatbot, " +
+        "Magic QR, weekly posts and a business website — all in one place.",
+      M + 16,
+      y + 30,
+      { width: CW - 32, lineGap: 1.5 },
+    );
+
+  // service chips
+  const services = [
+    "Local Visibility",
+    "More Calls & Leads",
+    "Reviews & Ratings",
+    "GMB Optimization",
+    "WhatsApp Chatbot",
+    "Website & Magic QR",
+  ];
+  let cx = M + 16;
+  let cyy = y + aboutH - 24;
+  doc.font("Helvetica-Bold").fontSize(7.5);
+  services.forEach((s) => {
+    const w = doc.widthOfString(s) + 14;
+    if (cx + w > M + CW - 16) return;
+    doc.roundedRect(cx, cyy, w, 15, 7.5).fill("#dbe6ff");
+    doc.fillColor(blue).text(s, cx, cyy + 4, { width: w, align: "center" });
+    cx += w + 6;
   });
 
   /* ---------- footer ---------- */

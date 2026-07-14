@@ -282,6 +282,15 @@ export async function GET(request) {
       );
     }
 
+    console.log(
+      '[location-optimization] returning',
+      mapped.length,
+      'locations; descriptions:',
+      JSON.stringify(
+        mapped.map((m) => ({ id: m.locationId, descLen: (m.profileDescription || '').length }))
+      )
+    );
+
     return NextResponse.json({ success: true, accountId, locations: mapped });
   } catch (e) {
     console.error('[location-optimization GET]', e);

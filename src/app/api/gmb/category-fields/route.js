@@ -156,6 +156,16 @@ export async function GET(request) {
     // Current values are per-location and must NOT be cached.
     const currentByName = await fetchCurrentAttributes(accessToken, locationId).catch(() => new Map());
 
+    // Pull the URL-type contact attributes so the Contact tab can pre-fill from Google
+    // (these are not always in the category attribute list, so surface them directly).
+    const urlAttr = (name) => currentByName.get(name)?.uriValues?.[0]?.uri || '';
+    const contactAttributes = {
+      whatsappUri: urlAttr('attributes/url_whatsapp'),
+      bookingUri: urlAttr('attributes/url_appointment'),
+      menuUri: urlAttr('attributes/url_menu'),
+      orderUri: urlAttr('attributes/url_order_ahead') || urlAttr('attributes/url_order'),
+    };
+
     const attributes = (category.metadata || []).map((m) => {
       const options = Array.isArray(m.valueMetadata)
         ? m.valueMetadata.map((v) => ({ value: v.value, label: v.displayName || String(v.value) }))
@@ -182,7 +192,14 @@ export async function GET(request) {
       regionCode: category.regionCode,
       languageCode: category.languageCode,
       capabilities: category.capabilities || {},
+      // Reliable current description + services (single-location GET returns them; the
+      // list endpoint omits both).
+      profileDescription: typeof category.profileDescription === 'string' ? category.profileDescription : '',
+      serviceItemsList: Array.isArray(category.serviceItemsList) ? category.serviceItemsList : [],
+      serviceAreaPlaces: Array.isArray(category.serviceAreaPlaces) ? category.serviceAreaPlaces : [],
+      regularHoursPeriods: Array.isArray(category.regularHoursPeriods) ? category.regularHoursPeriods : [],
       attributes,
+      contactAttributes,
       cached: !refresh,
     });
   } catch (e) {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { generateSlug } from "../../utils/generateSlug";
 import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
-import { X, CheckCircle, ExternalLink, Copy, Check } from "lucide-react";
+import { X, CheckCircle, ExternalLink, Copy, Check, Send } from "lucide-react";
 
 export default function GoLiveButton({
   business,
@@ -22,6 +22,9 @@ export default function GoLiveButton({
   const [isPublished, setIsPublished] = useState(false);
   const [liveUrl, setLiveUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [waSending, setWaSending] = useState(false);
+  const [waSent, setWaSent] = useState(false);
+  const [waError, setWaError] = useState(null);
 
   const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "limbu.ai";
 
@@ -56,6 +59,49 @@ export default function GoLiveButton({
       document.body.removeChild(el);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    const ownerPhone =
+      phoneProp ||
+      business?.primaryPhone ||
+      business?.phoneNumbers?.primaryPhone ||
+      (typeof window !== "undefined" ? localStorage.getItem("chatbotPhone") : null);
+
+    if (!ownerPhone) {
+      setWaError("Phone number missing. Cannot send WhatsApp message.");
+      return;
+    }
+
+    try {
+      setWaSending(true);
+      setWaError(null);
+
+      const response = await fetch("/api/website/send-live-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: ownerPhone,
+          firstName: business?.title,
+          businessName: business?.title,
+          liveUrl: liveUrl || `https://${displaySlug}.${ROOT_DOMAIN}`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.message || "Failed to send WhatsApp message.");
+      }
+
+      setWaSent(true);
+      setTimeout(() => setWaSent(false), 4000);
+    } catch (err) {
+      console.error("WhatsApp send error:", err);
+      setWaError(err.message || "Failed to send WhatsApp message.");
+    } finally {
+      setWaSending(false);
     }
   };
 
@@ -273,11 +319,48 @@ export default function GoLiveButton({
           </button>
 
           <button
+            onClick={handleSendWhatsApp}
+            disabled={isLoading || waSending}
+            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition disabled:opacity-50 text-sm ${
+              waSent
+                ? "bg-green-100 border border-green-400 text-green-700"
+                : "bg-[#25D366] text-white hover:bg-[#1ebe57]"
+            }`}
+            title="Send template to WhatsApp"
+          >
+            {waSent ? (
+              <>
+                <Check className="w-4 h-4" />
+                Sent
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                {waSending ? "Sending..." : "Send to WhatsApp"}
+              </>
+            )}
+          </button>
+
+          <button
             onClick={() => setShowPreview(!showPreview)}
             disabled={isLoading}
             className="px-4 py-3 border border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition disabled:opacity-50 text-sm"
           >
             {showPreview ? "Close" : "Details"}
+          </button>
+        </div>
+      )}
+
+      {/* ── WhatsApp error banner ── */}
+      {waError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-2.5 mt-2 flex gap-2 items-start">
+          <span className="text-red-500 text-sm mt-0.5">⚠️</span>
+          <p className="flex-1 text-sm text-red-700">{waError}</p>
+          <button
+            onClick={() => setWaError(null)}
+            className="text-red-400 hover:text-red-600 transition"
+          >
+            <X size={16} />
           </button>
         </div>
       )}

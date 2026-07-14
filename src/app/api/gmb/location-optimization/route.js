@@ -188,10 +188,10 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = await User.findOne({ email: session.user.email }).lean();
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    // Optional: Google OAuth email can differ from the app-login email (managing another
+    // account's GMB). The Google session token enforces authorization, so a missing app
+    // user row must not block a valid session.
+    const user = (await User.findOne({ email: session.user.email }).lean()) || {};
 
     const { searchParams } = new URL(request.url);
     const accountId =

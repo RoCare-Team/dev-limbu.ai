@@ -50,38 +50,39 @@ export async function POST(req) {
       );
     }
 
-    const campaignName =
-      process.env.REPORT_WA_CAMPAIGN || "Business-Report-Doc";
+    const campaignName = "bussines_report";
 
     const businessName =
       user?.businessReport?.businessName || user.fullName || "your business";
 
+    const filename =
+      `Business-Report-${businessName}.pdf`.replace(/[^a-z0-9.\- ]/gi, "") ||
+      "Business-Report.pdf";
+
+    // Template "bussines_report" has no body params — only a PDF document header.
     const whatsappRes = await fetch(
       "https://whatsapp.limbu.ai/api/campaigns/send",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey: process.env.LIMBU_AI_WHATSAPP_KEY,
+          apiKey:
+            process.env.REPORT_WA_API_KEY ||
+            process.env.LIMBU_AI_WHATSAPP_KEY,
           campaignName,
           destination: phone,
           userName: "Limbu AI",
-          templateParams: [user.fullName || "Customer", businessName],
+          templateParams: [],
           source: "api",
           media: {
-            url: pdfUrl,
-            filename: `Business-Report-${businessName}.pdf`.replace(
-              /[^a-z0-9.\- ]/gi,
-              "",
-            ),
+            url: pdfUrl, // S3 PDF URI
+            filename,
           },
           buttons: [],
           carouselCards: [],
           location: {},
           attributes: {},
-          paramsFallbackValue: {
-            FirstName: user.fullName || "Customer",
-          },
+          paramsFallbackValue: {},
         }),
       },
     );

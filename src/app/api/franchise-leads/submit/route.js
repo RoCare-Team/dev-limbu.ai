@@ -171,3 +171,102 @@ export async function POST(req) {
     );
   }
 }
+
+// ==========================================================
+// GET /api/franchise-leads/submit
+// ----------------------------------------------------------
+// Read leads back (for the chatbot / external source).
+//
+//  • Single lead lookup:
+//      ?leadId=LIMBU_...    → one lead by leadId
+//      ?phone=9876543210    → one lead by phone
+//      ?email=test@x.com    → one lead by email
+//
+//  • List (defaults to chatbot-submitted leads):
+//      ?source=chatbot&page=1&limit=20
+//      ?source=all          → every source
+// ==========================================================
+
+function formatLead(l) {
+  return {
+    leadId: l.leadId,
+    fullName: l.fullName || "",
+    email: l.email || "",
+    phone: l.phone || "",
+    city: l.city || "",
+    occupation: l.occupation || "",
+    investment: l.investment || "",
+    source: l.source || "",
+    status: l.status || "Active",
+    lead_quality: l.lead_quality || "None",
+    assignedFranchiseAdminId: l.assignedFranchiseAdminId || null,
+    createdTime: l.createdTime || l.createdAt || null,
+  };
+}
+
+export async function GET(req) {
+  try {
+    await dbConnect();
+
+    const { searchParams } = new URL(req.url);
+    const leadId = searchParams.get("leadId");
+    const phone = searchParams.get("phone");
+    const email = searchParams.get("email");
+    const source = searchParams.get("source"); // e.g. "chatbot", "all"
+
+    // ---- Single-lead lookup ----
+    if (leadId || phone || email) {
+      const query = leadId
+        ? { leadId }
+        : phone
+          ? { phone: phone.trim() }
+          : { email: email.trim() };
+
+      const lead = await Lead.findOne(query).lean();
+      if (!lead) {
+        return NextResponse.json(
+          { success: false, message: "Lead not found" },
+          { status: 404 },
+        );
+      }
+      return NextResponse.json({ success: true, lead: formatLead(lead) });
+    }
+
+    // ---- List ----
+    let page = parseInt(searchParams.get("page") || "1", 10);
+    let limit = parseInt(searchParams.get("limit") || "20", 10);
+    if (page < 1) page = 1;
+    if (limit < 1) limit = 20;
+    if (limit > 100) limit = 100;
+
+    // Default to chatbot leads; pass source=all for everything.
+    const filter = {};
+    if (source && source !== "all") {
+      filter.source = source;
+    } else if (!source) {
+      filter.source = "chatbot";
+    }
+
+    const total = await Lead.countDocuments(filter);
+    const dbLeads = await Lead.find(filter)
+      .sort({ createdTime: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    return NextResponse.json({
+      success: true,
+      total,
+      page,
+      limit,
+      total_pages: Math.ceil(total / limit),
+      leads: dbLeads.map(formatLead),
+    });
+  } catch (error) {
+    console.error("Franchise Lead GET Error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message || "Server error" },
+      { status: 500 },
+    );
+  }
+}

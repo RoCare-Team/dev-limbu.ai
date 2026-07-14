@@ -3588,6 +3588,25 @@ export default function BusinessInformationPanel({
       setCategoryAttrs(attrs);
       setAttrValues(seeded);
       attrDirtyRef.current = new Set();
+
+      // Reflect currently-SET accessibility / amenity attributes from Google into the
+      // "Accessibility and amenities" More-tab field as a readable summary (those are the
+      // only More-tab data Google actually exposes — via attributes).
+      const amenityLabels = [];
+      for (const a of attrs) {
+        const g = String(a.group || "").toLowerCase();
+        if (!/accessib|amenit|service option|offerings|highlight|payment|from the business|planning/.test(g)) continue;
+        const v = seeded[a.name];
+        if (a.valueType === "BOOL" && v === true) amenityLabels.push(a.displayName);
+        else if (a.valueType === "REPEATED_ENUM" && Array.isArray(v) && v.length) {
+          const opts = new Map((a.options || []).map((o) => [String(o.value), o.label]));
+          for (const val of v) amenityLabels.push(`${a.displayName}: ${opts.get(String(val)) || val}`);
+        } else if (a.valueType === "ENUM" && v) {
+          const opts = new Map((a.options || []).map((o) => [String(o.value), o.label]));
+          amenityLabels.push(`${a.displayName}: ${opts.get(String(v)) || v}`);
+        }
+      }
+      const amenitySummary = amenityLabels.join(", ");
       // Sync the editable category picker with the live categories from Google.
       setCategoryPrimary(
         data.primaryCategoryName
@@ -3602,6 +3621,49 @@ export default function BusinessInformationPanel({
           : []
       );
       setCategoryDirty(false);
+
+      // Pre-fill Contact-tab WhatsApp & Booking from Google's current URL attributes
+      // (they live in attributes, not the main location fetch). Also seed the live
+      // description here — the single-location GET returns profile.description reliably,
+      // while the list endpoint that feeds gmbLocations often omits it. Respect edits.
+      const ca = data.contactAttributes || {};
+      const liveDesc = typeof data.profileDescription === "string" ? data.profileDescription.trim() : "";
+      const liveServices = Array.isArray(data.serviceItemsList)
+        ? hydrateServiceItems(data.serviceItemsList)
+        : [];
+      const liveAreas = Array.isArray(data.serviceAreaPlaces)
+        ? data.serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean)
+        : [];
+      const liveHours = Array.isArray(data.regularHoursPeriods) ? clonePeriods(data.regularHoursPeriods) : [];
+      // Keep the dirty-baseline in sync so a fresh fetch of hours doesn't look "unsaved".
+      if (liveHours.length && !dirtyFieldsRef.current.has("regularHoursPeriods")) {
+        setHoursBaseline(JSON.stringify(liveHours));
+      }
+      setFields((f) => ({
+        ...f,
+        chatUrl: dirtyFieldsRef.current.has("chatUrl") ? f.chatUrl : (ca.whatsappUri || f.chatUrl || ""),
+        bookingUrl: dirtyFieldsRef.current.has("bookingUrl") ? f.bookingUrl : (ca.bookingUri || f.bookingUrl || ""),
+        description:
+          dirtyFieldsRef.current.has("description") || !liveDesc
+            ? f.description
+            : clampGmbDescription(liveDesc),
+        serviceItems:
+          dirtyFieldsRef.current.has("serviceItems") || !liveServices.length
+            ? f.serviceItems
+            : liveServices,
+        serviceAreaPlaces:
+          dirtyFieldsRef.current.has("serviceAreaPlaces") || !liveAreas.length
+            ? f.serviceAreaPlaces
+            : liveAreas,
+        regularHoursPeriods:
+          dirtyFieldsRef.current.has("regularHoursPeriods") || !liveHours.length
+            ? f.regularHoursPeriods
+            : liveHours,
+        accessibility:
+          dirtyFieldsRef.current.has("accessibility") || !amenitySummary
+            ? f.accessibility
+            : amenitySummary,
+      }));
     } catch {
       if (categoryReqRef.current === reqToken) setAttrError("Could not load category fields from Google.");
     } finally {

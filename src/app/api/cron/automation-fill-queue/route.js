@@ -16,8 +16,7 @@ import AutomationPlan from '@/models/AutomationPlan';
 import User from '@/models/User';
 import {
   generateImagePrompt,
-  generateImage,
-  generatePostText,
+  generateImageAndText,
 } from '@/lib/automationPlanContentGeneration';
 import { createRunLogger } from '@/lib/automationRunLogger';
 import { sendDailyPostUpdateWhatsApp, normalizeIndiaPhone } from '@/lib/dailyPostWhatsApp';
@@ -106,27 +105,27 @@ export async function GET(request) {
         businessName: plan.businessName || '',
         cityName,
       });
-      const imageUrl = await generateImage({
+      const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
         keyword,
         businessName: plan.businessName || '',
-        imageConfig: plan.imageConfig || {},
-      });
-      const postText = await generatePostText({
-        businessName: plan.businessName || '',
-        keyword,
         cityName,
+        imageConfig: plan.imageConfig || {},
+        platforms: plan.platforms,
       });
 
       if (!imageUrl || !postText) {
-        throw new Error(`Missing ${!imageUrl ? 'imageUrl' : 'postText'} (aiAssetsGenerate / OPENAI_API_KEY?)`);
+        throw new Error(`Missing ${!imageUrl ? 'imageUrl' : 'postText'} (aiAssetsGenerate down?)`);
       }
 
+      const desc = descriptions || {};
       locked.aiOutput = imageUrl;
       locked.description = postText;
-      locked.gmbDescription = postText;
-      locked.fbDescription = postText;
-      locked.igDescription = postText;
+      locked.gmbDescription = desc.gmb || postText;
+      locked.fbDescription = desc.fb || postText;
+      locked.igDescription = desc.ig || postText;
+      locked.piDescription = desc.pin || postText;
+      if (desc.pinTitle) locked.pinTitle = desc.pinTitle;
       locked.status = 'scheduled'; // "Ready" — content generated + stored, awaiting publish
       locked.error = '';
       await locked.save();

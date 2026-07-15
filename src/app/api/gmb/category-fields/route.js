@@ -198,6 +198,7 @@ export async function GET(request) {
       serviceItemsList: Array.isArray(category.serviceItemsList) ? category.serviceItemsList : [],
       serviceAreaPlaces: Array.isArray(category.serviceAreaPlaces) ? category.serviceAreaPlaces : [],
       regularHoursPeriods: Array.isArray(category.regularHoursPeriods) ? category.regularHoursPeriods : [],
+      specialHourPeriods: Array.isArray(category.specialHourPeriods) ? category.specialHourPeriods : [],
       attributes,
       contactAttributes,
       cached: !refresh,

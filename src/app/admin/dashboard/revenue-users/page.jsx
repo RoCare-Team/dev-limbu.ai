@@ -69,6 +69,7 @@ export default function RevenueUsersPage() {
   const [editData, setEditData] = useState(null);
 
   const [editPlan, setEditPlan] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   const [editRemarks, setEditRemarks] = useState("");
   const [editProofImage, setEditProofImage] = useState(null);
   const [editStartDate, setEditStartDate] = useState("");
@@ -961,6 +962,7 @@ export default function RevenueUsersPage() {
   const handleEdit = (item) => {
     setEditData(item);
     setEditPlan(item.plan || "");
+    setEditEmail(item.email || "");
     setEditAmount(item.amount || "");
     setEditRemarks(item.planRemarks || "");
 
@@ -999,6 +1001,7 @@ export default function RevenueUsersPage() {
 
       formData.append("id", editData._id);
       formData.append("plan", editPlan);
+      formData.append("email", editEmail);
       formData.append("amount", editAmount);
       formData.append("planRemarks", editRemarks);
       formData.append("packageStartDate", editStartDate);
@@ -2052,6 +2055,8 @@ export default function RevenueUsersPage() {
         setEditModal={setEditModal}
         editPlan={editPlan}
         setEditPlan={setEditPlan}
+        editEmail={editEmail}
+        setEditEmail={setEditEmail}
         editAmount={editAmount}
         setEditAmount={setEditAmount}
         editRemarks={editRemarks}

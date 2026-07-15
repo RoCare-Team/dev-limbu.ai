@@ -174,7 +174,7 @@ const WebsiteFooter = ({ data }) => {
 
             <div className="flex items-center">
               <Mail className="w-5 h-5 mr-3 shrink-0" style={{ color: theme.secondaryColor }} />
-              <p className="truncate" style={textMuted}>contact@{slug || 'business'}.com</p>
+              <p className="truncate" style={textMuted}>{business.email}</p>
             </div>
           </div>
         </div>

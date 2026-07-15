@@ -3,6 +3,8 @@
  * (prefetch in auto-post + inline fallback in automation-plans publish).
  */
 
+import { normalizePlatformDescriptions } from '@/utils/aiPostDescriptions';
+
 export function getAutomationCronBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 }
@@ -62,11 +64,32 @@ Return ONLY: {"prompt":"..."}`,
   return prompt;
 }
 
-export async function generateImage({ imagePrompt, keyword, businessName, imageConfig = {} }) {
+/**
+ * Single source of truth for automation content: calls the SAME webhook used by
+ * post-management ("Assets" flow) — /api/aiAssetsGenerate → assets-image.limbutech.in/generate-ad.
+ * That one response returns BOTH the image (data.output) and DISTINCT per-platform
+ * captions (gmb_des, fb_des, ig_des, pin_des, ...). We request all platforms so each
+ * platform gets its OWN caption (not a shared GMB one), all in one webhook call.
+ *
+ * Returns { imageUrl: string|null, postText: string, descriptions: {gmb, fb, ig, pin, pinTitle, yt} }.
+ */
+export async function generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig = {}, platforms } = {}) {
   const BASE_URL = getAutomationCronBaseUrl();
   const cfg = applyIncludeInGeneration(imageConfig);
   const cleanB64 = (s) =>
     typeof s === 'string' && s.startsWith('data:image') ? s.split(',')[1] : s || '';
+
+  const textFallback = `${keyword} | ${businessName}${cityName ? ' — ' + cityName : ''}`;
+
+  // Ask the webhook for every platform's caption in one shot so fb/ig/pinterest
+  // each get their OWN text instead of reusing the GMB caption. Map plan platform
+  // codes → webhook platform tokens; default to all when none specified.
+  const platformMap = { gmb: 'gmb', fb: 'fb', ig: 'ig', pin: 'pinterest', pinterest: 'pinterest' };
+  const requested = Array.isArray(platforms) && platforms.length
+    ? [...new Set(platforms.map((p) => platformMap[String(p).toLowerCase()] || String(p).toLowerCase()))]
+    : ['gmb', 'fb', 'ig', 'pinterest'];
+  // Always include gmb so we have a canonical postText.
+  if (!requested.includes('gmb')) requested.unshift('gmb');
 
   const payload = {
     topic: imagePrompt || keyword || '',
@@ -79,13 +102,14 @@ export async function generateImage({ imagePrompt, keyword, businessName, imageC
     productImage: cleanB64(cfg.productImage),
     backgroundImage: cleanB64(cfg.backgroundImage),
     logoImage: cleanB64(cfg.logoImage),
-    platform: 'gmb',
+    platform: requested.join(','),
+    mode: 'ai',
   };
 
   console.log('[automation-content] aiAssetsGenerate —', `${BASE_URL}/api/aiAssetsGenerate`);
 
-  // Retry a few times: the upstream image service (assets-image.limbutech.in) can
-  // be briefly unreachable / slow. Without retries a single blip drops the whole
+  // Retry a few times: the upstream service (assets-image.limbutech.in) can be
+  // briefly unreachable / slow. Without retries a single blip drops the whole
   // day's post (imageUrl null → empty-bundle safety gate aborts it).
   const MAX_ATTEMPTS = Math.max(1, Number(process.env.AUTOMATION_IMAGE_RETRIES) || 3);
   const RETRY_DELAY_MS = Math.max(1000, Number(process.env.AUTOMATION_IMAGE_RETRY_DELAY_MS) || 5000);
@@ -110,14 +134,39 @@ export async function generateImage({ imagePrompt, keyword, businessName, imageC
         null;
 
       if (imageUrl) {
+        // Same response also carries DISTINCT per-platform captions — extract with
+        // the SAME normalizer post-management uses.
+        const norm = normalizePlatformDescriptions({ ...json, ...d });
+        const gmb = (norm.gmb_des || d?.description || '').trim();
+        const postText = gmb || (norm.fb_des || norm.ig_des || '').trim() || textFallback;
+        // Each platform keeps its own caption; fall back to the GMB text only when
+        // that platform's caption is missing so no field is ever empty.
+        const descriptions = {
+          gmb: postText,
+          fb: (norm.fb_des || '').trim() || postText,
+          ig: (norm.ig_des || '').trim() || postText,
+          pin: (norm.pin_des || '').trim() || postText,
+          pinTitle: (norm.pin_title || '').trim(),
+          yt: (norm.yt_des || '').trim() || postText,
+        };
+        // NOTE: Keep any {city} placeholder INTACT here. The gmb-post upstream
+        // (via /api/gmb/publish) replaces {city} per location using each
+        // location's cityName, so a single generated caption serves all
+        // locations with the correct city. Do NOT substitute at generation time.
         console.log('[automation-content] Extracted imageUrl:', imageUrl);
-        return imageUrl;
+        console.log('[automation-content] Per-platform text:', {
+          gmb: descriptions.gmb.slice(0, 40),
+          fb: descriptions.fb.slice(0, 40),
+          ig: descriptions.ig.slice(0, 40),
+          pin: descriptions.pin.slice(0, 40),
+        });
+        return { imageUrl, postText, descriptions };
       }
       console.warn(
         `[automation-content] attempt ${attempt}/${MAX_ATTEMPTS} returned no imageUrl (status ${res.status}, ${json?.error || 'image service down/slow?'})`
       );
     } catch (err) {
-      console.error(`[automation-content] generateImage attempt ${attempt}/${MAX_ATTEMPTS} EXCEPTION:`, err.message);
+      console.error(`[automation-content] generateImageAndText attempt ${attempt}/${MAX_ATTEMPTS} EXCEPTION:`, err.message);
     }
 
     if (attempt < MAX_ATTEMPTS) {
@@ -125,26 +174,22 @@ export async function generateImage({ imagePrompt, keyword, businessName, imageC
     }
   }
 
-  console.error(`[automation-content] generateImage FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`);
-  return null;
+  console.error(`[automation-content] generateImageAndText FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`);
+  return {
+    imageUrl: null,
+    postText: textFallback,
+    descriptions: { gmb: textFallback, fb: textFallback, ig: textFallback, pin: textFallback, pinTitle: '', yt: textFallback },
+  };
 }
 
-export async function generatePostText({ businessName, keyword, cityName }) {
-  const fallback = `${keyword} | ${businessName}${cityName ? ' — ' + cityName : ''}`;
-  const result = await callGpt(
-    'Expert GMB copywriter. Respond with ONLY compact JSON.',
-    `Write a Google My Business post for:
-Business: "${businessName}"
-Keyword: "${keyword}"
-City: "${cityName || ''}"
-Rules: max 150 chars total, use actual city name (never {{city}}), energetic, 1-2 emojis, 2-3 hashtags.
-Return ONLY: {"text":"...","hashtags":["#a","#b"]}`,
-    300
-  );
+/** Backward-compat: image URL only (delegates to the combined generator). */
+export async function generateImage({ imagePrompt, keyword, businessName, imageConfig = {} }) {
+  const { imageUrl } = await generateImageAndText({ imagePrompt, keyword, businessName, imageConfig });
+  return imageUrl;
+}
 
-  if (!result?.text) return fallback;
-  const hashtags = Array.isArray(result.hashtags) ? result.hashtags : [];
-  const postText = `${result.text} ${hashtags.join(' ')}`.trim();
-  console.log('[automation-content] Post text:', postText);
+/** Backward-compat: text only. Uses the SAME aiAssetsGenerate webhook. */
+export async function generatePostText({ businessName, keyword, cityName, imagePrompt, imageConfig = {} }) {
+  const { postText } = await generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig });
   return postText;
 }

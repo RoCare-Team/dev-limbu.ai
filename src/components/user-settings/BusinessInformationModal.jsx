@@ -3016,6 +3016,101 @@ function SpecialHoursHolidays({ enabled, onInsertNotes, onSaveToGoogle, savePend
   );
 }
 
+// ─── Profile completeness score + per-tab timeline (shown above the tabs) ───────
+// Gives an at-a-glance health score and a checklist of what's missing per tab, so the
+// user sees gaps without opening each tab. Clicking a step jumps to that tab.
+function ProfileScorePanel({ score, activeTab, onJump }) {
+  if (!score || !score.total) return null;
+  const { percent, tabs } = score;
+  const ring =
+    percent >= 100 ? "#16a34a" : percent >= 70 ? "#CA8A04" : percent >= 40 ? "#EAB308" : "#dc2626";
+
+  return (
+    <div style={{ padding: "16px 26px", borderBottom: "1px solid #f0f4f8", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14, flexWrap: "wrap" }}>
+        {/* Score dial */}
+        <div
+          style={{
+            width: 56, height: 56, borderRadius: "50%", flexShrink: 0,
+            background: `conic-gradient(${ring} ${percent * 3.6}deg, #eef2f6 0deg)`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div style={{
+            width: 44, height: 44, borderRadius: "50%", background: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, fontWeight: 800, color: ring,
+          }}>
+            {percent}%
+          </div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#0f172a" }}>Profile completeness</div>
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            {percent >= 100
+              ? "All set — every section is complete."
+              : `${score.done} of ${score.total} items done. Complete the highlighted steps below.`}
+          </div>
+        </div>
+      </div>
+
+      {/* Horizontal timeline */}
+      <div style={{ display: "flex", alignItems: "stretch", gap: 0, overflowX: "auto", paddingBottom: 4 }}>
+        {tabs.map((t, i) => {
+          const isActive = activeTab === t.id;
+          const color = t.complete ? "#16a34a" : t.doneCount > 0 ? "#CA8A04" : "#cbd5e1";
+          return (
+            <div key={t.id} style={{ display: "flex", flexDirection: "column", flex: "1 0 150px", minWidth: 150 }}>
+              {/* Node + horizontal connector */}
+              <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+                <span style={{ flex: 1, height: 2, background: i === 0 ? "transparent" : "#eef2f6" }} />
+                <span style={{
+                  width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
+                  background: t.complete ? color : "#fff", border: `2px solid ${color}`,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center", color: "#fff",
+                }}>
+                  {t.complete ? <CheckIcon size={13} color="#fff" /> : (
+                    <span style={{ fontSize: 12, fontWeight: 800, color }}>{t.doneCount}</span>
+                  )}
+                </span>
+                <span style={{ flex: 1, height: 2, background: i === tabs.length - 1 ? "transparent" : "#eef2f6" }} />
+              </div>
+
+              {/* Label + status + missing (below the node) */}
+              <button
+                type="button"
+                onClick={() => onJump(t.id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center",
+                  padding: "8px 6px", margin: "4px 4px 0", borderRadius: 10, border: "none", cursor: "pointer",
+                  background: isActive ? "#FFFDF5" : "transparent", fontFamily: "inherit",
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#f8fafc"; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+              >
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a" }}>{t.label}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20,
+                  color: t.complete ? "#166534" : "#854D0E",
+                  background: t.complete ? "#f0fdf4" : "#FEF9C3",
+                  border: `1px solid ${t.complete ? "#bbf7d0" : "#FDE047"}`,
+                }}>
+                  {t.complete ? "Complete" : `${t.doneCount}/${t.total}`}
+                </span>
+                {!t.complete && t.missing.length ? (
+                  <span style={{ fontSize: 10.5, color: "#b45309", lineHeight: 1.4 }}>
+                    {t.missing.join(", ")}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── AI loading: top margin, “magic” motion, elapsed time ────────────────────
 function MagicAiLoader({ marginTop = 20, subtitle = "OpenAI is crafting…" }) {
   const [elapsed, setElapsed] = useState(0);
@@ -3379,6 +3474,9 @@ export default function BusinessInformationPanel({
   const [categoryPrimary, setCategoryPrimary] = useState(null); // { name, displayName }
   const [categoryAdditional, setCategoryAdditional] = useState([]); // [{ name, displayName }]
   const [categoryDirty, setCategoryDirty] = useState(false);
+  // The description that actually exists on Google right now (from the single-location
+  // GET). Used by the completeness score so a settings-only draft never counts as "on GMB".
+  const [liveGmbDescription, setLiveGmbDescription] = useState("");
   const [categorySaving, setCategorySaving] = useState(false);
 
   // Category sections for the services editor — primary first, then each sub-category.
@@ -3547,6 +3645,96 @@ export default function BusinessInformationPanel({
     return { total: categoryAttrs.length, set, unsaved };
   }, [categoryAttrs, attrValues]);
 
+  // Per-tab completeness for the profile score / timeline shown above the tabs.
+  const profileScore = useMemo(() => {
+    const has = (v) => typeof v === "string" && v.trim().length > 0;
+    // Description counts only when it's actually on Google, OR the user typed a NEW one
+    // (not the settings-only fallback). This flags a missing GMB description honestly.
+    const editedDesc = (fields.description || "").trim();
+    const settingsDesc = (profileDescriptionProp || "").trim();
+    const liveDescOnGmb = (liveGmbDescription || "").trim();
+    const descriptionDone =
+      liveDescOnGmb.length >= 50 || (editedDesc.length >= 50 && editedDesc !== settingsDesc);
+    const servicesCount = Array.isArray(fields.serviceItems)
+      ? fields.serviceItems.filter((s) => has(s?.title)).length
+      : 0;
+    const areasCount = Array.isArray(fields.serviceAreaPlaces) ? fields.serviceAreaPlaces.length : 0;
+    const hoursCount = Array.isArray(fields.regularHoursPeriods) ? fields.regularHoursPeriods.length : 0;
+
+    const tabs = [
+      {
+        id: "about",
+        label: "About",
+        items: [
+          { label: "Business description", done: descriptionDone },
+          { label: "Primary category", done: has(categoryPrimary?.displayName) || has(fields.primaryCategory) },
+          { label: "At least one service", done: servicesCount > 0 },
+        ],
+      },
+      {
+        id: "contact",
+        label: "Contact",
+        items: [
+          { label: "Phone number", done: has(fields.phone) },
+          { label: "Website", done: has(fields.website) },
+          { label: "WhatsApp number", done: has(fields.chatUrl) },
+        ],
+      },
+      {
+        id: "location",
+        label: "Location",
+        items: [
+          { label: "Business address", done: has(primaryLoc.fullAddress) || has(primaryLoc.address) },
+          { label: "Service areas", done: areasCount > 0 },
+        ],
+      },
+      {
+        id: "hours",
+        label: "Hours",
+        items: [{ label: "Opening hours set", done: hoursCount > 0 }],
+      },
+      {
+        id: "category",
+        label: "Attributes",
+        items: [
+          {
+            label: gmbSyncMode ? `Attributes set (${attrStats.set}/${attrStats.total || 0})` : "Attributes",
+            done: attrStats.total === 0 ? true : attrStats.set > 0,
+          },
+        ],
+      },
+    ];
+
+    let done = 0;
+    let total = 0;
+    for (const t of tabs) {
+      t.doneCount = t.items.filter((i) => i.done).length;
+      t.total = t.items.length;
+      t.complete = t.doneCount === t.total;
+      t.missing = t.items.filter((i) => !i.done).map((i) => i.label);
+      done += t.doneCount;
+      total += t.total;
+    }
+    const percent = total ? Math.round((done / total) * 100) : 0;
+    return { tabs, done, total, percent };
+  }, [
+    fields.description,
+    fields.serviceItems,
+    fields.serviceAreaPlaces,
+    fields.regularHoursPeriods,
+    fields.phone,
+    fields.website,
+    fields.chatUrl,
+    fields.primaryCategory,
+    categoryPrimary,
+    primaryLoc.fullAddress,
+    primaryLoc.address,
+    attrStats,
+    gmbSyncMode,
+    liveGmbDescription,
+    profileDescriptionProp,
+  ]);
+
   // Load the category's attribute set + current values for the active location.
   // Only relevant on the Google-sync optimization page (gmbSyncMode). Guards stale
   // responses with a request token so a fast location switch doesn't apply old data.
@@ -3628,6 +3816,7 @@ export default function BusinessInformationPanel({
       // while the list endpoint that feeds gmbLocations often omits it. Respect edits.
       const ca = data.contactAttributes || {};
       const liveDesc = typeof data.profileDescription === "string" ? data.profileDescription.trim() : "";
+      setLiveGmbDescription(liveDesc);
       const liveServices = Array.isArray(data.serviceItemsList)
         ? hydrateServiceItems(data.serviceItemsList)
         : [];
@@ -3635,6 +3824,20 @@ export default function BusinessInformationPanel({
         ? data.serviceAreaPlaces.map((s) => String(s).trim()).filter(Boolean)
         : [];
       const liveHours = Array.isArray(data.regularHoursPeriods) ? clonePeriods(data.regularHoursPeriods) : [];
+      // Read back current special hours (holiday closures) as a readable notes summary.
+      const liveSpecial = Array.isArray(data.specialHourPeriods) ? data.specialHourPeriods : [];
+      const specialSummary = liveSpecial
+        .map((p) => {
+          const d = p?.startDate;
+          if (!d?.year || !d?.month || !d?.day) return null;
+          const iso = `${d.year}-${String(d.month).padStart(2, "0")}-${String(d.day).padStart(2, "0")}`;
+          const label = new Date(`${iso}T00:00:00`).toLocaleDateString("en-IN", {
+            day: "2-digit", month: "short", year: "numeric",
+          });
+          return p?.closed ? `${label} — Closed` : `${label} — Open (special hours)`;
+        })
+        .filter(Boolean)
+        .join("\n");
       // Keep the dirty-baseline in sync so a fresh fetch of hours doesn't look "unsaved".
       if (liveHours.length && !dirtyFieldsRef.current.has("regularHoursPeriods")) {
         setHoursBaseline(JSON.stringify(liveHours));
@@ -3663,6 +3866,10 @@ export default function BusinessInformationPanel({
           dirtyFieldsRef.current.has("accessibility") || !amenitySummary
             ? f.accessibility
             : amenitySummary,
+        specialHours:
+          dirtyFieldsRef.current.has("specialHours") || !specialSummary
+            ? f.specialHours
+            : `Current holiday closures on Google:\n${specialSummary}`,
       }));
     } catch {
       if (categoryReqRef.current === reqToken) setAttrError("Could not load category fields from Google.");
@@ -4429,6 +4636,10 @@ export default function BusinessInformationPanel({
                   </button>
                 ) : null}
               </div>
+            ) : null}
+
+            {activeEnriched ? (
+              <ProfileScorePanel score={profileScore} activeTab={tab} onJump={setTab} />
             ) : null}
 
             <div

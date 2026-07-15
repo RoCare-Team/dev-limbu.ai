@@ -87,7 +87,7 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
   // endpoint often omits both), so fetch them here and surface them for the editor.
   const url = `${GMB_BASE}/locations/${encodeURIComponent(
     locationId
-  )}?readMask=categories,storefrontAddress,metadata,profile,serviceItems,serviceArea,regularHours`;
+  )}?readMask=categories,storefrontAddress,metadata,profile,serviceItems,serviceArea,regularHours,specialHours`;
   const loc = await gmbGet(url, accessToken);
   const profileDescription = typeof loc?.profile?.description === 'string' ? loc.profile.description : '';
   const serviceItemsList = parseServiceItemsList(loc?.serviceItems);
@@ -97,6 +97,10 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
     : [];
   // Current opening hours periods (openDay/openTime/closeDay/closeTime).
   const regularHoursPeriods = Array.isArray(loc?.regularHours?.periods) ? loc.regularHours.periods : [];
+  // Current special-hours (holiday closures / exceptions) so saved holidays reload.
+  const specialHourPeriods = Array.isArray(loc?.specialHours?.specialHourPeriods)
+    ? loc.specialHours.specialHourPeriods
+    : [];
   const categoryName = loc?.categories?.primaryCategory?.name || '';
   const primaryCategory = loc?.categories?.primaryCategory?.displayName || '';
   // Current additional (sub) categories, kept as { name (gcid), displayName } so the
@@ -135,6 +139,7 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
     serviceItemsList,
     serviceAreaPlaces,
     regularHoursPeriods,
+    specialHourPeriods,
   };
 }
 

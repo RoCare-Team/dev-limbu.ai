@@ -9,6 +9,8 @@ export default function EditPackageModal({
   setEditModal,
   editPlan,
   setEditPlan,
+  editEmail = "",
+  setEditEmail = () => {},
   editAmount,
   setEditAmount,
   editRemarks,
@@ -70,6 +72,24 @@ export default function EditPackageModal({
           value={editPlan}
           onChange={(e) => setEditPlan(e.target.value)}
           placeholder="Enter plan name"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl
+          bg-gray-50 focus:bg-white focus:ring-2
+          focus:ring-violet-500 focus:border-violet-500
+          outline-none transition"
+        />
+      </div>
+
+      {/* Email */}
+      <div>
+        <label className="text-sm font-medium text-gray-600 mb-2 block">
+          Email
+        </label>
+
+        <input
+          type="email"
+          value={editEmail}
+          onChange={(e) => setEditEmail(e.target.value)}
+          placeholder="Enter email"
           className="w-full px-4 py-3 border border-gray-200 rounded-xl
           bg-gray-50 focus:bg-white focus:ring-2
           focus:ring-violet-500 focus:border-violet-500

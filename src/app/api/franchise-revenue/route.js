@@ -223,7 +223,7 @@ export async function GET(req) {
     const userIds = revenueData.map((item) => item.leadId);
 
     const users = await User.find({ userId: { $in: userIds } })
-      .select("userId packageExpiryDate packageStartDate paidPackage")
+      .select("userId packageExpiryDate packageStartDate paidPackage email")
       .lean();
 
     const userMap = {};
@@ -233,6 +233,8 @@ export async function GET(req) {
 
     revenueData = revenueData.map((item) => ({
       ...item,
+      // Fall back to the User record's email when the revenue entry has none
+      email: item.email || userMap[String(item.leadId).trim()]?.email || "",
       userPackageExpiryDate:
         userMap[String(item.leadId).trim()]?.packageExpiryDate || null,
       userPackageStartDate:
@@ -478,6 +480,7 @@ export async function PUT(req) {
 
     const id = formData.get("id");
     const plan = formData.get("plan");
+    const email = formData.get("email");
     const amount = formData.get("amount");
     const planRemarks = formData.get("planRemarks");
     const packageStartDate = formData.get("packageStartDate");
@@ -600,6 +603,7 @@ export async function PUT(req) {
 
     const updatedPackageData = {
       ...(plan && { plan }),
+      ...(email !== undefined && email !== null && { email }),
       ...(amount && { amount }),
       ...(planRemarks && { planRemarks }),
 
@@ -640,6 +644,8 @@ export async function PUT(req) {
             packageExpiryDate: packageExpiryDate
               ? new Date(packageExpiryDate)
               : null,
+
+            ...(email !== undefined && email !== null && { email }),
           },
         },
       );

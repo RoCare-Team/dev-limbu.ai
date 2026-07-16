@@ -52,12 +52,21 @@ async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
 export async function generateImagePrompt({ keyword, businessName, cityName }) {
   const fallback = `${keyword} — ${businessName}${cityName ? ', ' + cityName : ''}`;
   const result = await callGpt(
-    'You are a creative director for an AI image generation tool. Return ONLY compact JSON.',
-    `Business: "${businessName}"
-Keyword: "${keyword}"
-Create a vivid, specific image-generation prompt (max 120 chars) for a professional GMB post image.
+    'You are an award-winning advertising art director writing prompts for a text-to-image model that produces 3:4 social-media ad creatives. Return ONLY compact minified JSON, no markdown, no commentary.',
+    `Business name: "${businessName}"
+Primary keyword / offer: "${keyword}"${cityName ? `\nCity / locality: "${cityName}"` : ''}
+
+Write ONE vivid, camera-ready image prompt for a professional, scroll-stopping Google Business + social post that visually sells "${keyword}".
+
+Requirements:
+- Describe a real photographic scene: subject, setting, action, and mood.
+- Specify photography craft: camera angle/lens, natural lighting, depth of field, and colour mood.
+- Keep it brand-safe, modern, premium${cityName ? ` and locally relevant to ${cityName}, India` : ''}.
+- Absolutely NO text, letters, words, captions, watermarks, logos or UI in the image (text and logo are composited later).
+- 30-60 words, a single flowing paragraph.
+
 Return ONLY: {"prompt":"..."}`,
-    200
+    300
   );
   const prompt = result?.prompt || fallback;
   console.log('[automation-content] Image prompt:', prompt);
@@ -81,15 +90,11 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
 
   const textFallback = `${keyword} | ${businessName}${cityName ? ' — ' + cityName : ''}`;
 
-  // Ask the webhook for every platform's caption in one shot so fb/ig/pinterest
-  // each get their OWN text instead of reusing the GMB caption. Map plan platform
-  // codes → webhook platform tokens; default to all when none specified.
-  const platformMap = { gmb: 'gmb', fb: 'fb', ig: 'ig', pin: 'pinterest', pinterest: 'pinterest' };
-  const requested = Array.isArray(platforms) && platforms.length
-    ? [...new Set(platforms.map((p) => platformMap[String(p).toLowerCase()] || String(p).toLowerCase()))]
-    : ['gmb', 'fb', 'ig', 'pinterest'];
-  // Always include gmb so we have a canonical postText.
-  if (!requested.includes('gmb')) requested.unshift('gmb');
+  // Always ask the webhook for EVERY platform's caption in one shot so gmb/fb/ig/
+  // pinterest each get their OWN distinct text — never a reused GMB caption. We
+  // request the full set regardless of which platforms the plan posts to; unused
+  // fields are simply ignored, but the ones we publish are always platform-native.
+  const requested = ['gmb', 'fb', 'ig', 'pinterest'];
 
   const payload = {
     topic: imagePrompt || keyword || '',

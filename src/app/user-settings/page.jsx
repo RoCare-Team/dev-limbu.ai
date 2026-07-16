@@ -696,6 +696,8 @@ export default function AutomationSettings({ onNavigateBack }) {
 
   const [gmbLocationsExpanded, setGmbLocationsExpanded] = useState(true);
   const [metaSyncing, setMetaSyncing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const displayName = useMemo(() => {
     const rawName = String(userData?.fullName || "").trim();
     if (!rawName || /^USR\d+$/i.test(rawName)) return "Automation Settings";
@@ -823,15 +825,21 @@ export default function AutomationSettings({ onNavigateBack }) {
             }
           }
 
-          // Restore selected business
+          // Restore selected business — prefer the LIVE data from localStorage
+          // (source of truth from the GMB connect flow) over a possibly-stale
+          // saved selectedBusiness, so the business always matches the GMB
+          // location the user actually connected (e.g. "CB Prints"), not an old
+          // profile like "DoctorFresh".
           const savedBiz = s.selectedBusiness;
-          if (savedBiz?.projectId || savedBiz?.googleId) {
+          let bizFromLS = null;
+          try {
+            const bd = localStorage.getItem("businessDetails");
+            if (bd) bizFromLS = JSON.parse(bd);
+          } catch { /* ignore */ }
+          if (bizFromLS && (bizFromLS.projectId || bizFromLS.googleId || bizFromLS.locationId || bizFromLS.name || bizFromLS.title)) {
+            setSelectedBusiness(bizFromLS);
+          } else if (savedBiz?.projectId || savedBiz?.googleId) {
             setSelectedBusiness(savedBiz);
-          } else {
-            try {
-              const bd = localStorage.getItem("businessDetails");
-              if (bd) { const parsed = JSON.parse(bd); if (parsed) { setSelectedBusiness(parsed); } }
-            } catch { /* ignore */ }
           }
 
           // Restore previously saved locations
@@ -1110,6 +1118,35 @@ export default function AutomationSettings({ onNavigateBack }) {
       setError(e.message || "Save failed");
     } finally {
       setSaving(false);
+      setTimeout(() => setSaveStatus(null), 3500);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError("");
+    try {
+      const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+      const res = await fetch(`/api/user-settings?userId=${encodeURIComponent(userId || "")}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || "Delete failed");
+
+      // Reset the UI to a clean, disabled state so the user can set up fresh.
+      setAutoStatus(null);
+      setAutomationEnabled(false);
+      setSavedKeywords([]);
+      setSelectedKeywords([]);
+      setPlanPostsUsed(null);
+      setConfirmDelete(false);
+      setShowForm(true);
+      setSaveStatus("success");
+    } catch (e) {
+      setError(e.message || "Delete failed");
+      setSaveStatus("error");
+    } finally {
+      setDeleting(false);
       setTimeout(() => setSaveStatus(null), 3500);
     }
   };
@@ -1423,6 +1460,34 @@ export default function AutomationSettings({ onNavigateBack }) {
                 >
                   ✏️ Edit settings
                 </button>
+                {confirmDelete ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      style={{ fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 20, border: "none", background: "#dc2626", color: "#fff", cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.6 : 1 }}
+                    >
+                      {deleting ? "Deleting…" : "Confirm delete"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deleting}
+                      style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 20, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    style={{ fontSize: 12, fontWeight: 700, padding: "5px 14px", borderRadius: 20, border: "1px solid #fecaca", background: "#fff", color: "#dc2626", cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1746,7 +1811,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                           </button>
                         </div>
                       </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto", paddingRight: 6 }}>
                         {gmbLocations.map((loc, i) => {
                           const locId = loc.locationId || "";
                           const isChecked = selectedLocations.some((l) => l.locationId === locId);

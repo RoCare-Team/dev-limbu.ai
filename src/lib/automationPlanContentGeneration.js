@@ -150,6 +150,7 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
           gmb: postText,
           fb: (norm.fb_des || '').trim() || postText,
           ig: (norm.ig_des || '').trim() || postText,
+          li: (norm.li_des || '').trim() || postText,
           pin: (norm.pin_des || '').trim() || postText,
           pinTitle: (norm.pin_title || '').trim(),
           yt: (norm.yt_des || '').trim() || postText,
@@ -183,7 +184,7 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
   return {
     imageUrl: null,
     postText: textFallback,
-    descriptions: { gmb: textFallback, fb: textFallback, ig: textFallback, pin: textFallback, pinTitle: '', yt: textFallback },
+    descriptions: { gmb: textFallback, fb: textFallback, ig: textFallback, li: textFallback, pin: textFallback, pinTitle: '', yt: textFallback },
   };
 }
 

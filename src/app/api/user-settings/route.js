@@ -308,7 +308,13 @@ export async function POST(request) {
     // ── Business resolution ────────────────────────────────────────────────────
     // Priority: (1) selectedBusiness from request, (2) already saved on user
     const resolvedBusiness = selectedBusiness || user.selectedBusiness || null;
+    // Business NAME is derived from the GMB LOCATION the user posts to (e.g.
+    // "CB Prints"), NOT from the separate selectedBusiness account (which may be
+    // a different profile like a water brand). Fall back to selectedBusiness only
+    // when no location name is available.
     const businessName = (
+      safeLocations[0]?.name  ||
+      safeLocations[0]?.title ||
       resolvedBusiness?.title ||
       resolvedBusiness?.name  ||
       ''
@@ -732,75 +738,50 @@ export async function POST(request) {
       const DAY_MS = 86400000;
       const firstGenTs = SAVE_TS + INITIAL_GEN_MS;
 
-      const postsData = [];
-      for (let idx = 0; idx < schedule.length; idx++) {
-        const genTs = firstGenTs + idx * stepDays * DAY_MS;
-        const generateContentAt = new Date(genTs);
-        const publishAt = new Date(genTs + PUB_MS);
-        const keyword = safeKeywords[idx] || safeKeywords[idx % safeKeywords.length];
-        const line = `${keyword} — ${businessName || 'your business'}`;
+      // ── create-on-generate: DO NOT pre-insert empty placeholder Posts ─────────
+      // Previously we bulk-inserted one empty Post per schedule slot, which showed
+      // up as many "Image Not Generated" cards. Now we only store the timing on the
+      // plan; the fill-queue cron generates each slot and creates ONE real Post
+      // (with image + text) at a time. No image-less document ever exists.
+      const postLimit = schedule.length;
 
-        postsData.push({
-          userId:              finalUserId,
-          promat:              keyword,
-          description:         `Automated post about ${keyword}`,
-          gmbDescription:      line,
-          fbDescription:       line,
-          igDescription:       line,
-          scheduledDateSource: [...platformsForPost],
-          status:              'pending',
-          generateContentAt,
-          scheduledDate:       publishAt,
-          automationQueued:    true,
-          automationPlanId:    plan._id,
-          aiOutput:            '',
-          // Prefer the plan's fresh session tokens; fall back to GmbUser project tokens.
-          accessToken:         planAccessToken  || projectPostQueue?.accessToken  || '',
-          refreshToken:        planRefreshToken || projectPostQueue?.refreshToken || '',
-          // 'both' = attach the generated image to the GMB post (publish-scheduled
-          // sends post_type/cta too). 'post' alone published text-only — no image.
-          checkmark:           'both',
-          locations,
-          fbPages: hasFb && Array.isArray(fbPages)
-            ? fbPages.filter((p) => p?.pageId).map((p) => ({
-                pageId:          p.pageId,
-                pageName:        p.pageName || '',
-                pageAccessToken: p.pageAccessToken || '',
-                caption:         line,
-                isPosted:        false,
-              }))
-            : [],
-          igPages: hasIg && Array.isArray(igPages)
-            ? igPages.filter((a) => a?.igId).map((a) => ({
-                igId:            a.igId,
-                igUsername:      a.igUsername || '',
-                pageAccessToken: a.pageAccessToken || '',
-                caption:         line,
-                isPosted:        false,
-              }))
-            : [],
-        });
-      }
-
+      // Clear any leftover queued posts from an earlier (placeholder-era) save so
+      // the dashboard shows only real, generated posts going forward.
       await PostModel.deleteMany({
         userId:           automationQueueUserId,
         automationQueued: true,
-        status:           { $in: ['pending', 'scheduled'] },
+        status:           { $in: ['pending', 'scheduled', 'processing'] },
       });
 
-      await PostModel.insertMany(postsData, { ordered: false });
+      await AutomationPlan.updateOne(
+        { _id: plan._id },
+        {
+          $set: {
+            queueTiming: {
+              generateStartAt: new Date(firstGenTs),
+              stepDays,
+              publishAfterMin,
+              postLimit,
+            },
+            postIndex:       0,
+            generatingSlot:  null,
+            generatingSince: null,
+          },
+        }
+      );
+
       automationTiming = {
         mode: publishAfterMin >= 720 ? 'production' : 'test',
         generateAfterSaveMinutes: initialGenMin,
         publishAfterGenerateMinutes: publishAfterMin,
         frequency: safeFrequency,
         generationStepDays: stepDays,
-        postsQueued: postsData.length,
-        firstGenerateAt: postsData[0]?.generateContentAt || null,
-        firstPublishAt: postsData[0]?.scheduledDate || null,
+        postsQueued: postLimit,          // slots the cron will generate over time
+        firstGenerateAt: new Date(firstGenTs),
+        firstPublishAt: new Date(firstGenTs + PUB_MS),
       };
       console.log(
-        `[user-settings] ✅ Created ${postsData.length} queued Posts ` +
+        `[user-settings] ✅ create-on-generate queue set — ${postLimit} slots ` +
         `[first generate +${initialGenMin}m after save, then every ${stepDays} day(s) (freq=${safeFrequency}); ` +
         `publish +${publishAfterMin}m after each generation] userId=${finalUserId}`
       );
@@ -817,6 +798,54 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('POST /api/user-settings error:', error);
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE /api/user-settings?userId=USR...
+ * Removes the automation plan and any not-yet-published (queued) posts for the
+ * user. Already-posted / failed history is preserved. Session-guarded.
+ */
+export async function DELETE(request) {
+  try {
+    await dbConnect();
+
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    const user = await resolveUserForSettings(session, userId);
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const planUserId = String(userId || user.userId || user._id.toString()).trim();
+    const PostModel = (await import('@/models/PostStatus.js')).default;
+
+    const plansDeleted = await AutomationPlan.deleteMany({ userId: planUserId });
+    const postsDeleted = await PostModel.deleteMany({
+      userId:           planUserId,
+      automationQueued: true,
+      status:           { $in: ['pending', 'processing', 'scheduled'] },
+    });
+
+    console.log(
+      `[user-settings] 🗑️ DELETE automation — plans=${plansDeleted.deletedCount} ` +
+      `queuedPosts=${postsDeleted.deletedCount} userId=${planUserId}`
+    );
+
+    return NextResponse.json({
+      success:            true,
+      plansDeleted:       plansDeleted.deletedCount,
+      queuedPostsDeleted: postsDeleted.deletedCount,
+    });
+  } catch (error) {
+    console.error('DELETE /api/user-settings error:', error);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

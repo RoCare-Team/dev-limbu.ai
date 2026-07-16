@@ -1,12 +1,14 @@
 /**
  * GET /api/cron/automation-fill-queue
  *
- * Picks Post rows created by user-settings (automationQueued, status pending)
- * where generateContentAt <= now, generates image + copy from AutomationPlan,
- * then sets status=scheduled so /api/publish-scheduled can publish at scheduledDate.
+ * Create-on-generate model. Instead of consuming pre-created empty placeholder
+ * Posts, this cron walks the active AutomationPlans (delay_generate_publish mode)
+ * and, for each plan whose next slot is due, generates the image + copy and then
+ * creates ONE real Post (status=scheduled) — so a Post document never exists
+ * without an image. /api/publish-scheduled publishes it at scheduledDate.
  *
  * Env: CRON_SECRET (optional) — require Authorization: Bearer … when set.
- * Run every 5–15 minutes on your host (not required every 10 min for all other crons).
+ * Run every 5–15 minutes on your host.
  */
 
 import { NextResponse } from 'next/server';
@@ -25,24 +27,25 @@ import { logGenerate, logAutomationLine } from '@/lib/automationFileLogger';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const BATCH = 15;
+const BATCH = 15;                 // max plans processed per run
+const DAY_MS = 86400000;
+const STALE_LOCK_MS = 10 * 60 * 1000; // reclaim a slot lock stuck for >10 min
 
-export async function GET(request) {
+export async function GET() {
   // No CRON_SECRET gate — triggered by localhost curl on EC2 (no auth header).
   await dbConnect();
   const now = new Date();
+  const staleBefore = new Date(now.getTime() - STALE_LOCK_MS);
 
-  const candidates = await Post.find({
-    automationQueued: true,
-    status:             'pending',
-    generateContentAt:  { $lte: now },
-    $or: [
-      { aiOutput: { $exists: false } },
-      { aiOutput: '' },
-      { aiOutput: null },
-    ],
+  // Candidate plans: active create-on-generate plans that still have slots left.
+  const plans = await AutomationPlan.find({
+    active:            true,
+    automationEnabled: true,
+    postQueueMode:     'delay_generate_publish',
+    'queueTiming.generateStartAt': { $exists: true },
+    $expr: { $lt: ['$postIndex', '$queueTiming.postLimit'] },
   })
-    .sort({ generateContentAt: 1 })
+    .sort({ updatedAt: 1 })
     .limit(BATCH)
     .lean();
 
@@ -53,62 +56,58 @@ export async function GET(request) {
     console.log('[FILL-QUEUE]', line);
   };
 
-  const stats = { found: candidates.length, filled: 0, failed: 0, skipped: 0 };
-
+  const stats = { found: plans.length, filled: 0, failed: 0, skipped: 0 };
   const run = createRunLogger({ phase: 'fill-queue', trigger: 'generate', source: 'automation' });
 
-  for (const c of candidates) {
-    const slog = run.plan({ userId: c.userId, planId: c.automationPlanId, postId: c._id });
-    slog.info('queue:start', `generateContentAt=${c.generateContentAt?.toISOString?.() || ''}`);
+  for (const plan of plans) {
+    const idx = plan.postIndex || 0;
+    const t = plan.queueTiming || {};
+    const stepDays = Number(t.stepDays) || 1;
+    const publishAfterMin = Number(t.publishAfterMin) || 24 * 60;
+    const startTs = new Date(t.generateStartAt).getTime();
+    const dueAt = new Date(startTs + idx * stepDays * DAY_MS);
 
-    const locked = await Post.findOneAndUpdate(
-      { _id: c._id, status: 'pending' },
-      { status: 'processing' },
+    const slog = run.plan({ userId: plan.userId, planId: plan._id });
+
+    // Not due yet — skip until this slot's generate time arrives.
+    if (dueAt > now) { stats.skipped++; continue; }
+
+    // Atomically claim THIS slot so overlapping cron runs never double-generate.
+    const claimed = await AutomationPlan.findOneAndUpdate(
+      {
+        _id:       plan._id,
+        postIndex: idx,
+        $or: [
+          { generatingSlot: null },
+          { generatingSlot: { $exists: false } },
+          { generatingSince: { $lt: staleBefore } },
+        ],
+      },
+      { $set: { generatingSlot: idx, generatingSince: now } },
       { new: true }
     );
-    if (!locked) {
-      slog.skip('queue:lock', 'post already locked / status changed');
+    if (!claimed) {
+      slog.skip('queue:lock', `slot ${idx} already claimed / index moved`);
       stats.skipped++;
       continue;
     }
 
-    let plan = null;
-    if (c.automationPlanId) {
-      plan = await AutomationPlan.findById(c.automationPlanId).lean();
-    }
-    if (!plan) {
-      plan = await AutomationPlan.findOne({
-        userId:            c.userId,
-        active:            true,
-        automationEnabled: true,
-      }).lean();
-    }
+    // Business + city come from the GMB LOCATION the plan posts to (e.g. "CB Prints",
+    // "Faridabad") — never the separate selectedBusiness account.
+    const loc0 = Array.isArray(plan.locations) && plan.locations[0] ? plan.locations[0] : null;
+    const businessName = loc0?.name || loc0?.title || plan.businessName || '';
+    const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
+    const keywords = Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [];
+    const keyword = keywords.length ? keywords[idx % keywords.length] : (plan.keywords?.[0] || '');
 
-    if (!plan) {
-      log(`No AutomationPlan for post ${c._id}`);
-      slog.fail('queue:plan-lookup', 'no active AutomationPlan for this post');
-      locked.status = 'failed';
-      locked.error = 'No active automation plan';
-      await locked.save();
-      stats.failed++;
-      continue;
-    }
-
-    const keyword = c.promat || plan.keywords?.[0] || '';
-    const loc0 = Array.isArray(c.locations) ? c.locations[0] : null;
-    const cityName =
-      loc0?.locality || loc0?.name || plan.businessName || '';
+    slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
 
     try {
-      const imagePrompt = await generateImagePrompt({
-        keyword,
-        businessName: plan.businessName || '',
-        cityName,
-      });
+      const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
         keyword,
-        businessName: plan.businessName || '',
+        businessName,
         cityName,
         imageConfig: plan.imageConfig || {},
         platforms: plan.platforms,
@@ -119,34 +118,82 @@ export async function GET(request) {
       }
 
       const desc = descriptions || {};
-      locked.aiOutput = imageUrl;
-      locked.description = postText;
-      locked.gmbDescription = desc.gmb || postText;
-      locked.fbDescription = desc.fb || postText;
-      locked.igDescription = desc.ig || postText;
-      locked.piDescription = desc.pin || postText;
-      if (desc.pinTitle) locked.pinTitle = desc.pinTitle;
-      locked.status = 'scheduled'; // "Ready" — content generated + stored, awaiting publish
-      locked.error = '';
-      await locked.save();
+      const platformsForPost = (Array.isArray(plan.platforms) ? plan.platforms : ['gmb'])
+        .filter((p) => ['gmb', 'fb', 'ig'].includes(p));
+      const scheduledDate = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
 
-      slog.success('queue:filled', `image+text generated → scheduled publishAt=${locked.scheduledDate?.toISOString()}`);
-      log(`Filled post ${c._id} → scheduled publishAt=${locked.scheduledDate?.toISOString()}`);
+      // Create exactly ONE real Post — only now that we have a real image + text.
+      const post = await Post.create({
+        userId:              plan.userId,
+        promat:              keyword,
+        description:         postText,
+        gmbDescription:      desc.gmb || postText,
+        fbDescription:       desc.fb || postText,
+        igDescription:       desc.ig || postText,
+        liDescription:       desc.li || postText,
+        piDescription:       desc.pin || postText,
+        pinTitle:            desc.pinTitle || '',
+        ytDescription:       desc.yt || postText,
+        scheduledDateSource: platformsForPost.length ? platformsForPost : ['gmb'],
+        status:              'scheduled',
+        mediaType:           'image',
+        aiOutput:            imageUrl,
+        generateContentAt:   dueAt,
+        scheduledDate,
+        automationQueued:    true,
+        automationPlanId:    plan._id,
+        accessToken:         plan.accessToken  || '',
+        refreshToken:        plan.refreshToken || '',
+        checkmark:           'both',
+        error:               '',
+        locations: (plan.locations || []).map((l) => ({
+          locationId: l.locationId || '',
+          accountId:  l.accountId  || '',
+          name:       l.name       || '',
+          address:    l.address    || '',
+          locality:   l.locality   || '',
+          websiteUrl: l.websiteUrl || '',
+          isPosted:   false,
+        })),
+        fbPages: platformsForPost.includes('fb') && Array.isArray(plan.fbPages)
+          ? plan.fbPages.filter((p) => p?.pageId).map((p) => ({
+              pageId:          p.pageId,
+              pageName:        p.pageName || '',
+              pageAccessToken: p.pageAccessToken || '',
+              caption:         desc.fb || postText,
+              isPosted:        false,
+            }))
+          : [],
+        igPages: platformsForPost.includes('ig') && Array.isArray(plan.igPages)
+          ? plan.igPages.filter((a) => a?.igId).map((a) => ({
+              igId:            a.igId,
+              igUsername:      a.igUsername || '',
+              pageAccessToken: a.pageAccessToken || '',
+              caption:         desc.ig || postText,
+              isPosted:        false,
+            }))
+          : [],
+      });
+
+      // Advance the plan to the next slot and release the lock (guarded on the
+      // same postIndex so a concurrent run can't double-advance).
+      await AutomationPlan.updateOne(
+        { _id: plan._id, postIndex: idx },
+        {
+          $inc: { postIndex: 1 },
+          $set: { generatingSlot: null, generatingSince: null, lastPostDate: now },
+        }
+      );
+
+      slog.success('queue:filled', `post ${post._id} → scheduled publishAt=${scheduledDate.toISOString()}`);
+      log(`Created post ${post._id} slot ${idx} → scheduled publishAt=${scheduledDate.toISOString()}`);
       stats.filled++;
 
-      // ── Send the generated post preview to the user's WhatsApp (non-blocking) ──
-      // Fires once per post (this success path only runs when a pending post is
-      // generated). Publishing later uses the stored content — it never regenerates.
+      // ── WhatsApp preview (image + caption), non-blocking ─────────────────────
       let waStatus = 'skipped';
       try {
         const SEL = 'phone mobile whatsappNumber contactNumber fullName name email userId';
-        const phoneOf = (u) =>
-          u?.phone || u?.mobile || u?.whatsappNumber || u?.contactNumber || '';
-
-        // Look up BOTH by userId (canonical dashboard identity, usually has the
-        // phone) and by userRef (may be an older row without a phone). The plan's
-        // userRef sometimes points to a duplicate record with no phone, so we pick
-        // whichever record actually has a phone.
+        const phoneOf = (u) => u?.phone || u?.mobile || u?.whatsappNumber || u?.contactNumber || '';
         const candidates = [];
         if (plan.userId) {
           const byUserId = await User.findOne({ userId: plan.userId }).select(SEL).lean().catch(() => null);
@@ -158,12 +205,8 @@ export async function GET(request) {
         }
         const waUser = candidates.find((u) => phoneOf(u)) || candidates[0] || null;
         const rawPhone = phoneOf(waUser) || plan.phone || '';
-        // Testing override: set AUTOMATION_TEST_WHATSAPP_NUMBER to force the preview
-        // to your own number regardless of the user's stored phone.
         const testOverride = process.env.AUTOMATION_TEST_WHATSAPP_NUMBER || '';
         const destination = normalizeIndiaPhone(testOverride) || normalizeIndiaPhone(rawPhone);
-
-        // Diagnostic line — always written so we can see exactly why WA did/didn't fire.
         const diag = `userFound=${!!waUser} rawPhone="${rawPhone}" override="${testOverride}" normalized=${destination || 'null'}`;
 
         if (destination) {
@@ -178,39 +221,35 @@ export async function GET(request) {
           if (waRes.ok) {
             waStatus = 'sent';
             slog.info('queue:whatsapp', `preview sent → ${destination}`);
-            log(`WhatsApp preview sent → ${destination} (post ${c._id})`);
-            logAutomationLine(`WHATSAPP SENT   user=${c.userId} post=${c._id} to=${destination}`);
+            log(`WhatsApp preview sent → ${destination} (post ${post._id})`);
+            logAutomationLine(`WHATSAPP SENT   user=${plan.userId} post=${post._id} to=${destination}`);
           } else {
             waStatus = 'failed';
-            log(`WhatsApp preview failed (post ${c._id}) — ${waRes.error}`);
-            logAutomationLine(`WHATSAPP FAILED user=${c.userId} post=${c._id} to=${destination} err="${String(waRes.error).slice(0, 200)}"`);
+            log(`WhatsApp preview failed (post ${post._id}) — ${waRes.error}`);
+            logAutomationLine(`WHATSAPP FAILED user=${plan.userId} post=${post._id} to=${destination} err="${String(waRes.error).slice(0, 200)}"`);
           }
         } else {
           waStatus = 'no-phone';
-          log(`WhatsApp preview skipped — ${diag} (post ${c._id})`);
-          logAutomationLine(`WHATSAPP NO-PHONE user=${c.userId} post=${c._id} | ${diag}`);
+          log(`WhatsApp preview skipped — ${diag} (post ${post._id})`);
+          logAutomationLine(`WHATSAPP NO-PHONE user=${plan.userId} post=${post._id} | ${diag}`);
         }
       } catch (waErr) {
         waStatus = 'error';
-        log(`WhatsApp preview error (post ${c._id}) — ${waErr.message}`);
-        logAutomationLine(`WHATSAPP ERROR  user=${c.userId} post=${c._id} err="${String(waErr.message).slice(0, 200)}"`);
+        log(`WhatsApp preview error (post ${post._id}) — ${waErr.message}`);
+        logAutomationLine(`WHATSAPP ERROR  user=${plan.userId} post=${post._id} err="${String(waErr.message).slice(0, 200)}"`);
       }
 
-      logGenerate({
-        ok: true,
-        userId: c.userId,
-        postId: c._id,
-        keyword,
-        imageUrl,
-        whatsapp: waStatus,
-      });
+      logGenerate({ ok: true, userId: plan.userId, postId: post._id, keyword, imageUrl, whatsapp: waStatus });
     } catch (err) {
+      // Generation failed → create NO document. Release the lock and leave
+      // postIndex unchanged so this same slot retries on the next cron run.
       slog.fail('queue:generate', `content generation failed for keyword="${keyword}"`, err);
-      log(`FAIL post ${c._id}`, err.message);
-      locked.status = 'failed';
-      locked.error = err.message || 'Fill failed';
-      await locked.save();
-      logGenerate({ ok: false, userId: c.userId, postId: c._id, keyword, error: err.message });
+      log(`FAIL plan ${plan._id} slot ${idx}`, err.message);
+      await AutomationPlan.updateOne(
+        { _id: plan._id },
+        { $set: { generatingSlot: null, generatingSince: null } }
+      );
+      logGenerate({ ok: false, userId: plan.userId, postId: null, keyword, error: err.message });
       stats.failed++;
     }
   }

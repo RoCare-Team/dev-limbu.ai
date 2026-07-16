@@ -25,6 +25,37 @@ const metaCache = new Map(); // key -> { data, expiresAt }
 const cacheKey = (gcid, regionCode, languageCode) =>
   `${gcid}|${regionCode}|${languageCode}`;
 
+// Parse Google money → { priceType, price } for the services editor.
+function parseServiceMoney(money) {
+  if (!money || typeof money !== 'object') return { priceType: 'none', price: '' };
+  const units = money.units != null ? Number(money.units) : NaN;
+  if (Number.isFinite(units)) {
+    if (units === 0) return { priceType: 'free', price: '' };
+    return { priceType: 'fixed', price: String(units) };
+  }
+  return { priceType: 'none', price: '' };
+}
+
+// Parse raw GMB serviceItems[] → [{ title, description, priceType, price, category }],
+// preserving each service's sub-category so the editor keeps the right grouping.
+function parseServiceItemsList(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((it) => {
+      const label = it?.freeFormServiceItem?.label;
+      const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+      const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
+      const { priceType, price } = parseServiceMoney(it?.price);
+      const category = String(
+        it?.freeFormServiceItem?.category || it?.structuredServiceItem?.category || ''
+      )
+        .replace(/^categories\//, '')
+        .trim();
+      return title ? { title, description, priceType, price, category } : null;
+    })
+    .filter(Boolean);
+}
+
 async function gmbGet(url, accessToken) {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -52,10 +83,24 @@ async function gmbGet(url, accessToken) {
  * attributes.list `categoryName` param expects exactly that.
  */
 export async function resolveLocationCategory(accessToken, locationId, opts = {}) {
+  // Single-location GET reliably returns profile.description AND serviceItems (the list
+  // endpoint often omits both), so fetch them here and surface them for the editor.
   const url = `${GMB_BASE}/locations/${encodeURIComponent(
     locationId
-  )}?readMask=categories,storefrontAddress,metadata`;
+  )}?readMask=categories,storefrontAddress,metadata,profile,serviceItems,serviceArea,regularHours,specialHours`;
   const loc = await gmbGet(url, accessToken);
+  const profileDescription = typeof loc?.profile?.description === 'string' ? loc.profile.description : '';
+  const serviceItemsList = parseServiceItemsList(loc?.serviceItems);
+  // Current service-area places (Google returns { placeName, placeId } per area).
+  const serviceAreaPlaces = Array.isArray(loc?.serviceArea?.places?.placeInfos)
+    ? loc.serviceArea.places.placeInfos.map((p) => String(p?.placeName || '').trim()).filter(Boolean)
+    : [];
+  // Current opening hours periods (openDay/openTime/closeDay/closeTime).
+  const regularHoursPeriods = Array.isArray(loc?.regularHours?.periods) ? loc.regularHours.periods : [];
+  // Current special-hours (holiday closures / exceptions) so saved holidays reload.
+  const specialHourPeriods = Array.isArray(loc?.specialHours?.specialHourPeriods)
+    ? loc.specialHours.specialHourPeriods
+    : [];
   const categoryName = loc?.categories?.primaryCategory?.name || '';
   const primaryCategory = loc?.categories?.primaryCategory?.displayName || '';
   // Current additional (sub) categories, kept as { name (gcid), displayName } so the
@@ -90,6 +135,11 @@ export async function resolveLocationCategory(accessToken, locationId, opts = {}
     regionCode,
     languageCode,
     capabilities,
+    profileDescription,
+    serviceItemsList,
+    serviceAreaPlaces,
+    regularHoursPeriods,
+    specialHourPeriods,
   };
 }
 

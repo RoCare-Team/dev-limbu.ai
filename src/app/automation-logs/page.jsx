@@ -37,6 +37,114 @@ function fmtTime(d) {
   }
 }
 
+// Pull every http(s) link out of a blob of text (image URLs live inside step
+// messages like `Image URL: https://…`).
+const URL_RE = /https?:\/\/[^\s"'<>)]+/gi;
+function extractUrls(text) {
+  if (!text) return [];
+  const found = String(text).match(URL_RE);
+  return found ? Array.from(new Set(found)) : [];
+}
+const isImageUrl = (u) => /\.(png|jpe?g|webp|gif|svg|avif)(\?|$)/i.test(u) || /image|img|media|photo/i.test(u);
+
+async function copyText(text) {
+  const value = String(text ?? "");
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    // fallback for non-secure contexts / older browsers
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = value;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// Build a clean plain-text trail for one log — paste-ready into WhatsApp / a ticket.
+function buildTrail(log) {
+  const L = [];
+  L.push(`[${(log.outcome || "unknown").toUpperCase()}] ${PHASE_LABEL[log.phase] || log.phase || "-"}`);
+  L.push(`userId: ${log.userId || "-"}`);
+  if (log.postId) L.push(`postId: ${log.postId}`);
+  if (log.runId) L.push(`runId: ${log.runId}`);
+  L.push(`time: ${fmtTime(log.createdAt)}`);
+  L.push("");
+  (log.steps || []).forEach((s) => {
+    let line = `${STEP_ICON[s.status] || "•"} ${s.name || ""}`;
+    if (s.message) line += ` — ${s.message}`;
+    L.push(line);
+    if (s.error) L.push(`   ERROR: ${s.error}`);
+  });
+  if (log.error) { L.push(""); L.push(`Reason: ${log.error}`); }
+  return L.join("\n");
+}
+
+// ─── copy button (shows ✓ Copied! for 1.2s) ──────────────────────────────────
+function CopyBtn({ value, label, title, tone = "#6b7280", stopPropagation = true }) {
+  const [done, setDone] = useState(false);
+  if (!value) return null;
+  return (
+    <button
+      type="button"
+      title={title || `Copy: ${value}`}
+      onClick={async (e) => {
+        if (stopPropagation) { e.stopPropagation(); e.preventDefault(); }
+        const ok = await copyText(value);
+        if (ok) { setDone(true); setTimeout(() => setDone(false), 1200); }
+      }}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer",
+        fontSize: 10.5, fontWeight: 700, lineHeight: 1,
+        color: done ? "#15803d" : tone,
+        background: done ? "#f0fdf4" : "#fff",
+        border: `1px solid ${done ? "#bbf7d0" : "#e5e7eb"}`,
+        borderRadius: 7, padding: "3px 7px", whiteSpace: "nowrap",
+      }}
+    >
+      {done ? "✓ Copied!" : `⧉ ${label || "Copy"}`}
+    </button>
+  );
+}
+
+// Row of copy buttons for every URL found in a piece of text.
+function UrlCopyRow({ text }) {
+  const urls = extractUrls(text);
+  if (!urls.length) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+      {urls.map((u, i) => (
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <CopyBtn
+            value={u}
+            label={isImageUrl(u) ? "Copy image URL" : "Copy link"}
+            tone={isImageUrl(u) ? "#7c3aed" : "#2563eb"}
+            title={u}
+          />
+          <a
+            href={u}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            style={{ fontSize: 10.5, fontWeight: 700, color: "#9ca3af", textDecoration: "none" }}
+          >
+            open ↗
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── small components ───────────────────────────────────────────────────────
 function StatCard({ label, value, color, active, onClick }) {
   return (
@@ -73,10 +181,22 @@ function StepRow({ s }) {
           <code style={{ fontSize: 12, fontWeight: 700, color: isFail ? "#b91c1c" : "#374151", fontFamily: "ui-monospace,Menlo,monospace" }}>{s.name}</code>
           {s.durationMs > 1500 && <span style={{ fontSize: 10, color: "#9ca3af" }}>{(s.durationMs / 1000).toFixed(1)}s</span>}
         </div>
-        {s.message && <div style={{ fontSize: 12.5, color: "#6b7280", marginTop: 2, lineHeight: 1.4 }}>{s.message}</div>}
+        {s.message && (
+          <>
+            <div style={{ fontSize: 12.5, color: "#6b7280", marginTop: 2, lineHeight: 1.4, wordBreak: "break-word" }}>{s.message}</div>
+            <UrlCopyRow text={s.message} />
+          </>
+        )}
         {s.error && (
-          <div style={{ marginTop: 5, fontSize: 12, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 9px", fontFamily: "ui-monospace,Menlo,monospace", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {s.error}
+          <div style={{ marginTop: 5 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 800, color: "#b91c1c", textTransform: "uppercase", letterSpacing: 0.5 }}>Error</span>
+              <CopyBtn value={s.error} label="Copy error" tone="#b91c1c" />
+            </div>
+            <div style={{ fontSize: 12, color: "#991b1b", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "6px 9px", fontFamily: "ui-monospace,Menlo,monospace", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+              {s.error}
+            </div>
+            <UrlCopyRow text={s.error} />
           </div>
         )}
       </div>
@@ -89,8 +209,11 @@ function LogCard({ log, expanded, onToggle }) {
   const failStep = (log.steps || []).find((s) => s.status === "fail");
   return (
     <div style={{ background: "#fff", border: `1px solid ${expanded ? oc.border : "#f3f4f6"}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.04)" }}>
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onToggle(); } }}
         style={{ width: "100%", textAlign: "left", background: expanded ? oc.bg : "#fff", border: "none", cursor: "pointer", padding: "13px 16px", display: "flex", flexDirection: "column", gap: 8 }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -100,9 +223,17 @@ function LogCard({ log, expanded, onToggle }) {
           <span style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>{timeAgo(log.createdAt)}</span>
           <span style={{ fontSize: 14, color: "#9ca3af", transform: expanded ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
-          <span>👤 <b style={{ color: "#374151", fontWeight: 700 }}>{log.userId || "—"}</b></span>
-          {log.postId && <span>📄 {String(log.postId).slice(-6)}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            👤 <b style={{ color: "#374151", fontWeight: 700 }}>{log.userId || "—"}</b>
+            {log.userId && <CopyBtn value={log.userId} label="Copy ID" title={`Copy userId: ${log.userId}`} />}
+          </span>
+          {log.postId && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+              📄 <span style={{ color: "#374151" }}>{String(log.postId).slice(-6)}</span>
+              <CopyBtn value={log.postId} label="Copy post" title={`Copy postId: ${log.postId}`} />
+            </span>
+          )}
           {log.trigger && <span style={{ color: "#9ca3af" }}>· {log.trigger}</span>}
         </div>
         {!expanded && failStep && (
@@ -110,14 +241,27 @@ function LogCard({ log, expanded, onToggle }) {
             ❌ {failStep.name}: {failStep.error || failStep.message}
           </div>
         )}
-      </button>
+      </div>
       {expanded && (
         <div style={{ padding: "4px 16px 14px" }}>
           {(log.steps || []).map((s, i) => <StepRow key={i} s={s} />)}
           {log.error && (
-            <div style={{ marginTop: 10, fontSize: 12.5, color: "#991b1b", fontWeight: 600 }}>▶ Reason: {log.error}</div>
+            <div style={{ marginTop: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 800, color: "#b91c1c", textTransform: "uppercase", letterSpacing: 0.5 }}>▶ Reason</span>
+                <CopyBtn value={log.error} label="Copy reason" tone="#b91c1c" />
+              </div>
+              <div style={{ fontSize: 12.5, color: "#991b1b", fontWeight: 600, wordBreak: "break-word" }}>{log.error}</div>
+              <UrlCopyRow text={log.error} />
+            </div>
           )}
-          <div style={{ marginTop: 10, fontSize: 11, color: "#9ca3af" }}>
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {log.userId && <CopyBtn value={log.userId} label="Copy userId" title={`Copy userId: ${log.userId}`} />}
+            {log.runId && <CopyBtn value={log.runId} label="Copy runId" title={`Copy runId: ${log.runId}`} />}
+            {log.postId && <CopyBtn value={log.postId} label="Copy postId" title={`Copy postId: ${log.postId}`} />}
+            <CopyBtn value={buildTrail(log)} label="Copy full trail" tone="#111" title="Copy the whole step-by-step trail as text" />
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#9ca3af" }}>
             {fmtTime(log.createdAt)} · runId {String(log.runId || "").slice(-10)}
           </div>
         </div>
@@ -210,6 +354,7 @@ export default function AutomationLogsPage() {
             <h1 style={{ fontSize: 24, fontWeight: 900, color: "#111", margin: 0, letterSpacing: -0.5 }}>Automation Logs</h1>
             <p style={{ fontSize: 13, color: "#6b7280", margin: "4px 0 0" }}>
               Har post ka step-by-step trail — kahan pass/fail hua, real error ke saath.
+              userId, error aur image URL ek tap me copy karo (⧉ button).
             </p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

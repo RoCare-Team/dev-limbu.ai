@@ -49,8 +49,7 @@ import {
 } from '@/utils/automationPlanSchedule';
 import {
   generateImagePrompt,
-  generateImage,
-  generatePostText,
+  generateImageAndText,
 } from '@/lib/automationPlanContentGeneration';
 import {
   parseAutomationCronParams,
@@ -731,12 +730,14 @@ export async function GET(request) {
 
     let imageUrl;
     let postText;
+    let descriptions;
     let usedPrefetch = false;
 
     if (hasPrefetchForToday) {
       usedPrefetch = true;
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
+      descriptions = prefetchPost.descriptions;
       slog.pass('content:prefetch', `using prefetched bundle keyword="${prefetchPost.keyword || keyword}"`);
       log('Publish flow — using AutomationPlan.prefetchPost', {
         keyword: prefetchPost.keyword,
@@ -755,9 +756,8 @@ export async function GET(request) {
       try {
         const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
         log(`Image prompt: "${imagePrompt}"`);
-        imageUrl = await generateImage({ imagePrompt, keyword, businessName, imageConfig });
+        ({ imageUrl, postText, descriptions } = await generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig, platforms: platformsSafe }));
         log(`Image URL: ${imageUrl || '⚠ NULL — n8n returned no image URL'}`);
-        postText = await generatePostText({ businessName, keyword, cityName });
         log(`Post text: "${postText}"`);
         slog.pass('content:generate', `inline generate keyword="${keyword}" image=${imageUrl ? 'ok' : 'NULL'} text=${postText ? 'ok' : 'NULL'}`);
       } catch (genErr) {
@@ -822,9 +822,11 @@ export async function GET(request) {
       userId:              resolvedUserId,  // matches localStorage → shows in dashboard
       aiOutput:            imageUrl || '',  // same as data.image || data.output in savePostAction
       description:         postText,
-      gmbDescription:      postText,
-      fbDescription:       postText,
-      igDescription:       postText,
+      gmbDescription:      descriptions?.gmb || postText,
+      fbDescription:       descriptions?.fb || postText,
+      igDescription:       descriptions?.ig || postText,
+      piDescription:       descriptions?.pin || postText,
+      ...(descriptions?.pinTitle ? { pinTitle: descriptions.pinTitle } : {}),
       promat:              usedPrefetch && prefetchPost?.keyword ? prefetchPost.keyword : keyword,
       status:              'pending',
       scheduledDateSource: [...platformsSafe],
@@ -959,7 +961,7 @@ export async function GET(request) {
       fbResults = await postToFacebookPages({
         userId:   resolvedUserId,
         fbPages,
-        caption:  postText,
+        caption:  descriptions?.fb || postText,
         imageUrl,
       });
       log(`Facebook: ${JSON.stringify(fbResults)}`);
@@ -972,7 +974,7 @@ export async function GET(request) {
       igResults = await postToInstagramAccounts({
         userId:   resolvedUserId,
         igPages,
-        caption:  postText,
+        caption:  descriptions?.ig || postText,
         imageUrl,
       });
       log(`Instagram: ${JSON.stringify(igResults)}`);
@@ -1039,8 +1041,8 @@ export async function GET(request) {
           $set: {
             status:              'posted',
             scheduledDateSource: platformsPosted,
-            fbDescription:       postText,
-            igDescription:       postText,
+            fbDescription:       descriptions?.fb || postText,
+            igDescription:       descriptions?.ig || postText,
             whenPosted,
             fbPages:             wantFb ? fbPagesForDb : [],
             igPages:             wantIg ? igPagesForDb : [],

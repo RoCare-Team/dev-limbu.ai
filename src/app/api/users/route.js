@@ -1012,17 +1012,10 @@ export async function GET(req) {
     }
 
     /* 7. Franchise filter */
+    // Show franchise leads to all roles by default (no exclusion).
+    // When the "Franchise Leads" filter is ON, show ONLY franchise leads.
     if (franchiseLeads === "true") {
       query = addMatchCondition(query, { franchiseId: { $ne: null } });
-    } else {
-      // Exclude franchise leads by default
-      query = addMatchCondition(query, {
-        $or: [
-          { franchiseId: "" },
-          { franchiseId: null },
-          { franchiseId: { $exists: false } },
-        ],
-      });
     }
 
     /* 8. Search */

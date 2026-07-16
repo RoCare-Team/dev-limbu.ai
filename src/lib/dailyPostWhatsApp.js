@@ -26,6 +26,15 @@ export async function sendDailyPostUpdateWhatsApp({
   const apiKey = getDailyPostWhatsAppKey();
   if (!apiKey) return { ok: false, error: "Daily post WhatsApp API key missing" };
 
+  // AiSensy / Meta body params cannot contain newlines, tabs or 4+ consecutive
+  // spaces, and each param must stay reasonably short. Flatten the generated
+  // caption to one clean line so it can travel as a template variable ({{3}}).
+  const cleanContent =
+    String(postContent || "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 700) || "Your new post is ready to review 🎉";
+
   const payload = {
     apiKey,
     campaignName: "daily_post_update",
@@ -33,7 +42,11 @@ export async function sendDailyPostUpdateWhatsApp({
     userName: "YOUR_BRAND_NAME",
     // Pass ACTUAL values (like the working Insights-report Postman call), not
     // "$FirstName" placeholder tokens.
-    templateParams: [firstName || "User", lastName || ""],
+    // The "daily_post_update" template has exactly TWO body variables:
+    //   {{1}} = recipient first name   ("Hello {{1}},")
+    //   {{2}} = the generated post caption ("Content: {{2}}")
+    // The image is delivered separately as the header media (media.link) below.
+    templateParams: [firstName || "User", cleanContent],
     source: "api",
     // Send the generated image as the template header media so it shows in WhatsApp.
     // AiSensy expects the image as { type: "image", link: <url> } — NOT { url } and

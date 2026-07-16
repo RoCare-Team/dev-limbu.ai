@@ -117,8 +117,9 @@ export function useMagicQR() {
       const width = qrElement.offsetWidth;
       const height = qrElement.offsetHeight;
 
-      const dataUrl = await toPng(qrElement, { 
-        cacheBust: true, 
+      const dataUrl = await toPng(qrElement, {
+        cacheBust: true,
+        includeQueryParams: true,
         pixelRatio: 3,
         width: width,
         height: height,
@@ -146,8 +147,9 @@ export function useMagicQR() {
       const width = qrElement.offsetWidth;
       const height = qrElement.offsetHeight;
 
-      const dataUrl = await toPng(qrElement, { 
-        cacheBust: true, 
+      const dataUrl = await toPng(qrElement, {
+        cacheBust: true,
+        includeQueryParams: true,
         pixelRatio: 3,
         width: width,
         height: height,

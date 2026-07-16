@@ -28,8 +28,7 @@ import { matchesPrefetchAbsoluteWindow, zonedYmdString, getHourMinuteInTimeZone 
 import { getNextPublishDateRef, sameZonedDay } from '@/utils/automationPlanSchedule';
 import {
   generateImagePrompt,
-  generateImage,
-  generatePostText,
+  generateImageAndText,
   getAutomationCronBaseUrl,
 } from '@/lib/automationPlanContentGeneration';
 import {
@@ -170,16 +169,13 @@ export async function GET(request) {
         businessName: plan.businessName || '',
         cityName,
       });
-      const imageUrl = await generateImage({
+      const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
         keyword,
         businessName: plan.businessName || '',
-        imageConfig: plan.imageConfig || {},
-      });
-      const postText = await generatePostText({
-        businessName: plan.businessName || '',
-        keyword,
         cityName,
+        imageConfig: plan.imageConfig || {},
+        platforms: plan.platforms,
       });
       const imgTrim = String(imageUrl || '').trim();
       const txtTrim = String(postText || '').trim();
@@ -199,6 +195,7 @@ export async function GET(request) {
               publishOn: nextRef,
               imageUrl: imgTrim,
               postText: txtTrim,
+              descriptions: descriptions || null,
               keyword,
               generatedAt: new Date(),
             },

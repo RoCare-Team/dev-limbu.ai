@@ -30,6 +30,14 @@ export async function POST(req) {
       );
     }
 
+    // 2.5️⃣ Block deactivated admins (isActive === false cannot log in)
+    if (admin.isActive === false) {
+      return NextResponse.json(
+        { message: "Your account is deactivated. Please contact the administrator." },
+        { status: 403 }
+      );
+    }
+
     // 3️⃣ JWT token
     const token = jwt.sign(
       {

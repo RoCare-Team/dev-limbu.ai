@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 
+
 const FIELD_MASK = [
   "places.id",
   "places.displayName",

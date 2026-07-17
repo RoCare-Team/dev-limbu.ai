@@ -67,9 +67,8 @@ export async function GET() {
     const startTs = new Date(t.generateStartAt).getTime();
     const dueAt = new Date(startTs + idx * stepDays * DAY_MS);
 
-    const slog = run.plan({ userId: plan.userId, planId: plan._id });
-
-    // Not due yet — skip until this slot's generate time arrives.
+    // Not due yet — skip SILENTLY (no log doc, else every not-due plan would spam
+    // an empty "unknown" AutomationLog on every 5-min cron run).
     if (dueAt > now) { stats.skipped++; continue; }
 
     // Atomically claim THIS slot so overlapping cron runs never double-generate.
@@ -87,10 +86,13 @@ export async function GET() {
       { new: true }
     );
     if (!claimed) {
-      slog.skip('queue:lock', `slot ${idx} already claimed / index moved`);
+      // Another run already owns this slot — skip silently (no log doc).
       stats.skipped++;
       continue;
     }
+
+    // Only a genuinely due + claimed slot gets an AutomationLog doc.
+    const slog = run.plan({ userId: plan.userId, planId: plan._id });
 
     // Business + city come from the GMB LOCATION the plan posts to (e.g. "CB Prints",
     // "Faridabad") — never the separate selectedBusiness account.

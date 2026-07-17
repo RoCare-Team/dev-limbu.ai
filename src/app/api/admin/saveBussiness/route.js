@@ -160,8 +160,8 @@ export async function GET(req) {
       
       // Map to the format expected by the frontend
       const formattedListings = allBusinesses.map(biz => ({
-        userEmail: biz.userEmail,
-        userName: biz.userEmail.split('@')[0], // Fallback name
+        userEmail: biz.userEmail || null,
+        userName: biz.userEmail?.split('@')[0] || 'Unknown',
         totalListings: biz.listings?.length || 0,
         verifiedCount: biz.listings?.filter(l => l.verified || l.metadata?.hasVoiceOfMerchant)?.length || 0,
         unverifiedCount: biz.listings?.filter(l => !(l.verified || l.metadata?.hasVoiceOfMerchant))?.length || 0,

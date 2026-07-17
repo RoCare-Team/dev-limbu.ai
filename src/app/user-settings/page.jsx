@@ -698,6 +698,18 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [metaSyncing, setMetaSyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [locSearch, setLocSearch] = useState("");
+
+  // Locations matching the search box (name / locality / address / id).
+  const filteredLocations = useMemo(() => {
+    const q = locSearch.trim().toLowerCase();
+    if (!q) return gmbLocations;
+    return gmbLocations.filter((loc) =>
+      [loc.title, loc.name, loc.locality, loc.address, loc.locationId]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
+    );
+  }, [gmbLocations, locSearch]);
   const displayName = useMemo(() => {
     const rawName = String(userData?.fullName || "").trim();
     if (!rawName || /^USR\d+$/i.test(rawName)) return "Automation Settings";
@@ -1811,8 +1823,53 @@ export default function AutomationSettings({ onNavigateBack }) {
                           </button>
                         </div>
                       </div>
+                      {/* Search — filters the list below by name / city / address / id */}
+                      <div style={{ position: "relative", marginBottom: 10 }}>
+                        <svg
+                          style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)" }}
+                          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5"
+                        >
+                          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+                        </svg>
+                        <input
+                          type="text"
+                          value={locSearch}
+                          onChange={(e) => setLocSearch(e.target.value)}
+                          placeholder="Search locations by name, city or address…"
+                          style={{
+                            width: "100%", paddingLeft: 32, paddingRight: locSearch ? 30 : 12,
+                            paddingTop: 8, paddingBottom: 8, borderRadius: 10,
+                            border: "1px solid #e5e7eb", fontSize: 13, color: "#374151",
+                            outline: "none", background: "#f9fafb", boxSizing: "border-box",
+                            fontFamily: "inherit",
+                          }}
+                          onFocus={(e) => (e.currentTarget.style.borderColor = "#f59e0b")}
+                          onBlur={(e) => (e.currentTarget.style.borderColor = "#e5e7eb")}
+                        />
+                        {locSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setLocSearch("")}
+                            style={{
+                              position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                              background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 14,
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      {locSearch && (
+                        <p style={{ fontSize: 11, color: "#9ca3af", margin: "0 0 8px", fontWeight: 600 }}>
+                          {filteredLocations.length} of {gmbLocations.length} location{gmbLocations.length !== 1 ? "s" : ""} match “{locSearch}”
+                        </p>
+                      )}
                       <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 340, overflowY: "auto", paddingRight: 6 }}>
-                        {gmbLocations.map((loc, i) => {
+                        {filteredLocations.length === 0 ? (
+                          <div style={{ textAlign: "center", color: "#9ca3af", fontSize: 13, padding: "24px 0" }}>
+                            No locations match your search.
+                          </div>
+                        ) : filteredLocations.map((loc, i) => {
                           const locId = loc.locationId || "";
                           const isChecked = selectedLocations.some((l) => l.locationId === locId);
                           const toggle = () => {

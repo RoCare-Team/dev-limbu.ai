@@ -3,17 +3,23 @@
  * (prefetch in auto-post + inline fallback in automation-plans publish).
  */
 
-import { normalizePlatformDescriptions } from '@/utils/aiPostDescriptions';
+import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
 
 export function getAutomationCronBaseUrl() {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 }
 
 /** Strip disabled asset slots before calling aiAssetsGenerate */
 export function applyIncludeInGeneration(imageConfig = {}) {
   const inc = imageConfig.includeInGeneration || {};
   const next = { ...imageConfig };
-  for (const k of ['characterImage', 'uniformImage', 'productImage', 'backgroundImage', 'logoImage']) {
+  for (const k of [
+    "characterImage",
+    "uniformImage",
+    "productImage",
+    "backgroundImage",
+    "logoImage",
+  ]) {
     if (inc[k] === false) next[k] = null;
   }
   return next;
@@ -22,54 +28,71 @@ export function applyIncludeInGeneration(imageConfig = {}) {
 async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn('[automation-content] OPENAI_API_KEY not set — GPT call skipped');
+    console.warn(
+      "[automation-content] OPENAI_API_KEY not set — GPT call skipped",
+    );
     return null;
   }
   try {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: "gpt-4o-mini",
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         temperature: 0.8,
         max_tokens: maxTokens,
       }),
     });
     const data = await res.json();
-    const raw = data.choices?.[0]?.message?.content?.trim() || '';
-    console.log('[automation-content] GPT raw:', raw.slice(0, 250));
-    return JSON.parse(raw.replace(/^```(?:json)?|```$/gm, '').trim());
+    const raw = data.choices?.[0]?.message?.content?.trim() || "";
+    console.log("[automation-content] GPT raw:", raw.slice(0, 250));
+    return JSON.parse(raw.replace(/^```(?:json)?|```$/gm, "").trim());
   } catch (err) {
-    console.error('[automation-content] GPT error:', err.message);
+    console.error("[automation-content] GPT error:", err.message);
     return null;
   }
 }
 
 export async function generateImagePrompt({ keyword, businessName, cityName }) {
-  const fallback = `${keyword} — ${businessName}${cityName ? ', ' + cityName : ''}`;
+  const fallback = `${keyword} — ${businessName}${cityName ? ", " + cityName : ""}`;
+  const cityLine = cityName ? `City / locality : "${cityName}", India` : "";
   const result = await callGpt(
-    'You are an award-winning advertising art director writing prompts for a text-to-image model that produces 3:4 social-media ad creatives. Return ONLY compact minified JSON, no markdown, no commentary.',
-    `Business name: "${businessName}"
-Primary keyword / offer: "${keyword}"${cityName ? `\nCity / locality: "${cityName}"` : ''}
+    [
+      "You are a senior commercial advertising photographer and art director.",
+      "You write single, production-ready prompts for a text-to-image model that generates premium 3:4 (portrait 1080x1350) social + Google Business ad creatives for local Indian businesses.",
+      "Your prompts consistently produce clean, photorealistic, brand-safe, high-converting visuals.",
+      "Return ONLY compact minified JSON, no markdown, no commentary.",
+    ].join(" "),
+    `Business name  : "${businessName}"
+Offer / keyword: "${keyword}"
+${cityLine}
 
-Write ONE vivid, camera-ready image prompt for a professional, scroll-stopping Google Business + social post that visually sells "${keyword}".
+TASK: Write ONE vivid, camera-ready image prompt for a scroll-stopping ad that visually sells "${keyword}" for this business.
 
-Requirements:
-- Describe a real photographic scene: subject, setting, action, and mood.
-- Specify photography craft: camera angle/lens, natural lighting, depth of field, and colour mood.
-- Keep it brand-safe, modern, premium${cityName ? ` and locally relevant to ${cityName}, India` : ''}.
-- Absolutely NO text, letters, words, captions, watermarks, logos or UI in the image (text and logo are composited later).
-- 30-60 words, a single flowing paragraph.
+Build the prompt to cover, in a single flowing paragraph (45-75 words):
+1. HERO SUBJECT — the exact product / service / person most relevant to "${keyword}" (be concrete and authentic to an Indian local business).
+2. SETTING & ACTION — a realistic, tidy, aspirational scene${cityName ? `, subtly relatable to ${cityName}, India` : ""}.
+3. CAMERA & LIGHT — lens & angle (e.g. 35mm, eye-level, slight low angle), soft natural or studio lighting, shallow depth of field, professional colour grade / mood.
+4. QUALITY CUES — "photorealistic, ultra-detailed, sharp focus, 4K, commercial advertising photography, premium".
+5. COMPOSITION — keep clean, uncluttered negative space (top OR bottom third) so a logo, text and phone number can be added later.
+
+HARD RULES:
+- Absolutely NO text, letters, words, numbers, captions, watermarks, logos, badges, posters or UI anywhere in the image (all branding is composited later).
+- No distorted anatomy, no extra fingers, no messy/cluttered background, no collage, no borders.
+- Brand-safe, modern, premium, realistic — never cartoonish unless the business clearly calls for it.
 
 Return ONLY: {"prompt":"..."}`,
-    300
+    380,
   );
   const prompt = result?.prompt || fallback;
-  console.log('[automation-content] Image prompt:', prompt);
+  console.log("[automation-content] Image prompt:", prompt);
   return prompt;
 }
 
@@ -82,51 +105,72 @@ Return ONLY: {"prompt":"..."}`,
  *
  * Returns { imageUrl: string|null, postText: string, descriptions: {gmb, fb, ig, pin, pinTitle, yt} }.
  */
-export async function generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig = {}, platforms } = {}) {
+export async function generateImageAndText({
+  imagePrompt,
+  keyword,
+  businessName,
+  cityName,
+  imageConfig = {},
+  platforms,
+} = {}) {
   const BASE_URL = getAutomationCronBaseUrl();
   const cfg = applyIncludeInGeneration(imageConfig);
   const cleanB64 = (s) =>
-    typeof s === 'string' && s.startsWith('data:image') ? s.split(',')[1] : s || '';
+    typeof s === "string" && s.startsWith("data:image")
+      ? s.split(",")[1]
+      : s || "";
 
-  const textFallback = `${keyword} | ${businessName}${cityName ? ' — ' + cityName : ''}`;
+  const textFallback = `${keyword} | ${businessName}${cityName ? " — " + cityName : ""}`;
 
   // Always ask the webhook for EVERY platform's caption in one shot so gmb/fb/ig/
   // pinterest each get their OWN distinct text — never a reused GMB caption. We
   // request the full set regardless of which platforms the plan posts to; unused
   // fields are simply ignored, but the ones we publish are always platform-native.
-  const requested = ['gmb', 'fb', 'ig', 'pinterest'];
+  const requested = ["gmb", "fb", "ig", "pinterest"];
 
   const payload = {
-    topic: imagePrompt || keyword || '',
-    bussiness_name: businessName || '',
-    keywords: keyword || '',
-    colourPalette: cfg.colourPalette || '',
-    size: cfg.size || '3:4',
+    topic: imagePrompt || keyword || "",
+    bussiness_name: businessName || "",
+    keywords: keyword || "",
+    colourPalette: cfg.colourPalette || "",
+    size: cfg.size || "3:4",
     characterImage: cleanB64(cfg.characterImage),
     uniformImage: cleanB64(cfg.uniformImage),
     productImage: cleanB64(cfg.productImage),
     backgroundImage: cleanB64(cfg.backgroundImage),
     logoImage: cleanB64(cfg.logoImage),
-    platform: requested.join(','),
-    mode: 'ai',
+    platform: requested.join(","),
+    mode: "ai",
   };
 
-  console.log('[automation-content] aiAssetsGenerate —', `${BASE_URL}/api/aiAssetsGenerate`);
+  console.log(
+    "[automation-content] aiAssetsGenerate —",
+    `${BASE_URL}/api/aiAssetsGenerate`,
+  );
 
   // Retry a few times: the upstream service (assets-image.limbutech.in) can be
   // briefly unreachable / slow. Without retries a single blip drops the whole
   // day's post (imageUrl null → empty-bundle safety gate aborts it).
-  const MAX_ATTEMPTS = Math.max(1, Number(process.env.AUTOMATION_IMAGE_RETRIES) || 3);
-  const RETRY_DELAY_MS = Math.max(1000, Number(process.env.AUTOMATION_IMAGE_RETRY_DELAY_MS) || 5000);
+  const MAX_ATTEMPTS = Math.max(
+    1,
+    Number(process.env.AUTOMATION_IMAGE_RETRIES) || 3,
+  );
+  const RETRY_DELAY_MS = Math.max(
+    1000,
+    Number(process.env.AUTOMATION_IMAGE_RETRY_DELAY_MS) || 5000,
+  );
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await fetch(`${BASE_URL}/api/aiAssetsGenerate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      console.log(`[automation-content] aiAssetsGenerate HTTP status (attempt ${attempt}/${MAX_ATTEMPTS}):`, res.status);
+      console.log(
+        `[automation-content] aiAssetsGenerate HTTP status (attempt ${attempt}/${MAX_ATTEMPTS}):`,
+        res.status,
+      );
 
       const json = await res.json();
       const d = json?.data;
@@ -135,32 +179,35 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
         d?.url ||
         d?.image ||
         d?.output ||
-        (Array.isArray(d) ? d[0]?.imageUrl || d[0]?.url || d[0]?.image : null) ||
+        (Array.isArray(d)
+          ? d[0]?.imageUrl || d[0]?.url || d[0]?.image
+          : null) ||
         null;
 
       if (imageUrl) {
         // Same response also carries DISTINCT per-platform captions — extract with
         // the SAME normalizer post-management uses.
         const norm = normalizePlatformDescriptions({ ...json, ...d });
-        const gmb = (norm.gmb_des || d?.description || '').trim();
-        const postText = gmb || (norm.fb_des || norm.ig_des || '').trim() || textFallback;
+        const gmb = (norm.gmb_des || d?.description || "").trim();
+        const postText =
+          gmb || (norm.fb_des || norm.ig_des || "").trim() || textFallback;
         // Each platform keeps its own caption; fall back to the GMB text only when
         // that platform's caption is missing so no field is ever empty.
         const descriptions = {
           gmb: postText,
-          fb: (norm.fb_des || '').trim() || postText,
-          ig: (norm.ig_des || '').trim() || postText,
-          li: (norm.li_des || '').trim() || postText,
-          pin: (norm.pin_des || '').trim() || postText,
-          pinTitle: (norm.pin_title || '').trim(),
-          yt: (norm.yt_des || '').trim() || postText,
+          fb: (norm.fb_des || "").trim() || postText,
+          ig: (norm.ig_des || "").trim() || postText,
+          li: (norm.li_des || "").trim() || postText,
+          pin: (norm.pin_des || "").trim() || postText,
+          pinTitle: (norm.pin_title || "").trim(),
+          yt: (norm.yt_des || "").trim() || postText,
         };
         // NOTE: Keep any {city} placeholder INTACT here. The gmb-post upstream
         // (via /api/gmb/publish) replaces {city} per location using each
         // location's cityName, so a single generated caption serves all
         // locations with the correct city. Do NOT substitute at generation time.
-        console.log('[automation-content] Extracted imageUrl:', imageUrl);
-        console.log('[automation-content] Per-platform text:', {
+        console.log("[automation-content] Extracted imageUrl:", imageUrl);
+        console.log("[automation-content] Per-platform text:", {
           gmb: descriptions.gmb.slice(0, 40),
           fb: descriptions.fb.slice(0, 40),
           ig: descriptions.ig.slice(0, 40),
@@ -169,10 +216,13 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
         return { imageUrl, postText, descriptions };
       }
       console.warn(
-        `[automation-content] attempt ${attempt}/${MAX_ATTEMPTS} returned no imageUrl (status ${res.status}, ${json?.error || 'image service down/slow?'})`
+        `[automation-content] attempt ${attempt}/${MAX_ATTEMPTS} returned no imageUrl (status ${res.status}, ${json?.error || "image service down/slow?"})`,
       );
     } catch (err) {
-      console.error(`[automation-content] generateImageAndText attempt ${attempt}/${MAX_ATTEMPTS} EXCEPTION:`, err.message);
+      console.error(
+        `[automation-content] generateImageAndText attempt ${attempt}/${MAX_ATTEMPTS} EXCEPTION:`,
+        err.message,
+      );
     }
 
     if (attempt < MAX_ATTEMPTS) {
@@ -180,22 +230,54 @@ export async function generateImageAndText({ imagePrompt, keyword, businessName,
     }
   }
 
-  console.error(`[automation-content] generateImageAndText FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`);
+  console.error(
+    `[automation-content] generateImageAndText FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`,
+  );
   return {
     imageUrl: null,
     postText: textFallback,
-    descriptions: { gmb: textFallback, fb: textFallback, ig: textFallback, li: textFallback, pin: textFallback, pinTitle: '', yt: textFallback },
+    descriptions: {
+      gmb: textFallback,
+      fb: textFallback,
+      ig: textFallback,
+      li: textFallback,
+      pin: textFallback,
+      pinTitle: "",
+      yt: textFallback,
+    },
   };
 }
 
 /** Backward-compat: image URL only (delegates to the combined generator). */
-export async function generateImage({ imagePrompt, keyword, businessName, imageConfig = {} }) {
-  const { imageUrl } = await generateImageAndText({ imagePrompt, keyword, businessName, imageConfig });
+export async function generateImage({
+  imagePrompt,
+  keyword,
+  businessName,
+  imageConfig = {},
+}) {
+  const { imageUrl } = await generateImageAndText({
+    imagePrompt,
+    keyword,
+    businessName,
+    imageConfig,
+  });
   return imageUrl;
 }
 
 /** Backward-compat: text only. Uses the SAME aiAssetsGenerate webhook. */
-export async function generatePostText({ businessName, keyword, cityName, imagePrompt, imageConfig = {} }) {
-  const { postText } = await generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig });
+export async function generatePostText({
+  businessName,
+  keyword,
+  cityName,
+  imagePrompt,
+  imageConfig = {},
+}) {
+  const { postText } = await generateImageAndText({
+    imagePrompt,
+    keyword,
+    businessName,
+    cityName,
+    imageConfig,
+  });
   return postText;
 }

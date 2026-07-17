@@ -506,7 +506,7 @@ export async function GET(req) {
         currentY + 15,
       )
       .text(
-        "Gurugram, Haryana, 122018 | GSTIN: 06XXXXXXXXXXXX",
+        "Gurugram, Haryana, 122018 | GSTIN: 06AWOPS0492A2ZH",
         margin,
         currentY + 25,
       )

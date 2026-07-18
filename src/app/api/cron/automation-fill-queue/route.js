@@ -64,8 +64,21 @@ export async function GET() {
     const t = plan.queueTiming || {};
     const stepDays = Number(t.stepDays) || 1;
     const publishAfterMin = Number(t.publishAfterMin) || 24 * 60;
-    const startTs = new Date(t.generateStartAt).getTime();
-    const dueAt = new Date(startTs + idx * stepDays * DAY_MS);
+
+    // Publish is anchored to the user's chosen posting time (postingHour:minute).
+    // Each slot publishes stepDays after the previous, at that same clock time, and
+    // is GENERATED publishAfterMin before its publish instant. Fall back to the old
+    // save-time anchor only for legacy plans without a publishStartAt.
+    let publishAt, dueAt;
+    if (t.publishStartAt) {
+      const pubStart = new Date(t.publishStartAt).getTime();
+      publishAt = new Date(pubStart + idx * stepDays * DAY_MS);
+      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+    } else {
+      const startTs = new Date(t.generateStartAt).getTime();
+      dueAt = new Date(startTs + idx * stepDays * DAY_MS);
+      publishAt = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
+    }
 
     // Not due yet — skip SILENTLY (no log doc, else every not-due plan would spam
     // an empty "unknown" AutomationLog on every 5-min cron run).
@@ -122,7 +135,7 @@ export async function GET() {
       const desc = descriptions || {};
       const platformsForPost = (Array.isArray(plan.platforms) ? plan.platforms : ['gmb'])
         .filter((p) => ['gmb', 'fb', 'ig'].includes(p));
-      const scheduledDate = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
+      const scheduledDate = publishAt; // publish at the user's chosen posting time
 
       // Create exactly ONE real Post — only now that we have a real image + text.
       const post = await Post.create({

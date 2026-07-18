@@ -78,9 +78,10 @@ const automationPlanSchema = new mongoose.Schema(
     // carries the timing, and the fill-queue cron creates ONE real Post only
     // AFTER a slot's image+text generate successfully.
     queueTiming: {
-      generateStartAt: { type: Date },   // first slot's generate time (save + delay)
+      publishStartAt:  { type: Date },   // first slot's PUBLISH time at postingHour:min (TZ-aware)
+      generateStartAt: { type: Date },   // fallback: first slot's generate time (save + delay)
       stepDays:        { type: Number }, // days between consecutive slots (frequency step)
-      publishAfterMin: { type: Number }, // minutes from a slot's generate to its publish
+      publishAfterMin: { type: Number }, // minutes a slot generates BEFORE its publish time
       postLimit:       { type: Number }, // total slots to generate over the plan
     },
     // In-flight slot lock so overlapping cron runs never double-generate a slot.

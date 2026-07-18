@@ -99,20 +99,24 @@ export async function POST(req) {
     
     const normalizedRole = role || "agent";
     const hashedPassword = await bcrypt.hash(password, 10);
-    const referralCode =
-      normalizedRole === "agent"
-        ? await FranchiseTeam.generateUniqueReferralCode(fullName)
-        : null;
-    
-    const teamMember = await FranchiseTeam.create({
+
+    const teamMemberData = {
       fullName,
       email: email.toLowerCase(),
       mobile,
       password: hashedPassword,
       role: normalizedRole,
       franchiseId: decoded.franchiseCode,
-      referralCode,
-    });
+      address: body.address || undefined,
+    };
+
+    // Only agents get a referral code. Leave the field unset for other roles so
+    // the sparse unique index skips them (storing null would collide on the 2nd).
+    if (normalizedRole === "agent") {
+      teamMemberData.referralCode = await FranchiseTeam.generateUniqueReferralCode(fullName);
+    }
+
+    const teamMember = await FranchiseTeam.create(teamMemberData);
     
     return NextResponse.json({
       success: true,
@@ -190,11 +194,15 @@ export async function PUT(req) {
     if (role === "agent" && !existingMember.referralCode) {
       updateData.referralCode = await FranchiseTeam.generateUniqueReferralCode(fullName || existingMember.fullName);
     }
-    if (role && role !== "agent") {
-      updateData.referralCode = null;
+
+    // Unset (not null) the referral code when moving away from agent, so the
+    // sparse unique index skips it instead of colliding on a stored null.
+    const updateOps = { $set: updateData };
+    if (role && role !== "agent" && existingMember.referralCode) {
+      updateOps.$unset = { referralCode: "" };
     }
-    
-    const updatedMember = await FranchiseTeam.findByIdAndUpdate(id, updateData, { new: true }).select("-password");
+
+    const updatedMember = await FranchiseTeam.findByIdAndUpdate(id, updateOps, { new: true }).select("-password");
     
     if (!updatedMember) {
       return NextResponse.json({ success: false, message: "Team member not found" }, { status: 404 });

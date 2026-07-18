@@ -2202,6 +2202,43 @@ function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint,
   const updateItem = (si, ii, key, val) =>
     setSections(sections.map((s, i) => (i === si ? { ...s, items: s.items.map((it, j) => (j === ii ? { ...it, [key]: val } : it)) } : s)));
 
+  // Per-item AI description — only when the item has a title/name. Reuses the
+  // serviceDescription mode, grounded in the dish name + section + business context.
+  const [descBusy, setDescBusy] = useState(null); // `${si}-${ii}` while generating
+  const genItemDesc = async (si, ii) => {
+    const item = sections[si]?.items?.[ii];
+    const name = String(item?.name || "").trim();
+    if (!name) {
+      toast.error("Add the item name first, then generate its description.");
+      return;
+    }
+    setDescBusy(`${si}-${ii}`);
+    try {
+      const ctx = {
+        ...(aiContext || {}),
+        businessNameHint: businessName,
+        categoryHints: categoryHint,
+        menuSection: sections[si]?.name || "",
+      };
+      const res = await fetch("/api/user-settings/business-optimization-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "serviceDescription", title: name, context: ctx }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Could not generate description");
+        return;
+      }
+      const desc = String(data.description || "").trim();
+      if (desc) updateItem(si, ii, "description", desc.slice(0, 300));
+    } catch {
+      toast.error("Could not generate description");
+    } finally {
+      setDescBusy(null);
+    }
+  };
+
   const generate = async () => {
     setLoading(true);
     setErr("");
@@ -2315,13 +2352,31 @@ function FoodMenuEditor({ menu, onChange, aiContext, businessName, categoryHint,
                       </div>
                       <button type="button" onClick={() => removeItem(si, ii)} aria-label="Remove item" style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 8, border: "1.5px solid #fee2e2", background: "#fff5f5", color: "#ef4444", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><CloseIcon /></button>
                     </div>
-                    <input
-                      value={it.description || ""}
-                      onChange={(e) => updateItem(si, ii, "description", e.target.value)}
-                      placeholder="Short description (optional)"
-                      maxLength={300}
-                      style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155" }}
-                    />
+                    <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                      <input
+                        value={it.description || ""}
+                        onChange={(e) => updateItem(si, ii, "description", e.target.value)}
+                        placeholder="Short description (optional)"
+                        maxLength={300}
+                        style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12.5, fontFamily: "inherit", color: "#334155" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void genItemDesc(si, ii)}
+                        disabled={descBusy === `${si}-${ii}` || !String(it.name || "").trim()}
+                        title={String(it.name || "").trim() ? "Generate description with AI" : "Add the item name first"}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5, padding: "0 12px", borderRadius: 8,
+                          border: "1.5px solid #FDE047", whiteSpace: "nowrap",
+                          background: descBusy === `${si}-${ii}` ? "#FEF9C3" : "linear-gradient(135deg,#FFFDF5,#FEF9C3)",
+                          color: String(it.name || "").trim() ? "#854D0E" : "#c4a94b",
+                          fontSize: 11.5, fontWeight: 800, fontFamily: "inherit",
+                          cursor: descBusy === `${si}-${ii}` || !String(it.name || "").trim() ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        <SparkIcon size={12} /> {descBusy === `${si}-${ii}` ? "…" : "AI"}
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -3292,6 +3347,7 @@ export default function BusinessInformationPanel({
   const [editorPhase, setEditorPhase] = useState("edit");
   const [activeEditorLocationId, setActiveEditorLocationId] = useState(null);
   const [pickSelectionId, setPickSelectionId] = useState(null);
+  const [locationSearch, setLocationSearch] = useState("");
 
   const gmbLocations = useMemo(() => {
     if (!Array.isArray(gmbLocationsProp)) {
@@ -4458,8 +4514,55 @@ export default function BusinessInformationPanel({
                   </p>
                 </div>
               </div>
+              {/* Search bar — filter by name or address */}
+              <div style={{ padding: "14px 16px 0" }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", display: "flex" }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" /></svg>
+                  </span>
+                  <input
+                    autoFocus
+                    value={locationSearch}
+                    onChange={(e) => setLocationSearch(e.target.value)}
+                    placeholder="Search by business name or address…"
+                    style={{
+                      width: "100%", boxSizing: "border-box", padding: "11px 36px 11px 38px",
+                      borderRadius: 11, border: "1.5px solid #e5e7eb", fontSize: 13.5, fontFamily: "inherit",
+                      color: "#0f172a", outline: "none", background: "#fff",
+                    }}
+                  />
+                  {locationSearch ? (
+                    <button
+                      type="button"
+                      onClick={() => setLocationSearch("")}
+                      aria-label="Clear search"
+                      style={{
+                        position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)",
+                        border: "none", background: "none", color: "#9ca3af", cursor: "pointer", padding: 2, display: "flex",
+                      }}
+                    >
+                      <CloseIcon />
+                    </button>
+                  ) : null}
+                </div>
+              </div>
               <div style={{ padding: 14, maxHeight: "min(440px, 55vh)", overflowY: "auto" }}>
-                {gmbLocations.map((loc) => {
+                {(() => {
+                  const q = locationSearch.trim().toLowerCase();
+                  const filtered = q
+                    ? gmbLocations.filter((loc) => {
+                        const hay = `${loc.title || ""} ${loc.fullAddress || ""} ${loc.address || ""} ${loc.locality || ""}`.toLowerCase();
+                        return hay.includes(q);
+                      })
+                    : gmbLocations;
+                  if (!filtered.length) {
+                    return (
+                      <div style={{ padding: "24px 12px", textAlign: "center", color: "#94a3b8", fontSize: 13.5 }}>
+                        No locations match “{locationSearch}”.
+                      </div>
+                    );
+                  }
+                  return filtered.map((loc) => {
                   const selected = pickSelectionId === loc.locationId;
                   const line = loc.fullAddress || [loc.address, loc.locality].filter(Boolean).join(", ");
                   return (
@@ -4505,7 +4608,8 @@ export default function BusinessInformationPanel({
                       </span>
                     </button>
                   );
-                })}
+                  });
+                })()}
               </div>
               <div
                 style={{

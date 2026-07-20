@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 
 import {
   Table,
@@ -948,6 +949,57 @@ export default function RevenueUsersPage() {
       }, {}),
   );
 
+  // Build a stable invoice number for a revenue record.
+  // (No invoice number is persisted, so derive one deterministically from the record.)
+  const buildInvoiceNumber = (item) => {
+    if (item?.invoiceNumber) return item.invoiceNumber;
+    const year = item?.createdAt
+      ? new Date(item.createdAt).getFullYear()
+      : new Date().getFullYear();
+    const idStr = String(item?._id || "");
+    const suffix = idStr ? idStr.slice(-4).toUpperCase() : "0000";
+    return `LIM/${year}/${suffix}`;
+  };
+
+  // Export all revenue records that have a GST number into an Excel file.
+  const handleExportGst = () => {
+    const gstRows = revenueUsersList.filter(
+      (item) => item.gstNumber && String(item.gstNumber).trim() !== "",
+    );
+
+    if (gstRows.length === 0) {
+      alert("No records with a GST number found to export");
+      return;
+    }
+
+    const exportData = gstRows.map((item) => ({
+      "Invoice Number": buildInvoiceNumber(item),
+      "GST Number": item.gstNumber || "",
+      "Customer Name": item.leadName || item.name || "",
+      Email: item.email || "",
+      Phone: item.phone || "",
+      Plan: item.plan || item.userPaidPackage || "",
+      Amount: Number(item.amount) || 0,
+      "UTR Number": item.utrNumber || "",
+      "Franchise Name": item.franchiseName || "",
+      "Franchise ID": item.franchiseId || "",
+      "Start Date": formatDateIST(
+        item.packageStartDate || item.userPackageStartDate,
+      ),
+      "Expiry Date": formatDateIST(
+        item.packageExpiryDate || item.userPackageExpiryDate,
+      ),
+      "Invoice URL": item.invoiceUrl || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "GST Invoices");
+
+    const today = new Date().toISOString().split("T")[0];
+    XLSX.writeFile(workbook, `GST-Invoices-${today}.xlsx`);
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -1150,6 +1202,7 @@ export default function RevenueUsersPage() {
         {/* ===== FILTER TOOLBAR ===== */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <RevenueFilters
+            onExport={handleExportGst}
             activeView={activeView}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

@@ -48,19 +48,31 @@ export default function SignInPage() {
     }
   };
 
+  // Agar ek baar retry ho chuka hai aur error abhi bhi OAuthCallback hai,
+  // toh ye transient nahi hai — ab asli error dikhao, loop mat karo.
+  const alreadyRetried =
+    typeof window !== "undefined" &&
+    sessionStorage.getItem("oauth_auto_retried") === "1";
+
   const getErrorMessage = () => {
     if (!error) return null;
-    if (error === "OAuthCallback" || error === "OAuthAccountNotLinked") {
+    if (error === "OAuthCallback" && !alreadyRetried) {
       return "Retrying sign-in automatically…";
+    }
+    if (error === "OAuthCallback") {
+      return "Google sign-in could not be completed. Please try again.";
+    }
+    if (error === "OAuthAccountNotLinked") {
+      return "This email is already linked with a different sign-in method.";
     }
     return "Something went wrong while signing you in. Please try again.";
   };
 
   const errorMessage = getErrorMessage();
+  // Sirf tab tak "Redirecting…" dikhao jab tak actual retry chal raha ho
+  // (yaani retry abhi shuru hua hai) — infinite disabled state se bacho.
   const isAutoRetrying =
-    error === "OAuthCallback" &&
-    typeof window !== "undefined" &&
-    sessionStorage.getItem("oauth_auto_retried") === "1";
+    error === "OAuthCallback" && alreadyRetried === false;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">

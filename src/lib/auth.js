@@ -36,7 +36,7 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
   useSecureCookies: process.env.NODE_ENV === "production",
-  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
+  debug: true, // OAuthCallback ki asli wajah server logs me dekhne ke liye ON (fix ke baad OFF kar dena)
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,

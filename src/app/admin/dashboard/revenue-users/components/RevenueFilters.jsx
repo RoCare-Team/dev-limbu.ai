@@ -16,6 +16,7 @@ export default function RevenueFilters({
   setStatusFilter,
   showFranchiseOnly,
   setShowFranchiseOnly,
+  onExport,
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-t-2xl px-5 py-4 shadow-sm">
@@ -118,6 +119,30 @@ export default function RevenueFilters({
         >
           Clear
         </button>
+
+        {/* EXPORT GST (EXCEL) */}
+        {onExport && (
+          <button
+            onClick={onExport}
+            className="h-[42px] inline-flex items-center gap-2 px-5 rounded-xl text-sm font-medium
+            bg-emerald-600 hover:bg-emerald-700 text-white transition shadow-sm"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Export GST (Excel)
+          </button>
+        )}
       </div>
     </div>
   );

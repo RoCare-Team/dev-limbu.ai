@@ -42,7 +42,13 @@ export async function GET() {
     active:            true,
     automationEnabled: true,
     postQueueMode:     'delay_generate_publish',
-    'queueTiming.generateStartAt': { $exists: true },
+    // Any create-on-generate anchor: exact per-slot schedule, a publish anchor, or
+    // the legacy save-time generate anchor.
+    $or: [
+      { 'queueTiming.publishSchedule.0': { $exists: true } },
+      { 'queueTiming.publishStartAt':    { $exists: true } },
+      { 'queueTiming.generateStartAt':   { $exists: true } },
+    ],
     $expr: { $lt: ['$postIndex', '$queueTiming.postLimit'] },
   })
     .sort({ updatedAt: 1 })
@@ -66,11 +72,16 @@ export async function GET() {
     const publishAfterMin = Number(t.publishAfterMin) || 24 * 60;
 
     // Publish is anchored to the user's chosen posting time (postingHour:minute).
-    // Each slot publishes stepDays after the previous, at that same clock time, and
-    // is GENERATED publishAfterMin before its publish instant. Fall back to the old
-    // save-time anchor only for legacy plans without a publishStartAt.
+    // Preferred: publishSchedule[idx] — the EXACT datetime for this slot (honours
+    // custom dates). Next: publishStartAt + stepDays (fixed-cadence plans). Last:
+    // the legacy save-time anchor. A slot is GENERATED publishAfterMin before publish.
     let publishAt, dueAt;
-    if (t.publishStartAt) {
+    const sched = Array.isArray(t.publishSchedule) ? t.publishSchedule : [];
+    if (sched.length > 0) {
+      if (idx >= sched.length) { stats.skipped++; continue; } // no slot left
+      publishAt = new Date(sched[idx]);
+      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+    } else if (t.publishStartAt) {
       const pubStart = new Date(t.publishStartAt).getTime();
       publishAt = new Date(pubStart + idx * stepDays * DAY_MS);
       dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);

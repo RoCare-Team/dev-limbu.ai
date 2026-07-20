@@ -762,12 +762,23 @@ export async function POST(request) {
         publishStartMs = null; // no posting time set → fall back to save-time timing
       }
 
+      // Build the EXACT publish datetimes from the schedule dates (custom, alternate,
+      // weekly and daily all land here). Each schedule date is stamped at
+      // postingHour:minute in the plan timezone, and only FUTURE slots are kept so
+      // we never try to publish a date that has already passed. This honours custom
+      // frequency (specific dates like 15/17/19) instead of a fixed step.
+      const publishSchedule = (Array.isArray(schedule) ? schedule : [])
+        .map((d) => getPublishUtcMsForDateRef(planForTime, new Date(d)))
+        .filter((ms) => typeof ms === 'number' && !Number.isNaN(ms) && ms > SAVE_TS)
+        .sort((a, b) => a - b)
+        .map((ms) => new Date(ms));
+
       // ── create-on-generate: DO NOT pre-insert empty placeholder Posts ─────────
       // Previously we bulk-inserted one empty Post per schedule slot, which showed
       // up as many "Image Not Generated" cards. Now we only store the timing on the
       // plan; the fill-queue cron generates each slot and creates ONE real Post
       // (with image + text) at a time. No image-less document ever exists.
-      const postLimit = schedule.length;
+      const postLimit = publishSchedule.length > 0 ? publishSchedule.length : schedule.length;
 
       // Clear any leftover queued posts from an earlier (placeholder-era) save so
       // the dashboard shows only real, generated posts going forward.
@@ -782,8 +793,10 @@ export async function POST(request) {
         {
           $set: {
             queueTiming: {
-              // publishStartAt anchors every slot's publish to postingHour:minute.
-              // generateStartAt is kept only as a fallback when no posting time is set.
+              // publishSchedule holds the EXACT publish datetime of every remaining
+              // slot (honours custom dates). publishStartAt/generateStartAt are kept
+              // only as fallbacks for legacy plans without a schedule/posting time.
+              publishSchedule,
               publishStartAt:  publishStartMs != null ? new Date(publishStartMs) : null,
               generateStartAt: new Date(firstGenTs),
               stepDays,

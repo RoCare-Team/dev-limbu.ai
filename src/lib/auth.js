@@ -126,7 +126,8 @@ export const authOptions = {
           ...token,
           id: user.id,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
+          // Re-consent par Google refresh_token nahi bhejta; purana JWT token preserve karo warna refresh fail hoke logout ho jata hai
+          refreshToken: account.refresh_token ?? token.refreshToken,
           accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
         };
       }

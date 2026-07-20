@@ -30,7 +30,7 @@ const automationPlanSchema = new mongoose.Schema(
     businessProfileDescription: { type: String, default: '' },
     imageConfig: {
       colourPalette: { type: String, default: 'none' },
-      size: { type: String, default: '3:4' },
+      size: { type: String, default: '4:3' }, // GMB (Google Business) post ratio
       characterImage: { type: String, default: null },
       uniformImage: { type: String, default: null },
       productImage: { type: String, default: null },

@@ -478,7 +478,10 @@ export default function DashboardPage() {
   }, [activeListings]);
   const handleAddProject = useCallback(async () => {
     if (!session) {
-      await signIn("google", { redirect: false });
+      // redirect:false OAuth ke liye galat tha — wo state cookie set karke page
+      // navigate nahi karta, jisse dangling state cookie -> "state mismatch".
+      // Normal redirect karo taaki ek hi clean OAuth flow chale.
+      await signIn("google", { callbackUrl: "/dashboard" });
       return;
     }
     if (accounts.length >= maxAccounts) {

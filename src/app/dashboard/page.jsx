@@ -459,6 +459,10 @@ export default function DashboardPage() {
           title: item.title || "",
           websiteUrl: item.websiteUri || "",
           reviewUri: item.metadata?.newReviewUri || "",
+          // Server ab ye top level par bhejta hai; metadata fallback purane
+          // cached listings (DB se aane wale) ke liye rakha hai.
+          placeId: item.placeId || item.metadata?.placeId || "",
+          mapsUri: item.mapsUri || item.metadata?.mapsUri || "",
           isVerified: item.hasVoiceOfMerchant === true,
           businessProfileId: item.name || "",
           name: item.name,
@@ -471,10 +475,12 @@ export default function DashboardPage() {
         };
       });
       setLocalStorage("locationDetails", JSON.stringify(locationDetails));
-      setLocalStorage(
-        "reviewUrl",
-        activeListings[0].metadata?.newReviewUri || "",
-      );
+
+      // Primary listing ke shortcuts — `reviewUrl` jaisa hi pattern.
+      const primary = locationDetails[0] || {};
+      setLocalStorage("reviewUrl", primary.reviewUri || "");
+      setLocalStorage("placeId", primary.placeId || "");
+      setLocalStorage("mapsUri", primary.mapsUri || "");
     }
   }, [activeListings]);
   const handleAddProject = useCallback(async () => {

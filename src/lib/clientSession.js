@@ -57,7 +57,17 @@ export function ensureAppSessionCookie() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      return set.ok;
+      if (!set.ok) return false;
+
+      // Set-Cookie sach me apply hui ya nahi, ye confirm karke hi aage badho.
+      // Bina verify kiye pehli GMB call 401 de deti thi (pehle click par
+      // "page refresh" jaisa behaviour), aur doosri baar cookie maujood hone
+      // se sab theek lagta tha.
+      const confirm = await fetch("/api/auth/session-cookie", {
+        cache: "no-store",
+      });
+      const confirmed = await confirm.json();
+      return confirmed?.active === true;
     } catch (error) {
       console.warn("[clientSession] cookie sync failed:", error.message);
       return false;

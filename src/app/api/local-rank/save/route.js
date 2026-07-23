@@ -18,9 +18,12 @@ export async function POST(req) {
       city,
       businessName,
       locationId,
+      placeId,
       gridSize,
       points,
       summary,
+      averagePosition,
+      topCompetitors,
       rawResponse,
     } = body || {};
 
@@ -89,9 +92,12 @@ export async function POST(req) {
       city: city || "",
       businessName: businessName || "",
       locationId: locationId || "",
+      placeId: placeId || "",
       gridSize: gridSize || "",
       points,
       summary: summary || {},
+      averagePosition: averagePosition || null,
+      topCompetitors: Array.isArray(topCompetitors) ? topCompetitors : [],
       rawResponse: rawResponse ?? null,
     });
 

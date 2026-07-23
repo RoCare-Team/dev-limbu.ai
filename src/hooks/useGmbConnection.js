@@ -68,10 +68,11 @@ export function useGmbConnection() {
 /**
  * Hook ke bahar (event handlers) se GMB connect shuru karta hai.
  *
- * Pehle 401 milte hi seedha `/login` bhej deta tha — isi wajah se phone-login
- * ke baad "Connect GMB" dabane par user login page par pahunch jata tha, kyunki
- * session cookie abhi set hi nahi hui thi. Ab: cookie ensure karo, ek baar retry
- * karo, aur `/login` sirf tab jab app login token sach me maujood na ho.
+ * `/login` par navigate karna yahan se hata diya gaya hai. AuthGuard localStorage
+ * ke `userId` par chalta hai, jabki hum `token` dekhte the — dono me se ek bhi
+ * mismatch ho to /login turant /dashboard par bounce kar deta tha, jo pehle click
+ * par "page apne aap refresh ho gaya" jaisa dikhta tha. Ab failure par sirf error
+ * throw hota hai aur caller toast dikhata hai.
  */
 export async function startGmbConnect(callbackUrl = "/dashboard") {
   const url = `/api/gmb/connect?callbackUrl=${encodeURIComponent(callbackUrl)}`;
@@ -93,14 +94,16 @@ export async function startGmbConnect(callbackUrl = "/dashboard") {
   }
 
   if (!res.ok) {
-    // Ab bhi 401 = app me sach me logged in nahi.
-    if (!getAppLoginToken()) {
-      window.location.href = "/login";
-      return;
-    }
-    throw new Error("Couldn't start Google connect. Please try again.");
+    throw new Error(
+      res.status === 401
+        ? "Your login session isn't active. Please reload the page and try again."
+        : "Couldn't start Google connect. Please try again.",
+    );
   }
 
   const { url: consentUrl } = await res.json();
+  if (!consentUrl) {
+    throw new Error("Couldn't start Google connect. Please try again.");
+  }
   window.location.href = consentUrl;
 }

@@ -11,6 +11,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { startGmbConnect } from "@/hooks/useGmbConnection";
+import { toast } from "react-hot-toast";
 import DisconnectProfileModal from "@/components/modals/DisconnectProfileModal";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -234,13 +235,14 @@ const GMBColumn = React.memo(
                     digital presence.
                   </p>
                   <button
+                    type="button"
                     onClick={async () => {
                       try {
                         // userId ab server-side session se aata hai — URL me
                         // bhejne ki zaroorat nahi (aur wo spoofable bhi tha).
                         await startGmbConnect("/dashboard");
                       } catch (err) {
-                        console.error(err);
+                        toast.error(err.message);
                       }
                     }}
                     className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]"

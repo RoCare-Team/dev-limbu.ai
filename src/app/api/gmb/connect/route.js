@@ -25,7 +25,11 @@ function buildAuthUrl(identity, callbackUrl, forceConsent) {
     response_type: "code",
     scope: GMB_SCOPE,
     access_type: "offline",
-    include_granted_scopes: "true",
+    // `include_granted_scopes` jaan-boojhkar NAHI: wo is account ko pehle diye
+    // gaye saare scopes (YouTube, Drive) is request me mila deta tha, aur Google
+    // YouTube scopes ko dusre scopes ke saath grant nahi karta —
+    // "scopes that cannot be requested together" (Error 400: invalid_request).
+    // GMB ko sirf business.manage chahiye, incremental auth ki zaroorat nahi.
     state,
   });
   // Consent sirf tab jab refresh token chahiye — har baar nahi.

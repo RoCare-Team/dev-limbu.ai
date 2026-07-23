@@ -14,9 +14,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
-import { authOptions } from "@/lib/auth";
+import { getGmbSession, getGmbConnection } from '@/lib/gmbSession';
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 import {
   saveGmbSessionByPhone,
@@ -31,7 +29,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request) {
   try {
     // ── Auth check ──────────────────────────────────────────────────────────
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email || !session?.accessToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -97,25 +95,16 @@ export async function POST(request) {
 
     // ── Mirror manual Google sign-in: `gmb_dashboard.users` + `source: "chatbot"` ──
     try {
-      let googleId = "";
-      try {
-        const jwt = await getToken({
-          req: request,
-          secret: authOptions.secret,
-        });
-        googleId = jwt?.sub || "";
-      } catch (tokErr) {
-        console.warn("[sync-and-save] getToken:", tokErr?.message);
-      }
-      if (!googleId && session?.user?.id) {
-        googleId = String(session.user.id);
-      }
+      // Pehle ye NextAuth JWT ke `sub` se aata tha. Ab Google identity
+      // connection record par hi maujood hai — koi JWT decode nahi chahiye.
+      const conn = await getGmbConnection(session.userId);
+      const googleId = conn?.googleId || "";
 
       await upsertChatbotGmbUserDashboardRow({
         phoneDigits: phone,
         userEmail: session.user.email,
-        userName: session.user?.name || "",
-        userImage: session.user?.image || "",
+        userName: conn?.name || "",
+        userImage: conn?.image || "",
         googleId,
         accessToken: session.accessToken || "",
         refreshToken: session.refreshToken || "",

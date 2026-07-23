@@ -133,7 +133,7 @@ export async function generateImageAndText({
     bussiness_name: businessName || "",
     keywords: keyword || "",
     colourPalette: cfg.colourPalette || "",
-    size: cfg.size || "3:4",
+    size: cfg.size || "4:3",
     characterImage: cleanB64(cfg.characterImage),
     uniformImage: cleanB64(cfg.uniformImage),
     productImage: cleanB64(cfg.productImage),

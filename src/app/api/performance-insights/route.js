@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import PerformanceInsights from "@/models/PerformanceInsights";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getGmbSession } from '@/lib/gmbSession';
+
+/**
+ * Pehle ye NextAuth ka Google user-id hota tha; ab app ka apna userId hai.
+ * Purane records orphan na ho jayen, isliye read/upsert dono par legacy
+ * identifiers (Google id, email) se bhi match karte hain.
+ */
+function ownerQuery(session) {
+  const ids = [session.user.id, session.user.email].filter(Boolean);
+  return ids.length > 1 ? { $in: ids } : ids[0];
+}
 
 export async function POST(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
 
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -63,7 +72,7 @@ export async function POST(request) {
       locationId,
       reportMonth,
       reportYear,
-      userId: session.user.id || session.user.email,
+      userId: ownerQuery(session),
       "dateRange.startDate": normalizedStartDate,
       "dateRange.endDate": normalizedEndDate,
     };
@@ -157,7 +166,7 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -176,7 +185,7 @@ export async function GET(request) {
     console.log("📥 GET params:", { locationId, reportMonth, reportYear, city, locality, startDate, endDate });
 
     // ✅ reportMonth + reportYear = exact date period identifier
-    let query = { userId: session.user.id || session.user.email };
+    let query = { userId: ownerQuery(session) };
 
     if (locationId) query.locationId = locationId;
     if (reportMonth) query.reportMonth = reportMonth;       // "April-May" ya "April"

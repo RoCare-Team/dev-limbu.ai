@@ -18,7 +18,7 @@ import {
   EyeOff,
   Send,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { useParams } from "next/navigation";
 
 // Toast Component

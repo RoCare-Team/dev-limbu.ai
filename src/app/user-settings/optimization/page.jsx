@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import toast, { Toaster } from "react-hot-toast";
 import BusinessInformationPanel from "@/components/user-settings/BusinessInformationModal";
 

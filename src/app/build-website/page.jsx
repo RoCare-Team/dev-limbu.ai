@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
 import GoLiveButton from "@/components/GoLiveButton";

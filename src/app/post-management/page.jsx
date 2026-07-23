@@ -41,7 +41,7 @@ import PostManagementHeader from "../../components/post-management/PostManagemen
 import PostCard from "../../components/post-management/PostCard";
 import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Toast from "../../components/Toast";

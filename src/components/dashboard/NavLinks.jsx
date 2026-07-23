@@ -2,7 +2,7 @@ import { Activity, FolderKey, Globe, PlusSquare, QrCode, SquareChartGantt, Star 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { memo } from "react";
-import { signIn } from "next-auth/react";
+import { startGmbConnect } from "@/hooks/useGmbConnection";
 
 const navItems = [
     {
@@ -68,7 +68,7 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                     const handleClick = (e) => {
                         if (!isEnabled) {
                             e.preventDefault();
-                            return signIn("google", { callbackUrl: item.href });
+                            return startGmbConnect(item.href);
                         }
                     };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Lottie from "lottie-react";
@@ -74,6 +74,16 @@ const ASSET_LABELS = {
   backgroundImage: "Background",
   logoImage: "Logo",
 };
+
+// GMB (Google Business) post ratio is 4:3 — that is the default. Users can switch
+// to another aspect ratio for the generated post image.
+const DEFAULT_IMAGE_SIZE = "4:3";
+const IMAGE_SIZES = [
+  { v: "4:3",  label: "GMB (4:3)",      hint: "Google Business — default" },
+  { v: "1:1",  label: "Square (1:1)",   hint: "Versatile" },
+  { v: "3:4",  label: "Portrait (3:4)", hint: "Instagram / FB" },
+  { v: "16:9", label: "Landscape (16:9)", hint: "Wide" },
+];
 
 function defaultAssetInclude() {
   return {
@@ -685,6 +695,7 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [latestAssets, setLatestAssets] = useState([]);
   const [savedImageConfig, setSavedImageConfig] = useState(null);
   const [assetInclude, setAssetInclude] = useState(defaultAssetInclude);
+  const [imageSize, setImageSize] = useState(DEFAULT_IMAGE_SIZE);
   const [assetPreview, setAssetPreview] = useState(null); // { label, src } | null
 
   // Success modal
@@ -831,6 +842,7 @@ export default function AutomationSettings({ onNavigateBack }) {
             }
             if (as.imageConfig) {
               setSavedImageConfig(as.imageConfig);
+              if (as.imageConfig.size) setImageSize(as.imageConfig.size);
               if (as.imageConfig.includeInGeneration) {
                 setAssetInclude({ ...defaultAssetInclude(), ...as.imageConfig.includeInGeneration });
               }
@@ -1088,7 +1100,7 @@ export default function AutomationSettings({ onNavigateBack }) {
           userId,
           topic: userData?.topic || "",
           colourPalette: pickFirstNonEmpty(userData?.colourPalette, savedImageConfig?.colourPalette, row?.colourPalette) || "none",
-          size: "3:4",
+          size: imageSize || DEFAULT_IMAGE_SIZE,
           characterImage: pickImg("characterImage"),
           uniformImage: pickImg("uniformImage"),
           productImage: pickImg("productImage"),
@@ -2263,7 +2275,7 @@ export default function AutomationSettings({ onNavigateBack }) {
               <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 200 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 12, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🖼</div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Post images (3:4)</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Post images ({imageSize})</div>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>Automation uses your brand assets for AI images on GMB, Facebook, and Instagram.</div>
                 </div>
               </div>
@@ -2279,6 +2291,32 @@ export default function AutomationSettings({ onNavigateBack }) {
                 >
                   {hasAssetImages ? "Manage assets" : "Choose assets"}
                 </button>
+              </div>
+            </div>
+            {/* ── Image size / aspect ratio (default GMB 4:3) ── */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #f3f4f6", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 90 }}>Image size</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {IMAGE_SIZES.map((s) => {
+                  const active = imageSize === s.v;
+                  return (
+                    <button
+                      key={s.v}
+                      type="button"
+                      onClick={() => setImageSize(s.v)}
+                      title={s.hint}
+                      style={{
+                        fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 10,
+                        border: active ? "1.5px solid #f59e0b" : "1.5px solid #e5e7eb",
+                        background: active ? "#f59e0b" : "#fff",
+                        color: active ? "#fff" : "#374151",
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      {active && "✓ "}{s.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             <div style={{ padding: "12px 20px 16px", borderTop: "1px solid #f3f4f6" }}>

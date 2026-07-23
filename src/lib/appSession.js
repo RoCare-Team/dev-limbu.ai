@@ -46,6 +46,45 @@ export function appSessionCookieOptions() {
 }
 
 /**
+ * Chatbot flow ke liye alag, GMB-only cookie.
+ *
+ * Ye JAAN-BOOJHKAR app session cookie nahi hai: /connect-google-business par
+ * user app me logged in nahi hota, sirf WhatsApp link ka phone hota hai. Use
+ * poora app session dena zyada grant hota, isliye ye cookie sirf GMB routes ke
+ * liye ek phone identity deti hai aur jaldi expire ho jati hai.
+ */
+export const GMB_PHONE_COOKIE = "limbu_gmb_phone";
+const GMB_PHONE_MAX_AGE = 2 * 60 * 60; // 2 ghante — connect flow poora karne ke liye kaafi
+
+export function createGmbPhoneToken(phone) {
+  return jwt.sign({ phone, scope: "gmb" }, JWT_SECRET, { expiresIn: "2h" });
+}
+
+export function gmbPhoneCookieOptions() {
+  return {
+    name: GMB_PHONE_COOKIE,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: GMB_PHONE_MAX_AGE,
+  };
+}
+
+/** @returns {string|null} verified phone digits */
+export function getGmbPhone(request) {
+  const cookie = request?.cookies?.get?.(GMB_PHONE_COOKIE);
+  const value = typeof cookie === "string" ? cookie : cookie?.value;
+  if (!value) return null;
+  try {
+    const decoded = jwt.verify(value, JWT_SECRET);
+    return decoded?.scope === "gmb" && decoded?.phone ? String(decoded.phone) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Request se app user resolve karta hai.
  *
  * Order:

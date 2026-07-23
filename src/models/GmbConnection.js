@@ -11,7 +11,14 @@ import mongoose from "mongoose";
 const GmbConnectionSchema = new mongoose.Schema(
   {
     // App identity — GmbUser ki tarah email nahi, kyunki app email badal sakta hai.
+    //
+    // WhatsApp chatbot flow (/connect-google-business?phone=…) me user app me
+    // logged in nahi hota. Wahan key `phone:<digits>` hoti hai, aur agar us
+    // phone ka asli User mil jaye to uska userId use hota hai.
     userId: { type: String, required: true, unique: true, index: true },
+
+    // Chatbot flow ka identifier. App-login se aaye connections me khaali rehta hai.
+    phone: { type: String, index: true },
 
     // Google identity (sirf display / dedupe ke liye)
     googleId: String,

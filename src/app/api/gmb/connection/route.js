@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAppUser } from "@/lib/appSession";
-import { getGmbConnection } from "@/lib/gmbSession";
+import { getAppUser, getGmbPhone } from "@/lib/appSession";
+import { getGmbConnection, getGmbConnectionByPhone } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -8,14 +8,22 @@ export const dynamic = "force-dynamic";
  * Client ke `useGmbConnection()` hook ke liye connection status.
  * `useSession()` ki jagah — par ye app login ke baare me kuch nahi kehta,
  * sirf GMB connected hai ya nahi.
+ *
+ * Do identities support karta hai:
+ *   • app session cookie (normal dashboard users)
+ *   • GMB-only phone cookie (WhatsApp chatbot flow)
  */
 export async function GET(request) {
   const appUser = getAppUser(request);
-  if (!appUser?.userId) {
+  const phone = appUser?.userId ? null : getGmbPhone(request);
+
+  if (!appUser?.userId && !phone) {
     return NextResponse.json({ loggedIn: false, connected: false }, { status: 200 });
   }
 
-  const conn = await getGmbConnection(appUser.userId);
+  const conn = appUser?.userId
+    ? await getGmbConnection(appUser.userId)
+    : await getGmbConnectionByPhone(phone);
 
   return NextResponse.json({
     loggedIn: true,

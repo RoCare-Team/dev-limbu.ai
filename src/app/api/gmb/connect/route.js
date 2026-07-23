@@ -14,8 +14,10 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
  * cookie me nahi. Isiliye `error=OAuthCallback` (state-cookie mismatch) wala
  * loop yahan ho hi nahi sakta — reverse proxy / subdomain par bhi nahi.
  */
-function buildAuthUrl(userId, callbackUrl, forceConsent) {
-  const state = jwt.sign({ userId, callbackUrl }, JWT_SECRET, { expiresIn: "10m" });
+function buildAuthUrl(identity, callbackUrl, forceConsent) {
+  const state = jwt.sign({ ...identity, callbackUrl }, JWT_SECRET, {
+    expiresIn: "10m",
+  });
 
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
@@ -33,15 +35,27 @@ function buildAuthUrl(userId, callbackUrl, forceConsent) {
 }
 
 function resolve(request) {
-  const appUser = getAppUser(request);
-  if (!appUser?.userId) return { error: true };
-
   const { searchParams } = new URL(request.url);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   // Pehla connect / reconnect — dono me refresh token chahiye.
   const forceConsent = searchParams.get("consent") !== "0";
 
-  return { url: buildAuthUrl(appUser.userId, callbackUrl, forceConsent) };
+  const appUser = getAppUser(request);
+  if (appUser?.userId) {
+    return {
+      url: buildAuthUrl({ userId: appUser.userId }, callbackUrl, forceConsent),
+    };
+  }
+
+  // WhatsApp chatbot flow: user app me logged in nahi hai, sirf phone hai.
+  // Ye wahi identifier hai jispar ye poora flow pehle se chalta hai
+  // (check-phone, sync-and-save, gmb/status sab phone se hi kaam karte hain).
+  const phone = String(searchParams.get("phone") || "").replace(/\D/g, "");
+  if (phone) {
+    return { url: buildAuthUrl({ phone }, callbackUrl, forceConsent) };
+  }
+
+  return { error: true };
 }
 
 /** JSON URL lauta ta hai — client `window.location.href` set karta hai. */

@@ -18,15 +18,17 @@ export const GMB_SCOPE =
  * proxy ke peeche galat resolve hote the aur live par localhost:3000 par
  * redirect ho jata tha.
  *
- * Default production par set hai. Local development ke liye `.env.local` me:
- *     GMB_REDIRECT_BASE_URL=http://localhost:3000
+ * ⚠️ ABHI LOCAL TESTING PAR SET HAI.
+ * Live deploy se pehle production `.env` me ye daalein:
+ *     GMB_REDIRECT_BASE_URL=https://limbu.ai
+ * (ya yahan default wapas https://limbu.ai kar dein)
  *
  * Google Console ke "Authorized redirect URIs" me dono hone chahiye:
- *     https://limbu.ai/api/gmb/callback
  *     http://localhost:3000/api/gmb/callback
+ *     https://limbu.ai/api/gmb/callback
  */
 export const GMB_BASE_URL = (
-  process.env.GMB_REDIRECT_BASE_URL || "https://limbu.ai"
+  process.env.GMB_REDIRECT_BASE_URL || "http://localhost:3000"
 ).replace(/\/$/, "");
 
 export function gmbRedirectUri() {

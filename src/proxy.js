@@ -11,18 +11,14 @@ function getCleanHostname(request) {
   return host.split(":")[0].toLowerCase();
 }
 
-export function middleware(request) {
+export function proxy(request) {
   const cleanHost = getCleanHostname(request);
   const url = request.nextUrl.clone();
 
   console.log("HOST:", cleanHost);
 
-
   // 🔒 NEVER touch main domain
-  if (
-    cleanHost === "limbu.ai" ||
-    cleanHost === "www.limbu.ai"
-  ) {
+  if (cleanHost === "limbu.ai" || cleanHost === "www.limbu.ai") {
     return NextResponse.next();
   }
 
@@ -39,7 +35,7 @@ export function middleware(request) {
       return NextResponse.next();
     }
 
-    // Single-segment [slug] route: tenant microsite (see src/app/[slug]/page.jsx)
+    // Single-segment [slug] route: tenant microsite (src/app/[slug]/page.jsx)
     url.pathname = `/${slug}`;
 
     const requestHeaders = new Headers(request.headers);
@@ -54,12 +50,6 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
-
-/**
- * Include "/" explicitly — without it, requests to https://tenant.limbu.ai/
- * never hit middleware, so the marketing home page was served instead of the
- * rewritten /[slug] tenant site.
- */
 export const config = {
   matcher: [
     "/((?!api|_next/static|_next/image|_next/webpack-hmr|favicon.ico|.*\\..*).*)",

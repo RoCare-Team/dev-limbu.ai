@@ -5,14 +5,29 @@ import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import User from "@/models/User";
-import { gmbRedirectUri } from "@/lib/gmbSession";
+import { gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
+/**
+ * Base hamesha GMB_BASE_URL (default https://limbu.ai) hai, `request.url` nahi —
+ * reverse proxy ke peeche `request.url` localhost:3000 hota tha, jiski wajah se
+ * live par connect karne ke baad localhost par redirect ho jata tha.
+ */
 function redirectBack(request, callbackUrl, params) {
-  const url = new URL(callbackUrl || "/dashboard", request.url);
+  // Absolute URL aaye to bhi sirf uska path/query lete hain — host hamesha
+  // GMB_BASE_URL rehta hai (localhost leak aur open-redirect dono band).
+  let target = "/dashboard";
+  try {
+    const parsed = new URL(callbackUrl || "/dashboard", GMB_BASE_URL);
+    target = `${parsed.pathname}${parsed.search}`;
+  } catch {
+    target = "/dashboard";
+  }
+
+  const url = new URL(target, GMB_BASE_URL);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   return NextResponse.redirect(url);
 }

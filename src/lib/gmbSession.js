@@ -11,13 +11,20 @@ const REFRESH_SKEW_MS = 5 * 60 * 1000;
 export const GMB_SCOPE =
   "openid email profile https://www.googleapis.com/auth/business.manage";
 
+/**
+ * Hardcoded production base.
+ *
+ * Env se derive karne par live server localhost:3000 par redirect kar raha tha
+ * (reverse proxy ke peeche APP_URL/NEXTAUTH_URL galat resolve ho rahe the).
+ * Isliye ye jaan-boojhkar fixed hai — Google Console me bhi yahi URI whitelisted
+ * hona chahiye. Local development ke liye GMB_REDIRECT_BASE_URL override kar do.
+ */
+export const GMB_BASE_URL = (
+  process.env.GMB_REDIRECT_BASE_URL || "https://limbu.ai"
+).replace(/\/$/, "");
+
 export function gmbRedirectUri() {
-  const base =
-    process.env.GMB_REDIRECT_BASE_URL ||
-    process.env.APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/api/gmb/callback`;
+  return `${GMB_BASE_URL}/api/gmb/callback`;
 }
 
 function emailRegexFor(email) {

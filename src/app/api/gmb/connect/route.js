@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getAppUser } from "@/lib/appSession";
-import { GMB_SCOPE, gmbRedirectUri } from "@/lib/gmbSession";
+import { GMB_SCOPE, gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,8 @@ export async function POST(request) {
 export async function GET(request) {
   const result = resolve(request);
   if (result.error) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    // request.url proxy ke peeche localhost hota hai — fixed base use karo.
+    return NextResponse.redirect(new URL("/login", GMB_BASE_URL));
   }
   return NextResponse.redirect(result.url);
 }

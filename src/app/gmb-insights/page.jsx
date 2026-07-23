@@ -46,7 +46,7 @@ export default function GmbInsightsPage() {
   // GMB connected na ho to connect par bhejo — app se logout NAHI.
   useEffect(() => {
     if (!gmb.loading && !gmb.connected) {
-      gmb.connect("/gmb-insights");
+      gmb.connect("/gmb-insights").catch((err) => toast.error(err.message));
     }
   }, [gmb.loading, gmb.connected]);
 

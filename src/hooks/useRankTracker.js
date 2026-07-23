@@ -15,15 +15,81 @@ const API_URL = "/api/local-rank";
 function normalizePoint(point) {
   const competitors = point.competitors || [];
 
+  // The webhook has used two shapes over time: a flat `rank` and, in the
+  // grid_results payload, `businessRank`. Accept either.
+  const rank = point.businessRank ?? point.rank ?? null;
+
   return {
     id: `${point.lat}_${point.lng}`,
     lat: point.lat,
     lng: point.lng,
+    area: point.area || "",
     isCenter: !!point.isCenter,
     competitors,
-    businessRank: point.rank ?? null,
-    businessFound: point.rank != null,
+    businessRank: rank,
+    businessFound: rank != null,
   };
+}
+
+/**
+ * The webhook now answers with one entry per keyword:
+ *   [{ keyword, business_name, business_average_position, grid_results: [...] }]
+ * Older runs returned the grid points directly. Flatten both into grid points.
+ */
+function extractGridPoints(raw) {
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  if (list.some((item) => Array.isArray(item?.grid_results))) {
+    return list.flatMap((item) => item.grid_results || []);
+  }
+  return list;
+}
+
+/**
+ * `business_average_position` from the webhook — the average rank across the
+ * grid points where the business actually showed up. Older responses don't
+ * carry it, so this returns null and the UI falls back to the computed stats.
+ */
+function extractAveragePosition(raw) {
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const entry = list.find((item) => item?.business_average_position);
+  if (!entry) return null;
+
+  const avg = entry.business_average_position;
+  return {
+    averageRank:
+      typeof avg.average_rank === "number" ? avg.average_rank : null,
+    frequency: avg.frequency ?? 0,
+    totalGridPoints: avg.total_grid_points ?? 0,
+    businessName: entry.business_name || "",
+  };
+}
+
+/**
+ * `top_competitors` — the rivals ranked across the whole grid, with their
+ * frequency/average rank. Absent on older responses.
+ */
+function extractTopCompetitors(raw) {
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const entry = list.find((item) => Array.isArray(item?.top_competitors));
+  if (!entry) return [];
+
+  return entry.top_competitors.map((c) => ({
+    rank: c.rank ?? null,
+    name: c.name || "",
+    score: c.score ?? null,
+    frequency: c.frequency ?? 0,
+    averageRank: typeof c.average_rank === "number" ? c.average_rank : null,
+    rating: c.rating ?? null,
+    reviews: c.reviews ?? 0,
+  }));
+}
+
+/**
+ * The UI talks in "3x3" but the webhook only wants the side length — "3x3" → 3.
+ */
+function toGridSide(gridSize) {
+  const side = parseInt(String(gridSize || "").split("x")[0], 10);
+  return Number.isFinite(side) ? side : 1;
 }
 
 export function useRankTracker() {
@@ -31,6 +97,8 @@ export function useRankTracker() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastQuery, setLastQuery] = useState(null);
+  const [averagePosition, setAveragePosition] = useState(null);
+  const [topCompetitors, setTopCompetitors] = useState([]);
 
   // Saving / comparison state
   const [isSaving, setIsSaving] = useState(false);
@@ -38,7 +106,7 @@ export function useRankTracker() {
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
 
   const fetchRanks = useCallback(
-    async ({ keyword, city, businessName, gridSize }) => {
+    async ({ keyword, city, businessName, gridSize, placeId }) => {
       if (!keyword || !city || !businessName) {
         toast.error("Keyword, city and business name are all required.");
         return;
@@ -58,7 +126,11 @@ export function useRankTracker() {
               keyword,
               city,
               bussiness_name: businessName,
-              grid_size: gridSize,
+              grid_size: toGridSide(gridSize),
+              // The GBP place id lets the webhook match the business by id
+              // instead of fuzzy name matching.
+              place_id: placeId || "",
+              placeId: placeId || "",
             },
           ]),
         });
@@ -73,17 +145,20 @@ export function useRankTracker() {
           throw new Error(result.message || "Failed to fetch data");
         }
 
-        const rawPoints = Array.isArray(result.data)
+        const payload = Array.isArray(result.data)
           ? result.data
           : result.data?.data;
+        const rawPoints = extractGridPoints(payload);
 
-        if (!Array.isArray(rawPoints)) {
+        if (!Array.isArray(rawPoints) || rawPoints.length === 0) {
           throw new Error("Unexpected response shape from API");
         }
 
         const normalized = rawPoints.map((p) => normalizePoint(p));
         setGridPoints(normalized);
-        setLastQuery({ keyword, city, businessName });
+        setAveragePosition(extractAveragePosition(payload));
+        setTopCompetitors(extractTopCompetitors(payload));
+        setLastQuery({ keyword, city, businessName, placeId });
 
         const rankedCount = normalized.filter((p) => p.businessFound).length;
         if (rankedCount === 0) {
@@ -136,6 +211,7 @@ export function useRankTracker() {
       city,
       businessName,
       locationId,
+      placeId,
       gridSize,
     }) => {
       if (!userId) {
@@ -162,9 +238,12 @@ export function useRankTracker() {
             city,
             businessName,
             locationId,
+            placeId,
             gridSize,
             points: gridPoints,
             summary,
+            averagePosition,
+            topCompetitors,
           }),
         });
 
@@ -189,7 +268,7 @@ export function useRankTracker() {
         setIsSaving(false);
       }
     },
-    [gridPoints, summary],
+    [gridPoints, summary, averagePosition, topCompetitors],
   );
 
   /** Load previously saved audits (optionally filtered) for the comparison view. */
@@ -230,6 +309,8 @@ export function useRankTracker() {
     gridPoints,
     centerPoint,
     summary,
+    averagePosition,
+    topCompetitors,
     isLoading,
     error,
     lastQuery,

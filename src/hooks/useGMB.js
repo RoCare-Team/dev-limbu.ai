@@ -2,6 +2,7 @@ import { getLocalStorage, getSessionStorage, removeSessionStorage, setSessionSto
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { useGmbConnection } from "@/hooks/useGmbConnection";
+import { ensureAppSessionCookie, getAppLoginToken } from "@/lib/clientSession";
 
 const CACHE_EXPIRY_MS = 10 * 60 * 1000;
 const getCacheKey = (email) => `gmb_data_${email}`;
@@ -90,10 +91,17 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
     const userEmail = gmbEmail;
     const cacheKey = getCacheKey(userEmail || "unknown");
 
-    // Cache check
+    // Cache check.
+    // Khaali result kabhi cache se serve nahi karte — warna ek purani failed/
+    // empty fetch 10 minute tak "No Profiles Found" dikhati rehti hai, chahe
+    // user beech me GMB connect hi kyun na kar le.
     if (!forceRefresh) {
       const cached = JSON.parse(getSessionStorage(cacheKey) || null);
-      if (cached?.timestamp && (Date.now() - cached.timestamp < CACHE_EXPIRY_MS)) {
+      if (
+        cached?.timestamp &&
+        Date.now() - cached.timestamp < CACHE_EXPIRY_MS &&
+        cached.accounts?.[0]?.listings?.length > 0
+      ) {
         setAccounts(cached.accounts);
         setNoAccountsFound(cached.noAccountsFound);
         setInitialFetchDone(true);
@@ -108,15 +116,30 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
     try {
       // SECURE CALL: We now ask our own backend to fetch Google data.
       // Backend GmbConnection se fresh token nikaalta hai (refresh sameth).
-      const res = await fetch("/api/gmb/dashboard-live");
+      await ensureAppSessionCookie();
+      let res = await fetch("/api/gmb/dashboard-live", { cache: "no-store" });
 
-      // 409 = GMB connected nahi. 401 = app login hi nahi.
-      if (res.status === 401 || res.status === 403 || res.status === 409) {
-        throw new Error("GmbReconnectRequired");
+      // 401 = app session cookie missing/expire. Ye GMB ka issue NAHI hai —
+      // cookie dobara set karke ek retry karo. Pehle ise bhi "session expired"
+      // maan liya jata tha, isliye modal turant aa jata tha.
+      if (res.status === 401) {
+        const token = getAppLoginToken();
+        if (token) {
+          await fetch("/api/auth/session-cookie", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          });
+          res = await fetch("/api/gmb/dashboard-live", { cache: "no-store" });
+        }
       }
 
       if (!res.ok) {
-        throw new Error(`API Error: ${res.status}`);
+        const body = await res.json().catch(() => ({}));
+        const err = new Error(body.error || `API Error: ${res.status}`);
+        err.code = body.code;
+        err.status = res.status;
+        throw err;
       }
 
       const data = await res.json();
@@ -140,10 +163,21 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
 
     } catch (error) {
       console.error("❌ Live Fetch Error:", error);
-      // Sirf GMB reconnect flag — app se logout NAHI.
-      if (error.message === "GmbReconnectRequired") {
+
+      // Reconnect modal SIRF tab jab server ne pakka kaha ho ki refresh token
+      // mar chuka hai. Baaki sab (503 transient, 502 Google error, 401 app
+      // session) ke liye sirf toast — warna har chhoti dikkat par "Session
+      // Expired" aa jata tha.
+      if (error.code === "GMB_RECONNECT_REQUIRED") {
         setUiState(prev => ({ ...prev, needsGmbReconnect: true }));
         refreshGmb();
+      } else if (error.status === 401) {
+        // App login ka masla — GMB modal dikhana galat hoga.
+        if (!isBackground) {
+          toast.error("Couldn't refresh your login session. Please reload the page.");
+        }
+      } else if (!isBackground) {
+        toast.error(`Couldn't load GMB listings: ${error.message}`);
       }
     } finally {
       setInitialFetchDone(true);
@@ -152,14 +186,21 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
     }
   }, [gmbConnected, gmbEmail, refreshGmb, setUiState]);
 
+  // Callback abhi-abhi `?gmb_connected=1` ke saath wapas bheja hai — us case me
+  // cache bypass karke seedha Google se fresh list laani hai, warna pichhli
+  // (khaali) cache ya stale state dikh jati hai.
+  const justConnected =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("gmb_connected") === "1";
+
   // Orchestration: DB hamesha, Google live tab jab GMB connected ho
   useEffect(() => {
     fetchAdminListings();
 
     if (gmbConnected && !initialFetchDone) {
-      fetchInitialData();
+      fetchInitialData(justConnected);
     }
-  }, [gmbConnected, initialFetchDone, fetchAdminListings, fetchInitialData]);
+  }, [gmbConnected, initialFetchDone, justConnected, fetchAdminListings, fetchInitialData]);
 
   // Priority Logic for UI: Live Data > Database Data
   const activeListings = useMemo(() => {
@@ -213,6 +254,8 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
   return {
     accounts,
     loading: loading || gmb.loading,
+    // Sirf connection-status check — listings fetch isme shaamil nahi.
+    gmbLoading: gmb.loading,
     initialFetchDone,
     noAccountsFound,
     listings,

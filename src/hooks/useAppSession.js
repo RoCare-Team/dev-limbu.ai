@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getLocalStorage, getSessionStorage } from "@/utils/storage";
+import { ensureAppSessionCookie } from "@/lib/clientSession";
 
 /**
  * NextAuth ke `useSession()` ka drop-in replacement.
@@ -36,6 +37,8 @@ export function useAppSession() {
         null;
 
       try {
+        // Cookie set hone se pehle call gayi to 401 aata hai — pehle ensure karo.
+        await ensureAppSessionCookie();
         const res = await fetch("/api/gmb/access-token", { cache: "no-store" });
 
         if (!res.ok) {

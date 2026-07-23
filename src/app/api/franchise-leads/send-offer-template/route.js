@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
-const API_KEY = process.env.LIMBU_AI_WHATSAPP_KEY;
+const API_KEY = "ws_fca30eb07595f51089b57a862ecac20c12947558b56f1a70";
+
+const CAMPAIGN_NAME = "franchiese_off_new_template";
 
 /** Franchise offer: base price and discount used to compute the savings amount. */
 const OFFER_BASE_AMOUNT = 500000;
@@ -64,7 +66,7 @@ function getSavingsAmount() {
 async function sendOfferTemplate({ destination, firstName, validTill, savings }) {
   const payload = {
     apiKey: API_KEY,
-    campaignName: "franchise_off_new",
+    campaignName: CAMPAIGN_NAME,
     destination,
     userName: "YOUR_BRAND_NAME",
     templateParams: [firstName, savings, validTill],
@@ -112,13 +114,6 @@ async function sendOfferTemplate({ destination, firstName, validTill, savings })
  */
 export async function POST(req) {
   try {
-    if (!API_KEY) {
-      return NextResponse.json(
-        { success: false, message: "LIMBU_AI_WHATSAPP_KEY is not configured" },
-        { status: 500 },
-      );
-    }
-
     const body = await req.json();
 
     const validTill = normalizeValidDate(body.validTill);

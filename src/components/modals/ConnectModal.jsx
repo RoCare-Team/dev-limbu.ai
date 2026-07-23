@@ -46,7 +46,7 @@ function ConnectModal({ isOpen, onClose }) {
 
           {/* CTA Button */}
           <button
-            onClick={() => startGmbConnect("/dashboard")}
+            onClick={() => startGmbConnect("/dashboard").catch((err) => console.error(err))}
             className="btn-lemon w-full py-5 rounded-2xl text-base uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02]"
           >
             <svg

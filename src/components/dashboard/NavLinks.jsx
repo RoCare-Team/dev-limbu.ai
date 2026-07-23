@@ -68,7 +68,7 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
                     const handleClick = (e) => {
                         if (!isEnabled) {
                             e.preventDefault();
-                            return startGmbConnect(item.href);
+                            return startGmbConnect(item.href).catch((err) => console.error(err));
                         }
                     };
 

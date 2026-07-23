@@ -159,6 +159,7 @@ export default function DashboardPage() {
   const {
     accounts,
     loading,
+    gmbLoading,
     initialFetchDone,
     listings,
     activeListings,
@@ -404,8 +405,7 @@ export default function DashboardPage() {
         }));
       } catch (error) {
         console.error("Error fetching performance insights:", error);
-        if (error.code === "GMB_NOT_CONNECTED") {
-          toast.error("Google Business Profile reconnect karna hoga.");
+        if (error.code === "GMB_RECONNECT_REQUIRED") {
           setUiState((prev) => ({ ...prev, needsGmbReconnect: true }));
         } else {
           toast.error("Failed to load performance insights.");
@@ -481,7 +481,11 @@ export default function DashboardPage() {
     if (!gmbConnected) {
       // Server-side OAuth: state signed JWT me URL se jata hai, cookie me nahi.
       // Isliye "state mismatch" / OAuthCallback loop yahan ho hi nahi sakta.
-      await connectGMB("/dashboard");
+      try {
+        await connectGMB("/dashboard");
+      } catch (err) {
+        toast.error(err.message);
+      }
       return;
     }
     if (accounts.length >= maxAccounts) {
@@ -521,7 +525,9 @@ export default function DashboardPage() {
     [filterStatus],
   );
 
-  if (loading && !initialFetchDone) {
+  // Sirf pehle connection-status check ke dauran full-screen loader. GMB listings
+  // ka apna loader GMBColumn ke andar hai — warna poora dashboard block ho jata.
+  if (gmbLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center">
@@ -599,10 +605,14 @@ export default function DashboardPage() {
         onDateChange={handlePerformanceInsightsDateChange}
       />
 
-      {/* "Session expired" ab app logout nahi — sirf GMB reconnect prompt. */}
+      {/* "Session expired" ab app logout nahi — sirf GMB reconnect prompt,
+          aur user ise band karke dashboard par kaam jaari rakh sakta hai. */}
       <SessionExpiredModal
         isOpen={uiState.needsGmbReconnect}
         onLogin={() => connectGMB("/dashboard")}
+        onClose={() =>
+          setUiState((prev) => ({ ...prev, needsGmbReconnect: false }))
+        }
       />
 
       <ConnectModal

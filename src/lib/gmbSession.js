@@ -163,7 +163,9 @@ export async function getGmbSession(request) {
       impersonated: appUser.impersonated,
       accessToken: null,
       refreshToken: null,
+      hasConnection: false,
       gmbConnected: false,
+      needsReconnect: false,
     };
   }
 
@@ -174,29 +176,64 @@ export async function getGmbSession(request) {
     impersonated: appUser.impersonated,
     accessToken,
     refreshToken: conn.refreshToken || null,
+    // Record maujood hai — token na milne par bhi. Isse "reconnect chahiye"
+    // aur "Google abhi jawab nahi de raha" me farak kar paate hain.
+    hasConnection: true,
     gmbConnected: !!accessToken && !conn.invalid,
+    needsReconnect: !!conn.invalid,
     error: conn.invalid ? "GmbReconnectRequired" : undefined,
   };
 }
 
 /**
  * Un routes ke liye jinhe sach me Google token chahiye.
- * Session ke saath ek ready-made 401/409 response bhi deta hai.
+ *
+ * Teen alag failure modes — inhe mila dena hi "session turant expire ho gaya"
+ * wali galat feeling deta tha:
+ *
+ *   401 APP_NOT_AUTHENTICATED — app session cookie hi nahi mili. GMB ka isse
+ *       koi lena-dena nahi; client ko sirf cookie dobara sync karke retry karna hai.
+ *   409 GMB_RECONNECT_REQUIRED — refresh token sach me mar chuka hai
+ *       (invalid_grant / revoke). Tabhi "Reconnect" modal dikhana chahiye.
+ *   503 GMB_TEMPORARILY_UNAVAILABLE — Google se refresh transiently fail hua.
+ *       Ye baad me apne aap theek ho jata hai; reconnect maangna galat hai.
  */
 export async function requireGmbSession(request) {
   const session = await getGmbSession(request);
+
   if (!session?.user?.id) {
-    return { session: null, error: { message: "Unauthorized", status: 401 } };
-  }
-  if (!session.accessToken) {
     return {
-      session,
+      session: null,
       error: {
-        message: "Google Business Profile not connected",
-        code: "GMB_NOT_CONNECTED",
-        status: 409,
+        message: "Not logged in",
+        code: "APP_NOT_AUTHENTICATED",
+        status: 401,
       },
     };
   }
+
+  if (!session.accessToken) {
+    // Connection hi nahi, ya refresh token pakka mar chuka hai → reconnect.
+    if (!session.hasConnection || session.needsReconnect) {
+      return {
+        session,
+        error: {
+          message: "Please reconnect your Google Business Profile",
+          code: "GMB_RECONNECT_REQUIRED",
+          status: 409,
+        },
+      };
+    }
+
+    return {
+      session,
+      error: {
+        message: "Couldn't reach Google right now. Please try again shortly.",
+        code: "GMB_TEMPORARILY_UNAVAILABLE",
+        status: 503,
+      },
+    };
+  }
+
   return { session, error: null };
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGmbSession } from "@/lib/gmbSession";
+import { requireGmbSession } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -13,15 +13,11 @@ export const dynamic = "force-dynamic";
  * dena — dekho /api/gmb/location-insights.
  */
 export async function GET(request) {
-  const session = await getGmbSession(request);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Not logged in" }, { status: 401 });
-  }
-  if (!session.accessToken) {
+  const { session, error } = await requireGmbSession(request);
+  if (error) {
     return NextResponse.json(
-      { error: "GMB not connected", code: "GMB_NOT_CONNECTED" },
-      { status: 409 },
+      { error: error.message, code: error.code },
+      { status: error.status },
     );
   }
 

@@ -5,6 +5,8 @@
  * Google ko call karta tha. Ab access token server par hi rehta hai, isliye
  * hum apne `/api/gmb/location-insights` proxy se maangte hain.
  */
+import { ensureAppSessionCookie } from "@/lib/clientSession";
+
 export async function fetchInsightsViaServer({
   locationId,
   startDate,
@@ -25,19 +27,20 @@ export async function fetchInsightsViaServer({
     params.set("endMonth", String(endMonth.month));
   }
 
+  await ensureAppSessionCookie();
+
   const res = await fetch(`/api/gmb/location-insights?${params.toString()}`, {
     cache: "no-store",
   });
 
-  if (res.status === 409) {
-    // GMB connected nahi / token invalid — caller reconnect prompt dikhaye.
-    const err = new Error("GmbReconnectRequired");
-    err.code = "GMB_NOT_CONNECTED";
-    throw err;
-  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `Insights failed: ${res.status}`);
+    const err = new Error(body.error || `Insights failed: ${res.status}`);
+    // Sirf GMB_RECONNECT_REQUIRED par caller reconnect prompt dikhata hai;
+    // 503 (transient) aur 401 (app session) par nahi.
+    err.code = body.code;
+    err.status = res.status;
+    throw err;
   }
 
   return res.json(); // { insights, searchKeywords }

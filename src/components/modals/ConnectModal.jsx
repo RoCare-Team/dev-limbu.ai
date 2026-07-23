@@ -1,6 +1,6 @@
 import { Rocket, X } from "lucide-react";
 import { useEffect } from "react";
-import { signIn } from "next-auth/react";
+import { startGmbConnect } from "@/hooks/useGmbConnection";
 
 function ConnectModal({ isOpen, onClose }) {
   useEffect(() => {
@@ -46,7 +46,7 @@ function ConnectModal({ isOpen, onClose }) {
 
           {/* CTA Button */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={() => startGmbConnect("/dashboard")}
             className="btn-lemon w-full py-5 rounded-2xl text-base uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02]"
           >
             <svg

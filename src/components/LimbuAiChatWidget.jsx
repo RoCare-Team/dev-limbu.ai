@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FileText,

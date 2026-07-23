@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getGmbSession } from '@/lib/gmbSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,7 +148,7 @@ async function resolveToGoogleRegion(candidate, ctx, apiKey, center, radiusKm) {
  */
 export async function POST(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

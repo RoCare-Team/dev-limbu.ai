@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import toast from "react-hot-toast";
 import { getLocalStorage } from "@/utils/storage";
 

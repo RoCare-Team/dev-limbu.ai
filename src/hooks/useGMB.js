@@ -1,6 +1,7 @@
 import { getLocalStorage, getSessionStorage, removeSessionStorage, setSessionStorage } from "@/utils/storage";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
+import { useGmbConnection } from "@/hooks/useGmbConnection";
 
 const CACHE_EXPIRY_MS = 10 * 60 * 1000;
 const getCacheKey = (email) => `gmb_data_${email}`;
@@ -15,8 +16,32 @@ async function storeUserListingsForAdmin(userEmail, listings) {
   } catch (error) { console.error('Error storing listings:', error); }
 }
 
+/** App ka apna email — NextAuth session ki jagah. */
+function getAppEmail() {
+  const isImpersonating =
+    getLocalStorage("isImpersonating") === "true" ||
+    getSessionStorage("isImpersonating") === "true";
+
+  if (isImpersonating) {
+    return (
+      getSessionStorage("impersonatedEmail") ||
+      getLocalStorage("impersonatedEmail") ||
+      getSessionStorage("email") ||
+      null
+    );
+  }
+  return getLocalStorage("email") || getLocalStorage("userEmail") || null;
+}
+
 // --- Main Hook ---
-export function useGMB(session, status, setUiState) {
+// `session`/`status` ab NextAuth se nahi aate — GMB connection status se aate hain.
+export function useGMB(_legacySession, _legacyStatus, setUiState) {
+  const gmb = useGmbConnection();
+  // `gmb` har render par naya object hai. useCallback/useEffect deps me use
+  // karne se infinite re-render loop ban jata, isliye primitives + stable
+  // callbacks hi deps me jaate hain.
+  const { connected: gmbConnected, refresh: refreshGmb, disconnect: disconnectGmb } = gmb;
+
   const [accounts, setAccounts] = useState([]);      // Live Google Data
   const [listings, setListings] = useState([]);      // Database Listings (Impersonation)
   const [loading, setLoading] = useState(false);
@@ -25,13 +50,16 @@ export function useGMB(session, status, setUiState) {
 
   const fetchInProgress = useRef(false);
 
+  // Google account ka email (connection se) — cache key isi par bani rehti hai.
+  const gmbEmail = gmb.email || getAppEmail();
+
   // 1. Fetch from Database (Handles both Impersonation and Normal Fallback)
   const fetchAdminListings = useCallback(async () => {
     const isImpersonating = getLocalStorage("isImpersonating") === "true";
 
     // Same Logic as old dashboard.js
     const token = isImpersonating ? getLocalStorage("userToken") : getLocalStorage("adminToken");
-    const email = isImpersonating ? getLocalStorage("impersonatedEmail") : session?.user?.email;
+    const email = isImpersonating ? getLocalStorage("impersonatedEmail") : getAppEmail();
 
     if (!token || !email) return;
 
@@ -53,17 +81,14 @@ export function useGMB(session, status, setUiState) {
     } catch (error) {
       console.error("Error fetching database listings:", error);
     }
-  }, [session?.user?.email]);
+  }, []);
 
   // 2. Live Backend Fetch (Secure, bypasses browser CORS & Ad-blockers)
   const fetchInitialData = useCallback(async (forceRefresh = false, isBackground = false) => {
-    if (!session?.user?.email) {
-      if (status === "authenticated") setUiState(prev => ({ ...prev, isSessionExpired: true }));
-      return;
-    }
+    if (!gmbConnected) return;
 
-    const userEmail = session.user.email;
-    const cacheKey = getCacheKey(userEmail);
+    const userEmail = gmbEmail;
+    const cacheKey = getCacheKey(userEmail || "unknown");
 
     // Cache check
     if (!forceRefresh) {
@@ -82,11 +107,12 @@ export function useGMB(session, status, setUiState) {
 
     try {
       // SECURE CALL: We now ask our own backend to fetch Google data.
-      // Next.js backend will handle the exact fresh token securely.
+      // Backend GmbConnection se fresh token nikaalta hai (refresh sameth).
       const res = await fetch("/api/gmb/dashboard-live");
-      
-      if (res.status === 401 || res.status === 403) {
-        throw new Error("Unauthorized - Session expired");
+
+      // 409 = GMB connected nahi. 401 = app login hi nahi.
+      if (res.status === 401 || res.status === 403 || res.status === 409) {
+        throw new Error("GmbReconnectRequired");
       }
 
       if (!res.ok) {
@@ -108,28 +134,32 @@ export function useGMB(session, status, setUiState) {
       }));
 
       // Sync to Admin Database
-      if (allListings.length > 0) await storeUserListingsForAdmin(userEmail, allListings);
+      if (allListings.length > 0 && userEmail) {
+        await storeUserListingsForAdmin(userEmail, allListings);
+      }
 
     } catch (error) {
       console.error("❌ Live Fetch Error:", error);
-      if (error.message.includes("Unauthorized") || error.message.includes("401") || error.message.includes("403")) {
-        setUiState(prev => ({ ...prev, isSessionExpired: true }));
+      // Sirf GMB reconnect flag — app se logout NAHI.
+      if (error.message === "GmbReconnectRequired") {
+        setUiState(prev => ({ ...prev, needsGmbReconnect: true }));
+        refreshGmb();
       }
     } finally {
       setInitialFetchDone(true);
       setLoading(false);
       fetchInProgress.current = false;
     }
-  }, [session, status, setUiState]);
+  }, [gmbConnected, gmbEmail, refreshGmb, setUiState]);
 
-  // Orchestration: Fetch DB hamesha, Google Live agar session hai toh hamesha
+  // Orchestration: DB hamesha, Google live tab jab GMB connected ho
   useEffect(() => {
     fetchAdminListings();
 
-    if (session?.user?.email && status === "authenticated" && !initialFetchDone) {
+    if (gmbConnected && !initialFetchDone) {
       fetchInitialData();
     }
-  }, [session?.user?.email, status, initialFetchDone, fetchAdminListings, fetchInitialData]);
+  }, [gmbConnected, initialFetchDone, fetchAdminListings, fetchInitialData]);
 
   // Priority Logic for UI: Live Data > Database Data
   const activeListings = useMemo(() => {
@@ -163,21 +193,37 @@ export function useGMB(session, status, setUiState) {
       await fetchAdminListings();
     }
 
-    if (session?.user?.email) {
-      removeSessionStorage(getCacheKey(session.user.email));
-      await fetchInitialData(true);
+    if (gmbEmail) removeSessionStorage(getCacheKey(gmbEmail));
+    if (gmbConnected) await fetchInitialData(true);
+  }, [gmbConnected, gmbEmail, fetchAdminListings, fetchInitialData]);
+
+  // GMB disconnect — app login ko haath nahi lagta.
+  const handleDisconnectGMB = useCallback(async () => {
+    const ok = await disconnectGmb();
+    if (ok) {
+      if (gmbEmail) removeSessionStorage(getCacheKey(gmbEmail));
+      setAccounts([]);
+      setListings([]);
+      setInitialFetchDone(false);
+      toast.success("Google Business Profile disconnected");
     }
-  }, [session?.user?.email, fetchAdminListings, fetchInitialData]);
+    return ok;
+  }, [disconnectGmb, gmbEmail]);
 
   return {
     accounts,
-    loading,
+    loading: loading || gmb.loading,
     initialFetchDone,
     noAccountsFound,
     listings,
     activeListings,
     summary,
     fetchInitialData,
-    handleManualRefresh
+    handleManualRefresh,
+    handleDisconnectGMB,
+    // Connection state — UI "Connect" / "Reconnect" isse decide karta hai.
+    gmbConnected: gmb.connected,
+    needsGmbReconnect: gmb.needsReconnect,
+    connectGMB: gmb.connect,
   };
 }

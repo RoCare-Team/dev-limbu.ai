@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { useGmbConnection } from "@/hooks/useGmbConnection";
 import { useSearchParams } from "next/navigation";
 import { AlertTriangle, Building2, CheckCircle2, Loader2, LogOut, Mail } from "lucide-react";
 import { getLimbuWhatsAppChatUrl } from "@/lib/chatbotPlatformOAuthState";
@@ -84,7 +84,22 @@ function BusinessCard({ loc, verified }) {
 
 function ConnectGoogleBusinessInner() {
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+
+  // NextAuth ki jagah GMB connection. Neeche ka `status` / `session` code jaisa
+  // hai waisa chalta rahe, isliye wahi shape yahan bana dete hain.
+  const gmb = useGmbConnection();
+  const status = gmb.loading
+    ? "loading"
+    : gmb.connected
+      ? "authenticated"
+      : "unauthenticated";
+  const session = gmb.connected
+    ? {
+        user: { email: gmb.email, name: gmb.name, image: gmb.image },
+        // Asli token ab browser me nahi aata — ye sirf "connected" ka flag hai.
+        accessToken: true,
+      }
+    : null;
 
   // Phone is the ONLY identifier — no session_id anywhere
   const phone = normalizePhone(searchParams.get("phone") || "");
@@ -193,10 +208,10 @@ function ConnectGoogleBusinessInner() {
     if (typeof window === "undefined") return;
     const origin = window.location.origin;
     const qs     = phone ? `?phone=${phone}` : "";
-    const callbackUrl = `${origin}/connect-google-business${qs}`;
+    const callbackUrl = `/connect-google-business${qs}`;
     setSignInError(false);
     setAutoSignInTriggered(true);
-    void signIn("google", { callbackUrl }).catch(() => setSignInError(true));
+    void gmb.connect(callbackUrl).catch(() => setSignInError(true));
   };
 
   const handleContinue = useCallback(async () => {
@@ -269,10 +284,13 @@ function ConnectGoogleBusinessInner() {
     void handleGoogleSignIn();
   }, [handleGoogleSignIn, phone]);
 
-  const handleSwitchAccount = useCallback(() => {
+  // Pehle `signOut()` tha — user app se hi logout ho jata tha. Ab sirf GMB
+  // disconnect karke naya Google account connect karne dete hain.
+  const handleSwitchAccount = useCallback(async () => {
     const qs = phone ? `?phone=${phone}` : "";
-    void signOut({ callbackUrl: `/connect-google-business${qs}` });
-  }, [phone]);
+    await gmb.disconnect();
+    await gmb.connect(`/connect-google-business${qs}`);
+  }, [gmb, phone]);
 
   // After OAuth full page reload: restore "new Google account" flow for existing numbers
   useEffect(() => {

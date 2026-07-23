@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Lottie from "lottie-react";

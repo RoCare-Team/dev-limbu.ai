@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useGmbConnection } from "@/hooks/useGmbConnection";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -20,11 +20,10 @@ import { toast, Toaster } from "react-hot-toast";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
 import { getLocalStorage } from "@/utils/storage";
-import { fetchLocationInsights } from "@/utils/fetchLocationInsights";
-import { fetchSearchKeywords } from "@/utils/fetchSearchKeywords";
+import { fetchInsightsViaServer } from "@/utils/fetchInsightsViaServer";
 
 export default function GmbInsightsPage() {
-  const { data: session, status } = useSession();
+  const gmb = useGmbConnection();
   const router = useRouter();
 
   const [locations, setLocations] = useState([]);
@@ -44,16 +43,16 @@ export default function GmbInsightsPage() {
   });
   const [endDate, setEndDate] = useState(new Date());
 
-  // Redirect if not authenticated
+  // GMB connected na ho to connect par bhejo — app se logout NAHI.
   useEffect(() => {
-    if (status === "unauthenticated") {
-      signIn("google", { callbackUrl: "/gmb-insights" });
+    if (!gmb.loading && !gmb.connected) {
+      gmb.connect("/gmb-insights");
     }
-  }, [status]);
+  }, [gmb.loading, gmb.connected]);
 
   // Load locations from localStorage
   useEffect(() => {
-    if (status === "authenticated") {
+    if (gmb.connected) {
       const locationDetails = getLocalStorage("locationDetails");
       if (locationDetails) {
         try {
@@ -66,7 +65,7 @@ export default function GmbInsightsPage() {
       }
       setLoading(false);
     }
-  }, [status]);
+  }, [gmb.connected]);
 
   // Handle View Insights
   const handleViewInsights = async (location) => {
@@ -87,15 +86,13 @@ export default function GmbInsightsPage() {
 
     try {
       const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(defaultStartDate, defaultEndDate);
-      const insights = await fetchLocationInsights(session.accessToken, location.locationId, fetchStart, insightSeriesEnd);
-      setInsightsData(insights);
 
       const currentDate = new Date();
       const startMonth = {
         year: currentDate.getFullYear(),
         month: currentDate.getMonth() - 3
       };
-      
+
       if (startMonth.month <= 0) {
         startMonth.month += 12;
         startMonth.year -= 1;
@@ -106,9 +103,17 @@ export default function GmbInsightsPage() {
         month: currentDate.getMonth() + 1
       };
 
-      const keywords = await fetchSearchKeywords(session.accessToken, location.locationId, startMonth, endMonth);
-      setSearchKeywordsData(keywords);
-      
+      // Access token ab server par hi rehta hai — proxy route se lete hain.
+      const { insights, searchKeywords } = await fetchInsightsViaServer({
+        locationId: location.locationId,
+        startDate: fetchStart,
+        endDate: insightSeriesEnd,
+        startMonth,
+        endMonth,
+      });
+      setInsightsData(insights);
+      setSearchKeywordsData(searchKeywords);
+
       setShowInsightsModal(true);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -142,12 +147,11 @@ export default function GmbInsightsPage() {
     setInsightsLoading(true);
     try {
       const { fetchStart, reportEnd: insightSeriesEnd } = getPerformanceInsightsWindows(parsedStartDate, parsedEndDate);
-      const insights = await fetchLocationInsights(
-        session.accessToken,
+      const { insights } = await fetchInsightsViaServer({
         locationId,
-        fetchStart,
-        insightSeriesEnd
-      );
+        startDate: fetchStart,
+        endDate: insightSeriesEnd,
+      });
       setInsightsData(insights);
     } catch (error) {
       console.error("Error fetching insights:", error);
@@ -168,7 +172,7 @@ export default function GmbInsightsPage() {
   });
 
   // Loading state
-  if (status === "loading" || (status === "authenticated" && loading)) {
+  if (gmb.loading || (gmb.connected && loading)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center flex flex-col items-center justify-center">
@@ -181,7 +185,7 @@ export default function GmbInsightsPage() {
     );
   }
 
-  if (status === "unauthenticated") {
+  if (!gmb.connected) {
     return null;
   }
 

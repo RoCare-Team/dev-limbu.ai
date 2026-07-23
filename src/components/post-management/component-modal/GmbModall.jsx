@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { startGmbConnect } from "@/hooks/useGmbConnection";
 
 export default function GMBModal({
   showGmbExpiredModal,
@@ -49,7 +49,7 @@ export default function GMBModal({
         </button>
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          onClick={() => startGmbConnect("/dashboard")}
           className="px-6 py-2 rounded-xl bg-[#EAB308] text-white font-semibold hover:scale-105 transition"
         >
           Connect Business

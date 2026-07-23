@@ -15,7 +15,7 @@ const faqs = [
   {
     question: "Can I manage multiple locations for different clients?",
     answer:
-      "Absolutely. Limbu.ai is designed for scale. You can toggle between different brands or locations within the same dashboard, making it the perfect tool for digital agencies.",
+      "Absolutely. Limbu.ai is built for scale. Whether you operate multiple branches, franchises, or brands, you can manage them all from a single dashboard—making it the perfect solution for growing multi-location businesses.",
   },
   {
     question: "Does Limbu.ai actually write the content for me?",

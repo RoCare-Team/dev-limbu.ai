@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getGmbSession } from '@/lib/gmbSession';
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email || !session?.accessToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

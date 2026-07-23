@@ -10,7 +10,7 @@ import {
   BarChart3,
   LogOut,
 } from "lucide-react";
-import { signIn, signOut } from "next-auth/react";
+import { startGmbConnect } from "@/hooks/useGmbConnection";
 import DisconnectProfileModal from "@/components/modals/DisconnectProfileModal";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -30,14 +30,11 @@ const GMBColumn = React.memo(
   }) => {
     const [isDisconnectModalOpen, setIsDisconnectModalOpen] =
       React.useState(false);
+    // Pehle fallback me `signOut()` tha — GMB disconnect karne par user app se
+    // hi logout ho jata tha. Ab disconnect sirf GMB connection hataata hai.
     const handleConfirmDisconnect = React.useCallback(async () => {
-      if (handleDisconnectGMB) {
-        const disconnected = await handleDisconnectGMB();
-        if (disconnected) setIsDisconnectModalOpen(false);
-        return;
-      }
-
-      signOut({ callbackUrl: "/login" });
+      const disconnected = await handleDisconnectGMB?.();
+      if (disconnected !== false) setIsDisconnectModalOpen(false);
     }, [handleDisconnectGMB]);
 
     return (
@@ -239,13 +236,9 @@ const GMBColumn = React.memo(
                   <button
                     onClick={async () => {
                       try {
-                        const userId = localStorage.getItem("userId");
-
-                        console.log("Connecting GMB...", userId);
-
-                        await signIn("google", {
-                          callbackUrl: `/dashboard?userId=${userId}`,
-                        });
+                        // userId ab server-side session se aata hai — URL me
+                        // bhejne ki zaroorat nahi (aur wo spoofable bhi tha).
+                        await startGmbConnect("/dashboard");
                       } catch (err) {
                         console.error(err);
                       }

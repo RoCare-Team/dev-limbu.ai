@@ -13,6 +13,9 @@ const AdminBusinessSchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
+// Sorted pagination needs an index, otherwise deep skips blow the 32MB in-memory sort limit
+AdminBusinessSchema.index({ timestamp: -1, _id: -1 });
+
 /** Dedicated connection */
 let dashboardConn = null;
 
@@ -154,9 +157,11 @@ export async function GET(req) {
       };
 
       const allBusinesses = await AdminBusiness.find({})
-        .sort({ timestamp: -1 })
+        .sort({ timestamp: -1, _id: -1 })
         .skip((page - 1) * limit)
-        .limit(limit);
+        .limit(limit)
+        .allowDiskUse(true)
+        .lean();
       
       // Map to the format expected by the frontend
       const formattedListings = allBusinesses.map(biz => ({
@@ -206,7 +211,7 @@ export async function GET(req) {
   } catch (err) {
     console.error("Get listings error:", err);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", detail: err?.message },
       { status: 500 }
     );
   }

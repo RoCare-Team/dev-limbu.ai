@@ -50,8 +50,8 @@ export function useGmbConnection() {
   }, [refresh]);
 
   /** Google consent par bhejta hai. `signIn("google")` ki jagah. */
-  const connect = useCallback(async (callbackUrl = "/dashboard") => {
-    await startGmbConnect(callbackUrl);
+  const connect = useCallback(async (callbackUrl = "/dashboard", options) => {
+    await startGmbConnect(callbackUrl, options);
   }, []);
 
   /** `signOut()` ki jagah — sirf GMB hatata hai, app logout nahi karta. */
@@ -74,8 +74,12 @@ export function useGmbConnection() {
  * par "page apne aap refresh ho gaya" jaisa dikhta tha. Ab failure par sirf error
  * throw hota hai aur caller toast dikhata hai.
  */
-export async function startGmbConnect(callbackUrl = "/dashboard") {
-  const url = `/api/gmb/connect?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+export async function startGmbConnect(callbackUrl = "/dashboard", options = {}) {
+  // `phone` sirf WhatsApp chatbot flow (/connect-google-business) bhejta hai,
+  // jahan user app me logged in nahi hota.
+  const params = new URLSearchParams({ callbackUrl });
+  if (options.phone) params.set("phone", options.phone);
+  const url = `/api/gmb/connect?${params.toString()}`;
 
   await ensureAppSessionCookie();
   let res = await fetch(url, { method: "POST" });

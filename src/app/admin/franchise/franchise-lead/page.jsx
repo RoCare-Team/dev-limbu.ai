@@ -129,12 +129,8 @@ const OFFER_SAVINGS_AMOUNT = Math.round(
   (OFFER_BASE_AMOUNT * OFFER_DISCOUNT_PERCENT) / 100,
 );
 
-/** yyyy-mm-dd (input[type=date]) → dd-mm-yyyy for the WhatsApp param. */
-function toDdMmYyyy(value) {
-  if (!value) return "";
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value).trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(value).trim();
-}
+/** {{3}} = fixed validity text — reads as "Offer valid till the offer expires". */
+const OFFER_VALIDITY_TEXT = "the offer expires";
 
 /** IVR interest timestamp from API (ISO string) → readable India locale. */
 function formatIvrInterestedAtDisplay(iso) {
@@ -296,7 +292,6 @@ export default function FranchiseLeadsPage() {
   /** Franchise offer template (franchise_off_new) — 20% off + validity date */
   const [isOfferTemplateModalOpen, setIsOfferTemplateModalOpen] =
     useState(false);
-  const [offerValidDate, setOfferValidDate] = useState(""); // yyyy-mm-dd from input
   const [sendingOfferMsg, setSendingOfferMsg] = useState(false);
 
   const handleFilterChange = (setter, value) => {
@@ -1927,14 +1922,8 @@ export default function FranchiseLeadsPage() {
     }
   };
 
-  /** franchise_off_new: {{1}} name, {{2}} savings amount, {{3}} valid till (dd-mm-yyyy) */
+  /** Offer template: {{1}} name, {{2}} savings amount, {{3}} validity text */
   const handleSendOfferTemplate = async () => {
-    const validTill = toDdMmYyyy(offerValidDate);
-    if (!/^\d{2}-\d{2}-\d{4}$/.test(validTill)) {
-      toast.error("Please select the offer validity date");
-      return;
-    }
-
     const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
     let picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
     if (picked.length === 0 && selectedLead) picked = [selectedLead];
@@ -1973,7 +1962,7 @@ export default function FranchiseLeadsPage() {
         const res = await fetch("/api/franchise-leads/send-offer-template", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ validTill, recipients: chunk }),
+          body: JSON.stringify({ recipients: chunk }),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -4957,7 +4946,7 @@ export default function FranchiseLeadsPage() {
 
                     <p className="mb-4">
                       Offer valid till{" "}
-                      <b>{toDdMmYyyy(offerValidDate) || "{{3}}"}</b>.
+                      <b>{OFFER_VALIDITY_TEXT}</b>.
                     </p>
 
                     <p className="mb-4">
@@ -4987,22 +4976,6 @@ export default function FranchiseLeadsPage() {
                   </button>
                 </div>
 
-                {/* Validity date input */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Offer valid till (dd-mm-yyyy)
-                  </label>
-                  <input
-                    type="date"
-                    value={offerValidDate}
-                    onChange={(e) => setOfferValidDate(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Template me bheja jayega:{" "}
-                    <b>{toDdMmYyyy(offerValidDate) || "—"}</b>
-                  </p>
-                </div>
 
                 <div className="bg-white rounded-xl border border-gray-200 p-4 text-sm text-gray-600">
                   <div className="flex justify-between py-1">
@@ -5021,7 +4994,7 @@ export default function FranchiseLeadsPage() {
                 <button
                   type="button"
                   onClick={handleSendOfferTemplate}
-                  disabled={sendingOfferMsg || !offerValidDate}
+                  disabled={sendingOfferMsg}
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
                 >
                   {sendingOfferMsg ? (

@@ -27,35 +27,8 @@ function normalizeNumber(num) {
   return n;
 }
 
-/** Accepts dd-mm-yyyy or yyyy-mm-dd (input[type=date]) → dd-mm-yyyy. */
-function normalizeValidDate(value) {
-  if (!value) return null;
-  const s = String(value).trim();
-
-  let m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s);
-  if (m) {
-    const [, dd, mm, yyyy] = m;
-    return isRealDate(dd, mm, yyyy) ? `${dd}-${mm}-${yyyy}` : null;
-  }
-
-  m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (m) {
-    const [, yyyy, mm, dd] = m;
-    return isRealDate(dd, mm, yyyy) ? `${dd}-${mm}-${yyyy}` : null;
-  }
-
-  return null;
-}
-
-/** Calendar-only check (no timezone involved) — rejects 31-02-2026 etc. */
-function isRealDate(dd, mm, yyyy) {
-  const day = parseInt(dd, 10);
-  const month = parseInt(mm, 10);
-  const year = parseInt(yyyy, 10);
-  if (month < 1 || month > 12 || day < 1) return false;
-  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return day <= daysInMonth;
-}
+/** {{3}} = fixed validity text — reads as "Offer valid till the offer expires". */
+const VALIDITY_TEXT = "the offer expires";
 
 /** 20% of 5,00,000 → "1,00,000" (Indian grouping). */
 function getSavingsAmount() {
@@ -107,7 +80,6 @@ async function sendOfferTemplate({ destination, firstName, validTill, savings })
 
 /**
  * POST {
- *   validTill: "dd-mm-yyyy" | "yyyy-mm-dd",
  *   recipients: { phone: string, firstName?: string }[]
  *   // or single: { phone, firstName }
  * }
@@ -116,16 +88,7 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    const validTill = normalizeValidDate(body.validTill);
-    if (!validTill) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "validTill is required in dd-mm-yyyy format",
-        },
-        { status: 400 },
-      );
-    }
+    const validTill = VALIDITY_TEXT;
 
     const raw = Array.isArray(body.recipients)
       ? body.recipients

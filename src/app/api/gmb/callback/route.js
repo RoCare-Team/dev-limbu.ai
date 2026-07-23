@@ -5,7 +5,8 @@ import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import User from "@/models/User";
-import { gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
+import { gmbRedirectUri, GMB_BASE_URL, resolveGmbOwnerId } from "@/lib/gmbSession";
+import { createGmbPhoneToken, gmbPhoneCookieOptions } from "@/lib/appSession";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,8 @@ export async function GET(request) {
   if (oauthError) {
     return redirectBack(request, callbackUrl, { gmb_error: oauthError });
   }
-  if (!payload?.userId) {
+  // State me ya to app ka userId hota hai, ya chatbot flow ka phone.
+  if (!payload?.userId && !payload?.phone) {
     // State expire ya tampered — user dobara "Connect" dabaye. Auto-retry loop NAHI.
     return redirectBack(request, "/dashboard", { gmb_error: "invalid_state" });
   }
@@ -84,7 +86,12 @@ export async function GET(request) {
 
     await dbConnect();
 
-    const existing = await GmbConnection.findOne({ userId: payload.userId });
+    // Chatbot flow me key phone se aati hai — agar us phone ka asli User mil
+    // jaye to uske userId par hi store hota hai, warna `phone:<digits>`.
+    const phone = payload.phone || null;
+    const ownerId = payload.userId || (await resolveGmbOwnerId(phone));
+
+    const existing = await GmbConnection.findOne({ userId: ownerId });
     // Google re-consent par kabhi-kabhi refresh_token nahi bhejta — purana rakho.
     const refreshToken = tokens.refresh_token || existing?.refreshToken || null;
 
@@ -94,10 +101,11 @@ export async function GET(request) {
 
     const now = new Date();
     await GmbConnection.findOneAndUpdate(
-      { userId: payload.userId },
+      { userId: ownerId },
       {
         $set: {
-          userId: payload.userId,
+          userId: ownerId,
+          ...(phone ? { phone } : {}),
           googleId: profile.sub,
           email: profile.email,
           name: profile.name,
@@ -117,9 +125,20 @@ export async function GET(request) {
 
     // Legacy mirror: purane code paths (admin panel, login-as-user) abhi bhi
     // GmbUser.projects[] padhte hain, isliye dono jagah likhte hain.
-    await syncLegacyGmbUser(payload.userId, profile, tokens, refreshToken, now);
+    await syncLegacyGmbUser(ownerId, profile, tokens, refreshToken, now);
 
-    return redirectBack(request, callbackUrl, { gmb_connected: "1" });
+    const response = redirectBack(request, callbackUrl, { gmb_connected: "1" });
+
+    // Chatbot user app me logged in nahi hai. Use GMB-only, short-lived cookie
+    // do taaki wapas aakar my-locations / sync-and-save call kar sake.
+    if (phone) {
+      response.cookies.set({
+        ...gmbPhoneCookieOptions(),
+        value: createGmbPhoneToken(phone),
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error("[gmb/callback]", error.response?.data || error.message);
     return redirectBack(request, callbackUrl, { gmb_error: "token_exchange_failed" });

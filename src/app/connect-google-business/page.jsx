@@ -206,12 +206,18 @@ function ConnectGoogleBusinessInner() {
 
   const handleGoogleSignIn = () => {
     if (typeof window === "undefined") return;
-    const origin = window.location.origin;
-    const qs     = phone ? `?phone=${phone}` : "";
-    const callbackUrl = `/connect-google-business${qs}`;
+    const source = searchParams.get("source");
+    const qs = new URLSearchParams();
+    if (phone) qs.set("phone", phone);
+    if (source) qs.set("source", source);
+    const query = qs.toString();
+    const callbackUrl = `/connect-google-business${query ? `?${query}` : ""}`;
+
     setSignInError(false);
     setAutoSignInTriggered(true);
-    void gmb.connect(callbackUrl).catch(() => setSignInError(true));
+    // Yahan user app me logged in nahi hota — phone hi identity hai, isliye
+    // wo connect route ko bhejna zaroori hai warna 401 milta hai.
+    void gmb.connect(callbackUrl, { phone }).catch(() => setSignInError(true));
   };
 
   const handleContinue = useCallback(async () => {
@@ -289,7 +295,7 @@ function ConnectGoogleBusinessInner() {
   const handleSwitchAccount = useCallback(async () => {
     const qs = phone ? `?phone=${phone}` : "";
     await gmb.disconnect();
-    await gmb.connect(`/connect-google-business${qs}`);
+    await gmb.connect(`/connect-google-business${qs}`, { phone });
   }, [gmb, phone]);
 
   // After OAuth full page reload: restore "new Google account" flow for existing numbers

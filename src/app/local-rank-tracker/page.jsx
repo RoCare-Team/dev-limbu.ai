@@ -516,21 +516,6 @@ export default function RankTrackerPage() {
                   </p>
                 </div>
               </div>
-              {averagePosition?.averageRank != null && (
-                <div className="bg-white border border-slate-100 rounded-3xl p-4 px-6 shadow-xl shadow-slate-100 flex items-center gap-4">
-                  <div className="bg-indigo-50 p-3 rounded-2xl text-indigo-600">
-                    <Gauge size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-widest font-black text-slate-400">
-                      Avg. Position
-                    </p>
-                    <p className="text-xl font-black text-slate-800">
-                      #{averagePosition.averageRank.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>

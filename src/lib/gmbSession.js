@@ -3,7 +3,7 @@ import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import User from "@/models/User";
-import { getAppUser } from "@/lib/appSession";
+import { getAppUser, getGmbPhone } from "@/lib/appSession";
 
 /** Token ko expiry se itna pehle hi refresh kar do, taaki in-flight call fail na ho. */
 const REFRESH_SKEW_MS = 5 * 60 * 1000;
@@ -146,6 +146,31 @@ export async function getGmbConnection(userId) {
 }
 
 /**
+ * Chatbot flow ka connection — phone se.
+ * Pehle asli User dekhte hain (tab connection uske userId par hota hai),
+ * warna `phone:<digits>` wala standalone record.
+ */
+export async function getGmbConnectionByPhone(phone) {
+  if (!phone) return null;
+  await dbConnect();
+
+  const appUser = await User.findOne({ phone }).lean();
+  if (appUser?.userId) {
+    const byUser = await getGmbConnection(appUser.userId);
+    if (byUser) return byUser;
+  }
+
+  return GmbConnection.findOne({ phone });
+}
+
+/** Chatbot connection kis key par store hoga. */
+export async function resolveGmbOwnerId(phone) {
+  await dbConnect();
+  const appUser = await User.findOne({ phone }).lean();
+  return appUser?.userId || `phone:${phone}`;
+}
+
+/**
  * `getServerSession(authOptions)` ka drop-in replacement.
  *
  * Bilkul wahi shape lautata hai jo NextAuth lautata tha —
@@ -157,7 +182,38 @@ export async function getGmbConnection(userId) {
  */
 export async function getGmbSession(request) {
   const appUser = getAppUser(request);
-  if (!appUser?.userId) return null;
+
+  // App login nahi hai — chatbot flow ki GMB-only phone cookie try karo.
+  if (!appUser?.userId) {
+    const phone = getGmbPhone(request);
+    if (!phone) return null;
+
+    const conn = await getGmbConnectionByPhone(phone);
+    if (!conn) {
+      return {
+        user: { email: null, id: null },
+        userId: null,
+        phone,
+        accessToken: null,
+        refreshToken: null,
+        hasConnection: false,
+        gmbConnected: false,
+        needsReconnect: false,
+      };
+    }
+
+    const accessToken = await ensureFreshToken(conn);
+    return {
+      user: { email: conn.email || null, id: conn.userId },
+      userId: conn.userId,
+      phone,
+      accessToken,
+      refreshToken: conn.refreshToken || null,
+      hasConnection: true,
+      gmbConnected: !!accessToken && !conn.invalid,
+      needsReconnect: !!conn.invalid,
+    };
+  }
 
   const conn = await getGmbConnection(appUser.userId);
   if (!conn) {
@@ -207,7 +263,8 @@ export async function getGmbSession(request) {
 export async function requireGmbSession(request) {
   const session = await getGmbSession(request);
 
-  if (!session?.user?.id) {
+  // Identity ya to app login se aati hai ya chatbot ki phone cookie se.
+  if (!session || (!session.user?.id && !session.phone)) {
     return {
       session: null,
       error: {

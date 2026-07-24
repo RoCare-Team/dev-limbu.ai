@@ -103,31 +103,46 @@ async function refreshGoogleToken(refreshToken, planId) {
 
   if (!refreshToken) throw new Error('No refreshToken stored in AutomationPlan');
 
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID     || '',
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-      refresh_token: refreshToken,
-      grant_type:    'refresh_token',
-    }),
-  });
+  // Transient failures (network / 5xx) par retry — ek Google hiccup se poora
+  // automation post window miss nahi hona chahiye. invalid_grant par turant fail
+  // (refresh token sach me mar gaya, reconnect chahiye — retry se fayda nahi).
+  const MAX_ATTEMPTS = 3;
+  let lastData = null;
 
-  const data = await res.json();
-  console.log('[CRON] 🔑 Token refresh HTTP status:', res.status, '| error:', data.error || 'none');
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id:     process.env.GOOGLE_CLIENT_ID     || '',
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+        refresh_token: refreshToken,
+        grant_type:    'refresh_token',
+      }),
+    });
 
-  if (!res.ok) {
-    throw new Error(data.error_description || data.error || 'Token refresh failed');
+    const data = await res.json();
+    lastData = data;
+    console.log(`[CRON] 🔑 Token refresh attempt ${attempt}/${MAX_ATTEMPTS} — HTTP ${res.status} | error: ${data.error || 'none'}`);
+
+    if (res.ok) {
+      const newAccessToken = data.access_token;
+      // Persist fresh token back to the plan so subsequent cron runs work without refresh
+      await AutomationPlan.updateOne({ _id: planId }, { $set: { accessToken: newAccessToken } });
+      console.log('[CRON] 🔑 New accessToken saved to AutomationPlan');
+      return newAccessToken;
+    }
+
+    if (data.error === 'invalid_grant') {
+      throw new Error('invalid_grant: user must reconnect GMB');
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
   }
 
-  const newAccessToken = data.access_token;
-
-  // Persist fresh token back to the plan so subsequent cron runs work without refresh
-  await AutomationPlan.updateOne({ _id: planId }, { $set: { accessToken: newAccessToken } });
-  console.log('[CRON] 🔑 New accessToken saved to AutomationPlan');
-
-  return newAccessToken;
+  throw new Error(lastData?.error_description || lastData?.error || 'Token refresh failed');
 }
 
 // ─── GMB posting ──────────────────────────────────────────────────────────────

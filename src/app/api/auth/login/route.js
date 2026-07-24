@@ -242,6 +242,7 @@ export async function POST(req) {
         fullName: name,
         email,
         phone,
+        fcmToken: otpRecord.fcmtoken || fcmtoken || null,
         referCode: cleanAgentCode || cleanReferCode || referCode,
         franchiseId,
         referredByAgentId,
@@ -287,6 +288,16 @@ export async function POST(req) {
       void runWelcomeBonusForUserId(user.userId).catch((err) =>
         console.error("runWelcomeBonusForUserId", err),
       );
+    }
+
+    /* ======================================================
+       SAVE FCM TOKEN (existing user ke liye — har login pe refresh)
+    ====================================================== */
+    // OTP delete karne se pehle fcmtoken user pe save karo, warna token permanently lost ho jayega
+    const incomingFcmToken = otpRecord.fcmtoken || fcmtoken || null;
+    if (incomingFcmToken && user.fcmToken !== incomingFcmToken) {
+      user.fcmToken = incomingFcmToken;
+      await user.save();
     }
 
     /* ======================================================

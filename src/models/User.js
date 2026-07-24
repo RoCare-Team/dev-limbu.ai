@@ -181,6 +181,9 @@ const userSchema = new mongoose.Schema(
     otp: { type: String },
     otpExpiresAt: { type: Date },
 
+    /** Firebase Cloud Messaging token for push notifications (from app login) */
+    fcmToken: { type: String, default: null },
+
     /* DEPRECATED: automationSettings (migrated to AutomationPlan model 2024)
        Keep for legacy data during transition. Remove after migration complete.
     automationSettings: {

@@ -36,6 +36,7 @@ import dbConnect        from '@/lib/dbConnect';
 import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
+import { getGmbConnection } from '@/lib/gmbSession';
 import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
   matchesPostingWindow,
@@ -697,18 +698,36 @@ export async function GET(request) {
     // If GMB post later returns 401/403, we refresh again and retry (step 9 below).
     let accessToken = storedAccessToken;
 
+    // Live token PEHLE (GmbConnection se, resolvedUserId ke against). AutomationPlan
+    // par stored refreshToken ek snapshot hai — agar user settings save karne ke BAAD
+    // GMB reconnect kar le, Google naya refresh token deta hai aur purana revoke ho
+    // jata hai. Tab snapshot invalid_grant se fail hoke automation chup-chaap ruk
+    // jati. Live token us reconnect ko survive karta hai; snapshot fallback rehta hai.
+    let effectiveRefreshToken = storedRefreshToken;
+    if (wantGmb) {
+      try {
+        const conn = await getGmbConnection(resolvedUserId);
+        if (conn?.refreshToken && !conn.invalid) {
+          effectiveRefreshToken = conn.refreshToken;
+          log('Using live refreshToken from GmbConnection (survives reconnect).');
+        }
+      } catch (connErr) {
+        log(`⚠ GmbConnection lookup failed, using AutomationPlan snapshot: ${connErr.message}`);
+      }
+    }
+
     console.log('[CRON] 🔑 Stored accessToken length:', storedAccessToken?.length || 0);
-    console.log('[CRON] 🔑 Stored refreshToken length:', storedRefreshToken?.length || 0);
+    console.log('[CRON] 🔑 Effective refreshToken length:', effectiveRefreshToken?.length || 0);
 
     if (wantGmb) {
       // ALWAYS refresh when a refreshToken exists. Google access tokens expire in
       // ~1h, so the stored token is almost always stale. Diagnostic proved the
       // stale token creates the post but the PHOTO upload fails ("Photo gallery
       // upload failed") — a fresh token fixes it. Fall back to stored on failure.
-      if (storedRefreshToken) {
+      if (effectiveRefreshToken) {
         log('Refreshing Google access token (proactive — stored token is likely expired)…');
         try {
-          accessToken = await refreshGoogleToken(storedRefreshToken, planId);
+          accessToken = await refreshGoogleToken(effectiveRefreshToken, planId);
           log(`✓ Fresh access token obtained via refresh (length=${accessToken.length})`);
         } catch (tokenErr) {
           log(`⚠ Token refresh failed: ${tokenErr.message} — falling back to stored token (may be expired)`);
@@ -908,10 +927,10 @@ export async function GET(request) {
         if (gmbResult.ok) break;
 
         // Auth failure → refresh token before the next attempt.
-        if ((gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && storedRefreshToken) {
+        if ((gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && effectiveRefreshToken) {
           log(`⚠ Google auth rejected (httpStatus=${gmbResult.httpStatus}) — refreshing token before retry…`);
           try {
-            accessToken = await refreshGoogleToken(storedRefreshToken, planId);
+            accessToken = await refreshGoogleToken(effectiveRefreshToken, planId);
             log(`✓ New accessToken obtained (length=${accessToken.length})`);
           } catch (refreshErr) {
             log(`✗ Token refresh failed: ${refreshErr.message}`);

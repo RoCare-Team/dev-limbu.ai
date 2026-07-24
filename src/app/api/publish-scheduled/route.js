@@ -8,6 +8,7 @@ import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
+import { getGmbConnection } from "@/lib/gmbSession";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
 
@@ -678,10 +679,26 @@ export async function GET(req) {
 
       // ── GMB ─────────────────────────────────────────────
       if (hasGmb) {
-        const refreshToken = post.refreshToken;
+        // Live token PEHLE (GmbConnection se, userId ke against). Reason: post par
+        // stored refreshToken ek snapshot hai — agar user schedule karne ke BAAD
+        // GMB reconnect kar le (Google naya refresh token deta hai, purana revoke
+        // ho jata hai), to snapshot invalid_grant se fail hoga. Live token us
+        // reconnect ko survive karta hai. Snapshot sirf fallback hai (purane
+        // scheduled posts / connection na milne par).
+        let liveRefreshToken = null;
+        try {
+          const conn = await getGmbConnection(post.userId);
+          if (conn?.refreshToken && !conn.invalid) {
+            liveRefreshToken = conn.refreshToken;
+          }
+        } catch (connErr) {
+          log("⚠ GmbConnection lookup failed, will use post snapshot:", connErr.message);
+        }
+
+        const refreshToken = liveRefreshToken || post.refreshToken;
         if (!refreshToken) {
-          log("❌ No refresh token on post document:", postId);
-          slog.fail("publish:gmb", "no Google refreshToken stored on scheduled post — re-save user-settings");
+          log("❌ No refresh token (neither live connection nor post):", postId);
+          slog.fail("publish:gmb", "no Google refreshToken — user must reconnect GMB");
           post.whenPosted = markWhenFailed(
             post.whenPosted,
             "gmb",
@@ -693,7 +710,9 @@ export async function GET(req) {
         } else {
           try {
             log(
-              "🔑 Using stored refreshToken from post document to get a fresh access token.",
+              liveRefreshToken
+                ? "🔑 Using live refreshToken from GmbConnection."
+                : "🔑 Using stored refreshToken from post document (fallback).",
             );
             const accessToken = await getFreshAccessToken(refreshToken);
             const processedLocIds = new Set();

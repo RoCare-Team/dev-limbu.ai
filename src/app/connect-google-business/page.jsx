@@ -295,7 +295,8 @@ function ConnectGoogleBusinessInner() {
   const handleSwitchAccount = useCallback(async () => {
     const qs = phone ? `?phone=${phone}` : "";
     await gmb.disconnect();
-    await gmb.connect(`/connect-google-business${qs}`, { phone });
+    // Yahan consent screen zaroori hai — user naya Google account chun raha hai.
+    await gmb.reconnect(`/connect-google-business${qs}`, { phone });
   }, [gmb, phone]);
 
   // After OAuth full page reload: restore "new Google account" flow for existing numbers

@@ -54,6 +54,11 @@ export function useGmbConnection() {
     await startGmbConnect(callbackUrl, options);
   }, []);
 
+  /** Naya Google account chunne ke liye — consent screen force karta hai. */
+  const reconnect = useCallback(async (callbackUrl = "/dashboard", options) => {
+    await startGmbConnect(callbackUrl, { ...options, forceConsent: true });
+  }, []);
+
   /** `signOut()` ki jagah — sirf GMB hatata hai, app logout nahi karta. */
   const disconnect = useCallback(async () => {
     await ensureAppSessionCookie();
@@ -62,7 +67,7 @@ export function useGmbConnection() {
     return res.ok;
   }, [refresh]);
 
-  return { ...state, refresh, connect, disconnect };
+  return { ...state, refresh, connect, reconnect, disconnect };
 }
 
 /**
@@ -79,6 +84,9 @@ export async function startGmbConnect(callbackUrl = "/dashboard", options = {}) 
   // jahan user app me logged in nahi hota.
   const params = new URLSearchParams({ callbackUrl });
   if (options.phone) params.set("phone", options.phone);
+  // `forceConsent` tab jab user jaan-boojhkar Google account switch kar raha ho —
+  // warna consent screen apne aap skip ho jata hai agar connection pehle se hai.
+  if (options.forceConsent) params.set("consent", "1");
   const url = `/api/gmb/connect?${params.toString()}`;
 
   await ensureAppSessionCookie();

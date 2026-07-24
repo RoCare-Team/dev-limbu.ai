@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getAppUser } from "@/lib/appSession";
-import { GMB_SCOPE, gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
+import {
+  GMB_SCOPE,
+  gmbRedirectUri,
+  GMB_BASE_URL,
+  getGmbConnection,
+  getGmbConnectionByPhone,
+} from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -38,17 +44,45 @@ function buildAuthUrl(identity, callbackUrl, forceConsent) {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-function resolve(request) {
+/**
+ * Consent screen (`prompt=consent`) sirf tab dikhana chahiye jab hume ek naya
+ * refresh token chahiye — yaani pehli baar connect, ya reconnect after revoke.
+ *
+ * Agar pehle se ek valid connection (refresh token) maujood hai, to consent
+ * force karna hi wo "bar-bar permission maango" wala behaviour tha. Google is
+ * case me consent screen skip karke seedha wapas bhej deta hai (already
+ * authorized). Refresh token callback me preserve ho jata hai.
+ *
+ * `?consent=1` se caller jaan-boojhkar consent maang sakta hai (jaise "Switch
+ * account" flow), aur `?consent=0` kabhi force nahi karta.
+ */
+async function shouldForceConsent(request, identity) {
+  const consentParam = new URL(request.url).searchParams.get("consent");
+  if (consentParam === "1") return true;
+  if (consentParam === "0") return false;
+
+  // Default: valid connection hai to consent skip, warna force.
+  try {
+    const conn = identity.userId
+      ? await getGmbConnection(identity.userId)
+      : await getGmbConnectionByPhone(identity.phone);
+    const hasValid = !!conn?.refreshToken && !conn.invalid;
+    return !hasValid;
+  } catch {
+    // Shaq ho to force — nahi to refresh token miss ho sakta hai.
+    return true;
+  }
+}
+
+async function resolve(request) {
   const { searchParams } = new URL(request.url);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  // Pehla connect / reconnect — dono me refresh token chahiye.
-  const forceConsent = searchParams.get("consent") !== "0";
 
   const appUser = getAppUser(request);
   if (appUser?.userId) {
-    return {
-      url: buildAuthUrl({ userId: appUser.userId }, callbackUrl, forceConsent),
-    };
+    const identity = { userId: appUser.userId };
+    const forceConsent = await shouldForceConsent(request, identity);
+    return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
   }
 
   // WhatsApp chatbot flow: user app me logged in nahi hai, sirf phone hai.
@@ -56,7 +90,9 @@ function resolve(request) {
   // (check-phone, sync-and-save, gmb/status sab phone se hi kaam karte hain).
   const phone = String(searchParams.get("phone") || "").replace(/\D/g, "");
   if (phone) {
-    return { url: buildAuthUrl({ phone }, callbackUrl, forceConsent) };
+    const identity = { phone };
+    const forceConsent = await shouldForceConsent(request, identity);
+    return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
   }
 
   return { error: true };
@@ -64,7 +100,7 @@ function resolve(request) {
 
 /** JSON URL lauta ta hai — client `window.location.href` set karta hai. */
 export async function POST(request) {
-  const result = resolve(request);
+  const result = await resolve(request);
   if (result.error) {
     return NextResponse.json({ error: "Not logged in" }, { status: 401 });
   }
@@ -73,7 +109,7 @@ export async function POST(request) {
 
 /** Seedha link/redirect ke liye. */
 export async function GET(request) {
-  const result = resolve(request);
+  const result = await resolve(request);
   if (result.error) {
     // request.url proxy ke peeche localhost hota hai — fixed base use karo.
     return NextResponse.redirect(new URL("/login", GMB_BASE_URL));

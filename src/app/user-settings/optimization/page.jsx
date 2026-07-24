@@ -113,7 +113,9 @@ export default function OptimizationPage() {
 
         const [userR, settingsR] = await Promise.allSettled([
           fetch(`/api/auth/signup?userId=${encodeURIComponent(userId)}`),
-          fetch("/api/user-settings"),
+          // userId explicitly bhejo — warna route sirf session email par match
+          // karta hai, jo phone-login users me Google email se alag ho sakta hai.
+          fetch(`/api/user-settings?userId=${encodeURIComponent(userId)}`),
         ]);
 
         if (userR.status === "fulfilled" && userR.value.ok) {

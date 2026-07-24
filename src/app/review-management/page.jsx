@@ -10,7 +10,7 @@ import {
   Search,
   Filter,
 } from "lucide-react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import Link from "next/link";
 import { toast, Toaster } from "react-hot-toast";
 import ReviewCard from "@/components/review-management/ReviewCard";

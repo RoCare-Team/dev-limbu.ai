@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getGmbSession } from '@/lib/gmbSession';
 import OpenAI from 'openai';
 import {
   GMB_PROFILE_DESCRIPTION_MAX,
@@ -135,7 +134,7 @@ Output format (exactly this style — one area per line, leading hyphen, no extr
 
 export async function POST(request) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -294,9 +293,18 @@ export async function POST(request) {
       }
       const descCategory =
         String(context?.primaryCategory || (Array.isArray(context?.categoryHints) ? context.categoryHints[0] : '') || '').trim();
-      const sys =
-        'You are a Google Business Profile services copywriter. Use ONLY facts from the JSON context (business name, category, city). Ground the description in the specific service category provided. Return ONLY the description sentence(s), no quotes, no markdown.';
-      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nService category: "${descCategory || 'the primary category'}"\nService title: "${title}"\n\nTask: Write a concise, benefit-led description for THIS service — 1–2 sentences, max 250 characters, grounded in the category "${descCategory || 'the primary category'}" and the city. No emojis, no quotes. Return ONLY the description text.`;
+      // When called from the Menu editor, describe a food/menu item, not a "service".
+      const menuSection = String(context?.menuSection || '').trim();
+      const isMenuItem = !!menuSection;
+      const noun = isMenuItem ? 'menu item / dish' : 'service';
+      const sys = `You are a Google Business Profile copywriter. Use ONLY facts from the JSON context (business name, category, city${isMenuItem ? ', menu section' : ''}). Return ONLY the description sentence(s), no quotes, no markdown.`;
+      const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\n${
+        isMenuItem ? `Menu section: "${menuSection}"\n` : `Service category: "${descCategory || 'the primary category'}"\n`
+      }${isMenuItem ? 'Dish' : 'Service'} name: "${title}"\n\nTask: The description MUST be specifically about "${title}" — describe exactly what "${title}" is, its ${
+        isMenuItem ? 'typical ingredients, flavour and how it is served' : 'scope and what it includes'
+      }. Do NOT write a generic ${noun} line; it must clearly match the name "${title}". Keep it appetizing, concise and benefit-led — 1–2 sentences, max 250 characters${
+        isMenuItem ? '' : `, grounded in the category "${descCategory || 'the primary category'}" and the city`
+      }. No emojis, no quotes. Return ONLY the description text.`;
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import { generateSlug } from "../../utils/generateSlug";
 import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import { X, CheckCircle, ExternalLink, Copy, Check, Send } from "lucide-react";

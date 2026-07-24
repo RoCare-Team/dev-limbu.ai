@@ -33,6 +33,9 @@ import {
   Clock,
   Database,
   Lock,
+  Gauge,
+  Users,
+  ExternalLink,
 } from "lucide-react";
 
 const MAP_CONTAINER_STYLE = {
@@ -94,6 +97,34 @@ function getPlanTier(userData) {
   return "free";
 }
 
+/**
+ * The GBP place id for a stored location. Newer listings carry it at the top
+ * level, older ones only inside `metadata` or the review link.
+ */
+function getLocationPlaceId(loc) {
+  if (!loc) return "";
+  if (loc.placeId) return loc.placeId;
+  if (loc.metadata?.placeId) return loc.metadata.placeId;
+  const uri = loc.reviewUri || loc.metadata?.newReviewUri || "";
+  const match = uri.match(/placeid=([^&]+)/i);
+  return match ? match[1] : "";
+}
+
+/** Google Maps link for a competitor — exact via place id, else a name search. */
+function mapsLinkFor({ placeId, name }) {
+  if (placeId) {
+    return `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(
+      placeId,
+    )}`;
+  }
+  if (name) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      name,
+    )}`;
+  }
+  return null;
+}
+
 const ALLOWED_GRIDS_BY_TIER = {
   premium: ["1x1", "3x3", "5x5"],
   basic: ["1x1", "3x3"],
@@ -140,6 +171,8 @@ export default function RankTrackerPage() {
     gridPoints: rawGridPoints,
     centerPoint,
     summary,
+    averagePosition,
+    topCompetitors,
     isLoading,
     fetchRanks,
     saveResult,
@@ -178,6 +211,7 @@ export default function RankTrackerPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locations, setLocations] = useState([]);
   const [selectedLocId, setSelectedLocId] = useState("");
+  const [placeId, setPlaceId] = useState("");
   const [activePoint, setActivePoint] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
 
@@ -218,6 +252,22 @@ export default function RankTrackerPage() {
   // Take only top points for the demo grid
   const gridPoints = useMemo(() => rawGridPoints, [rawGridPoints]);
 
+  // The sidebar only exists once the webhook gives us something to put in it —
+  // otherwise the map stays full width.
+  const hasInsights = !!averagePosition || topCompetitors.length > 0;
+
+  // `top_competitors` has no place id, but the same businesses appear inside the
+  // grid points with one — so map name → placeId to get exact Maps links.
+  const placeIdByName = useMemo(() => {
+    const map = new Map();
+    gridPoints.forEach((p) =>
+      (p.competitors || []).forEach((c) => {
+        if (c.name && c.placeId && !map.has(c.name)) map.set(c.name, c.placeId);
+      }),
+    );
+    return map;
+  }, [gridPoints]);
+
   useEffect(() => {
     const uid = localStorage.getItem("userId");
     if (uid) setUserId(uid);
@@ -233,6 +283,7 @@ export default function RankTrackerPage() {
           setSelectedLocId(first.locationId);
           setBusinessName(first.title || "");
           setCity(first.locality || "");
+          setPlaceId(getLocationPlaceId(first));
         }
       } catch (e) {
         console.error(e);
@@ -246,6 +297,7 @@ export default function RankTrackerPage() {
       setSelectedLocId(id);
       setBusinessName(found.title || "");
       setCity(found.locality || "");
+      setPlaceId(getLocationPlaceId(found));
     }
   };
 
@@ -285,6 +337,7 @@ export default function RankTrackerPage() {
     city,
     businessName,
     gridSize,
+    placeId,
   });
 };
 
@@ -300,6 +353,7 @@ export default function RankTrackerPage() {
       city,
       businessName,
       locationId: selectedLocId,
+      placeId,
       gridSize,
     });
     // Refresh the saved list so the Compare button appears right after saving.
@@ -458,7 +512,7 @@ export default function RankTrackerPage() {
                     Top Rank
                   </p>
                   <p className="text-xl font-black text-slate-800">
-                    #{summary.bestRank || "—"}
+                    {summary.bestRank ? `#${summary.bestRank}` : "20+"}
                   </p>
                 </div>
               </div>
@@ -733,8 +787,18 @@ export default function RankTrackerPage() {
         </div>
       )}
 
-      {/* Map Section */}
-      <div className="relative overflow-hidden rounded-[40px] border-[12px] border-white shadow-2xl bg-slate-50">
+      {/* Map + insights sidebar */}
+      <div
+        className={`grid grid-cols-1 gap-6 items-start ${
+          hasInsights ? "lg:grid-cols-3" : ""
+        }`}
+      >
+        {/* Map Section — sits to the RIGHT of the insights sidebar on desktop. */}
+        <div
+          className={`relative overflow-hidden rounded-[40px] border-[12px] border-white shadow-2xl bg-slate-50 ${
+            hasInsights ? "lg:col-span-2 lg:order-2" : ""
+          }`}
+        >
         {!isLoaded ? (
           <div className="flex h-[80vh] items-center justify-center">
             <div className="flex flex-col items-center gap-4">
@@ -787,9 +851,11 @@ export default function RankTrackerPage() {
                     onMouseOver={() => setHoveredId(point.id)}
                     onMouseOut={() => setHoveredId(null)}
                     label={{
-                      text: point.businessRank ? `${point.businessRank}` : "—",
+                      text: point.businessRank
+                        ? `${point.businessRank}`
+                        : "20+",
                       color: "#fff",
-                      fontSize: "13px",
+                      fontSize: point.businessRank ? "13px" : "10px",
                       fontWeight: "900",
                     }}
                     icon={makeIcon(
@@ -812,6 +878,11 @@ export default function RankTrackerPage() {
                       <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
                         Audit Result
                       </p>
+                      {activePoint.area && (
+                        <p className="text-[12px] font-black text-slate-700">
+                          {activePoint.area}
+                        </p>
+                      )}
                       <p className="text-[9px] text-slate-400 font-medium">
                         Lat: {activePoint.lat.toFixed(4)} Lng:{" "}
                         {activePoint.lng.toFixed(4)}
@@ -823,21 +894,33 @@ export default function RankTrackerPage() {
                       </div>
                     ) : (
                       <div className="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-black ring-1 ring-rose-100">
-                        Unranked
+                        Rank 20+
                       </div>
                     )}
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="max-h-[320px] overflow-y-auto space-y-2.5 pr-1">
                     {activePoint.competitors.map((c) => {
-                      const isMe =
-                        c.name?.toLowerCase().trim() ===
-                        businessName.toLowerCase().trim();
+                      // Match on place id when the webhook gives us one — it's
+                      // exact, unlike comparing display names.
+                      const isMe = placeId
+                        ? c.placeId === placeId
+                        : c.name?.toLowerCase().trim() ===
+                          businessName.toLowerCase().trim();
+                      const href = mapsLinkFor(c);
                       return (
-                        <div
-                          key={c.rank}
-                          className={`flex items-center justify-between p-3 rounded-2xl border transition-colors ${isMe ? "border-emerald-200 bg-emerald-50/50" : "border-slate-50 bg-slate-50/50"}`}
+                        <a
+                          key={c.placeId || c.rank}
+                          href={href || undefined}
+                          target={href ? "_blank" : undefined}
+                          rel={href ? "noopener noreferrer" : undefined}
+                          title={c.address || c.name}
+                          className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-colors ${
+                            isMe
+                              ? "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50"
+                              : "border-slate-50 bg-slate-50/50 hover:bg-slate-100/70"
+                          }`}
                         >
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex flex-col gap-0.5 min-w-0">
                             <span className="text-[12px] font-black text-slate-800 line-clamp-1">
                               <span className="text-slate-400 mr-1">
                                 #{c.rank}
@@ -853,13 +936,22 @@ export default function RankTrackerPage() {
                               </span>
                             </div>
                           </div>
-                          <MapIcon
-                            size={14}
-                            className={
-                              isMe ? "text-emerald-500" : "text-slate-300"
-                            }
-                          />
-                        </div>
+                          {href ? (
+                            <ExternalLink
+                              size={14}
+                              className={`shrink-0 ${
+                                isMe ? "text-emerald-500" : "text-slate-300"
+                              }`}
+                            />
+                          ) : (
+                            <MapIcon
+                              size={14}
+                              className={`shrink-0 ${
+                                isMe ? "text-emerald-500" : "text-slate-300"
+                              }`}
+                            />
+                          )}
+                        </a>
                       );
                     })}
                   </div>
@@ -867,6 +959,186 @@ export default function RankTrackerPage() {
               </InfoWindow>
             )}
           </GoogleMap>
+        )}
+        </div>
+
+        {/* Insights sidebar — average position + grid-wide competitors */}
+        {hasInsights && (
+          <div className="space-y-6 lg:order-1 lg:max-h-[80vh] lg:overflow-y-auto lg:pr-1 lg:-mr-1">
+
+            {averagePosition && (
+              <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl">
+                    <Gauge size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                      Average Position
+                    </p>
+                    <p className="text-sm font-bold text-slate-700 line-clamp-1">
+                      {averagePosition.businessName || businessName || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {/* No average means the business never surfaced in the top 20
+                      at any grid point — show that as "20+", not "not ranking". */}
+                  <div
+                    className={`rounded-2xl border p-4 ${
+                      averagePosition.averageRank != null
+                        ? "border-slate-100 bg-slate-50/60"
+                        : "border-rose-100 bg-rose-50/60"
+                    }`}
+                  >
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      Avg. Rank
+                    </p>
+                    <p
+                      className={`text-2xl font-black ${
+                        averagePosition.averageRank != null
+                          ? "text-slate-900"
+                          : "text-rose-600"
+                      }`}
+                    >
+                      {averagePosition.averageRank != null
+                        ? `#${averagePosition.averageRank.toFixed(2)}`
+                        : "20+"}
+                    </p>
+                    {averagePosition.averageRank == null && (
+                      <p className="text-[10px] font-bold text-rose-400 mt-0.5">
+                        Outside the top 20 everywhere
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Appeared In
+                      </p>
+                      <p className="text-xl font-black text-slate-900">
+                        {averagePosition.frequency}/
+                        {averagePosition.totalGridPoints}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        Visibility
+                      </p>
+                      <p className="text-xl font-black text-slate-900">
+                        {averagePosition.totalGridPoints
+                          ? `${Math.round(
+                              (averagePosition.frequency /
+                                averagePosition.totalGridPoints) *
+                                100,
+                            )}%`
+                          : "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {topCompetitors.length > 0 && (
+              <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="bg-rose-50 text-rose-600 p-2.5 rounded-2xl">
+                    <Users size={18} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                      Top Competitors
+                    </p>
+                    <p className="text-sm font-bold text-slate-700">
+                      Across the {gridSize} grid
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {topCompetitors.map((c, i) => {
+                    const href = mapsLinkFor({
+                      placeId: c.placeId || placeIdByName.get(c.name),
+                      name: c.name,
+                    });
+                    return (
+                    <div
+                      key={`${c.name}_${i}`}
+                      className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 hover:border-yellow-300 hover:bg-yellow-50/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-[11px] font-black text-yellow-400">
+                          {c.rank ?? i + 1}
+                        </span>
+                        <div className="min-w-0">
+                          {href ? (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex items-start gap-1.5 text-[13px] font-black text-slate-800 hover:text-yellow-600 transition-colors"
+                            >
+                              <span className="line-clamp-2">{c.name}</span>
+                              <ExternalLink
+                                size={12}
+                                className="mt-0.5 shrink-0 text-slate-300 group-hover:text-yellow-500"
+                              />
+                            </a>
+                          ) : (
+                            <p className="text-[13px] font-black text-slate-800 line-clamp-2">
+                              {c.name}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            {c.rating != null && (
+                              <span className="text-[10px] font-bold text-amber-500">
+                                ★ {c.rating}
+                              </span>
+                            )}
+                            <span className="text-[10px] font-medium text-slate-400">
+                              {c.reviews} reviews
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
+                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            Avg
+                          </span>
+                          <span className="text-[12px] font-black text-slate-800">
+                            {c.averageRank != null
+                              ? `#${c.averageRank}`
+                              : "—"}
+                          </span>
+                        </span>
+                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
+                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            Seen
+                          </span>
+                          <span className="text-[12px] font-black text-slate-800">
+                            {c.frequency}×
+                          </span>
+                        </span>
+                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
+                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
+                            Score
+                          </span>
+                          <span className="text-[12px] font-black text-slate-800">
+                            {c.score ?? "—"}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

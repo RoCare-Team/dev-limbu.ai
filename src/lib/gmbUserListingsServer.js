@@ -94,6 +94,12 @@ export async function fetchAllUserGmbListings(accessToken) {
             hasVoiceOfMerchant: vomStatus.hasVoiceOfMerchant,
             hasBusinessAuthority: vomStatus.hasBusinessAuthority,
             logoUrl,
+            // `metadata` readMask me pehle se hai, par ye do fields itni baar
+            // chahiye hote hain ki top level par expose kar dete hain —
+            // har caller ko `metadata?.placeId` likhna na pade.
+            placeId: loc.metadata?.placeId || "",
+            mapsUri: loc.metadata?.mapsUri || "",
+            newReviewUri: loc.metadata?.newReviewUri || "",
           };
         })
       );

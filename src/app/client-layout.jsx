@@ -1,27 +1,20 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import SessionCookieSync from "@/components/SessionCookieSync";
 
-function AuthErrorChecker({ children }) {
-  const { data: session } = useSession();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (session?.error === "RefreshAccessTokenError") {
-      console.warn("Session error detected: Token expired or revoked. Forcing sign out.");
-      signOut({ callbackUrl: "/login" });
-    }
-  }, [session, router]);
-
-  return <>{children}</>;
-}
-
+/**
+ * Pehle yahan NextAuth ka `RefreshAccessTokenError` dekhkar `signOut()` hota tha —
+ * yaani Google ka GMB token expire hote hi user poore app se logout ho jata tha.
+ *
+ * Ab GMB ek connected account hai, login method nahi. Token fail hone par
+ * `/api/gmb/connection` `needsReconnect: true` deta hai aur UI sirf
+ * "Reconnect GMB" dikhati hai. App login ko haath nahi lagta.
+ */
 export default function ClientLayout({ children }) {
   return (
-    <AuthErrorChecker>
+    <>
+      <SessionCookieSync />
       {children}
-    </AuthErrorChecker>
+    </>
   );
 }

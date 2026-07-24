@@ -18,20 +18,25 @@ import {
 
 // -------------------------
 // AGENT PHONE MAPPING
-// DB se fullName aayega — exactly yahi keys rakho (case-insensitive match hoga)
-// "Imran Ahmed"  → key: "imran ahmed"
-// "Jahan singh"  → key: "jahan singh"
-// Naya agent aaye toh bas ek line add karo.
+// Primary key: Admin document ka _id (rename-proof).
+// Fallback: lowercase fullName — agar ID map mein na mile.
+// Naya agent aaye toh bas ek entry add karo.
 // -------------------------
 const AGENT_PHONE_MAP = {
-  "imran ahmed": "917065021272",
-  "jahan singh": "919311587741",
+  "699c100f90278fadff8f8aa9": { name: "Imran Ahmed", phone: "919355030762" },
+  "69f07b575b51cc69c1293a2c": { name: "Jahan Singh", phone: "919311203803" },
 };
 
-function getAgentPhoneByName(fullName) {
-  if (!fullName) return null;
-  const key = fullName.trim().toLowerCase();
-  return AGENT_PHONE_MAP[key] || null;
+const AGENT_PHONE_BY_NAME = Object.fromEntries(
+  Object.values(AGENT_PHONE_MAP).map((a) => [a.name.trim().toLowerCase(), a.phone]),
+);
+
+function getAgentPhone(agent) {
+  if (!agent) return null;
+  const byId = AGENT_PHONE_MAP[agent._id?.toString()];
+  if (byId) return byId.phone;
+  const key = agent.fullName?.trim().toLowerCase();
+  return (key && AGENT_PHONE_BY_NAME[key]) || null;
 }
 
 // -------------------------
@@ -175,9 +180,9 @@ export async function SYNC() {
             isServiceBooked: true,
           });
 
-          // Agent ka phone AGENT_PHONE_MAP se lo — name ke basis pe.
+          // Agent ka phone AGENT_PHONE_MAP se lo — pehle _id, phir name.
           // Agar agent map mein nahi hai toh template skip hoga (silently).
-          const agentPhone = getAgentPhoneByName(assignedAgent?.fullName);
+          const agentPhone = getAgentPhone(assignedAgent);
 
           if (agentPhone) {
             await sendAgentLeadAssignedTemplate({
@@ -301,7 +306,7 @@ export async function POST(request) {
 
         // WhatsApp template bhejo — sirf tab jab agent mila ho
         if (assignedAgent) {
-          const agentPhone = getAgentPhoneByName(assignedAgent.fullName);
+          const agentPhone = getAgentPhone(assignedAgent);
 
           if (agentPhone) {
             await sendAgentLeadAssignedTemplate({

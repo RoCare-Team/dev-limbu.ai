@@ -36,7 +36,7 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   /** Behind HTTPS (e.g. nginx → Node), force Secure cookies so __Host- / __Secure- state cookies match the browser. */
   useSecureCookies: process.env.NODE_ENV === "production",
-  // debug: true, // Troubleshooting ke liye isko enable kar sakte hain
+  debug: true, // OAuthCallback ki asli wajah server logs me dekhne ke liye ON (fix ke baad OFF kar dena)
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -126,7 +126,8 @@ export const authOptions = {
           ...token,
           id: user.id,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
+          // Re-consent par Google refresh_token nahi bhejta; purana JWT token preserve karo warna refresh fail hoke logout ho jata hai
+          refreshToken: account.refresh_token ?? token.refreshToken,
           accessTokenExpires: Date.now() + (account.expires_in || 3600) * 1000,
         };
       }

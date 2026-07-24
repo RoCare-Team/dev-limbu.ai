@@ -42,7 +42,13 @@ export async function GET() {
     active:            true,
     automationEnabled: true,
     postQueueMode:     'delay_generate_publish',
-    'queueTiming.generateStartAt': { $exists: true },
+    // Any create-on-generate anchor: exact per-slot schedule, a publish anchor, or
+    // the legacy save-time generate anchor.
+    $or: [
+      { 'queueTiming.publishSchedule.0': { $exists: true } },
+      { 'queueTiming.publishStartAt':    { $exists: true } },
+      { 'queueTiming.generateStartAt':   { $exists: true } },
+    ],
     $expr: { $lt: ['$postIndex', '$queueTiming.postLimit'] },
   })
     .sort({ updatedAt: 1 })
@@ -64,12 +70,29 @@ export async function GET() {
     const t = plan.queueTiming || {};
     const stepDays = Number(t.stepDays) || 1;
     const publishAfterMin = Number(t.publishAfterMin) || 24 * 60;
-    const startTs = new Date(t.generateStartAt).getTime();
-    const dueAt = new Date(startTs + idx * stepDays * DAY_MS);
 
-    const slog = run.plan({ userId: plan.userId, planId: plan._id });
+    // Publish is anchored to the user's chosen posting time (postingHour:minute).
+    // Preferred: publishSchedule[idx] — the EXACT datetime for this slot (honours
+    // custom dates). Next: publishStartAt + stepDays (fixed-cadence plans). Last:
+    // the legacy save-time anchor. A slot is GENERATED publishAfterMin before publish.
+    let publishAt, dueAt;
+    const sched = Array.isArray(t.publishSchedule) ? t.publishSchedule : [];
+    if (sched.length > 0) {
+      if (idx >= sched.length) { stats.skipped++; continue; } // no slot left
+      publishAt = new Date(sched[idx]);
+      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+    } else if (t.publishStartAt) {
+      const pubStart = new Date(t.publishStartAt).getTime();
+      publishAt = new Date(pubStart + idx * stepDays * DAY_MS);
+      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+    } else {
+      const startTs = new Date(t.generateStartAt).getTime();
+      dueAt = new Date(startTs + idx * stepDays * DAY_MS);
+      publishAt = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
+    }
 
-    // Not due yet — skip until this slot's generate time arrives.
+    // Not due yet — skip SILENTLY (no log doc, else every not-due plan would spam
+    // an empty "unknown" AutomationLog on every 5-min cron run).
     if (dueAt > now) { stats.skipped++; continue; }
 
     // Atomically claim THIS slot so overlapping cron runs never double-generate.
@@ -87,10 +110,13 @@ export async function GET() {
       { new: true }
     );
     if (!claimed) {
-      slog.skip('queue:lock', `slot ${idx} already claimed / index moved`);
+      // Another run already owns this slot — skip silently (no log doc).
       stats.skipped++;
       continue;
     }
+
+    // Only a genuinely due + claimed slot gets an AutomationLog doc.
+    const slog = run.plan({ userId: plan.userId, planId: plan._id });
 
     // Business + city come from the GMB LOCATION the plan posts to (e.g. "CB Prints",
     // "Faridabad") — never the separate selectedBusiness account.
@@ -120,7 +146,7 @@ export async function GET() {
       const desc = descriptions || {};
       const platformsForPost = (Array.isArray(plan.platforms) ? plan.platforms : ['gmb'])
         .filter((p) => ['gmb', 'fb', 'ig'].includes(p));
-      const scheduledDate = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
+      const scheduledDate = publishAt; // publish at the user's chosen posting time
 
       // Create exactly ONE real Post — only now that we have a real image + text.
       const post = await Post.create({

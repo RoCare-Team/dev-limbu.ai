@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/hooks/useAppSession";
 import Link from "next/link";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

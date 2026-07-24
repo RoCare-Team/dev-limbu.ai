@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { requireGmbSession } from '@/lib/gmbSession';
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email || !session?.accessToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Pehle yahan har failure 401 tha, isliye cookie ka chhota sa hiccup bhi
+    // "Session Expired" modal dikha deta tha. Ab codes alag hain:
+    // 401 = app login, 409 = GMB reconnect, 503 = Google transient.
+    const { session, error } = await requireGmbSession(request);
+    if (error) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      );
     }
 
     const email = session.user.email;

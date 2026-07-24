@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { fetchInsightsViaServer } from "@/utils/fetchInsightsViaServer";
 import { toast, Toaster } from "react-hot-toast";
 import CircularProgress from "@mui/material/CircularProgress";
 
@@ -142,7 +142,6 @@ export async function fetchSearchKeywords(
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
 
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeTab, setActiveTab] = useState("gmb");
@@ -151,7 +150,8 @@ export default function DashboardPage() {
   const [uiState, setUiState] = useState({
     isConnectModalOpen: false,
     showFirstPostModal: false,
-    isSessionExpired: false,
+    // GMB token invalid — sirf reconnect prompt, app logout NAHI.
+    needsGmbReconnect: false,
     showLocationSelectorModal: false,
   });
 
@@ -159,13 +159,17 @@ export default function DashboardPage() {
   const {
     accounts,
     loading,
+    gmbLoading,
+    initialFetchDone,
     listings,
     activeListings,
     summary,
     fetchInitialData,
     handleManualRefresh,
     handleDisconnectGMB,
-  } = useGMB(session, status, setUiState);
+    gmbConnected,
+    connectGMB,
+  } = useGMB(null, null, setUiState);
 
   const { facebookPages, setFacebookPages, handleDisconnectFacebook } =
     useFacebook(router, searchParams);
@@ -208,19 +212,18 @@ export default function DashboardPage() {
     },
   });
 
-  // When admin is impersonating, use the stored user name/email instead of NextAuth session
+  // Naam ab hamesha app login se aata hai (impersonation sameth) — pehle
+  // impersonation aur NextAuth session ke beech mismatch ho jata tha.
   const isImpersonating =
     typeof window !== "undefined" &&
     (localStorage.getItem("isImpersonating") === "true" ||
       sessionStorage.getItem("isImpersonating") === "true");
-  const displayName = isImpersonating
-    ? getLocalStorage("userName") ||
-      getSessionStorage("userName") ||
-      getLocalStorage("fullName") ||
-      getSessionStorage("fullName") ||
-      session?.user?.name ||
-      "User"
-    : session?.user?.name || "User";
+  const displayName =
+    getSessionStorage("userName") ||
+    getLocalStorage("userName") ||
+    getSessionStorage("fullName") ||
+    getLocalStorage("fullName") ||
+    "User";
 
   // WhatsApp uses ONLY the locally stored credentials (not NextAuth)
   const whatsappName = getLocalStorage("fullName") || "";
@@ -241,7 +244,9 @@ export default function DashboardPage() {
     checkWhatsappAccount(email);
   }, [checkWhatsappAccount]);
 
-  const userPlan = session?.user?.plan || "";
+  // NextAuth session par `plan` kabhi set nahi hota tha, isliye ye hamesha ""
+  // rehta tha aur maxAccounts = 1. Behaviour jaisa tha waisa hi rakha hai.
+  const userPlan = "";
   const maxAccounts = userPlan === "" ? 1 : 0;
 
   // Flexible Logout Handler (Revoke Meta Permissions)
@@ -317,15 +322,14 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // Show connect modal for unauthenticated users after a delay
+  // Show connect modal when GMB is not connected yet (app login se alag).
   useEffect(() => {
-    if (status === "unauthenticated") {
-      const timer = setTimeout(() => {
-        setUiState((prev) => ({ ...prev, isConnectModalOpen: true }));
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [status]);
+    if (loading || gmbConnected) return;
+    const timer = setTimeout(() => {
+      setUiState((prev) => ({ ...prev, isConnectModalOpen: true }));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [loading, gmbConnected]);
 
   const showToast = (message, type) => {
     if (type === "error") toast.error(message);
@@ -370,13 +374,6 @@ export default function DashboardPage() {
       }));
 
       try {
-        const insights = await fetchLocationInsights(
-          session.accessToken,
-          locationId,
-          fetchStart,
-          insightSeriesEnd,
-        );
-
         const currentDate = new Date();
         const startMonth = {
           year: currentDate.getFullYear(),
@@ -391,28 +388,32 @@ export default function DashboardPage() {
           month: currentDate.getMonth() + 1,
         };
 
-        const keywords = await fetchSearchKeywords(
-          session.accessToken,
+        // Access token ab browser me nahi aata — server proxy se lete hain.
+        const { insights, searchKeywords } = await fetchInsightsViaServer({
           locationId,
+          startDate: fetchStart,
+          endDate: insightSeriesEnd,
           startMonth,
           endMonth,
-        );
-        const keywordsArray =
-          keywords?.searchKeywordsCounts || keywords || null;
+        });
 
         setPerformanceState((prevData) => ({
           ...prevData,
           data: insights,
-          searchKeywords: keywordsArray,
+          searchKeywords,
           loading: false,
         }));
       } catch (error) {
         console.error("Error fetching performance insights:", error);
-        toast.error("Failed to load performance insights.");
+        if (error.code === "GMB_RECONNECT_REQUIRED") {
+          setUiState((prev) => ({ ...prev, needsGmbReconnect: true }));
+        } else {
+          toast.error("Failed to load performance insights.");
+        }
         setPerformanceState((prevData) => ({ ...prevData, loading: false }));
       }
     },
-    [session?.accessToken, performanceState.dateRange],
+    [performanceState.dateRange, setUiState],
   );
 
   const handleLocationSelect = useCallback(
@@ -458,6 +459,10 @@ export default function DashboardPage() {
           title: item.title || "",
           websiteUrl: item.websiteUri || "",
           reviewUri: item.metadata?.newReviewUri || "",
+          // Server ab ye top level par bhejta hai; metadata fallback purane
+          // cached listings (DB se aane wale) ke liye rakha hai.
+          placeId: item.placeId || item.metadata?.placeId || "",
+          mapsUri: item.mapsUri || item.metadata?.mapsUri || "",
           isVerified: item.hasVoiceOfMerchant === true,
           businessProfileId: item.name || "",
           name: item.name,
@@ -470,15 +475,23 @@ export default function DashboardPage() {
         };
       });
       setLocalStorage("locationDetails", JSON.stringify(locationDetails));
-      setLocalStorage(
-        "reviewUrl",
-        activeListings[0].metadata?.newReviewUri || "",
-      );
+
+      // Primary listing ke shortcuts — `reviewUrl` jaisa hi pattern.
+      const primary = locationDetails[0] || {};
+      setLocalStorage("reviewUrl", primary.reviewUri || "");
+      setLocalStorage("placeId", primary.placeId || "");
+      setLocalStorage("mapsUri", primary.mapsUri || "");
     }
   }, [activeListings]);
   const handleAddProject = useCallback(async () => {
-    if (!session) {
-      await signIn("google", { redirect: false });
+    if (!gmbConnected) {
+      // Server-side OAuth: state signed JWT me URL se jata hai, cookie me nahi.
+      // Isliye "state mismatch" / OAuthCallback loop yahan ho hi nahi sakta.
+      try {
+        await connectGMB("/dashboard");
+      } catch (err) {
+        toast.error(err.message);
+      }
       return;
     }
     if (accounts.length >= maxAccounts) {
@@ -486,7 +499,7 @@ export default function DashboardPage() {
       return;
     }
     await fetchInitialData(true);
-  }, [session, accounts.length, maxAccounts, userPlan, fetchInitialData]);
+  }, [gmbConnected, connectGMB, accounts.length, maxAccounts, userPlan, fetchInitialData]);
 
   const getVerificationBadge = useCallback((listing) => {
     const isVerified = listing.hasVoiceOfMerchant === true;
@@ -518,7 +531,9 @@ export default function DashboardPage() {
     [filterStatus],
   );
 
-  if (status === "loading") {
+  // Sirf pehle connection-status check ke dauran full-screen loader. GMB listings
+  // ka apna loader GMBColumn ke andar hai — warna poora dashboard block ho jata.
+  if (gmbLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center">
@@ -596,9 +611,14 @@ export default function DashboardPage() {
         onDateChange={handlePerformanceInsightsDateChange}
       />
 
+      {/* "Session expired" ab app logout nahi — sirf GMB reconnect prompt,
+          aur user ise band karke dashboard par kaam jaari rakh sakta hai. */}
       <SessionExpiredModal
-        isOpen={uiState.isSessionExpired}
-        onLogin={() => signIn("google", { callbackUrl: "/dashboard" })}
+        isOpen={uiState.needsGmbReconnect}
+        onLogin={() => connectGMB("/dashboard")}
+        onClose={() =>
+          setUiState((prev) => ({ ...prev, needsGmbReconnect: false }))
+        }
       />
 
       <ConnectModal
@@ -637,7 +657,7 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={status === "authenticated"} />
+          <NavLinks isAuthenticated={gmbConnected} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">

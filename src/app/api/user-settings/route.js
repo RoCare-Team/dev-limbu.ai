@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getGmbSession } from '@/lib/gmbSession';
 import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
+import { getPublishUtcMsForDateRef } from '@/utils/automationPlanSchedule';
 import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 import AutomationPlan from '@/models/AutomationPlan';
@@ -25,28 +25,24 @@ function emailRegexFor(e) {
  * when that row clearly belongs to the signed-in account (email / connectedBusinessEmail / GMB link).
  */
 async function resolveUserForSettings(session, requestedUserId) {
-  const sessionEmail = normEmail(session?.user?.email);
-  if (!sessionEmail) return null;
-
   const rid = typeof requestedUserId === 'string' ? requestedUserId.trim() : '';
-  const rx = emailRegexFor(sessionEmail);
 
-  let user = rx ? await User.findOne({ email: rx }) : null;
-  if (user) return user;
-
+  // The dashboard/localStorage userId is the source of truth. Automation is
+  // saved for whichever account is currently connected on the client, even when
+  // the NextAuth Google session belongs to a different email (users manage
+  // several GMB Google accounts under one dashboard login). If a userId is sent
+  // and that user exists, use it directly — no session-email tenancy match.
   if (rid) {
     const byId = await User.findOne({ userId: rid });
-    if (!byId) return null;
-    const uem = normEmail(byId.email);
-    const cem = normEmail(byId.connectedBusinessEmail);
-    if (uem === sessionEmail || cem === sessionEmail) return byId;
+    if (byId) return byId;
+  }
 
-    if (byId.gmbProjectId) {
-      const gmb = rx ? await GmbUser.findOne({ email: rx }).lean() : null;
-      const linked =
-        gmb?.projects?.some((p) => p.googleId === byId.gmbProjectId) ?? false;
-      if (linked) return byId;
-    }
+  // Fallback: resolve by the session's own email (no userId sent, or unknown id).
+  const sessionEmail = normEmail(session?.user?.email);
+  if (sessionEmail) {
+    const rx = emailRegexFor(sessionEmail);
+    const user = rx ? await User.findOne({ email: rx }) : null;
+    if (user) return user;
   }
 
   return null;
@@ -56,7 +52,7 @@ export async function GET(request) {
   try {
     await dbConnect();
 
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -221,7 +217,7 @@ export async function POST(request) {
   try {
     await dbConnect();
 
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -260,7 +256,14 @@ export async function POST(request) {
 
     let user = await resolveUserForSettings(session, userId);
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      // Informative 404 so the exact mismatch is visible in the network tab.
+      console.warn(`[user-settings] POST User not found — sessionEmail=${session?.user?.email || '(none)'} requestedUserId=${userId || '(none)'}`);
+      return NextResponse.json({
+        error: 'User not found',
+        detail: `No user record for userId "${userId || ''}" or session email "${session?.user?.email || ''}". Log in / connect with an account that has a dashboard user, or ensure the userId is correct.`,
+        sessionEmail: session?.user?.email || null,
+        requestedUserId: userId || null,
+      }, { status: 404 });
     }
 
     // NOTE: We use the localStorage `userId` (USR-format, sent in the request body)
@@ -738,12 +741,43 @@ export async function POST(request) {
       const DAY_MS = 86400000;
       const firstGenTs = SAVE_TS + INITIAL_GEN_MS;
 
+      // ── Anchor PUBLISH to the user's chosen posting time ─────────────────────
+      // Each post must go live at postingHour:postingMinute (in the plan timezone)
+      // on its scheduled date — NOT at a random save-time offset. Compute the FIRST
+      // publish instant at that clock time on the start date; if it has already
+      // passed, walk forward by the frequency step (daily=1, alternate=2, weekly=7)
+      // so we never schedule a time in the past. The fill-queue cron then derives
+      // every slot's publish time from this anchor and generates the review copy
+      // `publishAfterMin` before it.
+      const planForTime = {
+        postingHour:     postingHourNum,
+        postingMinute:   postingMinuteNum,
+        postingTimezone: postingTz,
+      };
+      let publishStartMs = getPublishUtcMsForDateRef(planForTime, scheduleStartDate);
+      if (typeof publishStartMs === 'number' && !Number.isNaN(publishStartMs)) {
+        while (publishStartMs <= SAVE_TS) publishStartMs += stepDays * DAY_MS;
+      } else {
+        publishStartMs = null; // no posting time set → fall back to save-time timing
+      }
+
+      // Build the EXACT publish datetimes from the schedule dates (custom, alternate,
+      // weekly and daily all land here). Each schedule date is stamped at
+      // postingHour:minute in the plan timezone, and only FUTURE slots are kept so
+      // we never try to publish a date that has already passed. This honours custom
+      // frequency (specific dates like 15/17/19) instead of a fixed step.
+      const publishSchedule = (Array.isArray(schedule) ? schedule : [])
+        .map((d) => getPublishUtcMsForDateRef(planForTime, new Date(d)))
+        .filter((ms) => typeof ms === 'number' && !Number.isNaN(ms) && ms > SAVE_TS)
+        .sort((a, b) => a - b)
+        .map((ms) => new Date(ms));
+
       // ── create-on-generate: DO NOT pre-insert empty placeholder Posts ─────────
       // Previously we bulk-inserted one empty Post per schedule slot, which showed
       // up as many "Image Not Generated" cards. Now we only store the timing on the
       // plan; the fill-queue cron generates each slot and creates ONE real Post
       // (with image + text) at a time. No image-less document ever exists.
-      const postLimit = schedule.length;
+      const postLimit = publishSchedule.length > 0 ? publishSchedule.length : schedule.length;
 
       // Clear any leftover queued posts from an earlier (placeholder-era) save so
       // the dashboard shows only real, generated posts going forward.
@@ -758,6 +792,11 @@ export async function POST(request) {
         {
           $set: {
             queueTiming: {
+              // publishSchedule holds the EXACT publish datetime of every remaining
+              // slot (honours custom dates). publishStartAt/generateStartAt are kept
+              // only as fallbacks for legacy plans without a schedule/posting time.
+              publishSchedule,
+              publishStartAt:  publishStartMs != null ? new Date(publishStartMs) : null,
               generateStartAt: new Date(firstGenTs),
               stepDays,
               publishAfterMin,
@@ -777,8 +816,10 @@ export async function POST(request) {
         frequency: safeFrequency,
         generationStepDays: stepDays,
         postsQueued: postLimit,          // slots the cron will generate over time
-        firstGenerateAt: new Date(firstGenTs),
-        firstPublishAt: new Date(firstGenTs + PUB_MS),
+        firstGenerateAt: publishStartMs != null ? new Date(publishStartMs - PUB_MS) : new Date(firstGenTs),
+        firstPublishAt:  publishStartMs != null ? new Date(publishStartMs) : new Date(firstGenTs + PUB_MS),
+        postingHour: postingHourNum,
+        postingMinute: postingMinuteNum,
       };
       console.log(
         `[user-settings] ✅ create-on-generate queue set — ${postLimit} slots ` +
@@ -798,7 +839,7 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error('POST /api/user-settings error:', error);
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Server error', detail: error?.message || String(error) }, { status: 500 });
   }
 }
 
@@ -811,7 +852,7 @@ export async function DELETE(request) {
   try {
     await dbConnect();
 
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

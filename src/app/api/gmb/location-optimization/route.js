@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getGmbSession } from '@/lib/gmbSession';
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
@@ -183,7 +182,7 @@ function mapLocation(loc, accountId) {
 export async function GET(request) {
   try {
     await dbConnect();
-    const session = await getServerSession(authOptions);
+    const session = await getGmbSession(request);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

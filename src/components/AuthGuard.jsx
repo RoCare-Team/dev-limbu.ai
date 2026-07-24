@@ -3,6 +3,35 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+/**
+ * Every real top-level segment under src/app. Anything else with a single
+ * segment is a tenant microsite served by src/app/[slug]/page.jsx — public.
+ * On *.limbu.ai those are reached via subdomain, but on localhost (and any
+ * bare domain) they are reached as /<slug>, so the guard must not redirect.
+ */
+const APP_ROUTE_SEGMENTS = new Set([
+  "about", "actions", "admin", "adminLogin", "api", "assets-management",
+  "auth", "automation-logs", "automation-settings", "bakery-marketing-software",
+  "blog", "build-website", "bulk-schduled", "bussiness", "cancellation-policy",
+  "car-garage-marketing-software", "checkHealth", "checkout", "city",
+  "clinic-marketing-software", "connect-business", "connect-google-business",
+  "contact", "dashboard", "data", "education-marketing-software",
+  "franchise-opportunities", "franchise-panel", "get-magic-qr", "gmb-health",
+  "gmb-insights", "google-business-management-service", "gym-marketing-software",
+  "handyman-marketing-software", "hooks", "how-to-connect-gmb",
+  "how-to-create-post", "how-to-generate-magic-qr", "how-to-post-on-gmb",
+  "how-to-reply-review", "impersonate-login", "instructions", "keyword-planner",
+  "limbu-website-leads", "local-rank-tracker", "login",
+  "pest-control-marketing-software", "post-management", "pricing",
+  "privacy-policy", "profile", "providers", "qr-dynamic",
+  "realestate-marketing-software", "redirect", "restaurant-marketing-software",
+  "review-management", "reviews", "salon-marketing-software", "serpResults",
+  "services", "signup", "sitemaps", "subscription", "terms-and-conditions",
+  "thank-you", "tour-travel-marketing-software", "user-activity",
+  "user-settings", "video-management", "wallet", "webinar-demo", "work-with-us",
+  "yoga-wellness-marketing-software",
+]);
+
 export default function AuthGuard({ children }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -88,6 +117,11 @@ export default function AuthGuard({ children }) {
     const isServicesRoute = pathname.startsWith("/services");
     const isBusinessSlugRoute = pathname.startsWith("/bussiness/");
 
+    // Tenant microsite reached by path (localhost / bare domain) instead of subdomain
+    const segments = pathname.split("/").filter(Boolean);
+    const isTenantSiteRoute =
+      segments.length === 1 && !APP_ROUTE_SEGMENTS.has(segments[0]);
+
     setTimeout(() => {
       // 👇 UPDATE THIS CONDITION
       if (
@@ -95,7 +129,8 @@ export default function AuthGuard({ children }) {
         isFranchiseRoute ||
         isCityRoute ||
         isServicesRoute ||
-        isBusinessSlugRoute
+        isBusinessSlugRoute ||
+        isTenantSiteRoute
       ) {
         setIsChecking(false);
         return;

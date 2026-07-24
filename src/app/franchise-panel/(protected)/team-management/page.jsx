@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Users,
@@ -42,6 +43,11 @@ export default function TeamManagement() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [toast, setToast] = useState(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -296,28 +302,31 @@ export default function TeamManagement() {
 
   return (
     <div className="space-y-8">
-      {/* Toast Notification */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5">
-          <div
-            className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
-              toast.type === "success"
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle size={20} />
-            ) : (
-              <AlertCircle size={20} />
-            )}
-            <p className="font-semibold text-sm">{toast.message}</p>
-            <button onClick={() => setToast(null)} className="ml-auto hover:bg-white/10 rounded-full p-1">
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Toast Notification — rendered into document.body so `fixed` positions
+          relative to the viewport (top), not the scrollable <main> ancestor. */}
+      {mounted && toast &&
+        createPortal(
+          <div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-top-5">
+            <div
+              className={`px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 min-w-[300px] ${
+                toast.type === "success"
+                  ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                  : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+              }`}
+            >
+              {toast.type === "success" ? (
+                <CheckCircle size={20} />
+              ) : (
+                <AlertCircle size={20} />
+              )}
+              <p className="font-semibold text-sm">{toast.message}</p>
+              <button onClick={() => setToast(null)} className="ml-auto hover:bg-white/10 rounded-full p-1">
+                <X size={16} />
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* Header */}
       <div className="bg-black text-white rounded-2xl p-8 flex flex-col md:flex-row md:items-center md:justify-between">

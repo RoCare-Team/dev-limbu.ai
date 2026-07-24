@@ -65,6 +65,11 @@ const FORMS = [
     id: "1213106820766164",
     label: "Franchise Leads (Old)",
   },
+  {
+    // Leads added manually from this panel (POST /api/franchise-leads sets formId: "MANUAL")
+    id: "MANUAL",
+    label: "Manual Leads",
+  },
 ];
 
 const STATUS_STEPS = [
@@ -116,6 +121,16 @@ const QUICK_REMARKS = [
 
 /** Same as user-management: these open the follow-up date picker */
 const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
+/** Franchise offer template (franchise_off_new) — keep in sync with the API route. */
+const OFFER_BASE_AMOUNT = 500000;
+const OFFER_DISCOUNT_PERCENT = 20;
+const OFFER_SAVINGS_AMOUNT = Math.round(
+  (OFFER_BASE_AMOUNT * OFFER_DISCOUNT_PERCENT) / 100,
+);
+
+/** {{3}} = fixed validity text — reads as "Offer valid till the offer expires". */
+const OFFER_VALIDITY_TEXT = "the offer expires";
 
 /** IVR interest timestamp from API (ISO string) → readable India locale. */
 function formatIvrInterestedAtDisplay(iso) {
@@ -273,6 +288,11 @@ export default function FranchiseLeadsPage() {
   // State add karo component ke top me
   const [isWhatsappTemplateModalOpen, setIsWhatsappTemplateModalOpen] =
     useState(false);
+
+  /** Franchise offer template (franchise_off_new) — 20% off + validity date */
+  const [isOfferTemplateModalOpen, setIsOfferTemplateModalOpen] =
+    useState(false);
+  const [sendingOfferMsg, setSendingOfferMsg] = useState(false);
 
   const handleFilterChange = (setter, value) => {
     setFilterLoading(true);
@@ -1902,6 +1922,72 @@ export default function FranchiseLeadsPage() {
     }
   };
 
+  /** Offer template: {{1}} name, {{2}} savings amount, {{3}} validity text */
+  const handleSendOfferTemplate = async () => {
+    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
+    let picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+    if (picked.length === 0 && selectedLead) picked = [selectedLead];
+
+    if (picked.length === 0) {
+      toast.error("Please select at least one lead");
+      return;
+    }
+
+    const recipients = [];
+    for (const lead of picked) {
+      let phone = lead.phone_number;
+      if (phone) {
+        phone = String(phone).replace(/\D/g, "");
+        if (phone.length === 10) phone = "91" + phone;
+      }
+      if (!phone || phone.length !== 12 || !phone.startsWith("91")) continue;
+      recipients.push({
+        phone,
+        firstName: (lead.full_name || lead.fullName || "").split(" ")[0] || "",
+      });
+    }
+
+    if (recipients.length === 0) {
+      toast.error("No valid Indian mobile numbers in selection");
+      return;
+    }
+
+    setSendingOfferMsg(true);
+    try {
+      let totalSent = 0;
+      let totalFailed = 0;
+      const chunkSize = 100;
+      for (let i = 0; i < recipients.length; i += chunkSize) {
+        const chunk = recipients.slice(i, i + chunkSize);
+        const res = await fetch("/api/franchise-leads/send-offer-template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipients: chunk }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          toast.error(data.message || "Request failed");
+          return;
+        }
+        totalSent += data.sent ?? 0;
+        totalFailed += data.failed ?? 0;
+      }
+
+      if (totalFailed === 0) {
+        toast.success(`Offer WhatsApp sent to ${totalSent} recipient(s)`);
+        setIsOfferTemplateModalOpen(false);
+        setSelectedLeads([]);
+      } else {
+        toast.error(`Sent ${totalSent}, failed ${totalFailed}.`);
+      }
+    } catch (error) {
+      console.error("Offer template send error:", error);
+      toast.error("Failed to send offer template");
+    } finally {
+      setSendingOfferMsg(false);
+    }
+  };
+
   /* ---------------- EXPORT TO CSV ---------------- */
   const handleExport = () => {
     const headers = [
@@ -3328,6 +3414,16 @@ export default function FranchiseLeadsPage() {
               >
                 <Send className="w-4 h-4" />
                 WhatsApp Template
+              </button>
+
+              {/* Franchise Offer Template Button */}
+              <button
+                type="button"
+                onClick={() => setIsOfferTemplateModalOpen(true)}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Offer Template ({OFFER_DISCOUNT_PERCENT}% Off)
               </button>
 
               {role === "superAdmin" && (
@@ -4776,6 +4872,137 @@ export default function FranchiseLeadsPage() {
                     <Send className="w-5 h-5" />
                   )}
                   {sendingFranchiseMsg ? "Sending..." : "Send Message"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Franchise Offer Template Modal (franchise_off_new) */}
+      {isOfferTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4">
+          <div className="h-full flex items-center justify-center">
+            <div className="w-full max-w-[430px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="bg-[#0b6e5e] px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+                    W
+                  </div>
+                  <h2 className="text-white font-semibold text-lg">
+                    Franchise Offer Preview
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsOfferTemplateModalOpen(false)}
+                  className="text-white/90 hover:text-white text-3xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto bg-[#f3efea] p-4 space-y-4">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-5 text-[14px] text-gray-700 leading-8">
+                    <p className="mb-4">
+                      Hi{" "}
+                      <span className="font-semibold">
+                        {(() => {
+                          const idSet = new Set(
+                            selectedLeads.map(franchiseLeadIdKey),
+                          );
+                          const first =
+                            leads.find((l) =>
+                              idSet.has(franchiseLeadIdKey(l.id)),
+                            ) || selectedLead;
+                          return (
+                            (first?.full_name || "").split(" ")[0] || "{{1}}"
+                          );
+                        })()}
+                      </span>{" "}
+                      👋,
+                    </p>
+
+                    <p className="mb-4">Great news!</p>
+
+                    <p className="mb-4">
+                      For a limited time only, we&apos;re offering{" "}
+                      <b>{OFFER_DISCOUNT_PERCENT}% OFF</b> on our Franchise
+                      Package.
+                    </p>
+
+                    <ul className="mb-4 space-y-1">
+                      <li>
+                        ✅ Save up to ₹
+                        <b>{OFFER_SAVINGS_AMOUNT.toLocaleString("en-IN")}</b>
+                      </li>
+                      <li>✅ Complete Business Setup</li>
+                      <li>✅ Training &amp; Ongoing Support</li>
+                      <li>✅ Marketing Assistance</li>
+                      <li>✅ High Growth Opportunity</li>
+                    </ul>
+
+                    <p className="mb-4">
+                      Offer valid till{" "}
+                      <b>{OFFER_VALIDITY_TEXT}</b>.
+                    </p>
+
+                    <p className="mb-4">
+                      Interested? Click below to claim your exclusive discount
+                      before it expires.
+                    </p>
+
+                    <p className="mb-4">-Team Limbu AI</p>
+
+                    <div className="text-[12px] text-gray-400 text-right">
+                      12:00 PM ✓✓
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+                  >
+                    Chat Now
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full py-4 text-lg font-medium text-blue-600 border-t border-gray-200 hover:bg-gray-50"
+                  >
+                    Need Support
+                  </button>
+                </div>
+
+
+                <div className="bg-white rounded-xl border border-gray-200 p-4 text-sm text-gray-600">
+                  <div className="flex justify-between py-1">
+                    <span>Recipients</span>
+                    <b>{selectedLeads.length || (selectedLead ? 1 : 0)}</b>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span>Savings amount</span>
+                    <b>₹{OFFER_SAVINGS_AMOUNT.toLocaleString("en-IN")}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSendOfferTemplate}
+                  disabled={sendingOfferMsg}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50"
+                >
+                  {sendingOfferMsg ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {sendingOfferMsg ? "Sending..." : "Send Offer"}
                 </button>
               </div>
             </div>

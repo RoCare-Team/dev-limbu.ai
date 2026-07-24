@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import { signIn } from "next-auth/react";
+import { startGmbConnect } from "@/hooks/useGmbConnection";
+import { toast } from "react-hot-toast";
 
 export default function GMBModal({
   showGmbExpiredModal,
@@ -13,13 +14,13 @@ export default function GMBModal({
 
     <div className="relative w-full max-w-md bg-white rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.25)] p-8 text-center overflow-hidden animate-modalPop">
 
-      {/* 🔥 TOP GLOW */}
+      {/* ðŸ”¥ TOP GLOW */}
       <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-[#EAB308]/20 blur-[120px] rounded-full animate-glowPulse"></div>
 
       {/* ICON */}
       <div className="relative mb-6 animate-bounceIn">
         <div className="w-20 h-20 mx-auto flex items-center justify-center rounded-full bg-gray-800 border-red-200 shadow-inner">
-          <span className="text-4xl">⚠️</span>
+          <span className="text-4xl">âš ï¸</span>
         </div>
       </div>
 
@@ -35,7 +36,7 @@ export default function GMBModal({
 
       {/* ERROR LINE */}
       <p className="text-xs text-red-500 font-medium mb-6 animate-fadeUp delay-200">
-        ⚠ Google session expired
+        âš  Google session expired
       </p>
 
       {/* BUTTONS */}
@@ -49,7 +50,8 @@ export default function GMBModal({
         </button>
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          type="button"
+          onClick={() => startGmbConnect("/dashboard").catch((err) => toast.error(err.message))}
           className="px-6 py-2 rounded-xl bg-[#EAB308] text-white font-semibold hover:scale-105 transition"
         >
           Connect Business
@@ -57,10 +59,10 @@ export default function GMBModal({
 
       </div>
 
-      {/* 🔥 BOTTOM LINE */}
+      {/* ðŸ”¥ BOTTOM LINE */}
       <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-[#EAB308] to-transparent opacity-40"></div>
 
-      {/* ✨ ANIMATIONS */}
+      {/* âœ¨ ANIMATIONS */}
       <style>
         {`
         @keyframes overlayFade {

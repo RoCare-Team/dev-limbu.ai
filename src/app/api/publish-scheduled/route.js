@@ -8,6 +8,7 @@ import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
+import { getGmbConnection } from "@/lib/gmbSession";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
 
@@ -175,23 +176,44 @@ const formatGmbDate = (value) => {
 
 async function getFreshAccessToken(refreshToken) {
   log("🔄 Refreshing access token");
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    log("❌ Token refresh failed", data);
-    throw new Error(data.error_description || "Token refresh failed");
+
+  // Transient failures (network / 5xx) par retry — ek hiccup se scheduled post
+  // fail nahi hona chahiye. invalid_grant par turant fail (reconnect chahiye).
+  const MAX_ATTEMPTS = 3;
+  let lastData = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    const data = await res.json();
+    lastData = data;
+
+    if (res.ok) {
+      log("✅ Access token refreshed");
+      return data.access_token;
+    }
+
+    // Refresh token pakka mar gaya — retry se fayda nahi.
+    if (data.error === "invalid_grant") {
+      log("❌ Token refresh invalid_grant — user must reconnect GMB", data);
+      throw new Error("invalid_grant: reconnect GMB required");
+    }
+
+    log(`⚠ Token refresh attempt ${attempt}/${MAX_ATTEMPTS} failed`, data);
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
   }
-  log("✅ Access token refreshed");
-  return data.access_token;
+
+  throw new Error(lastData?.error_description || "Token refresh failed");
 }
 
 async function fetchWithTimeout(promise, ms = 20000) {
@@ -678,10 +700,26 @@ export async function GET(req) {
 
       // ── GMB ─────────────────────────────────────────────
       if (hasGmb) {
-        const refreshToken = post.refreshToken;
+        // Live token PEHLE (GmbConnection se, userId ke against). Reason: post par
+        // stored refreshToken ek snapshot hai — agar user schedule karne ke BAAD
+        // GMB reconnect kar le (Google naya refresh token deta hai, purana revoke
+        // ho jata hai), to snapshot invalid_grant se fail hoga. Live token us
+        // reconnect ko survive karta hai. Snapshot sirf fallback hai (purane
+        // scheduled posts / connection na milne par).
+        let liveRefreshToken = null;
+        try {
+          const conn = await getGmbConnection(post.userId);
+          if (conn?.refreshToken && !conn.invalid) {
+            liveRefreshToken = conn.refreshToken;
+          }
+        } catch (connErr) {
+          log("⚠ GmbConnection lookup failed, will use post snapshot:", connErr.message);
+        }
+
+        const refreshToken = liveRefreshToken || post.refreshToken;
         if (!refreshToken) {
-          log("❌ No refresh token on post document:", postId);
-          slog.fail("publish:gmb", "no Google refreshToken stored on scheduled post — re-save user-settings");
+          log("❌ No refresh token (neither live connection nor post):", postId);
+          slog.fail("publish:gmb", "no Google refreshToken — user must reconnect GMB");
           post.whenPosted = markWhenFailed(
             post.whenPosted,
             "gmb",
@@ -693,7 +731,9 @@ export async function GET(req) {
         } else {
           try {
             log(
-              "🔑 Using stored refreshToken from post document to get a fresh access token.",
+              liveRefreshToken
+                ? "🔑 Using live refreshToken from GmbConnection."
+                : "🔑 Using stored refreshToken from post document (fallback).",
             );
             const accessToken = await getFreshAccessToken(refreshToken);
             const processedLocIds = new Set();

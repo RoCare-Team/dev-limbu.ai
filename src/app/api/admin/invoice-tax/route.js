@@ -83,6 +83,36 @@ const formatCurrency = (amount) => {
   });
 };
 
+// Returns a STABLE invoice number for a revenue record and persists it to the DB
+// so the PDF and the Excel export always show the exact same number.
+// Format: LIM/<createdYear>/<last-4-of-_id>  (matches the export helper on the client)
+async function getOrCreateInvoiceNumber(revenue) {
+  if (revenue?.invoiceNumber) return revenue.invoiceNumber;
+
+  const year = revenue?.createdAt
+    ? new Date(revenue.createdAt).getFullYear()
+    : new Date().getFullYear();
+  const idStr = String(revenue?._id || "");
+  const suffix = idStr
+    ? idStr.slice(-4).toUpperCase()
+    : String(Math.floor(Math.random() * 9999)).padStart(4, "0");
+
+  const invoiceNumber = `LIM/${year}/${suffix}`;
+
+  try {
+    if (revenue?._id) {
+      await FranchiseRevenue.updateOne(
+        { _id: revenue._id },
+        { $set: { invoiceNumber } },
+      );
+    }
+  } catch (e) {
+    console.error("Failed to persist invoiceNumber:", e);
+  }
+
+  return invoiceNumber;
+}
+
 export async function generateInvoicePDFBuffer(revenue) {
   const amount = Number(revenue.amount || 0);
 
@@ -132,9 +162,7 @@ export async function generateInvoicePDFBuffer(revenue) {
   const taxable = amount / 1.18;
   const gst = amount - taxable;
 
-  const invoiceNo = `LIM/${new Date().getFullYear()}/${String(
-    Math.floor(Math.random() * 9999),
-  ).padStart(4, "0")}`;
+  const invoiceNo = await getOrCreateInvoiceNumber(revenue);
 
   const invoiceDate = new Date().toLocaleDateString("en-IN");
 
@@ -462,7 +490,7 @@ export async function GET(req) {
     const taxable = amount / 1.18;
     const gst = amount - taxable;
 
-    const invoiceNo = `LIM/${new Date().getFullYear()}/${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`;
+    const invoiceNo = await getOrCreateInvoiceNumber(revenue);
     const invoiceDate = new Date(revenue.createdAt).toLocaleDateString("en-IN");
 
     const doc = new PDFDocument({ size: "A4", margin: 40, bufferPages: true });
@@ -506,7 +534,7 @@ export async function GET(req) {
         currentY + 15,
       )
       .text(
-        "Gurugram, Haryana, 122018 | GSTIN: 06XXXXXXXXXXXX",
+        "Gurugram, Haryana, 122018 | GSTIN: 06AWOPS0492A2ZH",
         margin,
         currentY + 25,
       )

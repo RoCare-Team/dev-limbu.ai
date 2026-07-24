@@ -51,6 +51,7 @@ const FranchiseRevenueSchema = new mongoose.Schema(
     },
     type: { type: String, default: "franchise_lead" },
     invoiceUrl: { type: String, default: "" },
+    invoiceNumber: { type: String, default: "" },
 
     // ✅ WhatsApp expiry automation tracking (cron ke duplicate send rokne ke liye)
     // Ye field us expiry-date ko store karti hai jiske liye message bheja gaya —

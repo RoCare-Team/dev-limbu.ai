@@ -38,10 +38,16 @@ function emailRegexFor(email) {
   return new RegExp(`^${String(email).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Google se naya access token lo.
- * Fail hone par connection ko `invalid` mark karte hain — user ko sirf
- * "Reconnect GMB" dikhega, app se logout NAHI hoga.
+ *
+ * Sirf `invalid_grant` (revoke / refresh token sach me mar gaya) par connection
+ * `invalid` mark hota hai — tabhi user ko "Reconnect" dikhta hai. Transient
+ * failures (network, 5xx, timeout) par retry karte hain aur `invalid` NAHI
+ * karte — warna Google ka ek chhota hiccup bhi session ko "expired" dikha deta
+ * aur scheduled post fail ho jata.
  */
 async function refreshAccessToken(conn) {
   if (!conn.refreshToken) {
@@ -51,39 +57,61 @@ async function refreshAccessToken(conn) {
     return null;
   }
 
-  try {
-    const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      grant_type: "refresh_token",
-      refresh_token: conn.refreshToken,
-    });
-    const { data } = await axios.post(
-      "https://oauth2.googleapis.com/token",
-      params.toString(),
-      { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-    );
+  const MAX_ATTEMPTS = 3;
+  let lastDetail = "";
 
-    conn.accessToken = data.access_token;
-    conn.accessTokenExpires = Date.now() + (data.expires_in || 3600) * 1000;
-    if (data.refresh_token) conn.refreshToken = data.refresh_token;
-    conn.invalid = false;
-    conn.invalidReason = undefined;
-    conn.updatedAt = new Date();
-    await conn.save();
-    return conn.accessToken;
-  } catch (error) {
-    const detail = error.response?.data?.error || error.message;
-    console.error(`[gmbSession] refresh failed for ${conn.userId}:`, detail);
-    // invalid_grant = user ne access revoke kiya / refresh token mar gaya
-    if (error.response?.data?.error === "invalid_grant") {
-      conn.invalid = true;
-      conn.invalidReason = "invalid_grant";
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const params = new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        grant_type: "refresh_token",
+        refresh_token: conn.refreshToken,
+      });
+      const { data } = await axios.post(
+        "https://oauth2.googleapis.com/token",
+        params.toString(),
+        {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          timeout: 10000,
+        },
+      );
+
+      conn.accessToken = data.access_token;
+      conn.accessTokenExpires = Date.now() + (data.expires_in || 3600) * 1000;
+      // Google refresh par naya refresh_token aam taur par nahi bhejta —
+      // aaye to hi update karo, warna purana hi valid rehta hai.
+      if (data.refresh_token) conn.refreshToken = data.refresh_token;
+      conn.invalid = false;
+      conn.invalidReason = undefined;
       conn.updatedAt = new Date();
       await conn.save();
+      return conn.accessToken;
+    } catch (error) {
+      const googleErr = error.response?.data?.error;
+      lastDetail = googleErr || error.message;
+
+      // Refresh token pakka mar gaya — retry se kuch nahi hoga. Reconnect chahiye.
+      if (googleErr === "invalid_grant") {
+        conn.invalid = true;
+        conn.invalidReason = "invalid_grant";
+        conn.updatedAt = new Date();
+        await conn.save();
+        console.error(`[gmbSession] refresh invalid_grant for ${conn.userId} — reconnect needed`);
+        return null;
+      }
+
+      // Baaki sab transient maana jaye — thodi der ruk kar retry.
+      console.warn(
+        `[gmbSession] refresh attempt ${attempt}/${MAX_ATTEMPTS} failed for ${conn.userId}: ${lastDetail}`,
+      );
+      if (attempt < MAX_ATTEMPTS) await sleep(500 * attempt);
     }
-    return null;
   }
+
+  // Transient failure barkarar — invalid NAHI kar rahe, agli call phir try karegi.
+  console.error(`[gmbSession] refresh gave up (transient) for ${conn.userId}: ${lastDetail}`);
+  return null;
 }
 
 /** Zaroorat ho to refresh karke fresh access token lautata hai. */

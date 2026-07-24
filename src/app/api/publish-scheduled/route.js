@@ -176,23 +176,44 @@ const formatGmbDate = (value) => {
 
 async function getFreshAccessToken(refreshToken) {
   log("🔄 Refreshing access token");
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    log("❌ Token refresh failed", data);
-    throw new Error(data.error_description || "Token refresh failed");
+
+  // Transient failures (network / 5xx) par retry — ek hiccup se scheduled post
+  // fail nahi hona chahiye. invalid_grant par turant fail (reconnect chahiye).
+  const MAX_ATTEMPTS = 3;
+  let lastData = null;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+    const data = await res.json();
+    lastData = data;
+
+    if (res.ok) {
+      log("✅ Access token refreshed");
+      return data.access_token;
+    }
+
+    // Refresh token pakka mar gaya — retry se fayda nahi.
+    if (data.error === "invalid_grant") {
+      log("❌ Token refresh invalid_grant — user must reconnect GMB", data);
+      throw new Error("invalid_grant: reconnect GMB required");
+    }
+
+    log(`⚠ Token refresh attempt ${attempt}/${MAX_ATTEMPTS} failed`, data);
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
   }
-  log("✅ Access token refreshed");
-  return data.access_token;
+
+  throw new Error(lastData?.error_description || "Token refresh failed");
 }
 
 async function fetchWithTimeout(promise, ms = 20000) {

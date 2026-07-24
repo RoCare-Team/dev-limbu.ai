@@ -6,18 +6,14 @@ import dbConnect from "@/lib/dbConnect";
 import { messaging } from "@/lib/firebaseAdmin";
 import User from "@/models/User";
 
+export const dynamic = "force-dynamic"; // build-time prerender skip karega
+
 // FCM data payload me sirf string values ja sakti hain, isliye allowed keys ko String() karke bhejo
 function buildDataPayload(body) {
   const allowedKeys = [
     "type",
     "screen",
     "action",
-    "lead_id",
-    "customer_lat",
-    "customer_lng",
-    "assetId",
-    "orderId",
-    "postId",
     "title",
     "message",
     "body",
@@ -160,7 +156,8 @@ export async function POST(req) {
       },
     };
 
-    const response = await messaging.sendEachForMulticast(multicastMessage);
+    // messaging ab lazy-init function hai (firebaseAdmin.js me), isliye () lagakar call karo
+    const response = await messaging().sendEachForMulticast(multicastMessage);
 
     const failedTokens = [];
 

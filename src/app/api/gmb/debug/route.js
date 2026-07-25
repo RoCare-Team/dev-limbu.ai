@@ -17,7 +17,21 @@ export const dynamic = "force-dynamic";
 export async function GET(request) {
   await dbConnect();
 
-  const appUser = getAppUser(request);
+  const { searchParams } = new URL(request.url);
+
+  // Admin diagnostic: ?userId=USR… kisi bhi user ka status dekhne ke liye.
+  // CRON_SECRET set ho to Authorization: Bearer <secret> chahiye (warna khula
+  // rahega jaise baaki cron routes EC2 par).
+  const adminUserId = searchParams.get("userId")?.trim();
+  if (adminUserId) {
+    const secret = process.env.CRON_SECRET;
+    const auth = request.headers.get("authorization") || "";
+    if (secret && auth !== `Bearer ${secret}`) {
+      return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
+  const appUser = adminUserId ? { userId: adminUserId } : getAppUser(request);
   const phone = appUser?.userId ? null : getGmbPhone(request);
 
   if (!appUser?.userId && !phone) {

@@ -135,6 +135,7 @@ export async function GET() {
     const keywords = Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [];
     const keyword = keywords.length ? keywords[idx % keywords.length] : (plan.keywords?.[0] || '');
 
+    slog.setMeta({ businessName, locality: cityName, keyword, platforms: plan.platforms });
     slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
 
     try {
@@ -147,6 +148,9 @@ export async function GET() {
         imageConfig: plan.imageConfig || {},
         platforms: plan.platforms,
       });
+
+      // Image ban gayi — log par set kar do (publish fail bhi ho to URL dikhe).
+      if (imageUrl) slog.setMeta({ imageUrl });
 
       if (!imageUrl || !postText) {
         throw new Error(`Missing ${!imageUrl ? 'imageUrl' : 'postText'} (aiAssetsGenerate down?)`);

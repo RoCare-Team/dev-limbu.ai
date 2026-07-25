@@ -39,6 +39,11 @@ export function createRunLogger({ phase = "", trigger = "", source = "automation
       userId: clip(userId, 200),
       planId: planId ? String(planId) : "",
       postId: postId ? String(postId) : "",
+      businessName: "",
+      locality: "",
+      keyword: "",
+      imageUrl: "",
+      platforms: [],
       outcome: "unknown",
       error: "",
       steps: [],
@@ -71,6 +76,15 @@ export function createRunLogger({ phase = "", trigger = "", source = "automation
     return {
       doc,
       setPostId: (pid) => { if (pid) doc.postId = String(pid); },
+      // Business name / image URL / keyword etc. ek jagah set karo — logs page
+      // inhe prominent dikhata hai (step message me dhoondhne ki zaroorat nahi).
+      setMeta: (meta = {}) => {
+        if (meta.businessName != null) doc.businessName = clip(meta.businessName, 200);
+        if (meta.locality != null) doc.locality = clip(meta.locality, 120);
+        if (meta.keyword != null) doc.keyword = clip(meta.keyword, 200);
+        if (meta.imageUrl != null) doc.imageUrl = clip(meta.imageUrl, 1000);
+        if (Array.isArray(meta.platforms)) doc.platforms = meta.platforms;
+      },
       info: (name, message) => add(name, "info", message),
       pass: (name, message) => add(name, "pass", message),
       skip: (name, message) => add(name, "skip", message),

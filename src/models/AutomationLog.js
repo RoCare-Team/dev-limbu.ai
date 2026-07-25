@@ -47,6 +47,13 @@ const automationLogSchema = new mongoose.Schema(
     planId: { type: String, default: "" },
     postId: { type: String, default: "" },
 
+    // Quick-glance context — pehle ye sirf step messages me chhupa hota tha.
+    businessName: { type: String, default: "" }, // GMB location ka naam (jispe post hua)
+    locality: { type: String, default: "" },      // city
+    keyword: { type: String, default: "" },        // is post ka keyword
+    imageUrl: { type: String, default: "" },       // generate hui image (fail pe bhi, agar bani ho)
+    platforms: { type: [String], default: [] },    // gmb / fb / ig
+
     outcome: {
       type: String,
       enum: ["success", "skipped", "failed", "unknown"],

@@ -529,6 +529,7 @@ export async function GET(request) {
     results.processed++;
 
     const slog = run.plan({ userId, planId });
+    slog.setMeta({ businessName, platforms: platformsSafe });
     slog.info('plan:start', `platforms=${platformsSafe.join(',')} keywords=${keywords.length} locations=${locations.length}`);
 
     console.log('\n[CRON] ─────────────────────────────────────────────────');
@@ -760,6 +761,7 @@ export async function GET(request) {
     const keyword     = keywords[keywordSlot];
     const loc0        = locations[0];
     const cityName    = loc0?.locality || loc0?.name || businessName || '';
+    slog.setMeta({ keyword, locality: cityName });
     log(`Keyword slot ${keywordSlot + 1}/${keywords.length} (postIndex=${postIndex}): "${keyword}"  city: "${cityName}"`);
 
     let imageUrl;
@@ -772,6 +774,7 @@ export async function GET(request) {
       imageUrl = prefetchPost.imageUrl;
       postText = prefetchPost.postText;
       descriptions = prefetchPost.descriptions;
+      if (imageUrl) slog.setMeta({ imageUrl });
       slog.pass('content:prefetch', `using prefetched bundle keyword="${prefetchPost.keyword || keyword}"`);
       log('Publish flow — using AutomationPlan.prefetchPost', {
         keyword: prefetchPost.keyword,
@@ -791,6 +794,7 @@ export async function GET(request) {
         const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
         log(`Image prompt: "${imagePrompt}"`);
         ({ imageUrl, postText, descriptions } = await generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig, platforms: platformsSafe }));
+        if (imageUrl) slog.setMeta({ imageUrl });
         log(`Image URL: ${imageUrl || '⚠ NULL — n8n returned no image URL'}`);
         log(`Post text: "${postText}"`);
         slog.pass('content:generate', `inline generate keyword="${keyword}" image=${imageUrl ? 'ok' : 'NULL'} text=${postText ? 'ok' : 'NULL'}`);

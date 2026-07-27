@@ -81,10 +81,12 @@ Build the prompt to cover, in a single flowing paragraph (45-75 words):
 2. SETTING & ACTION — a realistic, tidy, aspirational scene${cityName ? `, subtly relatable to ${cityName}, India` : ""}.
 3. CAMERA & LIGHT — lens & angle (e.g. 35mm, eye-level, slight low angle), soft natural or studio lighting, shallow depth of field, professional colour grade / mood.
 4. QUALITY CUES — "photorealistic, ultra-detailed, sharp focus, 4K, commercial advertising photography, premium".
-5. COMPOSITION — keep clean, uncluttered negative space (top OR bottom third) so a logo, text and phone number can be added later.
+5. COMPOSITION — keep clean, uncluttered negative space, and ALWAYS keep the TOP RIGHT CORNER completely empty/clean (plain, low-detail area) reserved for the brand logo, plus space for text and phone number to be added later.
 
 HARD RULES:
 - Absolutely NO text, letters, words, numbers, captions, watermarks, logos, badges, posters or UI anywhere in the image (all branding is composited later).
+- The brand logo is supplied separately and must be used EXACTLY as provided — never redraw, recolour, restyle, translate or reinterpret it; keep the original logo unchanged.
+- The logo always sits in the TOP RIGHT CORNER — never move it to any other corner or position.
 - No distorted anatomy, no extra fingers, no messy/cluttered background, no collage, no borders.
 - Brand-safe, modern, premium, realistic — never cartoonish unless the business clearly calls for it.
 
@@ -139,6 +141,8 @@ export async function generateImageAndText({
     productImage: cleanB64(cfg.productImage),
     backgroundImage: cleanB64(cfg.backgroundImage),
     logoImage: cleanB64(cfg.logoImage),
+    // Logo is always composited unchanged in the top-right corner.
+    logoPosition: "top-right",
     platform: requested.join(","),
     mode: "ai",
   };

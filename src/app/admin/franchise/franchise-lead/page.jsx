@@ -45,6 +45,8 @@ import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json"; // if not using public
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
+import ChatHistoryModal from "../../user-management/components/ChatHistoryModal";
+import useUserManagementLogic from "../../user-management/useUserManagementLogic";
 
 /* ---------------- CONFIG ---------------- */
 const PAGE_SIZE = 50;
@@ -52,6 +54,37 @@ const PAGE_SIZE = 50;
 /** Stable string id for checkboxes + bulk actions (avoids ObjectId vs string mismatch). */
 function franchiseLeadIdKey(id) {
   return id == null ? "" : String(id);
+}
+
+/** Normalized phone key for dedupe — last 10 digits (drops +91 / spaces). */
+function leadPhoneKey(lead) {
+  const raw = String(lead?.phone_number || "").replace(/\D/g, "");
+  if (!raw) return "";
+  return raw.length > 10 ? raw.slice(-10) : raw;
+}
+
+/**
+ * Remove leads that share a phone number. Among duplicates, the lead with the
+ * most remarks (history) wins so follow-up data is never lost; on a tie the
+ * earlier lead in the list is kept. Leads without a number are always kept and
+ * the original order is preserved.
+ */
+function dedupeLeadsByPhone(list) {
+  const bestByPhone = new Map();
+  for (const lead of list) {
+    const key = leadPhoneKey(lead);
+    if (!key) continue;
+    const remarkCount = lead?.remarks?.length || 0;
+    const existing = bestByPhone.get(key);
+    if (!existing || remarkCount > existing.remarkCount) {
+      bestByPhone.set(key, { id: lead.id, remarkCount });
+    }
+  }
+  return list.filter((lead) => {
+    const key = leadPhoneKey(lead);
+    if (!key) return true;
+    return bestByPhone.get(key)?.id === lead.id;
+  });
 }
 
 const FORMS = [
@@ -278,10 +311,70 @@ export default function FranchiseLeadsPage() {
     passcode: "",
   });
 
+  const {
+    chatHistoryModal,
+    setChatHistoryModal,
+    closeChatHistoryModal,
+    fetchWhatsAppHistoryForUser,
+  } = useUserManagementLogic();
+
+  const handleOpenChat = async (lead) => {
+    const phoneNumber = lead?.phone_number;
+
+    if (!phoneNumber) {
+      setChatHistoryModal({
+        open: true,
+        user: lead,
+        userId: "",
+        loading: false,
+        error: "No WhatsApp number found for this lead",
+        history: [],
+      });
+      return;
+    }
+
+    setChatHistoryModal({
+      open: true,
+      user: lead,
+      userId: phoneNumber,
+      loading: true,
+      error: "",
+      history: [],
+    });
+
+    try {
+      const response = await fetch(
+        `/api/limbubot/history?user_id=${encodeURIComponent(phoneNumber)}&source=franchise`,
+        { cache: "no-store" },
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || "Failed to load WhatsApp chat history");
+      }
+
+      setChatHistoryModal((prev) => ({
+        ...prev,
+        loading: false,
+        userId: data.user_id || phoneNumber,
+        history: Array.isArray(data.history) ? data.history : [],
+        contact: data.contact || null,
+      }));
+    } catch (err) {
+      setChatHistoryModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err?.message || "Failed to load WhatsApp chat history",
+      }));
+    }
+  };
+
   const [selectedRows, setSelectedRows] = useState([]);
   const handleSelectRow = (rowId) => {
     setSelectedRows((prev) =>
-      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+      prev.includes(rowId)
+        ? prev.filter((id) => id !== rowId)
+        : [...prev, rowId],
     );
   };
 
@@ -989,6 +1082,10 @@ export default function FranchiseLeadsPage() {
       );
     }
 
+    // Deduplicate by phone number — keep the lead with the most history so the
+    // same number is never shown twice (matches the table's dedupe).
+    result = dedupeLeadsByPhone(result);
+
     const baseFilteredLeads = result;
     if (ivrLeadTab === "ivr") {
       result = result.filter((lead) => lead.ivrMeInterested === true);
@@ -1031,7 +1128,13 @@ export default function FranchiseLeadsPage() {
   }, [onboardBreakdown]);
 
   /* ---------------- PAGINATION ---------------- */
-  const paginatedLeads = leads;
+  // Deduplicate by phone number so the same number is never rendered twice.
+  // Among duplicates, keep the lead that carries the most history (remarks) so
+  // follow-up data is never lost; leads without a number are always kept.
+  const paginatedLeads = useMemo(
+    () => dedupeLeadsByPhone(leads),
+    [leads],
+  );
 
   useEffect(() => {
     setCurrentPage(1);
@@ -1587,31 +1690,46 @@ export default function FranchiseLeadsPage() {
     }
 
     let executiveMobile = lead.assignedFranchiseAdmin?.mobileNumber;
+    let executiveName = lead.assignedFranchiseAdmin?.fullName;
 
-    if (!executiveMobile && typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
       const email = (localStorage.getItem("email") || "").toLowerCase();
 
-      const adminMobileMap = {
-        omprakash: "9355105058",
-        karan: "9311203803",
-        nagendra: "9311203803",
-      };
+      // Primary fallback: the logged-in admin adding this remark is the executive.
+      if (!executiveMobile) {
+        executiveMobile = localStorage.getItem("mobileNumber") || "";
+      }
+      if (!executiveName) {
+        executiveName = localStorage.getItem("adminName") || "";
+      }
 
-      const matchedAdmin = Object.keys(adminMobileMap).find(
-        (key) => adminName.includes(key) || email.includes(key),
-      );
+      // Legacy hardcoded fallback for admins whose profile has no mobile stored.
+      if (!executiveMobile) {
+        const adminMobileMap = {
+          omprakash: "9355105058",
+          karan: "9311203803",
+          nagendra: "9311203803",
+        };
 
-      if (matchedAdmin) {
-        executiveMobile = adminMobileMap[matchedAdmin];
+        const matchedAdmin = Object.keys(adminMobileMap).find(
+          (key) => adminName.includes(key) || email.includes(key),
+        );
+
+        if (matchedAdmin) {
+          executiveMobile = adminMobileMap[matchedAdmin];
+        }
       }
     }
+
+    // executiveMobile is now optional — the follow-up template falls back to the
+    // brand support number for {{3}} when no executive mobile is available.
 
     const payload = {
       destination: phone,
       userName: lead.full_name || "User",
       enquiryId: lead.id,
-      executiveName: lead.assignedFranchiseAdmin?.fullName || "Executive",
+      executiveName: executiveName || "Executive",
       executiveMobile: executiveMobile || "",
       remark: remark,
     };
@@ -2796,7 +2914,8 @@ export default function FranchiseLeadsPage() {
                                 ];
                                 const c = colors[idx % colors.length];
                                 const name = agent.agentName || "Unknown";
-                                const rowId = agent._id || agent.agentName || String(idx);
+                                const rowId =
+                                  agent._id || agent.agentName || String(idx);
                                 return (
                                   <tr
                                     key={`franchise-fu-agent-${idx}`}
@@ -3115,7 +3234,9 @@ export default function FranchiseLeadsPage() {
                       {franchiseAdmins.map((admin) => {
                         const s = agentStatsById.get(String(admin._id));
                         const rev = revenueByAgentName.get(
-                          String(admin.fullName || "").trim().toLowerCase(),
+                          String(admin.fullName || "")
+                            .trim()
+                            .toLowerCase(),
                         );
                         return (
                           <tr
@@ -3268,8 +3389,12 @@ export default function FranchiseLeadsPage() {
                         <td className="px-3 py-3 text-center tabular-nums text-gray-500">
                           {agentStats?.unassigned?.today ?? 0}
                         </td>
-                        <td className="px-3 py-3 text-center text-gray-300">—</td>
-                        <td className="px-3 py-3 text-center text-gray-300">—</td>
+                        <td className="px-3 py-3 text-center text-gray-300">
+                          —
+                        </td>
+                        <td className="px-3 py-3 text-center text-gray-300">
+                          —
+                        </td>
                       </tr>
 
                       {/* Totals row */}
@@ -3295,7 +3420,9 @@ export default function FranchiseLeadsPage() {
                         <td className="px-3 py-3 text-center text-teal-700 font-black tabular-nums">
                           ₹{totalRevenue.toLocaleString()}
                         </td>
-                        <td className="px-3 py-3 text-center text-gray-300">—</td>
+                        <td className="px-3 py-3 text-center text-gray-300">
+                          —
+                        </td>
                       </tr>
                     </tbody>
                   </table>
@@ -3475,6 +3602,10 @@ export default function FranchiseLeadsPage() {
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Source
+                  </th>
+
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Chat
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Remarks
@@ -3786,11 +3917,10 @@ export default function FranchiseLeadsPage() {
                                 cls: "bg-blue-100 text-blue-700",
                               },
                             };
-                            const conf =
-                              sourceStyles[src] || {
-                                label: lead.source || "Meta",
-                                cls: "bg-blue-100 text-blue-700",
-                              };
+                            const conf = sourceStyles[src] || {
+                              label: lead.source || "Meta",
+                              cls: "bg-blue-100 text-blue-700",
+                            };
                             return (
                               <span
                                 className={`px-2 py-1 rounded text-xs font-medium ${conf.cls}`}
@@ -3799,6 +3929,19 @@ export default function FranchiseLeadsPage() {
                               </span>
                             );
                           })()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenChat(lead);
+                            }}
+                            className="p-2 hover:bg-indigo-100 rounded-lg transition-colors group"
+                            title="Chat History"
+                            type="button"
+                          >
+                            <MessageCircle className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" />
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col gap-2">
@@ -3984,8 +4127,7 @@ export default function FranchiseLeadsPage() {
                 <span className="font-medium">
                   {Math.min(currentPage * PAGE_SIZE, totalLeads)}
                 </span>{" "}
-                of <span className="font-medium">{totalLeads}</span>{" "}
-                leads
+                of <span className="font-medium">{totalLeads}</span> leads
                 {franchiseFollowUpTableActive && (
                   <span className="block text-xs text-indigo-600 font-medium mt-1">
                     Follow-up window: {franchiseFollowUpFilterLabel}
@@ -4945,8 +5087,7 @@ export default function FranchiseLeadsPage() {
                     </ul>
 
                     <p className="mb-4">
-                      Offer valid till{" "}
-                      <b>{OFFER_VALIDITY_TEXT}</b>.
+                      Offer valid till <b>{OFFER_VALIDITY_TEXT}</b>.
                     </p>
 
                     <p className="mb-4">
@@ -4975,7 +5116,6 @@ export default function FranchiseLeadsPage() {
                     Need Support
                   </button>
                 </div>
-
 
                 <div className="bg-white rounded-xl border border-gray-200 p-4 text-sm text-gray-600">
                   <div className="flex justify-between py-1">
@@ -5014,6 +5154,17 @@ export default function FranchiseLeadsPage() {
         alert={followUpDueAlert}
         onDismiss={() => setFollowUpDueAlert(null)}
         onVoiceCall={undefined}
+      />
+
+      <ChatHistoryModal
+        open={!!chatHistoryModal?.open}
+        onClose={closeChatHistoryModal}
+        user={chatHistoryModal?.user}
+        userId={chatHistoryModal?.userId}
+        history={chatHistoryModal?.history || []}
+        loading={!!chatHistoryModal?.loading}
+        error={chatHistoryModal?.error || ""}
+        onRetry={() => handleOpenChat(chatHistoryModal?.user)}
       />
     </div>
   );

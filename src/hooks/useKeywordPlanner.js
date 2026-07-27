@@ -100,6 +100,9 @@ export function useKeywordPlanner() {
     setIsSearching(true);
 
     try {
+      // Keyword-ideas webhook (volume ke saath). NOTE: `/webhook/webhook` ab
+      // rank-checker ka data deta hai (repurposed) — isliye ye dedicated
+      // keyword-planner webhook use karo, warna search volume 0 aata hai.
       const res = await fetch(
         "https://n8n.limbutech.in/webhook/4dc0fc39-0e04-4d74-a189-1c4f09bd6894",
         {
@@ -115,15 +118,19 @@ export function useKeywordPlanner() {
 
       const data = await res.json();
 
-      if (data.results) {
-        const mappedSuggestions = data.results.map((item) => ({
-          keyword: item.text,
-          volume: item.keywordIdeaMetrics?.avgMonthlySearches
-            ? parseInt(item.keywordIdeaMetrics.avgMonthlySearches)
-            : 0,
-          competition: item.keywordIdeaMetrics?.competition,
-          competitionIndex: item.keywordIdeaMetrics?.competitionIndex,
-        }));
+      if (Array.isArray(data.results)) {
+        const mappedSuggestions = data.results
+          // Endpoint ab do shapes de sakta hai — keyword ideas ({text,...})
+          // ya rank data ({keyword,...}). Dono se keyword ka naam nikaalo.
+          .map((item) => ({
+            keyword: item.text || item.keyword || "",
+            volume: item.keywordIdeaMetrics?.avgMonthlySearches
+              ? parseInt(item.keywordIdeaMetrics.avgMonthlySearches)
+              : 0,
+            competition: item.keywordIdeaMetrics?.competition,
+            competitionIndex: item.keywordIdeaMetrics?.competitionIndex,
+          }))
+          .filter((s) => s.keyword);
 
         mappedSuggestions.sort((a, b) => b.volume - a.volume);
         setSuggestions(mappedSuggestions);

@@ -12,6 +12,11 @@ const WHATSAPP_EXTERNAL_API_KEY =
   process.env.LIMBUBOT_ADMIN_TOKEN ||
   "ws_2870c7f6bc8510381dc45e74df26a870d69f0512b17abade";
 
+// 👇 Franchise page ke liye alag key
+const FRANCHISE_WHATSAPP_API_KEY =
+  process.env.FRANCHISE_WHATSAPP_API_KEY ||
+  "ws_fca30eb07595f51089b57a862ecac20c12947558b56f1a70";
+
 function normalizePhoneE164(value) {
   let digits = String(value || "").replace(/^wa_/i, "").replace(/\D/g, "");
   if (!digits) return "";
@@ -38,6 +43,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = String(searchParams.get("user_id") || "").trim();
+    const source = String(searchParams.get("source") || "").trim().toLowerCase();
 
     if (!userId) {
       return NextResponse.json(
@@ -54,6 +60,12 @@ export async function GET(req) {
       );
     }
 
+    // 👇 Source ke hisaab se API key select karo
+    const apiKey =
+      source === "franchise"
+        ? FRANCHISE_WHATSAPP_API_KEY
+        : WHATSAPP_EXTERNAL_API_KEY;
+
     // ── Always fetch live history straight from the external WhatsApp API. ──
     const url = new URL(LIMBUBOT_HISTORY_BASE);
     url.searchParams.set("phone", phone);
@@ -62,7 +74,7 @@ export async function GET(req) {
       method: "GET",
       headers: {
         Accept: "application/json",
-        "X-API-Key": WHATSAPP_EXTERNAL_API_KEY,
+        "X-API-Key": apiKey,
       },
       cache: "no-store",
     });

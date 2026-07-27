@@ -24,6 +24,13 @@ export async function POST(req) {
       summary,
       averagePosition,
       topCompetitors,
+      // Updated rich audit
+      keywordResults,
+      businessDetails,
+      overallAveragePosition,
+      overallTopCompetitors,
+      comparison,
+      suggestions,
       rawResponse,
     } = body || {};
 
@@ -98,6 +105,15 @@ export async function POST(req) {
       summary: summary || {},
       averagePosition: averagePosition || null,
       topCompetitors: Array.isArray(topCompetitors) ? topCompetitors : [],
+      // Updated rich audit — poora data restore/compare ke liye
+      keywordResults: Array.isArray(keywordResults) ? keywordResults : [],
+      businessDetails: businessDetails || null,
+      overallAveragePosition: overallAveragePosition || null,
+      overallTopCompetitors: Array.isArray(overallTopCompetitors)
+        ? overallTopCompetitors
+        : [],
+      comparison: Array.isArray(comparison) ? comparison : [],
+      suggestions: Array.isArray(suggestions) ? suggestions : [],
       rawResponse: rawResponse ?? null,
     });
 

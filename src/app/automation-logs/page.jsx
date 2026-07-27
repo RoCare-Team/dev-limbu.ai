@@ -75,6 +75,10 @@ function buildTrail(log) {
   const L = [];
   L.push(`[${(log.outcome || "unknown").toUpperCase()}] ${PHASE_LABEL[log.phase] || log.phase || "-"}`);
   L.push(`userId: ${log.userId || "-"}`);
+  if (log.businessName) L.push(`business: ${log.businessName}${log.locality ? ` (${log.locality})` : ""}`);
+  if (log.keyword) L.push(`keyword: ${log.keyword}`);
+  if ((log.platforms || []).length) L.push(`platforms: ${log.platforms.join(", ")}`);
+  if (log.imageUrl) L.push(`imageUrl: ${log.imageUrl}`);
   if (log.postId) L.push(`postId: ${log.postId}`);
   if (log.runId) L.push(`runId: ${log.runId}`);
   L.push(`time: ${fmtTime(log.createdAt)}`);
@@ -223,6 +227,23 @@ function LogCard({ log, expanded, onToggle }) {
           <span style={{ marginLeft: "auto", fontSize: 11, color: "#9ca3af", fontWeight: 600 }}>{timeAgo(log.createdAt)}</span>
           <span style={{ fontSize: 14, color: "#9ca3af", transform: expanded ? "rotate(90deg)" : "none", transition: "transform .15s" }}>›</span>
         </div>
+        {/* Business + keyword — turant pata chale kaunsa post fail hua */}
+        {(log.businessName || log.keyword || (log.platforms || []).length > 0) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {log.businessName && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12.5 }}>
+                🏢 <b style={{ color: "#111", fontWeight: 800 }}>{log.businessName}</b>
+                {log.locality && <span style={{ color: "#9ca3af", fontWeight: 600 }}>· {log.locality}</span>}
+                <CopyBtn value={log.businessName} label="Copy name" title={`Copy business: ${log.businessName}`} />
+              </span>
+            )}
+            {log.keyword && <Chip color="#7c3aed" bg="#f5f3ff" border="#ddd6fe">🔑 {log.keyword}</Chip>}
+            {(log.platforms || []).map((p) => (
+              <Chip key={p} color="#2563eb" bg="#eff6ff" border="#bfdbfe">{p.toUpperCase()}</Chip>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: "#6b7280" }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
             👤 <b style={{ color: "#374151", fontWeight: 700 }}>{log.userId || "—"}</b>
@@ -244,6 +265,31 @@ function LogCard({ log, expanded, onToggle }) {
       </div>
       {expanded && (
         <div style={{ padding: "4px 16px 14px" }}>
+          {/* Generated image — preview + URL copy (fail hone par bhi dikhta hai) */}
+          {log.imageUrl && (
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 0", borderTop: "1px dashed #f3f4f6" }}>
+              <a href={log.imageUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                <img
+                  src={log.imageUrl}
+                  alt="Generated"
+                  style={{ width: 76, height: 76, objectFit: "cover", borderRadius: 10, border: "1px solid #e5e7eb", background: "#f9fafb" }}
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              </a>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#7c3aed", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 }}>
+                  Generated image
+                </div>
+                <div style={{ fontSize: 11.5, color: "#6b7280", wordBreak: "break-all", lineHeight: 1.4, marginBottom: 6 }}>
+                  {log.imageUrl}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <CopyBtn value={log.imageUrl} label="Copy image URL" tone="#7c3aed" />
+                  <a href={log.imageUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ fontSize: 10.5, fontWeight: 700, color: "#9ca3af", textDecoration: "none" }}>open ↗</a>
+                </div>
+              </div>
+            </div>
+          )}
           {(log.steps || []).map((s, i) => <StepRow key={i} s={s} />)}
           {log.error && (
             <div style={{ marginTop: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 10px" }}>
@@ -324,7 +370,10 @@ export default function AutomationLogsPage() {
     const q = search.trim().toLowerCase();
     return tabLogs.filter((l) => {
       if (outcome !== "all" && l.outcome !== outcome) return false;
-      if (q && !String(l.userId || "").toLowerCase().includes(q)) return false;
+      if (q) {
+        const hay = `${l.userId || ""} ${l.businessName || ""} ${l.keyword || ""} ${l.postId || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
       return true;
     });
   }, [tabLogs, outcome, search]);
@@ -385,7 +434,7 @@ export default function AutomationLogsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by userId (e.g. USR123)…"
+            placeholder="Search by userId, business name, keyword…"
             style={{ width: "100%", padding: "10px 14px", borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 13.5, outline: "none", boxSizing: "border-box", background: "#fff" }}
           />
         </div>

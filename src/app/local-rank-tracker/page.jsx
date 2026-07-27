@@ -36,6 +36,8 @@ import {
   Gauge,
   Users,
   ExternalLink,
+  Star,
+  Download,
 } from "lucide-react";
 
 const MAP_CONTAINER_STYLE = {
@@ -246,6 +248,14 @@ export default function RankTrackerPage() {
   const [showCompare, setShowCompare] = useState(false);
   const [compareTarget, setCompareTarget] = useState(null);
 
+  // Business live-search (Google Places) choices.
+  const [placeChoices, setPlaceChoices] = useState([]);
+  const [isFindingPlace, setIsFindingPlace] = useState(false);
+
+  // Live business search (type karte hi) dropdown ke liye.
+  const [showBizSuggestions, setShowBizSuggestions] = useState(false);
+  const bizRef = useRef(null);
+
   const mapRef = useRef(null);
   const suggestionRef = useRef(null);
 
@@ -263,6 +273,20 @@ export default function RankTrackerPage() {
     gridPoints.forEach((p) =>
       (p.competitors || []).forEach((c) => {
         if (c.name && c.placeId && !map.has(c.name)) map.set(c.name, c.placeId);
+      }),
+    );
+    return map;
+  }, [gridPoints]);
+
+  // top_competitors me address nahi aata — grid ke competitors se naam par
+  // address bhi utha lo, taaki card GMB profile jaisa full detail dikhaye.
+  const detailByName = useMemo(() => {
+    const map = new Map();
+    gridPoints.forEach((p) =>
+      (p.competitors || []).forEach((c) => {
+        if (c.name && !map.has(c.name)) {
+          map.set(c.name, { address: c.address || "", placeId: c.placeId || "" });
+        }
       }),
     );
     return map;
@@ -308,10 +332,195 @@ export default function RankTrackerPage() {
     return () => clearTimeout(timer);
   }, [keyword, searchKeywords, showSuggestions]);
 
+  // Business field mein type karte hi Google Places se live matches laao.
+  useEffect(() => {
+    if (!showBizSuggestions || businessName.trim().length < 3) return;
+    const timer = setTimeout(async () => {
+      setIsFindingPlace(true);
+      const places = await findPlaces(businessName, city);
+      setIsFindingPlace(false);
+      setPlaceChoices(places);
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessName, city, showBizSuggestions]);
+
+  // Bahar click par business dropdown band.
+  useEffect(() => {
+    const handler = (e) => {
+      if (bizRef.current && !bizRef.current.contains(e.target)) {
+        setShowBizSuggestions(false);
+      }
+    };
+    if (showBizSuggestions) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showBizSuggestions]);
+
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+
   const mapCenter = useMemo(() => {
     if (centerPoint) return { lat: centerPoint.lat, lng: centerPoint.lng };
     return { lat: 28.4595, lng: 77.0266 };
   }, [centerPoint]);
+
+  // Poori audit ki details ka PDF banata + download karta hai (jsPDF).
+  const handleDownloadPdf = async () => {
+    if (!gridPoints.length) return;
+    setIsPdfDownloading(true);
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 40;
+      let y = margin;
+
+      const line = (gap = 16) => {
+        y += gap;
+        if (y > pageH - margin) {
+          doc.addPage();
+          y = margin;
+        }
+      };
+
+      // Header
+      doc.setFillColor(51, 65, 85);
+      doc.rect(0, 0, pageW, 70, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.text("Local Rank Tracker Report", margin, 44);
+      y = 96;
+
+      // Meta
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(businessName || "—", margin, y);
+      line();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Keyword: ${keyword || "—"}   |   City: ${city || "—"}   |   Grid: ${gridSize}   |   ${new Date().toLocaleString("en-IN")}`,
+        margin,
+        y,
+      );
+      line(24);
+
+      // Summary
+      doc.setTextColor(30, 41, 59);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Summary", margin, y);
+      line();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      const avg =
+        averagePosition?.averageRank != null
+          ? `#${averagePosition.averageRank.toFixed(2)}`
+          : "20+";
+      doc.text(`Average Rank: ${avg}`, margin, y);
+      line();
+      doc.text(
+        `Coverage (ranked/total): ${summary.rankedPoints}/${summary.totalPoints}`,
+        margin,
+        y,
+      );
+      line();
+      doc.text(
+        `Best Rank: ${summary.bestRank ? `#${summary.bestRank}` : "20+"}`,
+        margin,
+        y,
+      );
+      if (averagePosition) {
+        line();
+        doc.text(
+          `Appeared In: ${averagePosition.frequency}/${averagePosition.totalGridPoints} grid points`,
+          margin,
+          y,
+        );
+      }
+      line(26);
+
+      // Top Competitors
+      if (topCompetitors.length) {
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Top Competitors", margin, y);
+        line(20);
+        doc.setFontSize(9);
+        doc.setTextColor(148, 163, 184);
+        doc.text("rank", margin, y);
+        doc.text("name", margin + 40, y);
+        doc.text("average_rank", margin + 280, y);
+        doc.text("frequency", margin + 370, y);
+        doc.text("rating", margin + 440, y);
+        line(14);
+        doc.setTextColor(51, 65, 85);
+        doc.setFont("helvetica", "normal");
+        topCompetitors.forEach((c, i) => {
+          doc.text(String(c.rank ?? i + 1), margin, y);
+          const name =
+            (c.name || "").length > 42
+              ? `${c.name.slice(0, 42)}…`
+              : c.name || "—";
+          doc.text(name, margin + 40, y);
+          doc.text(
+            c.averageRank != null ? `#${c.averageRank}` : "—",
+            margin + 280,
+            y,
+          );
+          doc.text(`${c.frequency}x`, margin + 370, y);
+          doc.text(
+            `${c.rating ?? "—"} (${c.reviews})`,
+            margin + 440,
+            y,
+          );
+          line(14);
+        });
+        line(12);
+      }
+
+      // Per-point ranks
+      doc.setTextColor(30, 41, 59);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("Grid Points", margin, y);
+      line(20);
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184);
+      doc.text("point", margin, y);
+      doc.text("area", margin + 60, y);
+      doc.text("businessRank", margin + 300, y);
+      doc.text("lat, lng", margin + 400, y);
+      line(14);
+      doc.setTextColor(51, 65, 85);
+      doc.setFont("helvetica", "normal");
+      gridPoints.forEach((p, i) => {
+        doc.text(p.isCenter ? "Center" : `Pt ${i + 1}`, margin, y);
+        doc.text((p.area || "—").slice(0, 34), margin + 60, y);
+        doc.text(p.businessRank ? `#${p.businessRank}` : "20+", margin + 300, y);
+        doc.text(
+          `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
+          margin + 400,
+          y,
+        );
+        line(14);
+      });
+
+      const fileName = `rank-audit-${(businessName || "business")
+        .replace(/[^a-z0-9]+/gi, "-")
+        .toLowerCase()}-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
+      doc.save(fileName);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  };
 
   const fitToGrid = (points) => {
     if (!mapRef.current || !window.google || points.length === 0) return;
@@ -332,14 +541,51 @@ export default function RankTrackerPage() {
   setShowSuggestions(false);
   setActivePoint(null);
 
+  setShowBizSuggestions(false);
+
+  // Exact business (GMB ya live-search se) select hai to wahi placeId use karo.
+  // Nahi to Google Places se best match ka placeId le lo — taaki Generate
+  // dabate hi webhook HAMESHA chale (koi modal/rukawat nahi).
+  let chosenPlaceId = placeId;
+  if (!chosenPlaceId && businessName && city) {
+    setIsFindingPlace(true);
+    const places = await findPlaces(businessName, city);
+    setIsFindingPlace(false);
+    if (places.length > 0) {
+      chosenPlaceId = places[0].placeId;
+      setPlaceId(chosenPlaceId);
+    }
+  }
+
+  await runAudit(chosenPlaceId || "");
+};
+
+// Google Places se business list laata hai (GMB independent).
+const findPlaces = async (name, town) => {
+  try {
+    const res = await fetch("/api/local-rank/place-id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessName: name, city: town }),
+    });
+    const data = await res.json();
+    return data?.success && Array.isArray(data.places) ? data.places : [];
+  } catch {
+    return [];
+  }
+};
+
+// Chosen place ke saath actual rank audit fire karta hai.
+const runAudit = async (chosenPlaceId) => {
   await fetchRanks({
     keyword,
     city,
     businessName,
     gridSize,
-    placeId,
+    placeId: chosenPlaceId,
   });
 };
+
 
   const handleSaveAudit = async () => {
     const saved = await saveResult({
@@ -710,30 +956,96 @@ export default function RankTrackerPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 relative" ref={bizRef}>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
               Business
             </label>
             <div className="relative">
               <input
                 value={businessName}
-                onChange={(e) => setBusinessName(e.target.value)}
+                onFocus={() => setShowBizSuggestions(true)}
+                onChange={(e) => {
+                  setBusinessName(e.target.value);
+                  // Manual edit — pehle chuna placeId ab valid nahi.
+                  setPlaceId("");
+                  setShowBizSuggestions(true);
+                }}
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold focus:border-yellow-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-yellow-50 transition-all"
+                placeholder="RO Care India"
               />
-              <Building2
-                className="absolute right-4 top-4 text-slate-300"
-                size={20}
-              />
+              {isFindingPlace ? (
+                <Loader2
+                  className="absolute right-4 top-4 animate-spin text-yellow-500"
+                  size={20}
+                />
+              ) : (
+                <Building2
+                  className="absolute right-4 top-4 text-slate-300"
+                  size={20}
+                />
+              )}
             </div>
+
+            {showBizSuggestions && placeChoices.length > 0 && !placeId && (
+              <div className="absolute right-0 z-50 mt-2 w-[420px] max-w-[calc(100vw-2rem)] max-h-80 overflow-auto rounded-2xl border border-slate-100 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                <p className="px-3 pt-2 pb-1 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Select your business
+                </p>
+                {placeChoices.map((p) => (
+                  <button
+                    key={p.placeId}
+                    type="button"
+                    onClick={() => {
+                      setPlaceId(p.placeId);
+                      setBusinessName(p.name);
+                      if (!city && p.address) {
+                        // Address se locality guess (best-effort).
+                        const parts = p.address.split(",").map((s) => s.trim());
+                        if (parts.length >= 3) setCity(parts[parts.length - 3]);
+                      }
+                      setShowBizSuggestions(false);
+                    }}
+                    className="flex w-full items-start gap-3 px-3 py-3 text-left hover:bg-yellow-50 rounded-xl transition-colors mb-1 last:mb-0"
+                  >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-yellow-50 text-yellow-500">
+                      <MapPin size={16} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-black text-slate-800 leading-snug">
+                        {p.name}
+                      </p>
+                      <p className="text-[11px] font-medium text-slate-400 leading-snug mt-0.5">
+                        {p.address}
+                      </p>
+                      {p.rating != null && (
+                        <span className="inline-block mt-1 text-[10px] font-bold text-amber-500">
+                          ★ {p.rating}{" "}
+                          <span className="text-slate-400 font-medium">
+                            ({p.reviews} reviews)
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Business locked-in confirmation */}
+            {placeId && businessName && (
+              <p className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 ml-1">
+                <MapPin size={11} /> Business selected
+              </p>
+            )}
           </div>
 
           <div className="flex items-end">
             <button
               type="submit"
-              disabled={isLoading || !keyword}
+              disabled={isLoading || isFindingPlace || !keyword}
               className="w-full h-[54px] rounded-2xl bg-slate-700 text-sm font-bold text-white hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
             >
-              {isLoading ? (
+              {isLoading || isFindingPlace ? (
                 <Loader2 className="animate-spin" size={20} />
               ) : (
                 <>
@@ -773,6 +1085,18 @@ export default function RankTrackerPage() {
                 <Save size={18} strokeWidth={2.5} />
               )}
               Save Audit
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isPdfDownloading}
+              className="h-[48px] px-6 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-slate-700 hover:border-yellow-400 hover:text-slate-900 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {isPdfDownloading ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <Download size={18} strokeWidth={2.5} />
+              )}
+              Download PDF
             </button>
             {savedResults.length > 0 && (
               <button
@@ -1057,81 +1381,95 @@ export default function RankTrackerPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {topCompetitors.map((c, i) => {
+                    const detail = detailByName.get(c.name) || {};
                     const href = mapsLinkFor({
-                      placeId: c.placeId || placeIdByName.get(c.name),
+                      placeId: c.placeId || detail.placeId || placeIdByName.get(c.name),
                       name: c.name,
                     });
                     return (
                     <div
                       key={`${c.name}_${i}`}
-                      className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 hover:border-yellow-300 hover:bg-yellow-50/30 transition-colors"
+                      className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:border-yellow-300 transition-colors"
                     >
+                      {/* GMB-profile style header */}
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-[11px] font-black text-yellow-400">
-                          {c.rank ?? i + 1}
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-700 text-yellow-400 text-sm font-black">
+                          #{c.rank ?? i + 1}
                         </span>
-                        <div className="min-w-0">
-                          {href ? (
-                            <a
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group flex items-start gap-1.5 text-[13px] font-black text-slate-800 hover:text-yellow-600 transition-colors"
-                            >
-                              <span className="line-clamp-2">{c.name}</span>
-                              <ExternalLink
-                                size={12}
-                                className="mt-0.5 shrink-0 text-slate-300 group-hover:text-yellow-500"
-                              />
-                            </a>
-                          ) : (
-                            <p className="text-[13px] font-black text-slate-800 line-clamp-2">
-                              {c.name}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            {c.rating != null && (
-                              <span className="text-[10px] font-bold text-amber-500">
-                                ★ {c.rating}
-                              </span>
-                            )}
-                            <span className="text-[10px] font-medium text-slate-400">
-                              {c.reviews} reviews
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-black text-slate-900 leading-snug">
+                            {c.name}
+                          </p>
+                          {/* rating + reviews (response keys) */}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[13px] font-black text-amber-500">
+                              {c.rating != null ? c.rating : "—"}
+                            </span>
+                            <span className="flex text-amber-400">
+                              {[0, 1, 2, 3, 4].map((s) => (
+                                <Star
+                                  key={s}
+                                  size={12}
+                                  className={
+                                    c.rating != null && s < Math.round(c.rating)
+                                      ? "fill-amber-400"
+                                      : "fill-slate-200 text-slate-200"
+                                  }
+                                />
+                              ))}
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-400">
+                              ({c.reviews})
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
-                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
-                            Avg
-                          </span>
-                          <span className="text-[12px] font-black text-slate-800">
-                            {c.averageRank != null
-                              ? `#${c.averageRank}`
-                              : "—"}
-                          </span>
-                        </span>
-                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
-                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
-                            Seen
-                          </span>
-                          <span className="text-[12px] font-black text-slate-800">
-                            {c.frequency}×
-                          </span>
-                        </span>
-                        <span className="flex-1 rounded-xl bg-white border border-slate-100 px-2 py-1.5 text-center">
-                          <span className="block text-[8px] font-black uppercase tracking-widest text-slate-400">
-                            Score
-                          </span>
-                          <span className="text-[12px] font-black text-slate-800">
-                            {c.score ?? "—"}
-                          </span>
-                        </span>
+                      {/* address (grid se) */}
+                      {detail.address && (
+                        <p className="flex items-start gap-1.5 text-[11px] font-medium text-slate-500 mt-2.5">
+                          <MapPin
+                            size={12}
+                            className="mt-0.5 shrink-0 text-slate-300"
+                          />
+                          <span className="line-clamp-2">{detail.address}</span>
+                        </p>
+                      )}
+
+                      {/* saare metrics — response ke exact key names */}
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        {[
+                          { key: "average_rank", val: c.averageRank != null ? `#${c.averageRank}` : "—" },
+                          { key: "frequency", val: `${c.frequency}×` },
+                          { key: "score", val: c.score ?? "—" },
+                        ].map((m) => (
+                          <div
+                            key={m.key}
+                            className="rounded-xl bg-slate-50 border border-slate-100 px-2 py-2 text-center"
+                          >
+                            <span className="block text-[8px] font-black lowercase tracking-tight text-slate-400">
+                              {m.key}
+                            </span>
+                            <span className="text-[13px] font-black text-slate-800">
+                              {m.val}
+                            </span>
+                          </div>
+                        ))}
                       </div>
+
+                      {/* actions — GMB profile jaisa */}
+                      {href && (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-3 flex items-center justify-center gap-1.5 w-full rounded-xl bg-slate-700 py-2.5 text-[11px] font-black text-white hover:bg-slate-800 transition-colors"
+                        >
+                          <ExternalLink size={13} /> View on Google Maps
+                        </a>
+                      )}
                     </div>
                     );
                   })}

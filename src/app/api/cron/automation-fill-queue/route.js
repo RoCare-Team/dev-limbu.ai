@@ -27,7 +27,8 @@ import { logGenerate, logAutomationLine } from '@/lib/automationFileLogger';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const BATCH = 15;                 // max plans processed per run
+const BATCH = 15;                 // max posts GENERATED per run (expensive image gen)
+const MAX_SCAN = 500;             // candidates scanned per run (cheap lean docs)
 const DAY_MS = 86400000;
 const STALE_LOCK_MS = 10 * 60 * 1000; // reclaim a slot lock stuck for >10 min
 
@@ -52,7 +53,11 @@ export async function GET() {
     $expr: { $lt: ['$postIndex', '$queueTiming.postLimit'] },
   })
     .sort({ updatedAt: 1 })
-    .limit(BATCH)
+    // Pehle `.limit(BATCH)` tha — problem: "not due yet" plans bhi BATCH slot
+    // khaa lete the, isliye 15+ purane not-due plans ke hone par naye DUE plans
+    // kabhi generate hi nahi hote the (starvation). Ab zyada candidates scan
+    // karte hain aur BATCH sirf ACTUAL generations par cap karte hain (neeche).
+    .limit(MAX_SCAN)
     .lean();
 
   const logs = [];
@@ -66,6 +71,10 @@ export async function GET() {
   const run = createRunLogger({ phase: 'fill-queue', trigger: 'generate', source: 'automation' });
 
   for (const plan of plans) {
+    // BATCH ab GENERATIONS par cap hai, scan par nahi — itne posts is run me
+    // ban chuke to ruk jao. Not-due/claimed skips is cap me count nahi hote.
+    if (stats.filled >= BATCH) break;
+
     const idx = plan.postIndex || 0;
     const t = plan.queueTiming || {};
     const stepDays = Number(t.stepDays) || 1;
@@ -126,6 +135,7 @@ export async function GET() {
     const keywords = Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [];
     const keyword = keywords.length ? keywords[idx % keywords.length] : (plan.keywords?.[0] || '');
 
+    slog.setMeta({ businessName, locality: cityName, keyword, platforms: plan.platforms });
     slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
 
     try {
@@ -138,6 +148,9 @@ export async function GET() {
         imageConfig: plan.imageConfig || {},
         platforms: plan.platforms,
       });
+
+      // Image ban gayi — log par set kar do (publish fail bhi ho to URL dikhe).
+      if (imageUrl) slog.setMeta({ imageUrl });
 
       if (!imageUrl || !postText) {
         throw new Error(`Missing ${!imageUrl ? 'imageUrl' : 'postText'} (aiAssetsGenerate down?)`);

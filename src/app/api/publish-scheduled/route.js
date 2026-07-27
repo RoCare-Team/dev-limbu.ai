@@ -9,6 +9,7 @@ import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
 import { getGmbConnection } from "@/lib/gmbSession";
+import GmbConnection from "@/models/GmbConnection";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
 
@@ -459,6 +460,19 @@ export async function GET(req) {
         // Automation-queued posts came from an auto plan; everything else here was
         // scheduled manually by the user via the Schedule modal.
         source: post.automationQueued ? "automation" : "manual",
+      });
+      // Business name + image URL log par set — fail hone par bhi dono dikhein.
+      const loc0 = Array.isArray(post.locations) ? post.locations[0] : null;
+      slog.setMeta({
+        businessName: loc0?.name || loc0?.title || post.businessName || "",
+        locality: loc0?.locality || loc0?.city || "",
+        keyword: post.keyword || "",
+        imageUrl: post.aiOutput || post.imageUrl || "",
+        platforms: [
+          ...(Array.isArray(post.locations) && post.locations.length ? ["gmb"] : []),
+          ...(Array.isArray(post.fbPages) && post.fbPages.length ? ["fb"] : []),
+          ...(Array.isArray(post.igPages) && post.igPages.length ? ["ig"] : []),
+        ],
       });
       slog.info("post:start", `scheduledDate=${post.scheduledDate?.toISOString?.() || ""}`);
       log(`📝 Processing post ${postId}`);
@@ -911,12 +925,31 @@ export async function GET(req) {
               slog.fail("publish:gmb", `posted ${gmbOk}/${post.locations.length} location(s)`, gmbErr);
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
+
+            // invalid_grant = refresh token sach me revoke ho chuka hai. Naya
+            // access token banana namumkin — user ko ek baar GMB reconnect karna
+            // hi padega. Connection ko `invalid` mark karo taaki dashboard turant
+            // "Reconnect" prompt dikhaye (chup-chaap fail na ho), aur error message
+            // saaf ho.
+            const isInvalidGrant = /invalid_grant/i.test(err.message || "");
+            if (isInvalidGrant) {
+              try {
+                await GmbConnection.updateOne(
+                  { userId: post.userId },
+                  { $set: { invalid: true, invalidReason: "invalid_grant", updatedAt: new Date() } },
+                );
+                log("🔒 GmbConnection marked invalid — user must reconnect GMB");
+              } catch (markErr) {
+                log("⚠ Could not mark GmbConnection invalid:", markErr.message);
+              }
+            }
+
+            const failReason = isInvalidGrant
+              ? "GMB reconnect required (access revoked). Reconnect Google Business Profile."
+              : err.message || "GMB critical error";
+
             slog.fail("publish:gmb", "GMB critical error (token refresh / network)", err);
-            post.whenPosted = markWhenFailed(
-              post.whenPosted,
-              "gmb",
-              err.message || "GMB critical error",
-            );
+            post.whenPosted = markWhenFailed(post.whenPosted, "gmb", failReason);
             post.markModified("whenPosted");
             failed = true;
             failedCount++;

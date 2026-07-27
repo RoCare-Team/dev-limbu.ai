@@ -38,6 +38,7 @@ import {
   ExternalLink,
   Star,
   Download,
+  Plus,
 } from "lucide-react";
 
 const MAP_CONTAINER_STYLE = {
@@ -127,31 +128,32 @@ function mapsLinkFor({ placeId, name }) {
   return null;
 }
 
+// Ab sabhi plans ke liye saare grid sizes enabled hain (koi lock nahi).
 const ALLOWED_GRIDS_BY_TIER = {
   premium: ["1x1", "3x3", "5x5"],
-  basic: ["1x1", "3x3"],
-  free: ["1x1"],
+  basic: ["1x1", "3x3", "5x5"],
+  free: ["1x1", "3x3", "5x5"],
 };
 
 // Enhanced Visuals Logic
 function getRankVisuals(rank) {
-  // Rank 1: Dominant (Emerald/Green)
-  if (rank === 1)
+  // Rank 1-3: Dominant (Green)
+  if (rank > 0 && rank <= 3)
     return {
       color: "#10b981",
       bg: "bg-emerald-500",
       light: "#ecfdf5",
       border: "#059669",
     };
-  // Rank 2-3: Competitive (Amber/Yellow)
-  if (rank <= 3 && rank > 0)
+  // Rank 4-10: Competitive (Amber/Yellow)
+  if (rank > 0 && rank <= 10)
     return {
       color: "#f59e0b",
       bg: "bg-amber-500",
       light: "#fffbeb",
       border: "#d97706",
     };
-  // Rank 4+: Weak (Rose/Red)
+  // Rank 11+ (ya unranked): Weak (Red)
   return {
     color: "#f43f5e",
     bg: "bg-rose-500",
@@ -175,6 +177,14 @@ export default function RankTrackerPage() {
     summary,
     averagePosition,
     topCompetitors,
+    keywordResults,
+    overallTopCompetitors: webhookOverallTop,
+    businessDetails,
+    overallAveragePosition: webhookOverallAvg,
+    comparison: vsComparison,
+    suggestions: improvementSuggestions,
+    activeIndex,
+    setActiveIndex,
     isLoading,
     fetchRanks,
     saveResult,
@@ -207,7 +217,44 @@ export default function RankTrackerPage() {
     window.open(UPGRADE_URL, "_blank", "noopener,noreferrer");
   };
 
+  // `keyword` = comma-joined string (baaki poore code ke saath compatible).
+  // Chips isi string se derive hote hain; `keywordInput` current typing box hai.
   const [keyword, setKeyword] = useState("");
+  const [keywordInput, setKeywordInput] = useState("");
+
+  const keywordList = useMemo(
+    () =>
+      keyword
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean),
+    [keyword],
+  );
+
+  const addKeyword = (kw) => {
+    const clean = String(kw || "").trim();
+    if (!clean) return;
+    setKeyword((cur) => {
+      const parts = cur
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean);
+      if (parts.some((p) => p.toLowerCase() === clean.toLowerCase())) return cur;
+      return [...parts, clean].join(", ");
+    });
+    setKeywordInput("");
+  };
+
+  const removeKeyword = (kw) => {
+    setKeyword((cur) =>
+      cur
+        .split(",")
+        .map((k) => k.trim())
+        .filter(Boolean)
+        .filter((k) => k.toLowerCase() !== kw.toLowerCase())
+        .join(", "),
+    );
+  };
   const [city, setCity] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -256,15 +303,24 @@ export default function RankTrackerPage() {
   const [showBizSuggestions, setShowBizSuggestions] = useState(false);
   const bizRef = useRef(null);
 
+  // Full-details accordion — kaunsa grid point khula hai.
+  const [openDetailId, setOpenDetailId] = useState(null);
+
+  // Keyword-wise details: "All" dikhana hai ya sirf active keyword.
+  const [showAllKeywords, setShowAllKeywords] = useState(false);
+
   const mapRef = useRef(null);
   const suggestionRef = useRef(null);
 
   // Take only top points for the demo grid
   const gridPoints = useMemo(() => rawGridPoints, [rawGridPoints]);
 
-  // The sidebar only exists once the webhook gives us something to put in it —
-  // otherwise the map stays full width.
-  const hasInsights = !!averagePosition || topCompetitors.length > 0;
+  // Keyword switch / naya audit — map ko naye grid par refit karo.
+  useEffect(() => {
+    if (gridPoints.length > 0) fitToGrid(gridPoints);
+    setActivePoint(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, gridPoints]);
 
   // `top_competitors` has no place id, but the same businesses appear inside the
   // grid points with one — so map name → placeId to get exact Maps links.
@@ -291,6 +347,99 @@ export default function RankTrackerPage() {
     );
     return map;
   }, [gridPoints]);
+
+  // ── OVERALL (saare keywords ka aggregate) ──
+  // Saare keywords ke grid points ek saath.
+  const allPoints = useMemo(
+    () => keywordResults.flatMap((k) => k.gridPoints),
+    [keywordResults],
+  );
+
+  // Business ki overall average position — webhook ka mile to wahi, warna compute.
+  const computedOverallAvg = useMemo(() => {
+    if (!keywordResults.length) return null;
+    const ranked = allPoints.filter((p) => p.businessRank != null);
+    const avg = ranked.length
+      ? Math.round(
+          (ranked.reduce((a, p) => a + p.businessRank, 0) / ranked.length) * 10,
+        ) / 10
+      : null;
+    return {
+      averageRank: avg,
+      frequency: ranked.length,
+      totalGridPoints: allPoints.length,
+      businessName: keywordResults[0]?.businessName || businessName,
+    };
+  }, [keywordResults, allPoints, businessName]);
+
+  const overallAveragePosition = webhookOverallAvg
+    ? {
+        ...webhookOverallAvg,
+        businessName:
+          businessDetails?.name ||
+          keywordResults[0]?.businessName ||
+          businessName,
+      }
+    : computedOverallAvg;
+
+  // Overall top competitors — pehle webhook ka `overall_top_competitors`,
+  // warna grid se khud aggregate (fallback).
+  const computedOverallTop = useMemo(() => {
+    const map = new Map();
+    allPoints.forEach((pt) =>
+      (pt.competitors || []).forEach((c) => {
+        const key = c.placeId || c.name;
+        if (!key) return;
+        const cur = map.get(key) || {
+          placeId: c.placeId || "",
+          name: c.name || "",
+          rating: c.rating ?? null,
+          reviews: c.reviews ?? 0,
+          address: c.address || "",
+          ranks: [],
+        };
+        if (typeof c.rank === "number") cur.ranks.push(c.rank);
+        if ((c.reviews ?? 0) > (cur.reviews ?? 0)) {
+          cur.rating = c.rating ?? cur.rating;
+          cur.reviews = c.reviews ?? cur.reviews;
+        }
+        map.set(key, cur);
+      }),
+    );
+    const rows = [...map.values()].map((c) => {
+      const frequency = c.ranks.length;
+      return {
+        placeId: c.placeId,
+        name: c.name,
+        rating: c.rating,
+        reviews: c.reviews,
+        address: c.address,
+        frequency,
+        averageRank: frequency
+          ? Math.round((c.ranks.reduce((a, b) => a + b, 0) / frequency) * 10) /
+            10
+          : null,
+        score: c.ranks.reduce((a, r) => a + Math.max(0, 21 - r), 0),
+      };
+    });
+    rows.sort(
+      (a, b) =>
+        b.frequency - a.frequency ||
+        (a.averageRank ?? 99) - (b.averageRank ?? 99) ||
+        b.score - a.score,
+    );
+    return rows.slice(0, 20).map((c, i) => ({ ...c, rank: i + 1 }));
+  }, [allPoints]);
+
+  // Webhook ka ready leaderboard mile to wahi, warna computed fallback.
+  const overallTopCompetitors =
+    webhookOverallTop.length > 0 ? webhookOverallTop : computedOverallTop;
+
+  // The sidebar only exists once the webhook gives us something to put in it —
+  // otherwise the map stays full width.
+  const hasInsights =
+    keywordResults.length > 0 &&
+    (!!overallAveragePosition || overallTopCompetitors.length > 0);
 
   useEffect(() => {
     const uid = localStorage.getItem("userId");
@@ -327,10 +476,23 @@ export default function RankTrackerPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (keyword.length > 2 && showSuggestions) searchKeywords(keyword);
+      // Suggestions ab typing box (keywordInput) par based hain.
+      const frag = keywordInput.trim();
+      if (frag.length > 2 && showSuggestions) searchKeywords(frag);
     }, 500);
     return () => clearTimeout(timer);
-  }, [keyword, searchKeywords, showSuggestions]);
+  }, [keywordInput, searchKeywords, showSuggestions]);
+
+  // Bahar click par keyword suggestions band.
+  useEffect(() => {
+    const handler = (e) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    if (showSuggestions) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showSuggestions]);
 
   // Business field mein type karte hi Google Places se live matches laao.
   useEffect(() => {
@@ -363,9 +525,34 @@ export default function RankTrackerPage() {
     return { lat: 28.4595, lng: 77.0266 };
   }, [centerPoint]);
 
-  // Poori audit ki details ka PDF banata + download karta hai (jsPDF).
+  // Kisi URL (image) ko base64 dataURL me badalta hai — same-origin ya proxied.
+  const toDataUrl = async (url, init) => {
+    try {
+      const res = await fetch(url, init);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  // Poori audit ki details ka PDF — saare keywords ka data, ek file me.
   const handleDownloadPdf = async () => {
-    if (!gridPoints.length) return;
+    // Multi-keyword results, ya fallback single active.
+    const sections =
+      keywordResults.length > 0
+        ? keywordResults
+        : gridPoints.length
+          ? [{ keyword, gridPoints, averagePosition, topCompetitors }]
+          : [];
+    if (sections.length === 0) return;
+
     setIsPdfDownloading(true);
     try {
       const { default: jsPDF } = await import("jspdf");
@@ -375,6 +562,9 @@ export default function RankTrackerPage() {
       const margin = 40;
       let y = margin;
 
+      // Watermark logo pehle load kar lo (async).
+      const watermark = await toDataUrl("/images/bg-logo.png");
+
       const line = (gap = 16) => {
         y += gap;
         if (y > pageH - margin) {
@@ -382,8 +572,14 @@ export default function RankTrackerPage() {
           y = margin;
         }
       };
+      const heading = (text, size = 12) => {
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(size);
+        doc.text(text, margin, y);
+      };
 
-      // Header
+      // Header banner
       doc.setFillColor(51, 65, 85);
       doc.rect(0, 0, pageW, 70, "F");
       doc.setTextColor(255, 255, 255);
@@ -392,128 +588,342 @@ export default function RankTrackerPage() {
       doc.text("Local Rank Tracker Report", margin, 44);
       y = 96;
 
-      // Meta
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(businessName || "—", margin, y);
+      // Business meta (once)
+      heading(businessName || "—");
       line();
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(100, 116, 139);
       doc.text(
-        `Keyword: ${keyword || "—"}   |   City: ${city || "—"}   |   Grid: ${gridSize}   |   ${new Date().toLocaleString("en-IN")}`,
+        `City: ${city || "—"}   |   Grid: ${gridSize}   |   Keywords: ${sections.length}   |   ${new Date().toLocaleString("en-IN")}`,
         margin,
         y,
       );
-      line(24);
+      line(18);
 
-      // Summary
-      doc.setTextColor(30, 41, 59);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("Summary", margin, y);
-      line();
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(51, 65, 85);
-      const avg =
-        averagePosition?.averageRank != null
-          ? `#${averagePosition.averageRank.toFixed(2)}`
-          : "20+";
-      doc.text(`Average Rank: ${avg}`, margin, y);
-      line();
-      doc.text(
-        `Coverage (ranked/total): ${summary.rankedPoints}/${summary.totalPoints}`,
-        margin,
-        y,
-      );
-      line();
-      doc.text(
-        `Best Rank: ${summary.bestRank ? `#${summary.bestRank}` : "20+"}`,
-        margin,
-        y,
-      );
-      if (averagePosition) {
-        line();
+      // Business details line
+      if (businessDetails) {
+        doc.setTextColor(51, 65, 85);
         doc.text(
-          `Appeared In: ${averagePosition.frequency}/${averagePosition.totalGridPoints} grid points`,
+          `Rating: ${businessDetails.rating ?? "—"} (${businessDetails.reviews} reviews)   |   Recent 6mo: ${businessDetails.recentReviews6mo ?? "—"}   |   Photos: ${businessDetails.photoCount ?? "—"}   |   Website: ${businessDetails.website ? "Yes" : "No"}   |   Phone: ${businessDetails.phone || "—"}`,
           margin,
           y,
         );
+        line(14);
+        if (businessDetails.address) {
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Address: ${businessDetails.address.slice(0, 90)}`, margin, y);
+          line(14);
+        }
       }
-      line(26);
+      line(12);
 
-      // Top Competitors
-      if (topCompetitors.length) {
-        doc.setTextColor(30, 41, 59);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text("Top Competitors", margin, y);
-        line(20);
+      // ── OVERALL section (sabse upar) ──
+      doc.setFillColor(15, 23, 42);
+      doc.rect(margin - 8, y - 12, pageW - 2 * (margin - 8), 24, "F");
+      doc.setTextColor(250, 204, 21);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text("OVERALL (all keywords)", margin, y);
+      line(24);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      const oAvg =
+        overallAveragePosition?.averageRank != null
+          ? `#${overallAveragePosition.averageRank}`
+          : "20+";
+      doc.text(
+        `Overall Avg Rank: ${oAvg}    Appeared: ${overallAveragePosition?.frequency ?? 0}/${overallAveragePosition?.totalGridPoints ?? 0}    Visibility: ${
+          overallAveragePosition?.totalGridPoints
+            ? Math.round(
+                (overallAveragePosition.frequency /
+                  overallAveragePosition.totalGridPoints) *
+                  100,
+              )
+            : 0
+        }%`,
+        margin,
+        y,
+      );
+      line(22);
+
+      if (overallTopCompetitors.length) {
+        heading("Overall Top Competitors", 11);
+        line(18);
         doc.setFontSize(9);
         doc.setTextColor(148, 163, 184);
         doc.text("rank", margin, y);
-        doc.text("name", margin + 40, y);
-        doc.text("average_rank", margin + 280, y);
-        doc.text("frequency", margin + 370, y);
-        doc.text("rating", margin + 440, y);
-        line(14);
+        doc.text("name", margin + 36, y);
+        doc.text("avg", margin + 280, y);
+        doc.text("freq", margin + 320, y);
+        doc.text("kw", margin + 360, y);
+        doc.text("rating", margin + 400, y);
+        line(13);
         doc.setTextColor(51, 65, 85);
         doc.setFont("helvetica", "normal");
-        topCompetitors.forEach((c, i) => {
+        overallTopCompetitors.forEach((c, i) => {
           doc.text(String(c.rank ?? i + 1), margin, y);
           const name =
             (c.name || "").length > 42
               ? `${c.name.slice(0, 42)}…`
               : c.name || "—";
-          doc.text(name, margin + 40, y);
+          doc.text(name, margin + 36, y);
+          doc.text(c.averageRank != null ? `#${c.averageRank}` : "—", margin + 280, y);
+          doc.text(`${c.frequency}x`, margin + 320, y);
           doc.text(
-            c.averageRank != null ? `#${c.averageRank}` : "—",
-            margin + 280,
+            c.keywordsAppearedIn != null ? String(c.keywordsAppearedIn) : "—",
+            margin + 360,
             y,
           );
-          doc.text(`${c.frequency}x`, margin + 370, y);
-          doc.text(
-            `${c.rating ?? "—"} (${c.reviews})`,
-            margin + 440,
-            y,
-          );
-          line(14);
+          doc.text(`${c.rating ?? "—"} (${c.reviews})`, margin + 400, y);
+          line(13);
         });
-        line(12);
+        line(14);
       }
 
-      // Per-point ranks
-      doc.setTextColor(30, 41, 59);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("Grid Points", margin, y);
-      line(20);
-      doc.setFontSize(9);
-      doc.setTextColor(148, 163, 184);
-      doc.text("point", margin, y);
-      doc.text("area", margin + 60, y);
-      doc.text("businessRank", margin + 300, y);
-      doc.text("lat, lng", margin + 400, y);
-      line(14);
-      doc.setTextColor(51, 65, 85);
-      doc.setFont("helvetica", "normal");
-      gridPoints.forEach((p, i) => {
-        doc.text(p.isCenter ? "Center" : `Pt ${i + 1}`, margin, y);
-        doc.text((p.area || "—").slice(0, 34), margin + 60, y);
-        doc.text(p.businessRank ? `#${p.businessRank}` : "20+", margin + 300, y);
+      // You vs Top Competitors (gap + verdict)
+      if (vsComparison.length) {
+        heading("You vs Top Competitors", 11);
+        line(18);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        vsComparison.forEach((c) => {
+          doc.setTextColor(30, 41, 59);
+          doc.setFont("helvetica", "bold");
+          const nm =
+            (c.name || "").length > 55
+              ? `${c.name.slice(0, 55)}…`
+              : c.name || "—";
+          doc.text(nm, margin, y);
+          line(12);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(51, 65, 85);
+          doc.text(
+            `Rank: #${c.businessAvgRank ?? "—"} vs #${c.competitorAvgRank ?? "—"} (gap ${c.rankGap ?? "—"})   |   Rating: ${c.businessRating ?? "—"} vs ${c.competitorRating ?? "—"} (gap ${c.ratingGap ?? "—"})   |   Reviews: ${c.businessReviews ?? 0} vs ${c.competitorReviews ?? 0} (gap ${c.reviewsGap ?? "—"})`,
+            margin + 8,
+            y,
+          );
+          line(12);
+          if (c.verdict) {
+            doc.setTextColor(100, 116, 139);
+            doc.text(`> ${c.verdict.slice(0, 95)}`, margin + 8, y);
+            line(14);
+          }
+        });
+        line(8);
+      }
+
+      // Improvement suggestions
+      if (improvementSuggestions.length) {
+        heading("How to Improve", 11);
+        line(18);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(51, 65, 85);
+        improvementSuggestions.forEach((s, i) => {
+          const wrapped = doc.splitTextToSize(`${i + 1}. ${s}`, pageW - 2 * margin);
+          wrapped.forEach((ln) => {
+            doc.text(ln, margin, y);
+            line(12);
+          });
+          line(2);
+        });
+        line(10);
+      }
+
+      // ── KEYWORD-WISE sections ──
+      sections.forEach((sec, si) => {
+        const secSummary = {
+          totalPoints: sec.gridPoints.length,
+          rankedPoints: sec.gridPoints.filter((p) => p.businessFound).length,
+          bestRank: sec.gridPoints.reduce((b, p) => {
+            if (p.businessRank == null) return b;
+            return b == null ? p.businessRank : Math.min(b, p.businessRank);
+          }, null),
+        };
+
+        if (si > 0) line(10);
+        // Keyword title bar
+        doc.setFillColor(241, 245, 249);
+        doc.rect(margin - 8, y - 12, pageW - 2 * (margin - 8), 24, "F");
+        heading(`${si + 1}. ${sec.keyword || "Keyword"}`, 12);
+        line(24);
+
+        // Summary line
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(51, 65, 85);
+        const avg =
+          sec.averagePosition?.averageRank != null
+            ? `#${sec.averagePosition.averageRank}`
+            : "20+";
+        const secFreq = sec.averagePosition?.frequency ?? secSummary.rankedPoints;
+        const secTot =
+          sec.averagePosition?.totalGridPoints ?? secSummary.totalPoints;
+        const secVis = secTot ? Math.round((secFreq / secTot) * 100) : 0;
         doc.text(
-          `${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
-          margin + 400,
+          `Avg Rank: ${avg}    Appeared: ${secFreq}/${secTot}    Visibility: ${secVis}%    Best: ${secSummary.bestRank ? `#${secSummary.bestRank}` : "20+"}`,
+          margin,
           y,
         );
-        line(14);
+        line(18);
+
+        // Top competitors
+        if (sec.topCompetitors?.length) {
+          heading("Top Competitors", 11);
+          line(18);
+          doc.setFontSize(9);
+          doc.setTextColor(148, 163, 184);
+          doc.text("rank", margin, y);
+          doc.text("name", margin + 36, y);
+          doc.text("avg", margin + 300, y);
+          doc.text("freq", margin + 350, y);
+          doc.text("rating", margin + 400, y);
+          line(13);
+          doc.setTextColor(51, 65, 85);
+          doc.setFont("helvetica", "normal");
+          sec.topCompetitors.forEach((c, i) => {
+            doc.text(String(c.rank ?? i + 1), margin, y);
+            const name =
+              (c.name || "").length > 46
+                ? `${c.name.slice(0, 46)}…`
+                : c.name || "—";
+            doc.text(name, margin + 36, y);
+            doc.text(c.averageRank != null ? `#${c.averageRank}` : "—", margin + 300, y);
+            doc.text(`${c.frequency}x`, margin + 350, y);
+            doc.text(`${c.rating ?? "—"} (${c.reviews})`, margin + 400, y);
+            line(13);
+          });
+          line(8);
+        }
+
+        // Grid points — har point + uske saare competitors
+        heading("Grid Points & Competitors", 11);
+        line(18);
+        sec.gridPoints.forEach((p, i) => {
+          // Point header row
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(9);
+          doc.setTextColor(30, 41, 59);
+          const label = p.isCenter ? "Center" : `Pt ${i + 1}`;
+          doc.text(
+            `${label} — ${(p.area || "—").slice(0, 40)}   [${p.businessRank ? `#${p.businessRank}` : "20+"}]   ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`,
+            margin,
+            y,
+          );
+          line(13);
+
+          // Competitor sub-rows
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          (p.competitors || []).forEach((c) => {
+            doc.setTextColor(100, 116, 139);
+            doc.text(String(c.rank ?? ""), margin + 12, y);
+            const name =
+              (c.name || "").length > 60
+                ? `${c.name.slice(0, 60)}…`
+                : c.name || "—";
+            doc.setTextColor(51, 65, 85);
+            doc.text(name, margin + 40, y);
+            doc.text(
+              `${c.rating ?? "—"} (${c.reviews ?? 0})`,
+              margin + 430,
+              y,
+            );
+            line(11);
+          });
+          line(6);
+        });
+        line(16);
       });
+
+      // ── Limbu AI details (last section) ──
+      doc.addPage();
+      y = margin + 20;
+      if (watermark) {
+        try {
+          doc.addImage(watermark, "PNG", pageW / 2 - 40, y, 80, 80);
+        } catch {
+          /* skip */
+        }
+        y += 100;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(30, 41, 59);
+      doc.text("Limbu AI", pageW / 2, y, { align: "center" });
+      line(20);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      [
+        "AI-powered Local SEO & Google Business Profile growth platform.",
+        "Local Rank Tracking · Review Management · GBP Optimization · Content & Posts.",
+        "",
+        "Website: https://limbu.ai",
+        "Email: support@limbu.ai",
+        "",
+        "This report is generated by Limbu AI.",
+      ].forEach((t) => {
+        if (t) doc.text(t, pageW / 2, y, { align: "center" });
+        line(15);
+      });
+
+      // ── Har page par watermark + CONFIDENTIAL + footer ──
+      const totalPages = doc.getNumberOfPages();
+      for (let pg = 1; pg <= totalPages; pg++) {
+        doc.setPage(pg);
+
+        // Halka background watermark logo (center).
+        if (watermark) {
+          try {
+            const gs = doc.GState ? new doc.GState({ opacity: 0.06 }) : null;
+            if (gs) doc.setGState(gs);
+            const wmSize = 320;
+            doc.addImage(
+              watermark,
+              "PNG",
+              pageW / 2 - wmSize / 2,
+              pageH / 2 - wmSize / 2,
+              wmSize,
+              wmSize,
+            );
+            if (doc.GState) doc.setGState(new doc.GState({ opacity: 1 }));
+          } catch {
+            /* skip */
+          }
+        }
+
+        // Diagonal CONFIDENTIAL text watermark.
+        try {
+          if (doc.GState) doc.setGState(new doc.GState({ opacity: 0.08 }));
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(60);
+          doc.setTextColor(15, 23, 42);
+          doc.text("CONFIDENTIAL", pageW / 2, pageH / 2 + 180, {
+            align: "center",
+            angle: 30,
+          });
+          if (doc.GState) doc.setGState(new doc.GState({ opacity: 1 }));
+        } catch {
+          /* skip */
+        }
+
+        // Footer bar.
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text("Confidential — Generated by Limbu AI · limbu.ai", margin, pageH - 20);
+        doc.text(`Page ${pg} / ${totalPages}`, pageW - margin, pageH - 20, {
+          align: "right",
+        });
+      }
 
       const fileName = `rank-audit-${(businessName || "business")
         .replace(/[^a-z0-9]+/gi, "-")
-        .toLowerCase()}-${keyword.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`;
+        .toLowerCase()}.pdf`;
       doc.save(fileName);
     } catch (err) {
       console.error("PDF generation failed:", err);
@@ -543,6 +953,20 @@ export default function RankTrackerPage() {
 
   setShowBizSuggestions(false);
 
+  // Agar type box me kuch pending hai (add nahi kiya), usko bhi shaamil karo.
+  const pending = keywordInput.trim();
+  const allKeywords = pending
+    ? [...keywordList, ...(keywordList.some(
+        (k) => k.toLowerCase() === pending.toLowerCase(),
+      )
+        ? []
+        : [pending])]
+    : keywordList;
+  if (pending) addKeyword(pending);
+  const keywordString = allKeywords.join(", ");
+
+  if (!keywordString) return;
+
   // Exact business (GMB ya live-search se) select hai to wahi placeId use karo.
   // Nahi to Google Places se best match ka placeId le lo — taaki Generate
   // dabate hi webhook HAMESHA chale (koi modal/rukawat nahi).
@@ -557,7 +981,7 @@ export default function RankTrackerPage() {
     }
   }
 
-  await runAudit(chosenPlaceId || "");
+  await runAudit(chosenPlaceId || "", keywordString);
 };
 
 // Google Places se business list laata hai (GMB independent).
@@ -575,10 +999,10 @@ const findPlaces = async (name, town) => {
   }
 };
 
-// Chosen place ke saath actual rank audit fire karta hai.
-const runAudit = async (chosenPlaceId) => {
+// Chosen place + keywords ke saath actual rank audit fire karta hai.
+const runAudit = async (chosenPlaceId, keywordString) => {
   await fetchRanks({
-    keyword,
+    keyword: keywordString ?? keyword,
     city,
     businessName,
     gridSize,
@@ -809,63 +1233,126 @@ const runAudit = async (chosenPlaceId) => {
 
       {/* Form Card */}
       <div className="bg-white rounded-[32px] border border-slate-200 p-8 shadow-sm">
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-5 gap-6"
-        >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Keywords — apni poori width, chips comfortably wrap karein */}
           <div className="space-y-2 relative" ref={suggestionRef}>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-              Keyword
+              Keywords{" "}
+              <span className="text-slate-300 normal-case">
+                (Enter ya + se add)
+              </span>
             </label>
-            <div className="relative">
-              <input
-                value={keyword}
-                onFocus={() => setShowSuggestions(true)}
-                onChange={(e) => {
-                  setKeyword(e.target.value);
-                  setShowSuggestions(true);
-                }}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold focus:border-yellow-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-yellow-50 transition-all"
-                placeholder="Dentist near me"
-              />
-              {isSearching && (
-                <Loader2
-                  className="absolute right-4 top-4 animate-spin text-yellow-500"
-                  size={20}
+
+            {/* Chips + type box ek hi field jaisa */}
+            <div className="flex flex-wrap items-center gap-2 w-full min-h-[56px] rounded-2xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 focus-within:border-yellow-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-yellow-50 transition-all">
+              {keywordList.map((kw) => (
+                <span
+                  key={kw}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-yellow-100 pl-2.5 pr-1 py-1 text-[12px] font-bold text-slate-800"
+                >
+                  {kw}
+                  <button
+                    type="button"
+                    onClick={() => removeKeyword(kw)}
+                    className="flex h-4 w-4 items-center justify-center rounded-md text-slate-400 hover:bg-yellow-300 hover:text-slate-700 transition-colors"
+                  >
+                    <X size={11} strokeWidth={3} />
+                  </button>
+                </span>
+              ))}
+              <div className="relative flex-1 min-w-[140px] flex items-center">
+                <input
+                  value={keywordInput}
+                  onFocus={() => setShowSuggestions(true)}
+                  onChange={(e) => {
+                    setKeywordInput(e.target.value);
+                    setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ",") {
+                      e.preventDefault();
+                      addKeyword(keywordInput);
+                    } else if (
+                      e.key === "Backspace" &&
+                      !keywordInput &&
+                      keywordList.length
+                    ) {
+                      removeKeyword(keywordList[keywordList.length - 1]);
+                    }
+                  }}
+                  className="w-full bg-transparent px-2 py-1.5 text-sm font-bold focus:outline-none"
+                  placeholder={
+                    keywordList.length ? "Add another…" : "ro service near me"
+                  }
                 />
-              )}
+                {isSearching && (
+                  <Loader2
+                    className="animate-spin text-yellow-500 shrink-0"
+                    size={18}
+                  />
+                )}
+                {keywordInput.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => addKeyword(keywordInput)}
+                    className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-700 text-white hover:bg-slate-800"
+                  >
+                    <Plus size={15} strokeWidth={3} />
+                  </button>
+                )}
+              </div>
             </div>
+
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute z-50 mt-2 w-full max-h-72 overflow-auto rounded-2xl border border-slate-100 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                {suggestions.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setKeyword(s.keyword);
-                      setShowSuggestions(false);
-                    }}
-                    className="flex w-full items-center justify-between px-4 py-3.5 text-left text-sm hover:bg-yellow-50 rounded-xl transition-colors mb-1 group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Sparkles
-                        size={16}
-                        className="text-yellow-400 group-hover:scale-110 transition-transform"
-                      />
-                      <span className="font-bold text-slate-700">
-                        {s.keyword}
+                {suggestions
+                  .filter((s) => s.keyword)
+                  .map((s, idx) => {
+                  const already = keywordList.some(
+                    (k) => k.toLowerCase() === s.keyword.toLowerCase(),
+                  );
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        if (!already) addKeyword(s.keyword);
+                      }}
+                      disabled={already}
+                      className={`flex w-full items-center justify-between px-4 py-3.5 text-left text-sm rounded-xl transition-colors mb-1 group ${
+                        already
+                          ? "opacity-40 cursor-not-allowed"
+                          : "hover:bg-yellow-50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {already ? (
+                          <span className="text-emerald-500 text-xs font-black">
+                            ✓
+                          </span>
+                        ) : (
+                          <Sparkles
+                            size={16}
+                            className="text-yellow-400 group-hover:scale-110 transition-transform"
+                          />
+                        )}
+                        <span className="font-bold text-slate-700">
+                          {s.keyword}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-tighter">
+                        {s.volume.toLocaleString()} searches
                       </span>
-                    </div>
-                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-lg uppercase tracking-tighter">
-                      {s.volume.toLocaleString()} searches
-                    </span>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          <div className="space-y-2 relative" ref={gridRef}>
+          {/* Grid size, city, business, generate — ek row me */}
+          <div className="flex flex-col md:flex-row gap-6 md:items-end">
+          <div className="space-y-2 relative shrink-0" ref={gridRef}>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
               Grid Size
             </label>
@@ -873,7 +1360,7 @@ const runAudit = async (chosenPlaceId) => {
             <button
               type="button"
               onClick={() => setGridOpen((o) => !o)}
-              className="w-full flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-bold text-slate-700 hover:border-yellow-400 transition-all"
+              className="w-32 flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-4 text-sm font-bold text-slate-700 hover:border-yellow-400 transition-all"
             >
               <span>
                 {GRID_OPTIONS.find((o) => o.value === gridSize)?.label ||
@@ -888,7 +1375,7 @@ const runAudit = async (chosenPlaceId) => {
             </button>
 
             {gridOpen && (
-              <div className="absolute z-50 mt-2 w-full rounded-2xl border border-slate-100 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute z-50 mt-2 w-32 rounded-2xl border border-slate-100 bg-white shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200">
                 {GRID_OPTIONS.map((opt) => {
                   const locked = !allowedGrids.includes(opt.value);
                   const active = gridSize === opt.value;
@@ -939,7 +1426,7 @@ const runAudit = async (chosenPlaceId) => {
             )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1">
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
               City
             </label>
@@ -956,7 +1443,7 @@ const runAudit = async (chosenPlaceId) => {
             </div>
           </div>
 
-          <div className="space-y-2 relative" ref={bizRef}>
+          <div className="space-y-2 relative flex-1" ref={bizRef}>
             <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
               Business
             </label>
@@ -1031,19 +1518,18 @@ const runAudit = async (chosenPlaceId) => {
               </div>
             )}
 
-            {/* Business locked-in confirmation */}
-            {placeId && businessName && (
-              <p className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 ml-1">
-                <MapPin size={11} /> Business selected
-              </p>
-            )}
+           
           </div>
 
-          <div className="flex items-end">
+          <div className="flex items-end shrink-0">
             <button
               type="submit"
-              disabled={isLoading || isFindingPlace || !keyword}
-              className="w-full h-[54px] rounded-2xl bg-slate-700 text-sm font-bold text-white hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
+              disabled={
+                isLoading ||
+                isFindingPlace ||
+                (keywordList.length === 0 && !keywordInput.trim())
+              }
+              className="w-full md:w-auto h-[54px] px-8 rounded-2xl bg-slate-700 text-sm font-bold text-white hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200 active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-3"
             >
               {isLoading || isFindingPlace ? (
                 <Loader2 className="animate-spin" size={20} />
@@ -1053,6 +1539,7 @@ const runAudit = async (chosenPlaceId) => {
                 </>
               )}
             </button>
+          </div>
           </div>
         </form>
       </div>
@@ -1069,7 +1556,10 @@ const runAudit = async (chosenPlaceId) => {
                 Audit Ready
               </p>
               <p className="text-sm font-bold text-slate-700">
-                {keyword || "—"} • {gridSize} grid
+                {keywordResults[activeIndex]?.keyword || keyword || "—"} •{" "}
+                {gridSize} grid
+                {keywordResults.length > 1 &&
+                  ` • ${keywordResults.length} keywords`}
               </p>
             </div>
           </div>
@@ -1108,6 +1598,64 @@ const runAudit = async (chosenPlaceId) => {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Keyword tabs — Save/PDF toolbar ke neeche. "All" + har keyword. */}
+      {keywordResults.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 bg-white rounded-[24px] border border-slate-200 p-3 shadow-sm">
+          {/* All tab */}
+          <button
+            onClick={() => setShowAllKeywords(true)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black transition-all ${
+              showAllKeywords
+                ? "bg-slate-700 text-white shadow-lg shadow-slate-200"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            All
+            <span
+              className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                showAllKeywords
+                  ? "bg-yellow-400 text-slate-900"
+                  : "bg-white text-slate-500 border border-slate-200"
+              }`}
+            >
+              {keywordResults.length}
+            </span>
+          </button>
+
+          {keywordResults.map((k, i) => {
+            const isActive = !showAllKeywords && i === activeIndex;
+            const avg = k.averagePosition?.averageRank;
+            return (
+              <button
+                key={`${k.keyword}_${i}`}
+                onClick={() => {
+                  setShowAllKeywords(false);
+                  setActiveIndex(i);
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black transition-all ${
+                  isActive
+                    ? "bg-slate-700 text-white shadow-lg shadow-slate-200"
+                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <span className="capitalize">
+                  {k.keyword || `Keyword ${i + 1}`}
+                </span>
+                <span
+                  className={`text-[10px] font-black px-2 py-0.5 rounded-lg ${
+                    isActive
+                      ? "bg-yellow-400 text-slate-900"
+                      : "bg-white text-slate-500 border border-slate-200"
+                  }`}
+                >
+                  {avg != null ? `#${avg}` : "20+"}
+                </span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -1290,7 +1838,117 @@ const runAudit = async (chosenPlaceId) => {
         {hasInsights && (
           <div className="space-y-6 lg:order-1 lg:max-h-[80vh] lg:overflow-y-auto lg:pr-1 lg:-mr-1">
 
-            {averagePosition && (
+            {/* Business Details (GBP) card */}
+            {businessDetails && (
+              <div className="bg-white rounded-[24px] border border-slate-200 p-5 shadow-sm">
+                <div className="flex items-start gap-3">
+                  {businessDetails.logoUrl ? (
+                    <img
+                      src={businessDetails.logoUrl}
+                      alt={businessDetails.name}
+                      className="h-14 w-14 rounded-2xl object-cover border border-slate-100 shrink-0"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-2xl bg-slate-700 text-yellow-400 flex items-center justify-center shrink-0">
+                      <Store size={22} />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Your Business
+                    </p>
+                    <p className="text-sm font-black text-slate-900 leading-snug">
+                      {businessDetails.name}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-[12px] font-black text-amber-500">
+                        ★ {businessDetails.rating ?? "—"}
+                      </span>
+                      <span className="text-[11px] font-medium text-slate-400">
+                        {businessDetails.reviews} reviews
+                      </span>
+                      {businessDetails.openNow != null && (
+                        <span
+                          className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                            businessDetails.openNow
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-rose-50 text-rose-600"
+                          }`}
+                        >
+                          {businessDetails.openNow ? "OPEN" : "CLOSED"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {businessDetails.address && (
+                  <p className="flex items-start gap-1.5 text-[11px] font-medium text-slate-500 mt-3">
+                    <MapPin size={12} className="mt-0.5 shrink-0 text-slate-300" />
+                    <span className="line-clamp-2">{businessDetails.address}</span>
+                  </p>
+                )}
+
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 text-center">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                      Photos
+                    </p>
+                    <p className="text-sm font-black text-slate-800">
+                      {businessDetails.photoCount ?? "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 text-center">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                      6mo Rev
+                    </p>
+                    <p className="text-sm font-black text-slate-800">
+                      {businessDetails.recentReviews6mo ?? "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-100 p-2 text-center">
+                    <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+                      Distance
+                    </p>
+                    <p className="text-sm font-black text-slate-800">
+                      {businessDetails.distanceFromCenterKm != null
+                        ? `${businessDetails.distanceFromCenterKm}km`
+                        : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {businessDetails.website && (
+                    <a
+                      href={businessDetails.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-black text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Globe size={11} /> Website
+                    </a>
+                  )}
+                  {businessDetails.mapsUri && (
+                    <a
+                      href={businessDetails.mapsUri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-black text-slate-600 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      <MapIcon size={11} /> Maps
+                    </a>
+                  )}
+                  {businessDetails.phone && (
+                    <span className="text-[10px] font-black text-slate-600 bg-slate-100 px-2.5 py-1.5 rounded-lg">
+                      {businessDetails.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {overallAveragePosition && (
               <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl">
@@ -1298,10 +1956,12 @@ const runAudit = async (chosenPlaceId) => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                      Average Position
+                      Overall Average Position
                     </p>
                     <p className="text-sm font-bold text-slate-700 line-clamp-1">
-                      {averagePosition.businessName || businessName || "—"}
+                      {overallAveragePosition.businessName || businessName || "—"}
+                      {keywordResults.length > 1 &&
+                        ` • ${keywordResults.length} keywords`}
                     </p>
                   </div>
                 </div>
@@ -1311,7 +1971,7 @@ const runAudit = async (chosenPlaceId) => {
                       at any grid point — show that as "20+", not "not ranking". */}
                   <div
                     className={`rounded-2xl border p-4 ${
-                      averagePosition.averageRank != null
+                      overallAveragePosition.averageRank != null
                         ? "border-slate-100 bg-slate-50/60"
                         : "border-rose-100 bg-rose-50/60"
                     }`}
@@ -1321,16 +1981,16 @@ const runAudit = async (chosenPlaceId) => {
                     </p>
                     <p
                       className={`text-2xl font-black ${
-                        averagePosition.averageRank != null
+                        overallAveragePosition.averageRank != null
                           ? "text-slate-900"
                           : "text-rose-600"
                       }`}
                     >
-                      {averagePosition.averageRank != null
-                        ? `#${averagePosition.averageRank.toFixed(2)}`
+                      {overallAveragePosition.averageRank != null
+                        ? `#${overallAveragePosition.averageRank.toFixed(2)}`
                         : "20+"}
                     </p>
-                    {averagePosition.averageRank == null && (
+                    {overallAveragePosition.averageRank == null && (
                       <p className="text-[10px] font-bold text-rose-400 mt-0.5">
                         Outside the top 20 everywhere
                       </p>
@@ -1342,8 +2002,8 @@ const runAudit = async (chosenPlaceId) => {
                         Appeared In
                       </p>
                       <p className="text-xl font-black text-slate-900">
-                        {averagePosition.frequency}/
-                        {averagePosition.totalGridPoints}
+                        {overallAveragePosition.frequency}/
+                        {overallAveragePosition.totalGridPoints}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
@@ -1351,10 +2011,10 @@ const runAudit = async (chosenPlaceId) => {
                         Visibility
                       </p>
                       <p className="text-xl font-black text-slate-900">
-                        {averagePosition.totalGridPoints
+                        {overallAveragePosition.totalGridPoints
                           ? `${Math.round(
-                              (averagePosition.frequency /
-                                averagePosition.totalGridPoints) *
+                              (overallAveragePosition.frequency /
+                                overallAveragePosition.totalGridPoints) *
                                 100,
                             )}%`
                           : "—"}
@@ -1365,7 +2025,7 @@ const runAudit = async (chosenPlaceId) => {
               </div>
             )}
 
-            {topCompetitors.length > 0 && (
+            {overallTopCompetitors.length > 0 && (
               <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm">
                 <div className="flex items-center gap-3 mb-5">
                   <div className="bg-rose-50 text-rose-600 p-2.5 rounded-2xl">
@@ -1373,19 +2033,23 @@ const runAudit = async (chosenPlaceId) => {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
-                      Top Competitors
+                      Overall Top Competitors
                     </p>
                     <p className="text-sm font-bold text-slate-700">
-                      Across the {gridSize} grid
+                      {keywordResults.length > 1
+                        ? "Across all keywords"
+                        : `Across the ${gridSize} grid`}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  {topCompetitors.map((c, i) => {
+                  {overallTopCompetitors.map((c, i) => {
                     const detail = detailByName.get(c.name) || {};
+                    const address = c.address || detail.address || "";
                     const href = mapsLinkFor({
-                      placeId: c.placeId || detail.placeId || placeIdByName.get(c.name),
+                      placeId:
+                        c.placeId || detail.placeId || placeIdByName.get(c.name),
                       name: c.name,
                     });
                     return (
@@ -1427,22 +2091,31 @@ const runAudit = async (chosenPlaceId) => {
                         </div>
                       </div>
 
-                      {/* address (grid se) */}
-                      {detail.address && (
+                      {/* address */}
+                      {address && (
                         <p className="flex items-start gap-1.5 text-[11px] font-medium text-slate-500 mt-2.5">
                           <MapPin
                             size={12}
                             className="mt-0.5 shrink-0 text-slate-300"
                           />
-                          <span className="line-clamp-2">{detail.address}</span>
+                          <span className="line-clamp-2">{address}</span>
                         </p>
                       )}
 
                       {/* saare metrics — response ke exact key names */}
-                      <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div
+                        className={`mt-3 grid gap-2 ${
+                          c.keywordsAppearedIn != null
+                            ? "grid-cols-4"
+                            : "grid-cols-3"
+                        }`}
+                      >
                         {[
                           { key: "average_rank", val: c.averageRank != null ? `#${c.averageRank}` : "—" },
                           { key: "frequency", val: `${c.frequency}×` },
+                          ...(c.keywordsAppearedIn != null
+                            ? [{ key: "keywords", val: c.keywordsAppearedIn }]
+                            : []),
                           { key: "score", val: c.score ?? "—" },
                         ].map((m) => (
                           <div
@@ -1476,31 +2149,406 @@ const runAudit = async (chosenPlaceId) => {
                 </div>
               </div>
             )}
+
+            {/* Improvement suggestions */}
+            {improvementSuggestions.length > 0 && (
+              <div className="bg-white rounded-[24px] border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-2xl">
+                    <TrendingUp size={18} />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    How to Improve
+                  </p>
+                </div>
+                <ul className="space-y-2.5">
+                  {improvementSuggestions.map((s, i) => (
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-black mt-0.5">
+                        {i + 1}
+                      </span>
+                      <span className="text-[12px] font-medium text-slate-600 leading-snug">
+                        {s}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      {/* Comparison vs top competitors — gap analysis */}
+      {vsComparison.length > 0 && (
+        <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 p-6 border-b border-slate-100">
+            <div className="bg-rose-50 text-rose-600 p-2.5 rounded-2xl">
+              <GitCompare size={18} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                You vs Top Competitors
+              </p>
+              <p className="text-sm font-bold text-slate-700">
+                Rank / rating / reviews gap
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-5">
+            {vsComparison.map((c, i) => (
+              <div
+                key={`${c.name}_${i}`}
+                className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start gap-3">
+                  {c.logoUrl ? (
+                    <img
+                      src={c.logoUrl}
+                      alt={c.name}
+                      className="h-11 w-11 rounded-xl object-cover border border-slate-100 shrink-0"
+                    />
+                  ) : (
+                    <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                      <Store size={18} className="text-slate-400" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-black text-slate-800 leading-snug line-clamp-2">
+                      {c.name}
+                    </p>
+                  </div>
+                </div>
+
+                {c.verdict && (
+                  <p className="text-[11px] font-medium text-slate-400 mt-2 line-clamp-2">
+                    {c.verdict}
+                  </p>
+                )}
+
+                <div className="space-y-2 mt-3">
+                  {[
+                    {
+                      label: "Rank gap",
+                      you: c.businessAvgRank != null ? `#${c.businessAvgRank}` : "20+",
+                      them: c.competitorAvgRank != null ? `#${c.competitorAvgRank}` : "—",
+                      gap: c.rankGap,
+                    },
+                    {
+                      label: "Rating gap",
+                      you: c.businessRating ?? "—",
+                      them: c.competitorRating ?? "—",
+                      gap: c.ratingGap,
+                    },
+                    {
+                      label: "Reviews gap",
+                      you: c.businessReviews ?? 0,
+                      them: c.competitorReviews ?? 0,
+                      gap: c.reviewsGap,
+                    },
+                  ].map((m) => (
+                    <div
+                      key={m.label}
+                      className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-100 px-3 py-2"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                        {m.label}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-[12px] font-black text-slate-800">
+                          {m.you} <span className="text-slate-300">vs</span>{" "}
+                          {m.them}
+                        </span>
+                        {m.gap != null && (
+                          <span
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                              m.gap > 0
+                                ? "bg-rose-50 text-rose-500"
+                                : "bg-emerald-50 text-emerald-500"
+                            }`}
+                          >
+                            {m.gap > 0 ? "+" : ""}
+                            {m.gap}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Legend & Footer */}
       <div className="flex flex-wrap items-center justify-center gap-10 bg-white/60 backdrop-blur-md p-6 rounded-[32px] border border-white/50 shadow-sm">
         <div className="flex items-center gap-3">
           <span className="h-4 w-4 rounded-full bg-emerald-500 ring-4 ring-emerald-100 shadow-sm" />
           <span className="text-[12px] font-black text-slate-600 uppercase tracking-wider">
-            Dominant (#1)
+            Top 3 (#1-3)
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="h-4 w-4 rounded-full bg-amber-400 ring-4 ring-amber-50 shadow-sm" />
           <span className="text-[12px] font-black text-slate-600 uppercase tracking-wider">
-            Competitive (#2-3)
+            #4-10
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="h-4 w-4 rounded-full bg-rose-500 ring-4 ring-rose-100 shadow-sm" />
           <span className="text-[12px] font-black text-slate-600 uppercase tracking-wider">
-            Weak Visibility
+            #10+ / Unranked
           </span>
         </div>
       </div>
+
+      {/* Keyword-wise details — "All" pe sabhi, warna sirf active keyword */}
+      {(showAllKeywords
+        ? keywordResults.map((k, i) => ({ kw: k, ki: i }))
+        : keywordResults[activeIndex]
+          ? [{ kw: keywordResults[activeIndex], ki: activeIndex }]
+          : []
+      ).map(({ kw, ki }) => {
+        const kwSummary = {
+          total: kw.gridPoints.length,
+          ranked: kw.gridPoints.filter((p) => p.businessFound).length,
+        };
+        return (
+          <div
+            key={`kwsec_${kw.keyword}_${ki}`}
+            className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden"
+          >
+            {/* Keyword header */}
+            <div className="flex items-center justify-between gap-3 p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="bg-slate-700 text-yellow-400 p-2.5 rounded-2xl shrink-0">
+                  <Search size={18} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                    Keyword {ki + 1}
+                  </p>
+                  <p className="text-sm font-black text-slate-800 capitalize truncate">
+                    {kw.keyword || `Keyword ${ki + 1}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Is keyword ki apni average position stats */}
+            <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100">
+              <div className="p-4 text-center">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Avg. Rank
+                </p>
+                <p
+                  className={`text-xl font-black ${
+                    kw.averagePosition?.averageRank != null
+                      ? "text-slate-900"
+                      : "text-rose-600"
+                  }`}
+                >
+                  {kw.averagePosition?.averageRank != null
+                    ? `#${kw.averagePosition.averageRank}`
+                    : "20+"}
+                </p>
+              </div>
+              <div className="p-4 text-center">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Appeared In
+                </p>
+                <p className="text-xl font-black text-slate-900">
+                  {kw.averagePosition?.frequency ?? kwSummary.ranked}/
+                  {kw.averagePosition?.totalGridPoints ?? kwSummary.total}
+                </p>
+              </div>
+              <div className="p-4 text-center">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                  Visibility
+                </p>
+                <p className="text-xl font-black text-slate-900">
+                  {(() => {
+                    const tot =
+                      kw.averagePosition?.totalGridPoints ?? kwSummary.total;
+                    const freq =
+                      kw.averagePosition?.frequency ?? kwSummary.ranked;
+                    return tot ? `${Math.round((freq / tot) * 100)}%` : "—";
+                  })()}
+                </p>
+              </div>
+            </div>
+
+            {/* Top competitors for this keyword — proper cards */}
+            {kw.topCompetitors?.length > 0 && (
+              <div className="p-5 border-b border-slate-100 bg-gradient-to-b from-slate-50/40 to-transparent">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Users size={12} /> Top Competitors
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {kw.topCompetitors.slice(0, 6).map((c, i) => {
+                    const href = mapsLinkFor({
+                      placeId: c.placeId || placeIdByName.get(c.name),
+                      name: c.name,
+                    });
+                    const rankColor =
+                      i === 0
+                        ? "bg-amber-400 text-slate-900"
+                        : i === 1
+                          ? "bg-slate-300 text-slate-800"
+                          : i === 2
+                            ? "bg-orange-300 text-slate-800"
+                            : "bg-slate-700 text-yellow-400";
+                    return (
+                      <a
+                        key={`${c.name}_${i}`}
+                        href={href || undefined}
+                        target={href ? "_blank" : undefined}
+                        rel={href ? "noopener noreferrer" : undefined}
+                        className="group flex flex-col rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm hover:border-yellow-300 hover:shadow-md transition-all"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[13px] font-black ${rankColor}`}
+                          >
+                            {c.rank ?? i + 1}
+                          </span>
+                          <p className="text-[13px] font-black text-slate-800 leading-snug line-clamp-2 flex-1">
+                            {c.name}
+                          </p>
+                          {href && (
+                            <ExternalLink
+                              size={12}
+                              className="mt-0.5 shrink-0 text-slate-300 group-hover:text-yellow-500"
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+                          <span className="flex items-center gap-1 text-[11px] font-black text-amber-500">
+                            <Star size={11} className="fill-amber-400" />
+                            {c.rating ?? "—"}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-400">
+                            {c.reviews ?? 0} rev
+                          </span>
+                          <span className="ml-auto text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {c.frequency}× seen
+                          </span>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Grid points (accordion) */}
+            <div className="divide-y divide-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-5 pt-4 pb-1 flex items-center gap-1.5">
+                <LayoutGrid size={12} /> Grid Points ({kw.gridPoints.length})
+              </p>
+              {kw.gridPoints.map((p, i) => {
+                const visual = getRankVisuals(p.businessRank);
+                const detailKey = `${ki}_${p.id}`;
+                const isOpen = openDetailId === detailKey;
+                return (
+                  <div key={detailKey}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenDetailId(isOpen ? null : detailKey)
+                      }
+                      className="w-full flex items-center justify-between gap-3 p-4 hover:bg-slate-50/60 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[12px] font-black text-white"
+                          style={{ backgroundColor: visual.color }}
+                        >
+                          {p.businessRank ? `#${p.businessRank}` : "20+"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-black text-slate-800 flex items-center gap-2">
+                            {p.isCenter && (
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-slate-700 text-yellow-400 px-1.5 py-0.5 rounded">
+                                Center
+                              </span>
+                            )}
+                            {p.area || `Point ${i + 1}`}
+                          </p>
+                          <p className="text-[11px] font-medium text-slate-400">
+                            {p.lat.toFixed(4)}, {p.lng.toFixed(4)} •{" "}
+                            {p.competitors.length} competitors
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronDown
+                        size={18}
+                        className={`text-slate-400 shrink-0 transition-transform ${
+                          isOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {isOpen && (
+                      <div className="px-4 pb-4 space-y-2">
+                        {p.competitors.map((c) => {
+                          const isMe = placeId
+                            ? c.placeId === placeId
+                            : c.name?.toLowerCase().trim() ===
+                              businessName.toLowerCase().trim();
+                          const href = mapsLinkFor(c);
+                          return (
+                            <a
+                              key={c.placeId || c.rank}
+                              href={href || undefined}
+                              target={href ? "_blank" : undefined}
+                              rel={href ? "noopener noreferrer" : undefined}
+                              className={`flex items-start gap-3 p-3 rounded-2xl border transition-colors ${
+                                isMe
+                                  ? "border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50"
+                                  : "border-slate-100 bg-slate-50/40 hover:bg-slate-100/60"
+                              }`}
+                            >
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white border border-slate-200 text-[11px] font-black text-slate-600">
+                                {c.rank}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[13px] font-black text-slate-800 leading-snug">
+                                  {c.name}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] font-bold text-amber-500">
+                                    ★ {c.rating ?? "—"}
+                                  </span>
+                                  <span className="text-[10px] font-medium text-slate-400">
+                                    {c.reviews ?? 0} reviews
+                                  </span>
+                                </div>
+                                {c.address && (
+                                  <p className="text-[10px] font-medium text-slate-400 mt-0.5 line-clamp-1">
+                                    {c.address}
+                                  </p>
+                                )}
+                              </div>
+                              {href && (
+                                <ExternalLink
+                                  size={13}
+                                  className="mt-1 shrink-0 text-slate-300"
+                                />
+                              )}
+                            </a>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Comparison Modal */}
       {showCompare && (

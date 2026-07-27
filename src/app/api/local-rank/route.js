@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const RANK_WEBHOOK_URL =
   process.env.LOCAL_RANK_WEBHOOK_URL ||
-  "https://n8n.limbutech.in/webhook/keyword-rank-checker";
+  "https://n8n.limbutech.in/webhook/webhook";
 
 export async function POST(req) {
   try {

@@ -26,7 +26,7 @@ export const GMB_SCOPE =
  *     http://localhost:3000/api/gmb/callback
  */
 export const GMB_BASE_URL = (
-  process.env.GMB_REDIRECT_BASE_URL || "https://limbu.ai"
+  process.env.GMB_REDIRECT_BASE_URL || "http://localhost:3000"
 ).replace(/\/$/, "");
 
 export function gmbRedirectUri() {

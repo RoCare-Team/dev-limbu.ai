@@ -733,7 +733,13 @@ export async function GET(req) {
       ]);
 
       const agentStats = { Unassigned: 0 };
-      const stageStats = { Active: 0, "Follow Up": 0, Inactive: 0, Onboard: 0 };
+      const stageStats = {
+        Active: 0,
+        "Follow Up": 0,
+        Inactive: 0,
+        Onboard: 0,
+        Service: 0,
+      };
       const leadStatusStats = { Hot: 0, Warm: 0, Cold: 0 };
       const detailedStats = [];
 

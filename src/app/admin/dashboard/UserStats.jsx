@@ -179,7 +179,10 @@ export default function UserStats({
             {/* Onboarded */}
             <StatCard
               title="Onboarded"
-              value={stageStats["Onboard"] || 0}
+              value={
+                (stageStats["Onboard"] || 0) + (stageStats["Service"] || 0)
+              }
+              subtitle={`${stageStats["Onboard"] || 0} plan · ${stageStats["Service"] || 0} service`}
               icon={Rocket}
               colorClass="purple"
               onClick={() => {

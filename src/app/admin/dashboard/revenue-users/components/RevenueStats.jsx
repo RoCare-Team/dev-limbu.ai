@@ -16,6 +16,7 @@ import {
 export default function RevenueStats({
   activeView,
   totalUsers,
+  totalTransactions,
   todayUsers,
   totalRevenue,
   todayRevenue,
@@ -46,6 +47,12 @@ export default function RevenueStats({
         <div>
           <p className="text-sm text-gray-500">Total Onboard Users</p>
           <h2 className="text-2xl font-bold text-dark mt-2">{totalUsers}</h2>
+          {typeof totalTransactions === "number" &&
+            totalTransactions !== totalUsers && (
+              <p className="text-[11px] text-gray-400 mt-1">
+                {totalTransactions} entries (renewals included)
+              </p>
+            )}
         </div>
 
         <div className="bg-indigo-100 text-dark p-3 rounded-xl">

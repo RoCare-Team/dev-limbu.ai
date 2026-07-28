@@ -75,70 +75,80 @@ export async function GET() {
     // ban chuke to ruk jao. Not-due/claimed skips is cap me count nahi hote.
     if (stats.filled >= BATCH) break;
 
-    const idx = plan.postIndex || 0;
     const t = plan.queueTiming || {};
     const stepDays = Number(t.stepDays) || 1;
     const publishAfterMin = Number(t.publishAfterMin) || 24 * 60;
-
-    // Publish is anchored to the user's chosen posting time (postingHour:minute).
-    // Preferred: publishSchedule[idx] — the EXACT datetime for this slot (honours
-    // custom dates). Next: publishStartAt + stepDays (fixed-cadence plans). Last:
-    // the legacy save-time anchor. A slot is GENERATED publishAfterMin before publish.
-    let publishAt, dueAt;
     const sched = Array.isArray(t.publishSchedule) ? t.publishSchedule : [];
-    if (sched.length > 0) {
-      if (idx >= sched.length) { stats.skipped++; continue; } // no slot left
-      publishAt = new Date(sched[idx]);
-      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
-    } else if (t.publishStartAt) {
-      const pubStart = new Date(t.publishStartAt).getTime();
-      publishAt = new Date(pubStart + idx * stepDays * DAY_MS);
-      dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
-    } else {
-      const startTs = new Date(t.generateStartAt).getTime();
-      dueAt = new Date(startTs + idx * stepDays * DAY_MS);
-      publishAt = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
-    }
 
-    // Not due yet — skip SILENTLY (no log doc, else every not-due plan would spam
-    // an empty "unknown" AutomationLog on every 5-min cron run).
-    if (dueAt > now) { stats.skipped++; continue; }
+    // Catch-up loop: is plan ke JITNE bhi slots abhi due hain, sab is hi run me
+    // bana do (PER_PLAN_MAX tak). Pehle ek run me ek plan ka sirf EK slot banta
+    // tha — agar plan kabhi peeche reh jata (cron miss ya batch starvation), to
+    // overdue slots kabhi catch-up nahi karte the aur "ek din gap" ban jata tha.
+    // Ab daily plan hamesha "aaj" tak pakad leta hai.
+    let idx = plan.postIndex || 0;
+    let generatedForThisPlan = 0;
+    const PER_PLAN_MAX = 5;
 
-    // Atomically claim THIS slot so overlapping cron runs never double-generate.
-    const claimed = await AutomationPlan.findOneAndUpdate(
-      {
-        _id:       plan._id,
-        postIndex: idx,
-        $or: [
-          { generatingSlot: null },
-          { generatingSlot: { $exists: false } },
-          { generatingSince: { $lt: staleBefore } },
-        ],
-      },
-      { $set: { generatingSlot: idx, generatingSince: now } },
-      { new: true }
-    );
-    if (!claimed) {
-      // Another run already owns this slot — skip silently (no log doc).
-      stats.skipped++;
-      continue;
-    }
+    while (generatedForThisPlan < PER_PLAN_MAX && stats.filled < BATCH) {
+      // Publish is anchored to the user's chosen posting time (postingHour:minute).
+      // Preferred: publishSchedule[idx] — the EXACT datetime for this slot (honours
+      // custom dates). Next: publishStartAt + stepDays. Last: legacy save-time anchor.
+      // A slot is GENERATED publishAfterMin before publish.
+      let publishAt, dueAt;
+      if (sched.length > 0) {
+        if (idx >= sched.length) break; // no slot left
+        publishAt = new Date(sched[idx]);
+        dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+      } else if (t.publishStartAt) {
+        const pubStart = new Date(t.publishStartAt).getTime();
+        publishAt = new Date(pubStart + idx * stepDays * DAY_MS);
+        dueAt = new Date(publishAt.getTime() - publishAfterMin * 60 * 1000);
+      } else if (t.generateStartAt) {
+        const startTs = new Date(t.generateStartAt).getTime();
+        dueAt = new Date(startTs + idx * stepDays * DAY_MS);
+        publishAt = new Date(dueAt.getTime() + publishAfterMin * 60 * 1000);
+      } else {
+        break; // no anchor
+      }
 
-    // Only a genuinely due + claimed slot gets an AutomationLog doc.
-    const slog = run.plan({ userId: plan.userId, planId: plan._id });
+      // Not due yet — is plan ka aur kuch nahi. (Sirf pehli baar skip count karo.)
+      if (dueAt > now) { if (generatedForThisPlan === 0) stats.skipped++; break; }
 
-    // Business + city come from the GMB LOCATION the plan posts to (e.g. "CB Prints",
-    // "Faridabad") — never the separate selectedBusiness account.
-    const loc0 = Array.isArray(plan.locations) && plan.locations[0] ? plan.locations[0] : null;
-    const businessName = loc0?.name || loc0?.title || plan.businessName || '';
-    const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
-    const keywords = Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [];
-    const keyword = keywords.length ? keywords[idx % keywords.length] : (plan.keywords?.[0] || '');
+      // Atomically claim THIS slot so overlapping cron runs never double-generate.
+      const claimed = await AutomationPlan.findOneAndUpdate(
+        {
+          _id:       plan._id,
+          postIndex: idx,
+          $or: [
+            { generatingSlot: null },
+            { generatingSlot: { $exists: false } },
+            { generatingSince: { $lt: staleBefore } },
+          ],
+        },
+        { $set: { generatingSlot: idx, generatingSince: now } },
+        { new: true }
+      );
+      if (!claimed) {
+        // Another run already owns this slot — chhodo, is plan ka aur mat karo.
+        if (generatedForThisPlan === 0) stats.skipped++;
+        break;
+      }
 
-    slog.setMeta({ businessName, locality: cityName, keyword, platforms: plan.platforms });
-    slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
+      // Only a genuinely due + claimed slot gets an AutomationLog doc.
+      const slog = run.plan({ userId: plan.userId, planId: plan._id });
 
-    try {
+      // Business + city come from the GMB LOCATION the plan posts to (e.g. "CB Prints",
+      // "Faridabad") — never the separate selectedBusiness account.
+      const loc0 = Array.isArray(plan.locations) && plan.locations[0] ? plan.locations[0] : null;
+      const businessName = loc0?.name || loc0?.title || plan.businessName || '';
+      const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
+      const keywords = Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [];
+      const keyword = keywords.length ? keywords[idx % keywords.length] : (plan.keywords?.[0] || '');
+
+      slog.setMeta({ businessName, locality: cityName, keyword, platforms: plan.platforms });
+      slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
+
+      try {
       const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
@@ -279,18 +289,25 @@ export async function GET() {
       }
 
       logGenerate({ ok: true, userId: plan.userId, postId: post._id, keyword, imageUrl, whatsapp: waStatus });
-    } catch (err) {
-      // Generation failed → create NO document. Release the lock and leave
-      // postIndex unchanged so this same slot retries on the next cron run.
-      slog.fail('queue:generate', `content generation failed for keyword="${keyword}"`, err);
-      log(`FAIL plan ${plan._id} slot ${idx}`, err.message);
-      await AutomationPlan.updateOne(
-        { _id: plan._id },
-        { $set: { generatingSlot: null, generatingSince: null } }
-      );
-      logGenerate({ ok: false, userId: plan.userId, postId: null, keyword, error: err.message });
-      stats.failed++;
-    }
+
+      // Slot ban gaya — DB postIndex aage badh chuka hai. Local idx bhi aage
+      // karo aur catch-up loop ko agla due slot try karne do (isi run me).
+      idx++;
+      generatedForThisPlan++;
+      } catch (err) {
+        // Generation failed → create NO document. Release the lock and leave
+        // postIndex unchanged so this same slot retries on the next cron run.
+        slog.fail('queue:generate', `content generation failed for keyword="${keyword}"`, err);
+        log(`FAIL plan ${plan._id} slot ${idx}`, err.message);
+        await AutomationPlan.updateOne(
+          { _id: plan._id },
+          { $set: { generatingSlot: null, generatingSince: null } }
+        );
+        logGenerate({ ok: false, userId: plan.userId, postId: null, keyword, error: err.message });
+        stats.failed++;
+        break; // is plan ka aur slot mat try karo; agle run me retry hoga
+      }
+    } // end catch-up while
   }
 
   const logSave = await run.flush();

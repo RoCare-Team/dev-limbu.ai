@@ -87,6 +87,20 @@ const LocalRankResultSchema = new mongoose.Schema(
       default: [],
     },
 
+    // ── Updated rich audit (webhook v2) ── flexible Mixed types ──
+    // Har keyword ka poora result (keyword, gridPoints, averagePosition, topCompetitors).
+    keywordResults: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    // Business ke apne GBP details (name, logo, rating, phone, website, hours...).
+    businessDetails: { type: mongoose.Schema.Types.Mixed, default: null },
+    // Overall (all keywords) average position — average_rank/frequency/total_checks.
+    overallAveragePosition: { type: mongoose.Schema.Types.Mixed, default: null },
+    // Overall competitor leaderboard (saare keywords ke aar-paar).
+    overallTopCompetitors: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    // You-vs-competitor gap analysis + verdict.
+    comparison: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    // Improvement suggestions (string list).
+    suggestions: { type: [String], default: [] },
+
     // Keep the original webhook payload too, in case we need richer comparisons later.
     rawResponse: { type: mongoose.Schema.Types.Mixed, default: null },
   },

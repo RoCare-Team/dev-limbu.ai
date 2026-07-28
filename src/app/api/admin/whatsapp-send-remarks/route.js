@@ -2,6 +2,42 @@ import { NextResponse } from "next/server";
 
 const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
+/* AiSensy / Limbu WhatsApp API key (hardcoded per request). */
+const AISENSY_API_KEY =
+  "ws_fca30eb07595f51089b57a862ecac20c12947558b56f1a70";
+
+/* Single approved template used for ALL remark actions. */
+const FOLLOW_UP_CAMPAIGN = "franchiese_follow_up_temp";
+
+/* Support number shown as {{3}} in the template. */
+const SUPPORT_PHONE = "9289344708";
+
+/* ================= PREDEFINED STATUS MESSAGES ({{2}}) ================= */
+/* One friendly status line per remark — this is the only thing that changes
+   between actions; every remark uses the same template. */
+const REMARK_STATUS_MESSAGE = {
+  call_not_picked:
+    "We tried calling you but couldn't connect. Our team will reach out to you again shortly.",
+  callback_later:
+    "As requested, our team will call you back soon regarding your franchise enquiry.",
+  call_back:
+    "As requested, our team will call you back soon regarding your franchise enquiry.",
+  interested:
+    "Thank you for your interest! Our team will connect with you shortly with the next steps.",
+  not_interested:
+    "We've noted your response. If you change your mind, we're always here to help.",
+  wrong_number:
+    "It looks like we reached an incorrect number. Please share your correct contact details.",
+  switch_off:
+    "We tried calling but your number was unreachable. We'll try connecting with you again soon.",
+  meeting_scheduled_online:
+    "Your meeting has been scheduled. Our team will share the details with you shortly.",
+  meeting_scheduled_offline:
+    "Your meeting has been scheduled. Our team will share the details with you shortly.",
+  followup_reminder:
+    "This is a gentle reminder regarding your franchise enquiry follow-up.",
+};
+
 /* ================= MOBILE NORMALIZER ================= */
 
 const normalizeIndianNumber = (num) => {
@@ -16,112 +52,6 @@ const normalizeIndianNumber = (num) => {
   if (n.length === 12 && n.startsWith("91")) return n;
 
   return null;
-};
-
-/* ================= CAMPAIGN CONFIG ================= */
-
-const CAMPAIGN_CONFIG = {
-  // 🔹 1 PARAM
-  call_back: {
-    name: "call_back",
-    params: (d) => [d.userName],
-    required: ["userName"],
-  },
-
-  // 🔹 2 PARAMS
-  not_interested: {
-    name: "not_interested_confirmation",
-    params: (d) => [d.userName, d.enquiryId],
-    required: ["userName", "enquiryId"],
-  },
-
-  wrong_number: {
-    name: "wrong_number_update",
-    params: (d) => [d.userName, d.enquiryId],
-    required: ["userName", "enquiryId"],
-  },
-
-  // 🔹 4 PARAMS (Executive Based)
-  call_not_picked: {
-    name: "call_not_picked_followup",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.executiveName,
-      d.executiveMobile,
-    ],
-    required: ["userName", "enquiryId", "executiveName", "executiveMobile"],
-  },
-
-  callback_later: {
-    name: "callback_later_after_call",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.executiveName,
-      d.executiveMobile,
-    ],
-    required: ["userName", "enquiryId", "executiveName", "executiveMobile"],
-  },
-
-  interested: {
-    name: "interested_lead_after_call_premium",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.executiveName,
-      d.executiveMobile,
-    ],
-    required: ["userName", "enquiryId", "executiveName", "executiveMobile"],
-  },
-
-  switch_off: {
-    name: "switch_off_followup",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.executiveName,
-      d.executiveMobile,
-    ],
-    required: ["userName", "enquiryId", "executiveName", "executiveMobile"],
-  },
-
-  // 🔥 NEW REMARKS
-
-  meeting_scheduled_online: {
-    name: "meeting_scheduled_online",
-    params: (d) => {
-      const [date, time] = (d.meetingDate || "").split("T");
-      return [
-        d.userName,
-        date,
-        time,
-        `${d.meetingLink} ID: ${d.meetingId || "N/A"} Pass: ${d.passcode || "N/A"}`,
-      ];
-    },
-    required: ["userName", "meetingDate", "meetingLink", "meetingId"],
-  },
-
-  meeting_scheduled_offline: {
-    name: "meeting_scheduled_offline",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.meetingDate,
-      d.meetingLocation,
-    ],
-    required: ["userName", "enquiryId", "meetingDate", "meetingLocation"],
-  },
-
-  followup_reminder: {
-    name: "followup_reminder",
-    params: (d) => [
-      d.userName,
-      d.enquiryId,
-      d.followupDate,
-    ],
-    required: ["userName", "enquiryId", "followupDate"],
-  },
 };
 
 /* ================= API HANDLER ================= */
@@ -141,9 +71,11 @@ export async function POST(req) {
       );
     }
 
-    const config = CAMPAIGN_CONFIG[remark];
+    // Every remark action now uses the SAME approved follow-up template.
+    // The only thing that changes per action is the predefined status line.
+    const statusMessage = REMARK_STATUS_MESSAGE[remark];
 
-    if (!config) {
+    if (!statusMessage) {
       return NextResponse.json(
         { success: false, message: "Invalid remark type" },
         { status: 400 }
@@ -168,30 +100,29 @@ export async function POST(req) {
       );
     }
 
-    /* ===== DYNAMIC FIELD VALIDATION ===== */
-
-    for (const field of config.required) {
-      if (!body[field]) {
-        return NextResponse.json(
-          { success: false, message: `${field} is required` },
-          { status: 400 }
-        );
-      }
-    }
-
     /* ===== SAFE USERNAME (AiSensy Rule) ===== */
 
     const safeUserName =
       userName.replace(/[^a-zA-Z0-9]/g, "") || "User";
 
+    // {{3}} = a number the customer can contact. Prefer the executive's mobile
+    // when available, otherwise fall back to the brand support number.
+    const contactNumber =
+      normalizeIndianNumber(body.executiveMobile) || SUPPORT_PHONE;
+
     /* ===== PAYLOAD BUILD ===== */
+    /* Template params: {{1}} name, {{2}} status message, {{3}} contact number */
 
     const payload = {
-      apiKey: process.env.AISENSY_API_KEY,
-      campaignName: config.name,
+      apiKey: AISENSY_API_KEY,
+      campaignName: FOLLOW_UP_CAMPAIGN,
       destination: formattedNumber,
       userName: safeUserName,
-      templateParams: config.params(body),
+      templateParams: [
+        body.userName || "Customer",
+        statusMessage,
+        contactNumber,
+      ],
       source: "new-landing-page form",
 
       // Optional but safe defaults
@@ -227,7 +158,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      triggeredCampaign: config.name,
+      triggeredCampaign: FOLLOW_UP_CAMPAIGN,
       aiSensyResponse: data,
     });
   } catch (error) {

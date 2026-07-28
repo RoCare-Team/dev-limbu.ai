@@ -22,6 +22,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import AutomationLog from "@/models/AutomationLog";
+import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
@@ -80,32 +81,68 @@ export async function GET(request) {
       .limit(limit)
       .lean();
 
+    // Attach the assigned account manager for each log's user, so the UI can
+    // group logs manager-wise (log itself only stores userId).
+    const userIds = [...new Set(docs.map((d) => d.userId).filter(Boolean))];
+    if (userIds.length) {
+      const users = await User.find({ userId: { $in: userIds } })
+        .select("userId fullName accountManager accountManagerName")
+        .lean();
+      const byUserId = new Map(users.map((u) => [u.userId, u]));
+      for (const d of docs) {
+        const u = byUserId.get(d.userId);
+        d.accountManagerName = u?.accountManagerName || "";
+        d.accountManagerId = u?.accountManager ? String(u.accountManager) : "";
+        if (!d.userFullName) d.userFullName = u?.fullName || "";
+      }
+    }
+
+    // Manager filter (applied after the join — the log doc has no manager field)
+    const manager = searchParams.get("manager")?.trim();
+    let result = docs;
+    if (manager) {
+      result = manager === "unassigned"
+        ? docs.filter((d) => !d.accountManagerName)
+        : docs.filter((d) => d.accountManagerName === manager);
+    }
+
     if (searchParams.get("format") === "text") {
-      return new Response(toText(docs) || "No automation logs found.", {
+      return new Response(toText(result) || "No automation logs found.", {
         status: 200,
         headers: { "Content-Type": "text/plain; charset=utf-8" },
       });
     }
 
     // Quick rollup so you can eyeball health at a glance.
-    const summary = { total: docs.length, success: 0, failed: 0, skipped: 0, unknown: 0 };
-    const bySource = {
-      automation: { total: 0, success: 0, failed: 0, skipped: 0, unknown: 0 },
-      manual: { total: 0, success: 0, failed: 0, skipped: 0, unknown: 0 },
-    };
-    for (const d of docs) {
+    // Fail do type ka hota hai: content generate hi nahi hua (fill-queue) vs
+    // content bana par publish fail (publish / publish-scheduled).
+    const blank = () => ({ total: 0, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 });
+    const summary = { ...blank(), total: result.length };
+    const bySource = { automation: blank(), manual: blank() };
+    const byManager = {};
+    for (const d of result) {
       summary[d.outcome] = (summary[d.outcome] || 0) + 1;
+      const failType = d.outcome === "failed" ? (d.phase === "fill-queue" ? "failGenerate" : "failPublish") : null;
+      if (failType) summary[failType] += 1;
       const s = bySource[d.source] || bySource.automation;
       s.total++;
       s[d.outcome] = (s[d.outcome] || 0) + 1;
+      if (failType) s[failType] += 1;
+
+      const mgr = d.accountManagerName || "Unassigned";
+      const m = (byManager[mgr] ||= blank());
+      m.total++;
+      m[d.outcome] = (m[d.outcome] || 0) + 1;
+      if (failType) m[failType] += 1;
     }
 
     return NextResponse.json({
       success: true,
       summary,
       bySource,
-      filters: { userId, runId, postId, phase, outcome, source, q, limit },
-      logs: docs,
+      byManager,
+      filters: { userId, runId, postId, phase, outcome, source, q, manager, limit },
+      logs: result,
     });
   } catch (error) {
     console.error("GET /api/automation-logs error:", error);

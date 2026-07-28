@@ -506,7 +506,7 @@ export default function RevenueUsersPage() {
 
   const today = new Date().toDateString();
 
-  const todayUsers =
+  const todayRows =
     activeView === "package"
       ? packageRows.filter((item) => {
           if (!item.createdAt) return false;
@@ -517,15 +517,21 @@ export default function RevenueUsersPage() {
           return new Date(item.createdAt).toDateString() === today;
         });
 
+  // Distinct users today — same leadId ke 2 rows ho to 1 hi gine
+  const todayUsers = [
+    ...new Map(todayRows.map((item) => [item.leadId, item])).values(),
+  ];
+
+  // Distinct users (leadId ke hisaab se) — ek user ne multiple plan/renewal
+  // liye ho to bhi 1 hi count hoga, taki dashboard ke "Onboarded" se match kare.
   const totalUsers =
     activeView === "package"
-      ? revenueUsersList.filter((item) => {
-          return (
-            (item.type === "user_onboard" || item.type === "plan") &&
-            (item.status === "active" || item.status === "user_onboard")
-          );
-        }).length
-      : serviceRows.length;
+      ? groupedPackageRows.length
+      : groupedServiceRows.length;
+
+  // Transaction/row count alag se — plans card me dikhta hai
+  const totalTransactions =
+    activeView === "package" ? packageRows.length : serviceRows.length;
 
   const totalRevenue =
     activeView === "package"
@@ -1188,6 +1194,7 @@ export default function RevenueUsersPage() {
         <RevenueStats
           activeView={activeView}
           totalUsers={totalUsers}
+          totalTransactions={totalTransactions}
           todayUsers={todayUsers}
           totalRevenue={totalRevenue}
           todayRevenue={todayRevenue}

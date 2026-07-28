@@ -294,6 +294,7 @@ export async function POST(req) {
       const {
         leadId,
         text,
+        texts,
         addedBy,
         followUpDate,
         agentId,
@@ -301,14 +302,18 @@ export async function POST(req) {
         adminEmail,
       } = body;
 
-      if (!text?.trim()) {
+      // `texts` adds several remarks in one shot; `text` stays supported for
+      // existing callers. Either way we end up with a list of entries to push.
+      const remarkTexts = (Array.isArray(texts) ? texts : [text])
+        .map((t) => (typeof t === "string" ? t.trim() : ""))
+        .filter(Boolean);
+
+      if (remarkTexts.length === 0) {
         return NextResponse.json(
           { success: false, message: "text is required for remarks" },
           { status: 400 },
         );
       }
-
-      const trimmed = text.trim();
 
       let agentObjId =
         agentId && mongoose.Types.ObjectId.isValid(String(agentId))
@@ -329,7 +334,7 @@ export async function POST(req) {
 
       let fu = followUpDate ? new Date(followUpDate) : null;
       const needsFuCarry =
-        FOLLOW_UP_PREFIXES.some((p) => trimmed.startsWith(p)) &&
+        remarkTexts.some((t) => FOLLOW_UP_PREFIXES.some((p) => t.startsWith(p))) &&
         (!fu || Number.isNaN(fu.getTime()));
 
       if (needsFuCarry) {
@@ -346,23 +351,28 @@ export async function POST(req) {
         }
       }
 
-      const remarkEntry = {
-        text: trimmed,
+      // Stagger addedAt by a millisecond each so a batch keeps a stable order
+      // when anything downstream sorts by timestamp.
+      const now = Date.now();
+      const remarkEntries = remarkTexts.map((t, i) => ({
+        text: t,
         addedBy: addedBy || "Admin",
-        addedAt: new Date(),
+        addedAt: new Date(now + i),
         ...(fu && !Number.isNaN(fu.getTime()) ? { followUpDate: fu } : {}),
         ...(agentObjId
           ? { agentId: agentObjId, agentName: resolvedName }
           : { agentName: resolvedName }),
-      };
+      }));
 
-      const pushOps = { remarks: remarkEntry };
+      const pushOps = { remarks: { $each: remarkEntries } };
       if (agentObjId || resolvedName) {
+        // One submission is one call, even when it carries several remarks —
+        // otherwise a batch would inflate the per-agent call counters.
         pushOps.callHistory = {
           agentId: agentObjId || null,
           agentName: resolvedName,
-          calledAt: new Date(),
-          remark: trimmed,
+          calledAt: new Date(now),
+          remark: remarkTexts.join(" | "),
         };
       }
 
@@ -381,7 +391,11 @@ export async function POST(req) {
 
       return NextResponse.json({
         success: true,
-        message: "Remark added successfully",
+        message:
+          remarkTexts.length > 1
+            ? `${remarkTexts.length} remarks added successfully`
+            : "Remark added successfully",
+        added: remarkTexts.length,
         remarks: updatedLead.remarks,
       });
     }

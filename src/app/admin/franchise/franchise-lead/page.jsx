@@ -38,6 +38,7 @@ import {
   Upload,
   BadgeCheck,
   Edit3,
+  Check,
 } from "lucide-react";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import toast, { Toaster } from "react-hot-toast";
@@ -121,6 +122,12 @@ const QUICK_REMARKS = [
 
 /** Same as user-management: these open the follow-up date picker */
 const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
+/** Shared styling so every filter control lines up on the same grid. */
+const FILTER_LABEL_CLASS =
+  "text-[10px] font-semibold uppercase tracking-wide text-gray-400 truncate";
+const FILTER_SELECT_CLASS =
+  "w-full h-9 px-2.5 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-300 transition-colors truncate";
 
 /** Franchise offer template (franchise_off_new) — keep in sync with the API route. */
 const OFFER_BASE_AMOUNT = 500000;
@@ -262,6 +269,8 @@ export default function FranchiseLeadsPage() {
   const [error, setError] = useState(null);
   const [remarkModalLead, setRemarkModalLead] = useState(null);
   const [newRemark, setNewRemark] = useState("");
+  /** Quick remarks picked as chips — submitted alongside any typed remark. */
+  const [selectedRemarks, setSelectedRemarks] = useState([]);
   const [remarkHistory, setRemarkHistory] = useState({});
   const [franchiseAdmins, setFranchiseAdmins] = useState([]);
   const [role, setRole] = useState("");
@@ -717,20 +726,6 @@ export default function FranchiseLeadsPage() {
   }, [role, franchiseFollowUpFilter]);
 
   useEffect(() => {
-    if (remarkModalLead) {
-      setFollowUpDateFranchise("");
-      setFollowUpTimeFranchise("10:00");
-    }
-  }, [remarkModalLead]);
-
-  useEffect(() => {
-    if (!FOLLOW_UP_REMARKS.some((r) => newRemark.startsWith(r))) {
-      setFollowUpDateFranchise("");
-      setFollowUpTimeFranchise("10:00");
-    }
-  }, [newRemark]);
-
-  useEffect(() => {
     const email = localStorage.getItem("email");
     const r = localStorage.getItem("role");
     if (
@@ -1014,6 +1009,31 @@ export default function FranchiseLeadsPage() {
     [baseFilteredLeads],
   );
 
+  /** Drives the "N active" badge and whether "Clear all" is offered. */
+  const activeFilterCount = useMemo(
+    () =>
+      [
+        !!search,
+        statusFilter !== "All",
+        assigneeFilter !== "All",
+        remarkFilter !== "All",
+        remarkCountFilter !== "All",
+        qualityFilter !== "All",
+        dateRange !== "all",
+        ivrLeadTab !== "all",
+      ].filter(Boolean).length,
+    [
+      search,
+      statusFilter,
+      assigneeFilter,
+      remarkFilter,
+      remarkCountFilter,
+      qualityFilter,
+      dateRange,
+      ivrLeadTab,
+    ],
+  );
+
   /** Whole-DB per-agent stats keyed by admin id (super admin dashboard). */
   const agentStatsById = useMemo(() => {
     const m = new Map();
@@ -1057,30 +1077,35 @@ export default function FranchiseLeadsPage() {
         value: dbStats.total,
         icon: Users,
         color: "text-blue-600",
+        iconBg: "bg-blue-50",
       },
       {
         label: "Active",
         value: dbStats.active,
         icon: Activity,
-        color: "text-blue-600",
+        color: "text-sky-600",
+        iconBg: "bg-sky-50",
       },
       {
         label: "Follow Up",
         value: dbStats.followup,
         icon: Clock,
-        color: "text-yellow-600",
+        color: "text-amber-600",
+        iconBg: "bg-amber-50",
       },
       {
         label: "Onboard",
         value: dbStats.onboard,
         icon: UserCheck,
         color: "text-green-600",
+        iconBg: "bg-green-50",
       },
       {
         label: "Inactive",
         value: dbStats.inactive,
         icon: UserX,
         color: "text-gray-600",
+        iconBg: "bg-gray-100",
       },
     ];
 
@@ -1090,6 +1115,7 @@ export default function FranchiseLeadsPage() {
       value: `₹${totalRevenue.toLocaleString()}`,
       icon: DollarSign,
       color: "text-emerald-600",
+      iconBg: "bg-emerald-50",
       subtitle: `${revenueCount} Franchises`,
     });
 
@@ -1098,6 +1124,9 @@ export default function FranchiseLeadsPage() {
 
   /* ---------------- STATUS CHANGE ---------------- */
   const handleStatusChange = async (id, newStatus) => {
+    const targetLead = leads.find((l) => l.id === id);
+    const previousStatus = targetLead?.status;
+
     try {
       const res = await fetch(`/api/franchise-leads`, {
         method: "PATCH",
@@ -1111,11 +1140,26 @@ export default function FranchiseLeadsPage() {
             lead.id === id ? { ...lead, status: newStatus } : lead,
           ),
         );
+
+        // Moving a lead to Onboard from any other status means money changed
+        // hands — collect the amount and payment proof straight away.
+        if (
+          newStatus === "Onboard" &&
+          previousStatus !== "Onboard" &&
+          !leadRevenueStatus[id] &&
+          targetLead
+        ) {
+          setRevenueData({ amount: "", screenshot: null, notes: "" });
+          setRevenueModalLead({ ...targetLead, status: newStatus });
+          setShowRevenueModal(true);
+        }
       } else {
         console.error("Failed to update status");
+        toast.error("Failed to update status");
       }
     } catch (error) {
       console.error("Error updating status:", error);
+      toast.error("Error updating status");
     }
   };
 
@@ -1668,14 +1712,45 @@ export default function FranchiseLeadsPage() {
     }
   };
 
-  const handleRemarkSubmit = async () => {
-    if (!newRemark.trim() || !remarkModalLead) return;
+  /** Start every open of the remarks modal with an empty composer. */
+  useEffect(() => {
+    setSelectedRemarks([]);
+    setNewRemark("");
+    setFollowUpDateFranchise("");
+    setFollowUpTimeFranchise("10:00");
+  }, [remarkModalLead]);
 
-    // Check and send WhatsApp message if applicable
-    const remarkType = QUICK_REMARKS.find((r) => newRemark.startsWith(r));
-    if (remarkType) {
-      await sendRemarkWhatsApp(remarkModalLead, remarkType);
+  const toggleQuickRemark = (remark) =>
+    setSelectedRemarks((prev) =>
+      prev.includes(remark)
+        ? prev.filter((r) => r !== remark)
+        : [...prev, remark],
+    );
+
+  /** Chips first, then the typed remark; duplicates dropped. */
+  const pendingRemarkTexts = useMemo(() => {
+    const typed = newRemark.trim();
+    return [...new Set([...selectedRemarks, ...(typed ? [typed] : [])])];
+  }, [selectedRemarks, newRemark]);
+
+  const pendingNeedsFollowUp = useMemo(
+    () =>
+      pendingRemarkTexts.some((t) =>
+        FOLLOW_UP_REMARKS.some((p) => t.startsWith(p)),
+      ),
+    [pendingRemarkTexts],
+  );
+
+  /** Drop a scheduled follow-up once nothing in the batch calls for one. */
+  useEffect(() => {
+    if (!pendingNeedsFollowUp) {
+      setFollowUpDateFranchise("");
+      setFollowUpTimeFranchise("10:00");
     }
+  }, [pendingNeedsFollowUp]);
+
+  const handleRemarkSubmit = async () => {
+    if (!remarkModalLead || pendingRemarkTexts.length === 0) return;
 
     const agentId =
       remarkModalLead.assignedFranchiseAdmin?._id ||
@@ -1687,10 +1762,7 @@ export default function FranchiseLeadsPage() {
       "Admin";
 
     let effectiveFollowUpIso = null;
-    const trimmedNewRemark = newRemark.trim();
-    const isFuFranchise = FOLLOW_UP_REMARKS.some((p) =>
-      trimmedNewRemark.startsWith(p),
-    );
+    const isFuFranchise = pendingNeedsFollowUp;
 
     if (followUpDateFranchise) {
       const rawT =
@@ -1727,13 +1799,26 @@ export default function FranchiseLeadsPage() {
       }
     }
 
+    // Notify once per distinct quick-remark type in the batch. Runs after
+    // validation so a rejected submit never fires a WhatsApp message.
+    const whatsAppTypes = [
+      ...new Set(
+        pendingRemarkTexts
+          .map((t) => QUICK_REMARKS.find((r) => t.startsWith(r)))
+          .filter(Boolean),
+      ),
+    ];
+    for (const type of whatsAppTypes) {
+      await sendRemarkWhatsApp(remarkModalLead, type);
+    }
+
     try {
       const res = await fetch(`/api/franchise-leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: remarkModalLead.id,
-          text: newRemark,
+          texts: pendingRemarkTexts,
           addedBy: "Admin",
           agentId: agentId,
           agentName: agentName,
@@ -1761,8 +1846,14 @@ export default function FranchiseLeadsPage() {
           [remarkModalLead.id]: updatedRemarks,
         }));
         setNewRemark("");
+        setSelectedRemarks([]);
         setFollowUpDateFranchise("");
         setFollowUpTimeFranchise("10:00");
+        toast.success(
+          pendingRemarkTexts.length > 1
+            ? `${pendingRemarkTexts.length} remarks added`
+            : "Remark added",
+        );
         const email = localStorage.getItem("email");
         if (email) {
           fetch(
@@ -2088,151 +2179,177 @@ export default function FranchiseLeadsPage() {
           </div>
 
           {/* FILTERS */}
-          <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2">
+          <div className="pt-4 mt-4 border-t border-gray-100">
+            <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">
-                Filters:
+              <span className="text-sm font-semibold text-gray-700">
+                Filters
               </span>
+
+              {activeFilterCount > 0 && (
+                <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-blue-100 text-blue-700 tabular-nums">
+                  {activeFilterCount} active
+                </span>
+              )}
+
+              {filterLoading && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-blue-600 rounded-lg bg-blue-50 border border-blue-100">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Applying...
+                </span>
+              )}
+
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("All");
+                    setRemarkFilter("All");
+                    setRemarkCountFilter("All");
+                    setQualityFilter("All");
+                    setAssigneeFilter("All");
+                    setIvrLeadTab("all");
+                    setDateRange("all");
+                    setCustomStartDate("");
+                    setCustomEndDate("");
+                  }}
+                  className="ml-auto flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                >
+                  <X className="w-3 h-3" />
+                  Clear all
+                </button>
+              )}
             </div>
 
-            {filterLoading && (
-              <div className="flex items-center gap-2 px-3 py-1 text-sm text-blue-600 rounded-lg bg-blue-50 border border-blue-100">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Applying filter...
-              </div>
-            )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              <label className="flex flex-col gap-1 min-w-0">
+                <span className={FILTER_LABEL_CLASS}>Status</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={FILTER_SELECT_CLASS}
+                >
+                  <option value="All">All Status</option>
+                  {STATUS_STEPS.map((s) => (
+                    <option key={s.label} value={s.label}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="All">All Status</option>
-              {STATUS_STEPS.map((s) => (
-                <option key={s.label} value={s.label}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+              {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+                <label className="flex flex-col gap-1 min-w-0">
+                  <span className={FILTER_LABEL_CLASS}>Assignee</span>
+                  <select
+                    value={assigneeFilter}
+                    onChange={(e) => setAssigneeFilter(e.target.value)}
+                    className={FILTER_SELECT_CLASS}
+                  >
+                    <option value="All">All Assignees</option>
+                    <option value="Unassigned">Unassigned</option>
+                    {franchiseAdmins.map((admin) => (
+                      <option key={admin._id} value={admin._id}>
+                        {admin.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
 
-            {(role === "superFranchiseAdmin" || role === "superAdmin") && (
-              <select
-                value={assigneeFilter}
-                onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="All">All Assignees</option>
-                <option value="Unassigned">Unassigned</option>
-                {franchiseAdmins.map((admin) => (
-                  <option key={admin._id} value={admin._id}>
-                    {admin.fullName}
+              <label className="flex flex-col gap-1 min-w-0">
+                <span className={FILTER_LABEL_CLASS}>Remark</span>
+                <select
+                  value={remarkFilter}
+                  onChange={(e) =>
+                    handleFilterChange(setRemarkFilter, e.target.value)
+                  }
+                  className={FILTER_SELECT_CLASS}
+                >
+                  <option value="All">All Remarks</option>
+                  <option value="Has Remarks">Has Remarks</option>
+                  <option value="No Remarks">No Remarks</option>
+                  {QUICK_REMARKS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1 min-w-0">
+                <span className={FILTER_LABEL_CLASS}>Remark count</span>
+                <select
+                  value={remarkCountFilter}
+                  onChange={(e) =>
+                    handleFilterChange(setRemarkCountFilter, e.target.value)
+                  }
+                  className={FILTER_SELECT_CLASS}
+                >
+                  <option value="All">All Remark Counts</option>
+                  <option value="1 Remark">1 Remark</option>
+                  <option value="2 Remarks">2 Remarks</option>
+                  <option value="3 Remarks">3 Remarks</option>
+                  <option value="More than 3 Remarks">
+                    More than 3 Remarks
                   </option>
-                ))}
-              </select>
-            )}
+                </select>
+              </label>
 
-            <select
-              value={remarkFilter}
-              onChange={(e) =>
-                handleFilterChange(setRemarkFilter, e.target.value)
-              }
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="All">All Remarks</option>
-              <option value="Has Remarks">Has Remarks</option>
-              <option value="No Remarks">No Remarks</option>
-              {QUICK_REMARKS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+              <label className="flex flex-col gap-1 min-w-0">
+                <span className={FILTER_LABEL_CLASS}>Quality</span>
+                <select
+                  value={qualityFilter}
+                  onChange={(e) => setQualityFilter(e.target.value)}
+                  className={FILTER_SELECT_CLASS}
+                >
+                  <option value="All">All Qualities</option>
+                  {LEAD_QUALITIES.map((q) => (
+                    <option key={q.value} value={q.value}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-            <select
-              value={remarkCountFilter}
-              onChange={(e) =>
-                handleFilterChange(setRemarkCountFilter, e.target.value)
-              }
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="All">All Remark Counts</option>
-              <option value="1 Remark">1 Remark</option>
-              <option value="2 Remarks">2 Remarks</option>
-              <option value="3 Remarks">3 Remarks</option>
-              <option value="More than 3 Remarks">More than 3 Remarks</option>
-            </select>
+              <label className="flex flex-col gap-1 min-w-0">
+                <span className={FILTER_LABEL_CLASS}>Date range</span>
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className={FILTER_SELECT_CLASS}
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </label>
 
-            <select
-              value={qualityFilter}
-              onChange={(e) => setQualityFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="All">All Qualities</option>
-              {LEAD_QUALITIES.map((q) => (
-                <option key={q.value} value={q.value}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={dateRange}
-              onChange={(e) => setDateRange(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="week">Last 7 Days</option>
-              <option value="month">Last 30 Days</option>
-              <option value="custom">Custom Range</option>
-            </select>
-
-            {dateRange === "custom" && (
-              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-200">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-gray-400">-</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            {(search ||
-              statusFilter !== "All" ||
-              dateRange !== "all" ||
-              remarkFilter !== "All" ||
-              remarkCountFilter !== "All" ||
-              qualityFilter !== "All" ||
-              ivrLeadTab !== "all" ||
-              assigneeFilter !== "All") && (
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setStatusFilter("All");
-                  setRemarkFilter("All");
-                  setRemarkCountFilter("All");
-                  setQualityFilter("All");
-                  setAssigneeFilter("All");
-                  setIvrLeadTab("all");
-                  setDateRange("all");
-                  setCustomStartDate("");
-                  setCustomEndDate("");
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                <X className="w-3 h-3" />
-                Clear Filters
-              </button>
-            )}
+              {dateRange === "custom" && (
+                <>
+                  <label className="flex flex-col gap-1 min-w-0">
+                    <span className={FILTER_LABEL_CLASS}>From</span>
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className={FILTER_SELECT_CLASS}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 min-w-0">
+                    <span className={FILTER_LABEL_CLASS}>To</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className={FILTER_SELECT_CLASS}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
           </div>
 
           {/* All leads vs IVR interested — one active at a time */}
@@ -2311,34 +2428,37 @@ export default function FranchiseLeadsPage() {
         )}
 
         {/* STATS */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           {loading
-            ? [...Array(7)].map((_, i) => (
+            ? [...Array(stats.length)].map((_, i) => (
                 <div
                   key={`stat-skeleton-${i}`}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 animate-pulse"
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 animate-pulse min-h-[124px]"
                 >
-                  <div className="w-12 h-12 bg-gray-200 rounded-xl mb-3 mx-auto" />
-                  <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto mb-2" />
-                  <div className="h-8 bg-gray-200 rounded w-full" />
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mt-2" />
+                  <div className="w-9 h-9 bg-gray-200 rounded-xl mb-3" />
+                  <div className="h-3 bg-gray-200 rounded w-3/4 mb-2" />
+                  <div className="h-7 bg-gray-200 rounded w-2/3" />
                 </div>
               ))
             : stats.map((s, i) => (
                 <div
                   key={i}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-shadow"
+                  className="group bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col min-h-[124px] hover:shadow-md hover:border-gray-200 transition-all"
                 >
-                  <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
-                  <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2.5 ${s.iconBg}`}
+                  >
+                    <s.icon className={`w-[18px] h-[18px] ${s.color}`} />
+                  </div>
+                  <p className="text-[11px] text-gray-500 font-semibold uppercase tracking-wide leading-tight">
                     {s.label}
                   </p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                  <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums leading-none truncate">
                     {s.value}
                   </p>
-                  {s.subtitle && (
-                    <p className="text-xs text-gray-400 mt-1">{s.subtitle}</p>
-                  )}
+                  <p className="text-[11px] text-gray-400 mt-auto pt-1 truncate">
+                    {s.subtitle || " "}
+                  </p>
                 </div>
               ))}
         </div>
@@ -4202,34 +4322,91 @@ export default function FranchiseLeadsPage() {
             <div className="p-6 space-y-6">
               {/* Input Section */}
               <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      Quick remarks
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      Tap to select one or more
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {QUICK_REMARKS.map((remark) => {
+                      const isMeeting = remark === "Meeting Scheduled";
+                      const isSelected = selectedRemarks.includes(remark);
+                      return (
+                        <button
+                          key={remark}
+                          type="button"
+                          aria-pressed={!isMeeting && isSelected}
+                          onClick={() => {
+                            if (isMeeting) {
+                              setShowMeetingModal(true);
+                            } else {
+                              toggleQuickRemark(remark);
+                            }
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                            isSelected
+                              ? "bg-purple-600 border-purple-600 text-white shadow-sm"
+                              : "bg-gray-100 border-transparent text-gray-700 hover:bg-purple-100 hover:text-purple-700"
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                          {remark}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <input
                   type="text"
                   value={newRemark}
                   onChange={(e) => setNewRemark(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && handleRemarkSubmit()}
-                  placeholder="Type a new remark..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleRemarkSubmit();
+                    }
+                  }}
+                  placeholder="Add a custom remark (optional)..."
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
 
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_REMARKS.map((remark) => (
-                    <button
-                      key={remark}
-                      onClick={() => {
-                        if (remark === "Meeting Scheduled") {
-                          setShowMeetingModal(true);
-                        } else {
-                          setNewRemark(remark);
-                        }
-                      }}
-                      className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-purple-100 text-gray-700 hover:text-purple-700 rounded-full transition-colors"
-                    >
-                      {remark}
-                    </button>
-                  ))}
-                </div>
+                {pendingRemarkTexts.length > 0 && (
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700 mb-2">
+                      Will be saved as {pendingRemarkTexts.length} separate{" "}
+                      {pendingRemarkTexts.length === 1 ? "remark" : "remarks"}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {pendingRemarkTexts.map((t) => (
+                        <span
+                          key={t}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-purple-200 rounded-lg text-xs text-purple-900 max-w-full"
+                        >
+                          <span className="truncate">{t}</span>
+                          <button
+                            type="button"
+                            aria-label={`Remove ${t}`}
+                            onClick={() =>
+                              selectedRemarks.includes(t)
+                                ? toggleQuickRemark(t)
+                                : setNewRemark("")
+                            }
+                            className="text-purple-400 hover:text-red-500 shrink-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                {FOLLOW_UP_REMARKS.some((r) => newRemark.startsWith(r)) && (
+                {pendingNeedsFollowUp && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calendar size={13} className="text-amber-600" />
@@ -4343,11 +4520,13 @@ export default function FranchiseLeadsPage() {
 
                 <button
                   onClick={handleRemarkSubmit}
-                  disabled={!newRemark.trim()}
+                  disabled={pendingRemarkTexts.length === 0}
                   className="w-full px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
                 >
                   <Send className="w-4 h-4" />
-                  Submit
+                  {pendingRemarkTexts.length > 1
+                    ? `Submit ${pendingRemarkTexts.length} remarks`
+                    : "Submit"}
                 </button>
               </div>
 

@@ -11,7 +11,7 @@ export default function ImageGallery({ images }) {
     <>
       <div className="overflow-hidden rounded-2xl">
 
-        <div className="flex gap-4 animate-scroll">
+        <div className="flex gap-4 animate-scroll-images">
 
           {[...images, ...images].map((image, idx) => (
             <div

@@ -253,6 +253,18 @@
   animation: scroll 20s linear infinite;
 }
 
+/* Post examples strip — more cards than the logo slider, so it needs a
+   longer cycle to keep the same on-screen speed */
+.animate-scroll-images {
+  display: flex;
+  width: max-content;
+  animation: scroll 90s linear infinite;
+}
+
+.animate-scroll-images:hover {
+  animation-play-state: paused;
+}
+
 .input {
   @apply w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 outline-none transition-all;
 }

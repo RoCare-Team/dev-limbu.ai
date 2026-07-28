@@ -2,16 +2,57 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download, Eye, FileText } from "lucide-react";
 import {
   canAccessBookings,
   getFranchiseUserFromStorage,
 } from "@/lib/franchiseAuth";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
 
 export default function FranchisePackageBookingList() {
   const router = useRouter();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [downloadingId, setDownloadingId] = useState("");
+
+  const handleViewProof = (item) => {
+    const proof = item.paymentScreenshot || item.screenshot;
+    if (!proof) {
+      alert("No payment proof uploaded for this booking");
+      return;
+    }
+    setPreviewUrl(proof);
+  };
+
+  const handleInvoice = async (item) => {
+    // Prefer the invoice already generated at booking time.
+    if (item.invoiceUrl) {
+      window.open(item.invoiceUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    setDownloadingId(item._id);
+    try {
+      const res = await fetch(`/api/admin/invoice-tax?id=${item._id}`);
+      if (!res.ok) throw new Error("Invoice generation failed");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Invoice-${item.leadName || "customer"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message || "Invoice download failed");
+    } finally {
+      setDownloadingId("");
+    }
+  };
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -71,6 +112,51 @@ export default function FranchisePackageBookingList() {
     return "₹" + num.toLocaleString("en-IN");
   };
 
+  const formatDate = (val) => {
+    if (!val) return "—";
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return "—";
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  /** Expiry state drives the End Date colour: expired / expiring soon / ok. */
+  const getExpiryState = (val) => {
+    if (!val) return { label: "—", tone: "text-gray-400", note: "" };
+
+    const expiry = new Date(val);
+    if (isNaN(expiry.getTime())) return { label: "—", tone: "text-gray-400", note: "" };
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const expiryDay = new Date(expiry);
+    expiryDay.setHours(0, 0, 0, 0);
+
+    const days = Math.round((expiryDay - startOfToday) / 86400000);
+
+    if (days < 0) {
+      return {
+        label: formatDate(val),
+        tone: "text-red-600",
+        note: `Expired ${Math.abs(days)}d ago`,
+      };
+    }
+    if (days === 0) {
+      return { label: formatDate(val), tone: "text-orange-600", note: "Expires today" };
+    }
+    if (days <= 7) {
+      return {
+        label: formatDate(val),
+        tone: "text-amber-600",
+        note: `${days}d left`,
+      };
+    }
+    return { label: formatDate(val), tone: "text-gray-700", note: `${days}d left` };
+  };
+
   return (
     <div className="p-2 sm:p-6">
       <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
@@ -89,7 +175,12 @@ export default function FranchisePackageBookingList() {
                 <th className="px-6 py-4 text-right font-semibold">Amount</th>
                 <th className="px-6 py-4 text-left font-semibold">GST No.</th>
                 <th className="px-6 py-4 text-center font-semibold">Status</th>
-                <th className="px-6 py-4 text-right font-semibold">Date</th>
+                <th className="px-6 py-4 text-right font-semibold">Booked On</th>
+                <th className="px-6 py-4 text-right font-semibold">Start Date</th>
+                <th className="px-6 py-4 text-right font-semibold">End Date</th>
+                <th className="px-6 py-4 text-center font-semibold">
+                  Proof &amp; Invoice
+                </th>
               </tr>
             </thead>
 
@@ -155,19 +246,74 @@ export default function FranchisePackageBookingList() {
                       </span>
                     </td>
 
-                    {/* Date */}
+                    {/* Booked On */}
                     <td className="px-6 py-5 text-right text-gray-500 text-sm whitespace-nowrap">
-                      {new Date(item.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "numeric",
-                        year: "numeric",
-                      })}
+                      {formatDate(item.createdAt)}
+                    </td>
+
+                    {/* Start Date */}
+                    <td className="px-6 py-5 text-right text-gray-700 text-sm whitespace-nowrap">
+                      {formatDate(item.packageStartDate)}
+                    </td>
+
+                    {/* End Date */}
+                    <td className="px-6 py-5 text-right text-sm whitespace-nowrap">
+                      {(() => {
+                        const expiry = getExpiryState(item.packageExpiryDate);
+                        return (
+                          <>
+                            <div className={`font-semibold ${expiry.tone}`}>
+                              {expiry.label}
+                            </div>
+                            {expiry.note && (
+                              <div className={`text-xs ${expiry.tone} opacity-80`}>
+                                {expiry.note}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
+
+                    {/* Proof & Invoice */}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleViewProof(item)}
+                          disabled={!item.paymentScreenshot && !item.screenshot}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                          title="View payment proof"
+                        >
+                          <Eye size={14} />
+                          Proof
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleInvoice(item)}
+                          disabled={downloadingId === item._id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                          title={
+                            item.invoiceUrl
+                              ? "Open invoice PDF"
+                              : "Generate & download invoice"
+                          }
+                        >
+                          {item.invoiceUrl ? (
+                            <FileText size={14} />
+                          ) : (
+                            <Download size={14} />
+                          )}
+                          {downloadingId === item._id ? "..." : "Invoice"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center">
+                  <td colSpan="10" className="py-16 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <div className="text-5xl mb-3">📦</div>
                       <h3 className="text-lg font-semibold text-gray-900">
@@ -220,8 +366,60 @@ export default function FranchisePackageBookingList() {
                 </span>
 
                 <span className="text-gray-400">
-                  {new Date(item.createdAt).toLocaleDateString("en-IN")}
+                  Booked {formatDate(item.createdAt)}
                 </span>
+              </div>
+
+              <div className="flex justify-between gap-3 border-t border-gray-100 pt-2 text-sm">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-gray-400">
+                    Start Date
+                  </p>
+                  <p className="font-semibold text-gray-700">
+                    {formatDate(item.packageStartDate)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs uppercase tracking-wide text-gray-400">
+                    End Date
+                  </p>
+                  {(() => {
+                    const expiry = getExpiryState(item.packageExpiryDate);
+                    return (
+                      <>
+                        <p className={`font-semibold ${expiry.tone}`}>
+                          {expiry.label}
+                        </p>
+                        {expiry.note && (
+                          <p className={`text-xs ${expiry.tone} opacity-80`}>
+                            {expiry.note}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              <div className="flex gap-2 border-t border-gray-100 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleViewProof(item)}
+                  disabled={!item.paymentScreenshot && !item.screenshot}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-40"
+                >
+                  <Eye size={14} />
+                  Proof
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleInvoice(item)}
+                  disabled={downloadingId === item._id}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 disabled:opacity-50"
+                >
+                  {item.invoiceUrl ? <FileText size={14} /> : <Download size={14} />}
+                  {downloadingId === item._id ? "..." : "Invoice"}
+                </button>
               </div>
             </div>
           ))
@@ -241,6 +439,8 @@ export default function FranchisePackageBookingList() {
           </div>
         )}
       </div>
+
+      <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>
   );
 }

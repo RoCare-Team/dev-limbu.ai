@@ -1,10 +1,35 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
+import BusinessDetails, {
+  buildBusinessDetailsDoc,
+} from "@/models/BusinessDetails";
 import { uploadToS3 } from "@/utils/s3Config";
 import { generateBusinessReportPDFBuffer } from "@/lib/generateBusinessReportPDF";
 
 const TEN_DAYS_MS = 10 * 24 * 60 * 60 * 1000;
+
+/**
+ * Upserts the full Google Places profile into the BusinessDetails collection,
+ * stamped with the user's identity (userId / phone / name / email) so the sales
+ * agent's AI analysis can query it standalone.
+ */
+async function saveBusinessDetails({ user, place, businessName, city, pdfUrl }) {
+  const doc = buildBusinessDetailsDoc({ user, place, businessName, city, pdfUrl });
+  if (!doc.userId) return null;
+
+  try {
+    return await BusinessDetails.findOneAndUpdate(
+      { userId: doc.userId, placeId: doc.placeId },
+      { $set: doc },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+  } catch (err) {
+    // Never let analytics persistence break report generation.
+    console.error("business-report/generate: BusinessDetails save failed:", err);
+    return null;
+  }
+}
 
 /**
  * Saves the selected Google Places business to the user, generates a
@@ -47,6 +72,15 @@ export async function POST(req) {
 
     // Reuse cached report (same place, still fresh, pdf already built).
     if (isFresh && existing?.pdfUrl && existing?.placeId === placeId) {
+      // Backfill/refresh the analytics record even on a cache hit.
+      await saveBusinessDetails({
+        user,
+        place,
+        businessName: businessName || existing.businessName,
+        city: city || existing.city,
+        pdfUrl: existing.pdfUrl,
+      });
+
       return NextResponse.json({
         success: true,
         cached: true,
@@ -92,6 +126,14 @@ export async function POST(req) {
       generatedAt: now,
     };
     await user.save();
+
+    await saveBusinessDetails({
+      user,
+      place,
+      businessName: user.businessReport.businessName,
+      city: city || "",
+      pdfUrl: uploadResult.url,
+    });
 
     return NextResponse.json({
       success: true,

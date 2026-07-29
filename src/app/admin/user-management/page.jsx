@@ -54,6 +54,7 @@ import BulkDeleteModal from "./components/BulkDeleteModal";
 import DeleteUserModal from "./components/DeleteUserModal";
 import EditUserModal from "./components/EditUserModal";
 import GenerateReportModal from "./components/GenerateReportModal";
+import BusinessAiAnalysisModal from "./components/BusinessAiAnalysisModal";
 import OnboardClientModal from "./components/OnboardClientModal";
 import MeetingModal from "./components/MeetingModal";
 import PlanUpgradeModal from "./components/PlanUpgradeModal";
@@ -205,6 +206,11 @@ export default function UserManagement() {
     setOnboardData,
     uploadingOnboard,
     paidUsersStatus,
+    aiAnalysisStatusMap,
+    aiAnalysisModalUser,
+    setAiAnalysisModalUser,
+    handleOpenAiAnalysisModal,
+    fetchAiAnalysisStatuses,
     searchQuery,
     setSearchQuery,
     filterStatus,
@@ -822,6 +828,9 @@ export default function UserManagement() {
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
                         User Name
                       </th>
+                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
+                        Business Report
+                      </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[90px]">
                         Chat
                       </th>
@@ -854,9 +863,6 @@ export default function UserManagement() {
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Business Name
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[140px]">
-                        Business Report
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Actions
@@ -911,6 +917,10 @@ export default function UserManagement() {
                                   agents={agents}
                                   userPostsData={userPostsData}
                                   paidUsersStatus={paidUsersStatus}
+                                  aiAnalysisStatusMap={aiAnalysisStatusMap}
+                                  handleOpenAiAnalysisModal={
+                                    handleOpenAiAnalysisModal
+                                  }
                                   bulkWaSelectedUserIds={bulkWaSelectedUserIds}
                                   chatbotMetricFilter={chatbotMetricFilter}
                                   getAgentName={getAgentName}
@@ -1155,6 +1165,14 @@ export default function UserManagement() {
           setReportModalUser={setReportModalUser}
           showToast={showToast}
           onReportGenerated={applyUserReport}
+          onAiAnalysisSaved={fetchAiAnalysisStatuses}
+        />
+
+        {/* Saved AI Sales Analysis (opened from the table) */}
+        <BusinessAiAnalysisModal
+          aiAnalysisModalUser={aiAnalysisModalUser}
+          setAiAnalysisModalUser={setAiAnalysisModalUser}
+          showToast={showToast}
         />
 
         {/* Edit User (Name & Email) Modal */}

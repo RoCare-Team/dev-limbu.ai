@@ -191,6 +191,10 @@ export default function useUserManagementLogic() {
 
   const [paidUsersStatus, setPaidUsersStatus] = useState({});
 
+  /** Which leads on this page already have a saved AI business analysis. */
+  const [aiAnalysisStatusMap, setAiAnalysisStatusMap] = useState({});
+  const [aiAnalysisModalUser, setAiAnalysisModalUser] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterDate, setFilterDate] = useState("All");
@@ -1223,6 +1227,7 @@ export default function useUserManagementLogic() {
 
   useEffect(() => {
     fetchAllUserPostsCounts();
+    fetchAiAnalysisStatuses();
   }, [users]); // Trigger when users (current page) change
 
   useEffect(() => {
@@ -1352,6 +1357,29 @@ export default function useUserManagementLogic() {
       console.error("Error fetching posts counts:", err);
     }
   };
+
+  /**
+   * Bulk-checks which leads on the current page already have an AI analysis,
+   * so the table can show the "AI Analysis" button next to "Generate".
+   */
+  const fetchAiAnalysisStatuses = async () => {
+    if (users.length === 0) return;
+
+    try {
+      const userIds = users.map((user) => user.userId).filter(Boolean);
+      const res = await fetch("/api/admin/business-report/ai-analysis/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds }),
+      });
+      const result = await res.json();
+      if (result.success) setAiAnalysisStatusMap(result.data || {});
+    } catch (err) {
+      console.error("Error fetching AI analysis statuses:", err);
+    }
+  };
+
+  const handleOpenAiAnalysisModal = (user) => setAiAnalysisModalUser(user);
 
   const syncWhatsAppUsersToDatabase = async () => {
     const adminEmail = localStorage.getItem("email");
@@ -3254,6 +3282,11 @@ export default function useUserManagementLogic() {
     uploadingOnboard,
     setUploadingOnboard,
     paidUsersStatus,
+    aiAnalysisStatusMap,
+    aiAnalysisModalUser,
+    setAiAnalysisModalUser,
+    handleOpenAiAnalysisModal,
+    fetchAiAnalysisStatuses,
     setPaidUsersStatus,
     searchQuery,
     setSearchQuery,

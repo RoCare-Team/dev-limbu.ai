@@ -36,7 +36,7 @@ import dbConnect        from '@/lib/dbConnect';
 import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
-import { getGmbConnection } from '@/lib/gmbSession';
+import { resolveGmbAccessToken } from '@/lib/gmbSession';
 import { sanitizeGmbDescription, resolveDefaultGmbCta } from '@/lib/gmbPostSanitize';
 import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
@@ -96,55 +96,11 @@ async function resolvePlanUser(userRef, userId, projection) {
 // ─── Token helper ─────────────────────────────────────────────────────────────
 
 /**
- * Use the stored refreshToken to get a fresh accessToken from Google.
- * Also persists the new token back to the AutomationPlan so future runs use it.
+ * Google token refresh `resolveGmbAccessToken` (src/lib/gmbSession.js) me chala
+ * gaya hai — wo GmbConnection, AutomationPlan aur caller ke snapshot, teeno
+ * refresh tokens try karta hai. Yahan ka purana single-token helper reconnect ke
+ * baad stale snapshot par `invalid_grant` khaake automation rok deta tha.
  */
-async function refreshGoogleToken(refreshToken, planId) {
-  console.log('[CRON] 🔑 Refreshing Google OAuth token for planId:', planId);
-
-  if (!refreshToken) throw new Error('No refreshToken stored in AutomationPlan');
-
-  // Transient failures (network / 5xx) par retry — ek Google hiccup se poora
-  // automation post window miss nahi hona chahiye. invalid_grant par turant fail
-  // (refresh token sach me mar gaya, reconnect chahiye — retry se fayda nahi).
-  const MAX_ATTEMPTS = 3;
-  let lastData = null;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const res = await fetch('https://oauth2.googleapis.com/token', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id:     process.env.GOOGLE_CLIENT_ID     || '',
-        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-        refresh_token: refreshToken,
-        grant_type:    'refresh_token',
-      }),
-    });
-
-    const data = await res.json();
-    lastData = data;
-    console.log(`[CRON] 🔑 Token refresh attempt ${attempt}/${MAX_ATTEMPTS} — HTTP ${res.status} | error: ${data.error || 'none'}`);
-
-    if (res.ok) {
-      const newAccessToken = data.access_token;
-      // Persist fresh token back to the plan so subsequent cron runs work without refresh
-      await AutomationPlan.updateOne({ _id: planId }, { $set: { accessToken: newAccessToken } });
-      console.log('[CRON] 🔑 New accessToken saved to AutomationPlan');
-      return newAccessToken;
-    }
-
-    if (data.error === 'invalid_grant') {
-      throw new Error('invalid_grant: user must reconnect GMB');
-    }
-
-    if (attempt < MAX_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, 500 * attempt));
-    }
-  }
-
-  throw new Error(lastData?.error_description || lastData?.error || 'Token refresh failed');
-}
 
 // ─── GMB posting ──────────────────────────────────────────────────────────────
 
@@ -709,51 +665,54 @@ export async function GET(request) {
     console.log('[CRON] 🔍 Using plan userId (USR-format):', resolvedUserId);
     log(`userId: ${resolvedUserId}`);
 
-    // ── 3. Resolve access token ───────────────────────────────────────────────
-    // Use the accessToken stored in the AutomationPlan (saved at user-settings time).
-    // If no accessToken or it looks empty, pre-emptively refresh using refreshToken.
-    // If GMB post later returns 401/403, we refresh again and retry (step 9 below).
-    let accessToken = storedAccessToken;
+    // ── 3. Access token — HAMESHA runtime par banta hai ───────────────────────
+    // Stored accessToken par bharosa nahi karte: Google access token ~1h me mar
+    // jata hai, aur ye plan user-settings save ke waqt ka snapshot hota tha —
+    // publish ke waqt to wo pakka expired hi hota hai. Asli asset refreshToken
+    // hai; usi se yahan naya access token generate karke use karte hain.
+    //
+    // resolveGmbAccessToken multi-source hai: live GmbConnection → AutomationPlan
+    // → caller snapshot. Reconnect ke baad Google purana refreshToken revoke kar
+    // deta hai; ek hi source dekhne wala purana code us par invalid_grant khaake
+    // automation chup-chaap rok deta tha.
+    let accessToken = '';
 
-    // Live token PEHLE (GmbConnection se, resolvedUserId ke against). AutomationPlan
-    // par stored refreshToken ek snapshot hai — agar user settings save karne ke BAAD
-    // GMB reconnect kar le, Google naya refresh token deta hai aur purana revoke ho
-    // jata hai. Tab snapshot invalid_grant se fail hoke automation chup-chaap ruk
-    // jati. Live token us reconnect ko survive karta hai; snapshot fallback rehta hai.
-    let effectiveRefreshToken = storedRefreshToken;
     if (wantGmb) {
       try {
-        const conn = await getGmbConnection(resolvedUserId);
-        if (conn?.refreshToken && !conn.invalid) {
-          effectiveRefreshToken = conn.refreshToken;
-          log('Using live refreshToken from GmbConnection (survives reconnect).');
+        const resolved = await resolveGmbAccessToken({
+          userId: resolvedUserId,
+          extraRefreshTokens: [storedRefreshToken],
+          log: (m) => log(m),
+        });
+        accessToken = resolved.accessToken;
+        log(`✓ Fresh access token generated from ${resolved.source} (length=${accessToken.length})`);
+        // Jeetne wala refreshToken plan par bhi likh do — agla run pehli koshish
+        // me lag jaye. accessToken jaan-boojhkar store NAHI karte (baasi hota hai).
+        if (resolved.refreshToken !== storedRefreshToken) {
+          await AutomationPlan.updateOne(
+            { _id: planId },
+            { $set: { refreshToken: resolved.refreshToken } },
+          );
         }
-      } catch (connErr) {
-        log(`⚠ GmbConnection lookup failed, using AutomationPlan snapshot: ${connErr.message}`);
-      }
-    }
-
-    console.log('[CRON] 🔑 Stored accessToken length:', storedAccessToken?.length || 0);
-    console.log('[CRON] 🔑 Effective refreshToken length:', effectiveRefreshToken?.length || 0);
-
-    if (wantGmb) {
-      // ALWAYS refresh when a refreshToken exists. Google access tokens expire in
-      // ~1h, so the stored token is almost always stale. Diagnostic proved the
-      // stale token creates the post but the PHOTO upload fails ("Photo gallery
-      // upload failed") — a fresh token fixes it. Fall back to stored on failure.
-      if (effectiveRefreshToken) {
-        log('Refreshing Google access token (proactive — stored token is likely expired)…');
-        try {
-          accessToken = await refreshGoogleToken(effectiveRefreshToken, planId);
-          log(`✓ Fresh access token obtained via refresh (length=${accessToken.length})`);
-        } catch (tokenErr) {
-          log(`⚠ Token refresh failed: ${tokenErr.message} — falling back to stored token (may be expired)`);
-          accessToken = storedAccessToken;
-        }
-      } else if (accessToken) {
-        log(`✓ Using stored accessToken (no refreshToken to refresh with, length=${accessToken.length})`);
-      } else {
-        log(`⚠ No accessToken and no refreshToken — re-save user-settings to fix`);
+      } catch (tokenErr) {
+        // Ab stored (expired) token par fallback nahi — usse post to ban jata tha
+        // par photo upload fail hota tha. Reconnect chahiye ya Google abhi down
+        // hai; dono me plan ko clean fail karke agle run par chhod dena sahi hai.
+        const needsReconnect = tokenErr.code === 'GMB_RECONNECT_REQUIRED';
+        log(`✗ ${tokenErr.message}`);
+        slog.fail(
+          needsReconnect ? 'token:reconnect' : 'token:transient',
+          needsReconnect
+            ? 'all stored Google refresh tokens are revoked — user must reconnect GMB'
+            : 'Google token endpoint unreachable — will retry on next run',
+        );
+        results.errors.push({
+          planId: planId.toString(),
+          userId,
+          error: needsReconnect ? 'GMB reconnect required' : 'Google token refresh temporarily failed',
+        });
+        results.failed++;
+        continue;
       }
     }
 
@@ -958,11 +917,20 @@ export async function GET(request) {
         if (gmbResult.ok) break;
 
         // Auth failure → refresh token before the next attempt.
-        if ((gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) && effectiveRefreshToken) {
+        if (gmbResult.authError || [401, 403].includes(gmbResult.httpStatus)) {
           log(`⚠ Google auth rejected (httpStatus=${gmbResult.httpStatus}) — refreshing token before retry…`);
           try {
-            accessToken = await refreshGoogleToken(effectiveRefreshToken, planId);
-            log(`✓ New accessToken obtained (length=${accessToken.length})`);
+            const retryTok = await resolveGmbAccessToken({
+              userId: resolvedUserId,
+              extraRefreshTokens: [storedRefreshToken],
+              log: (m) => log(m),
+            });
+            accessToken = retryTok.accessToken;
+            await AutomationPlan.updateOne(
+              { _id: planId },
+              { $set: { refreshToken: retryTok.refreshToken } },
+            );
+            log(`✓ New accessToken obtained from ${retryTok.source} (length=${accessToken.length})`);
           } catch (refreshErr) {
             log(`✗ Token refresh failed: ${refreshErr.message}`);
           }

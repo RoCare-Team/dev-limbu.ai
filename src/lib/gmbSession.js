@@ -2,6 +2,7 @@ import axios from "axios";
 import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
+import AutomationPlan from "@/models/AutomationPlan";
 import User from "@/models/User";
 import { getAppUser, getGmbPhone } from "@/lib/appSession";
 
@@ -112,6 +113,204 @@ async function refreshAccessToken(conn) {
   // Transient failure barkarar — invalid NAHI kar rahe, agli call phir try karegi.
   console.error(`[gmbSession] refresh gave up (transient) for ${conn.userId}: ${lastDetail}`);
   return null;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Multi-source token resolve (cron / scheduled publish ke liye)
+
+   Problem jo isne solve kiya:
+   Har jagah refresh token ka apna SNAPSHOT padda hai —
+     • GmbConnection.refreshToken   (live, reconnect par update hota hai)
+     • AutomationPlan.refreshToken  (user-settings save ke waqt ka snapshot)
+     • Post.refreshToken            (queue banate waqt ka snapshot)
+   User reconnect kare to Google purana refresh token REVOKE kar deta hai aur
+   naya deta hai. Sirf ek source dekhne wala code us stale snapshot par
+   `invalid_grant` khaata tha aur user ko "Reconnect GMB" dikha deta tha —
+   jabki DB me hi ek doosra, bilkul valid token pada hota tha.
+
+   Ab: saare candidates ek-ek karke try hote hain. Koi bhi chal gaya to
+   reconnect ki zaroorat NAHI — aur jeetne wala token wapas GmbConnection me
+   likh diya jata hai (self-heal), taaki agli baar pehli hi koshish me lag jaye.
+   "Reconnect" tabhi jab SAB candidates invalid_grant dein.
+──────────────────────────────────────────────────────────────────────────── */
+
+export class GmbReconnectRequiredError extends Error {
+  constructor(message = "invalid_grant: reconnect GMB required") {
+    super(message);
+    this.name = "GmbReconnectRequiredError";
+    this.code = "GMB_RECONNECT_REQUIRED";
+  }
+}
+
+export class GmbTokenUnavailableError extends Error {
+  constructor(message = "Google token refresh temporarily failed") {
+    super(message);
+    this.name = "GmbTokenUnavailableError";
+    this.code = "GMB_TEMPORARILY_UNAVAILABLE";
+  }
+}
+
+/**
+ * Ek refresh token ko Google se exchange karta hai.
+ * Transient failures par retry; invalid_grant par turant `dead: true`.
+ */
+async function exchangeRefreshToken(refreshToken) {
+  const MAX_ATTEMPTS = 3;
+  let lastDetail = "";
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const params = new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID || "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      });
+      const { data } = await axios.post(
+        "https://oauth2.googleapis.com/token",
+        params.toString(),
+        {
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          timeout: 10000,
+        },
+      );
+      return {
+        accessToken: data.access_token,
+        expiresIn: data.expires_in || 3600,
+        newRefreshToken: data.refresh_token || null,
+      };
+    } catch (error) {
+      const googleErr = error.response?.data?.error;
+      lastDetail = googleErr || error.message;
+      if (googleErr === "invalid_grant") return { dead: true, detail: lastDetail };
+      if (attempt < MAX_ATTEMPTS) await sleep(500 * attempt);
+    }
+  }
+  return { transient: true, detail: lastDetail };
+}
+
+/**
+ * Kisi user ke liye fresh GMB access token nikalo — DB me maujood HAR refresh
+ * token snapshot try karke.
+ *
+ * @param {object}   opts
+ * @param {string}   opts.userId            app userId (USR…/MB…/phone:…)
+ * @param {string[]} [opts.extraRefreshTokens] snapshot tokens (post / plan doc se)
+ * @param {function} [opts.log]             optional logger
+ * @returns {Promise<{accessToken: string, refreshToken: string, source: string}>}
+ * @throws  {GmbReconnectRequiredError|GmbTokenUnavailableError}
+ */
+export async function resolveGmbAccessToken({
+  userId,
+  extraRefreshTokens = [],
+  log = () => {},
+} = {}) {
+  await dbConnect();
+
+  let conn = null;
+  if (userId) {
+    try {
+      conn = await getGmbConnection(userId);
+    } catch (err) {
+      log(`⚠ GmbConnection lookup failed: ${err.message}`);
+    }
+  }
+
+  // Plan snapshot bhi candidate hai — cron path me plan par hi sabse naya token
+  // hota hai jab user ne settings dobara save ki ho.
+  let planTokens = [];
+  if (userId) {
+    try {
+      const plans = await AutomationPlan.find({ userId })
+        .select("refreshToken updatedAt")
+        .sort({ updatedAt: -1 })
+        .limit(3)
+        .lean();
+      planTokens = plans.map((p) => p.refreshToken).filter(Boolean);
+    } catch (err) {
+      log(`⚠ AutomationPlan token lookup skipped: ${err.message}`);
+    }
+  }
+
+  // Priority: live connection → plan (naya se purana) → caller ke snapshots.
+  const candidates = [];
+  const seen = new Set();
+  const push = (token, source) => {
+    const t = String(token || "").trim();
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    candidates.push({ token: t, source });
+  };
+  push(conn?.refreshToken, "GmbConnection");
+  planTokens.forEach((t, i) => push(t, `AutomationPlan[${i}]`));
+  extraRefreshTokens.forEach((t, i) => push(t, `snapshot[${i}]`));
+
+  if (!candidates.length) {
+    throw new GmbReconnectRequiredError("No Google refresh token stored for this user");
+  }
+
+  let sawTransient = false;
+  const deadTokens = [];
+
+  for (const { token, source } of candidates) {
+    const result = await exchangeRefreshToken(token);
+
+    if (result.accessToken) {
+      log(`🔑 Token resolved from ${source} (tried ${deadTokens.length + 1}/${candidates.length}).`);
+      const workingRefresh = result.newRefreshToken || token;
+
+      // Self-heal: jeetne wala token live connection par likh do, invalid flag
+      // hatao — taaki dashboard bekaar me "Reconnect" na maange aur agla run
+      // pehli hi koshish me pass ho.
+      if (conn) {
+        try {
+          conn.accessToken = result.accessToken;
+          conn.accessTokenExpires = Date.now() + result.expiresIn * 1000;
+          conn.refreshToken = workingRefresh;
+          conn.invalid = false;
+          conn.invalidReason = undefined;
+          conn.updatedAt = new Date();
+          await conn.save();
+        } catch (saveErr) {
+          log(`⚠ Could not persist healed token to GmbConnection: ${saveErr.message}`);
+        }
+      }
+
+      return { accessToken: result.accessToken, refreshToken: workingRefresh, source };
+    }
+
+    if (result.dead) {
+      deadTokens.push(source);
+      log(`✗ refreshToken from ${source} is revoked (invalid_grant) — trying next source.`);
+      continue;
+    }
+
+    sawTransient = true;
+    log(`⚠ Transient refresh failure for ${source}: ${result.detail}`);
+  }
+
+  // Ek bhi source transiently fail hua to reconnect mat maango — Google ka
+  // hiccup ho sakta hai, agla run apne aap chal jayega.
+  if (sawTransient) {
+    throw new GmbTokenUnavailableError(
+      "Couldn't reach Google for token refresh — will retry on next run",
+    );
+  }
+
+  // SAB tokens sach me revoke ho chuke — ab reconnect hi rasta hai.
+  if (conn) {
+    try {
+      conn.invalid = true;
+      conn.invalidReason = "invalid_grant";
+      conn.updatedAt = new Date();
+      await conn.save();
+    } catch (markErr) {
+      log(`⚠ Could not mark GmbConnection invalid: ${markErr.message}`);
+    }
+  }
+  throw new GmbReconnectRequiredError(
+    `invalid_grant: reconnect GMB required (all ${deadTokens.length} stored token(s) revoked)`,
+  );
 }
 
 /** Zaroorat ho to refresh karke fresh access token lautata hai. */

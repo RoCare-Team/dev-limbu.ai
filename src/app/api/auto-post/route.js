@@ -3,6 +3,7 @@ import dbConnect from '@/lib/dbConnect';
 import Post from '@/models/PostStatus';
 import User from '@/models/User';
 import { postToGmbAction } from '@/app/actions/postActions';
+import { resolveGmbAccessToken } from '@/lib/gmbSession';
 
 export async function GET() {
   await dbConnect();
@@ -41,13 +42,21 @@ export async function GET() {
         bookUrl: loc.websiteUrl || ''
       }));
 
+      // Access token schedule ke waqt store hua tha — publish tak wo pakka expire
+      // ho chuka hota hai. Isliye runtime par refreshToken se naya banate hain
+      // (multi-source: live GmbConnection → plan → post snapshot).
+      const { accessToken, refreshToken } = await resolveGmbAccessToken({
+        userId: post.userId,
+        extraRefreshTokens: [post.refreshToken],
+      });
+
       const payload = {
         account: post.gmbProjectId || locations[0].accountId,
         locationData,
         output: post.aiOutput,
         description: post.description || post.gmbDescription,
-        accessToken: post.accessToken, // stored at schedule time
-        refreshToken: post.refreshToken,
+        accessToken,
+        refreshToken,
         checkmark: post.checkmark || 'post'
       };
 

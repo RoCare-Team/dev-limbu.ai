@@ -225,8 +225,8 @@ export default async function SitePage({ params }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     download
-                    className="inline-flex items-center gap-3 bg-white border-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:-translate-y-1"
-                    style={{ borderColor: secondary, color: secondary }}
+                    className="inline-flex items-center gap-3 text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:-translate-y-1 shadow-xl shadow-gray-200"
+                    style={{ backgroundColor: primary }}
                   >
                     <Download className="w-5 h-5" />
                     Download PDF

@@ -1,21 +1,13 @@
 "use client";
 
-import { MessageCircle, LogIn, Globe, PlusSquare, ShieldCheck, MapPin, ArrowRight, ExternalLink } from "lucide-react";
+import { MessageCircle, LogIn, Globe, PlusSquare, ShieldCheck, MapPin, ArrowRight, ExternalLink, Users, MousePointerClick, CheckSquare } from "lucide-react";
 import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function HowToConnectGMB() {
   const steps = [
-    {
-      icon: Globe,
-      title: "Log into Google in your Browser",
-      desc: "Before starting, ensure you are logged into your web browser (Chrome, Safari, etc.) with the exact Gmail address that manages your Google My Business profile. This ensures a seamless connection.",
-      alert: "Crucial Step: Must be the admin/owner email of the GMB profile.",
-      actionLabel: "Open Google.com",
-      actionLink: "https://myaccount.google.com/",
-      isExternal: true,
-    },
     {
       icon: LogIn,
       title: "Log into Limbu AI",
@@ -23,6 +15,8 @@ export default function HowToConnectGMB() {
       actionLabel: "Go to Login Page",
       actionLink: "/login",
       isExternal: false,
+      image: "/images/gmb-step/2.png",
+      imageAlt: "Limbu AI login page",
     },
     {
       icon: PlusSquare,
@@ -31,16 +25,58 @@ export default function HowToConnectGMB() {
       actionLabel: "Go to Dashboard",
       actionLink: "/dashboard",
       isExternal: false,
+      image: "/images/gmb-step/3.png",
+      imageAlt: "Clicking the Plus icon on the Limbu AI dashboard",
+    },
+    {
+      icon: Globe,
+      title: "Log into your Google Account",
+      desc: "A secure Google window will open. Sign in with the exact Gmail address that manages your Google Business Profile so Limbu AI can find the right listings.",
+      alert: "Crucial Step: Must be the admin/owner email of the GBP profile.",
+      actionLabel: "Open Google.com",
+      actionLink: "https://myaccount.google.com/",
+      isExternal: true,
+      image: "/images/gmb-step/1.png",
+      imageAlt: "Logging into the Google account that manages the Google Business Profile",
+    },
+    {
+      icon: Users,
+      title: "Choose an Account",
+      desc: "The 'Choose an account' screen will show every Google account signed in on this browser. This is where you pick the one connected to your business.",
+      image: "/images/gmb-step/4.png",
+      imageAlt: "Google 'Choose an account' screen while continuing to limbu.ai",
+    },
+    {
+      icon: MousePointerClick,
+      title: "Select the Account that Manages your GBP",
+      desc: "Click the exact email address that owns or manages your Google Business Profile. Picking the wrong account will show zero or incorrect listings.",
+      image: "/images/gmb-step/5.png",
+      imageAlt: "Selecting the correct Google account that manages the business profile",
     },
     {
       icon: ShieldCheck,
-      title: "Continue with Google",
-      desc: "Click the 'Continue with Google' button. A secure Google popup will appear. Select the email address you logged into during Step 1 and grant Limbu AI the required permissions to manage your profile.",
+      title: "Review & Click Continue",
+      desc: "Google will show what limbu.ai can access — your name, profile picture and email address. Review the details and click 'Continue' to proceed.",
+      image: "/images/gmb-step/6.png",
+      imageAlt: "Google consent screen showing limbu.ai account access, with the Continue button",
+    },
+    {
+      icon: CheckSquare,
+      title: "Allow Business Listing Permissions",
+      desc: "On the permissions screen, tick the checkbox for 'See, edit, create and delete your Google business listings', then click 'Continue'. Without this checkbox Limbu AI cannot manage your listings.",
+      alert: "Do not skip: the checkbox must be ticked before clicking Continue.",
+      image: "/images/gmb-step/7.png",
+      imageAlt: "Granting limbu.ai permission to manage Google business listings",
     },
     {
       icon: MapPin,
-      title: "Select Your Business Location",
-      desc: "After successful authorization, Limbu AI will fetch your business profiles. Simply select your specific business location, and you are all set to start automating!",
+      title: "Your GBP Profiles are Connected",
+      desc: "Done! All your business listings now appear in the GBP Profile section of your dashboard with verified/unverified status. Use 'Manage' or 'Insights' on any location to start automating.",
+      actionLabel: "Go to Dashboard",
+      actionLink: "/dashboard",
+      isExternal: false,
+      image: "/images/gmb-step/8.png",
+      imageAlt: "Connected Google Business Profile listings in the Limbu AI dashboard",
     },
   ];
 
@@ -67,7 +103,7 @@ export default function HowToConnectGMB() {
 
       {/* ── Floating WhatsApp Button ── */}
       <a
-        href="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20need%20help%20connecting%20my%20GMB%20account."
+        href="https://wa.me/917065178662?text=Hi%20Limbu%20AI,%20I%20need%20help%20connecting%20my%20GBP%20account."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-8 right-8 z-50 flex items-center gap-2 p-3 pr-5 bg-[#25D366] text-white rounded-full shadow-[0_10px_30px_-10px_rgba(37,211,102,0.6)] hover:scale-105 hover:shadow-[0_15px_40px_-10px_rgba(37,211,102,0.8)] transition-all duration-300"
@@ -104,7 +140,7 @@ export default function HowToConnectGMB() {
           </h1>
 
           <p className="text-sm font-medium text-black/60 max-w-xl mx-auto leading-relaxed font-inter">
-            Follow these simple steps to securely link your Google My Business account to Limbu AI and unlock powerful AI-driven automation.
+            Follow these simple steps to securely link your Google Business Profile (GBP) account to Limbu AI and unlock powerful AI-driven automation.
           </p>
         </div>
 
@@ -180,20 +216,17 @@ export default function HowToConnectGMB() {
                     </div>
                   )}
 
-                  {/* UI Hint / Button Placeholder */}
-                  {index === 3 && (
-                    <div className="mt-6 flex items-center justify-start p-4 bg-white rounded-xl border border-black/5 shadow-inner">
-                      <button className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm px-4 py-2 rounded-lg pointer-events-none">
-                        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" />
-                        <span className="text-xs font-bold font-inter text-slate-700">Continue with Google</span>
-                      </button>
-                    </div>
-                  )}
-                  {index === 2 && (
-                    <div className="mt-6 flex items-center justify-start p-4 bg-white rounded-xl border border-black/5 shadow-inner">
-                      <div className="w-10 h-10 bg-lemon-glow rounded-xl shadow-md shadow-lemon-glow/30 flex items-center justify-center text-black">
-                        <PlusSquare size={20} />
-                      </div>
+                  {/* Step Screenshot */}
+                  {step.image && (
+                    <div className="mt-6 overflow-hidden rounded-xl border border-black/5 bg-white shadow-inner">
+                      <Image
+                        src={step.image}
+                        alt={step.imageAlt || step.title}
+                        width={1200}
+                        height={700}
+                        className="w-full h-auto object-contain"
+                        priority={index === 0}
+                      />
                     </div>
                   )}
 

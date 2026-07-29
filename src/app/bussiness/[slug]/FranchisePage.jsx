@@ -1,7 +1,5 @@
-import BookDemoModal from "@/components/modals/BookDemoModal";
 import FooterSection from "@/components/sections/FooterSection";
 import Navbar from "@/components/sections/HeaderSection";
-import ScrollToTop from "@/components/ui/ScrollToTop";
 import {
   ArrowRight,
   CheckCircle,
@@ -17,47 +15,12 @@ import {
   Target,
   Rocket,
   Clock,
-  X,
   Mail as MailIcon,
-  MapPin,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { mostCities, POPULAR_CITIES } from "@/utils/popularCity";
-import FranchisePageClient from "./FranchisePageClient";
-
-// ✅ Moved OUTSIDE component so it's never undefined
-const PROFIT_CALCULATIONS = {
-  starter: { investment: 50000 },
-  standard: { investment: 100000 },
-  premium: { investment: 500000 },
-  master: { investment: 2000000 },
-};
-
-const SITE_URL = "https://limbu.ai";
-
-// ✅ Fixed: checks if script already loaded before injecting again
-const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    if (window.Razorpay) {
-      resolve(true);
-      return;
-    }
-    const existing = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-    );
-    if (existing) {
-      existing.onload = () => resolve(true);
-      existing.onerror = () => resolve(false);
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
+import { mostCities } from "@/utils/popularCity";
+import FranchiseApplyTrigger from "./FranchiseApplyTrigger";
 
 // ✅ Helper: extract and format city name from URL param
 // e.g. "franchise-opportunities-new-delhi" → "New Delhi"
@@ -95,7 +58,6 @@ function createFranchiseCitySlug(city) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")}`;
 }
-const popularCities = POPULAR_CITIES;
 
 const partners = Array.from({ length: 10 }, (_, i) => ({
   id: i + 1,
@@ -252,9 +214,12 @@ function OrbitDiagram() {
   );
 }
 
-export default function FranchisePage({ params }) {
-  const rawParam = params?.slug ?? "";
-  const cityName = parseCityName(rawParam);
+// `slug` yahan already-resolved string aata hai. Pehle poora `params` Promise
+// pass hota tha aur `params?.slug` Next 16 me `undefined` deta hai — isliye har
+// city page ka `cityName` khaali reh jata tha aur "Lucknow" jaisa naam body me
+// kahin render hi nahi hota tha.
+export default function FranchisePage({ slug = "", cityName: cityNameProp }) {
+  const cityName = cityNameProp ?? parseCityName(slug);
 
   return (
     <div
@@ -272,7 +237,7 @@ export default function FranchisePage({ params }) {
         }}
       />
 
-      <FranchisePageClient params={params} cityName={cityName} />
+      <FranchiseApplyTrigger cityName={cityName} />
 
       {/* =================== HERO SECTION =================== */}
       <section className="relative w-full overflow-hidden py-14 sm:py-24 px-6">
@@ -293,7 +258,7 @@ export default function FranchisePage({ params }) {
               <div className="inline-flex items-center gap-2 mb-5 px-4 py-1.5 rounded-full border border-lemon-glow/20 bg-lemon-glow/10 shadow-sm">
                 <span className="w-2 h-2 rounded-full bg-lemon-hover animate-pulse" />
 
-                <span className="text-[10px] font-black tracking-widest uppercase text-lemon-hover">
+                <span className="text-[10px] font-black tracking-widest uppercase text-lemon-ink">
                   {cityName
                     ? `${cityName} Franchise Portal Active`
                     : "Franchise Portal Active"}
@@ -309,11 +274,11 @@ export default function FranchisePage({ params }) {
                 }}
               >
                 Build Your Own <br />
-                <span className={cityName ? "text-black" : "text-lemon-hover"}>
+                <span className={cityName ? "text-black" : "text-lemon-ink"}>
                   AI Business Empire{" "}
                   {cityName && (
                     <>
-                      In <span className="text-lemon-hover">{cityName}</span>
+                      In <span className="text-lemon-ink">{cityName}</span>
                     </>
                   )}
                 </span>
@@ -344,7 +309,7 @@ export default function FranchisePage({ params }) {
                       {stat.val}
                     </div>
 
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-black">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-black">
                       {stat.label}
                     </div>
                   </div>
@@ -371,11 +336,15 @@ export default function FranchisePage({ params }) {
 
               {/* Image Card */}
               <div className="relative rounded-[32px] overflow-hidden border border-slate-200 shadow-2xl bg-white p-3 max-w-[600px]">
+                {/* `sizes` ke bina Next sirf 1x/2x srcset banata hai, yaani
+                    2x mobile screen bhi 1400px wala variant download karti thi.
+                    Ye LCP element hai — isliye asli layout width batana zaroori. */}
                 <Image
                   src="/images/frenchiese-image.png"
                   alt="AI Business Franchise"
                   width={700}
                   height={700}
+                  sizes="(max-width: 640px) 92vw, (max-width: 1024px) 88vw, 600px"
                   className="w-full h-full object-cover rounded-[24px]"
                   priority
                 />
@@ -415,13 +384,13 @@ export default function FranchisePage({ params }) {
             >
               Trusted Across{" "}
               {cityName ? (
-                <span className="text-lemon-hover">{cityName}</span>
+                <span className="text-lemon-ink">{cityName}</span>
               ) : (
                 "India"
               )}
             </h2>
 
-            <p className="mt-2 text-[11px] sm:text-xs uppercase tracking-[0.25em] text-slate-400 font-bold">
+            <p className="mt-2 text-[11px] sm:text-xs uppercase tracking-[0.25em] text-slate-500 font-bold">
               Fast Growing AI Business Franchise Network
             </p>
           </div>
@@ -445,7 +414,7 @@ export default function FranchisePage({ params }) {
                   {item.value}
                 </div>
 
-                <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-400 font-black group-hover:text-lemon-hover transition-colors">
+                <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.22em] text-slate-500 font-black group-hover:text-lemon-ink transition-colors">
                   {item.label}
                 </div>
               </div>
@@ -464,7 +433,7 @@ export default function FranchisePage({ params }) {
         <div className="max-w-7xl mx-auto relative z-10">
           {/* ================= HEADER ================= */}
           <div className="text-center mb-14">
-            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+            <p className="text-lemon-ink text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
               Why Choose Us
             </p>
 
@@ -477,12 +446,12 @@ export default function FranchisePage({ params }) {
             >
               The Limbu AI{" "}
               {cityName ? (
-                <span className="text-lemon-hover">{cityName}</span>
+                <span className="text-lemon-ink">{cityName}</span>
               ) : null}{" "}
               Advantage
             </h2>
 
-            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+            <p className="mt-4 text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
               Powerful AI infrastructure designed for scalable local business
               growth
             </p>
@@ -555,13 +524,13 @@ export default function FranchisePage({ params }) {
                         {item.title === "Easy Management" ? (
                           <>
                             Manage all your{" "}
-                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            <span className="text-lemon-ink">{cityName}</span>{" "}
                             business clients from one dashboard.
                           </>
                         ) : (
                           <>
                             Convert{" "}
-                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            <span className="text-lemon-ink">{cityName}</span>{" "}
                             search traffic into paying customers.
                           </>
                         )}
@@ -590,7 +559,7 @@ export default function FranchisePage({ params }) {
         <div className="max-w-7xl mx-auto relative z-10">
           {/* ================= HEADER ================= */}
           <div className="text-center mb-14">
-            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+            <p className="text-lemon-ink text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
               Franchise Benefits
             </p>
 
@@ -603,7 +572,7 @@ export default function FranchisePage({ params }) {
             >
               {cityName ? (
                 <>
-                  <span className="text-lemon-hover">{cityName}</span> Franchise
+                  <span className="text-lemon-ink">{cityName}</span> Franchise
                   Benefits
                 </>
               ) : (
@@ -611,7 +580,7 @@ export default function FranchisePage({ params }) {
               )}
             </h2>
 
-            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+            <p className="mt-4 text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
               Build a scalable AI-powered business with recurring revenue and
               exclusive market opportunities
             </p>
@@ -697,7 +666,7 @@ export default function FranchisePage({ params }) {
                         {item.title === "Growing Market" && (
                           <>
                             Every local business in{" "}
-                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            <span className="text-lemon-ink">{cityName}</span>{" "}
                             needs online visibility today.
                           </>
                         )}
@@ -705,7 +674,7 @@ export default function FranchisePage({ params }) {
                         {item.title === "Massive Demand" && (
                           <>
                             Thousands of businesses in{" "}
-                            <span className="text-lemon-hover">{cityName}</span>{" "}
+                            <span className="text-lemon-ink">{cityName}</span>{" "}
                             need these services.
                           </>
                         )}
@@ -713,7 +682,7 @@ export default function FranchisePage({ params }) {
                         {item.title === "Exclusive Territory" && (
                           <>
                             Get exclusive operating rights in{" "}
-                            <span className="text-lemon-hover">{cityName}</span>
+                            <span className="text-lemon-ink">{cityName}</span>
                             .
                           </>
                         )}
@@ -737,7 +706,7 @@ export default function FranchisePage({ params }) {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8">
             <div>
-              <p className="text-lemon-hover text-[10px] font-black uppercase tracking-[0.3em] mb-2">
+              <p className="text-lemon-ink text-[10px] font-black uppercase tracking-[0.3em] mb-2">
                 Popular Cities
               </p>
               <h2
@@ -748,7 +717,7 @@ export default function FranchisePage({ params }) {
                 }}
               >
                 Explore Franchise{" "}
-                <span className="text-lemon-hover">Opportunities</span>
+                <span className="text-lemon-ink">Opportunities</span>
               </h2>
             </div>
 
@@ -784,8 +753,8 @@ export default function FranchisePage({ params }) {
                     size={14}
                     className={`shrink-0 transition-all duration-300 ${
                       isActiveCity
-                        ? "text-lemon-hover"
-                        : "text-slate-300 group-hover:text-lemon-hover group-hover:translate-x-1"
+                        ? "text-lemon-ink"
+                        : "text-slate-300 group-hover:text-lemon-ink group-hover:translate-x-1"
                     }`}
                   />
                 </Link>
@@ -807,7 +776,7 @@ export default function FranchisePage({ params }) {
           <div className="relative overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white shadow-sm p-6 sm:p-10 lg:p-14">
             {/* Top Badge */}
             <div className="flex justify-center mb-5">
-              <span className="bg-lemon-glow/15 text-lemon-hover text-[10px] sm:text-xs font-black px-5 py-2 rounded-full uppercase tracking-[0.28em] border border-lemon-glow/20">
+              <span className="bg-lemon-glow/15 text-lemon-ink text-[10px] sm:text-xs font-black px-5 py-2 rounded-full uppercase tracking-[0.28em] border border-lemon-glow/20">
                 Franchise Licence
               </span>
             </div>
@@ -823,7 +792,7 @@ export default function FranchisePage({ params }) {
               >
                 {cityName ? (
                   <>
-                    <span className="text-lemon-hover">{cityName}</span> Smarter
+                    <span className="text-lemon-ink">{cityName}</span> Smarter
                     Businesses,
                   </>
                 ) : (
@@ -839,12 +808,12 @@ export default function FranchisePage({ params }) {
                 Choose the model that fits your ambition — start as a{" "}
                 <span className="text-black">Partner Franchise</span> or scale
                 your own network as a{" "}
-                <span className="text-lemon-hover">Master Franchise</span>.
+                <span className="text-lemon-ink">Master Franchise</span>.
                 {cityName ? (
                   <>
                     {" "}
                     Built specifically for{" "}
-                    <span className="text-lemon-hover">{cityName}</span>{" "}
+                    <span className="text-lemon-ink">{cityName}</span>{" "}
                     businesses.
                   </>
                 ) : null}
@@ -862,10 +831,10 @@ export default function FranchisePage({ params }) {
                   {/* Tier Label */}
                   <div className="flex items-center justify-between mb-6">
                     <span className="inline-flex items-center gap-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                      <Users className="w-4 h-4 text-lemon-hover" />
+                      <Users className="w-4 h-4 text-lemon-ink" />
                       Partner Franchise
                     </span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
                       Starter
                     </span>
                   </div>
@@ -878,7 +847,7 @@ export default function FranchisePage({ params }) {
                     >
                       ₹5,00,000
                     </div>
-                    <div className="mt-1 text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="mt-1 text-[11px] font-black text-slate-500 uppercase tracking-widest">
                       + 18% GST • One-Time Fee
                     </div>
                   </div>
@@ -886,10 +855,10 @@ export default function FranchisePage({ params }) {
                   {/* Revenue Split */}
                   <div className="grid grid-cols-2 gap-3 my-7">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center shadow-sm">
-                      <p className="text-2xl font-black text-lemon-hover tracking-tight">
+                      <p className="text-2xl font-black text-lemon-ink tracking-tight">
                         50%
                       </p>
-                      <p className="mt-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                      <p className="mt-1 text-[9px] font-black text-slate-500 uppercase tracking-[0.15em]">
                         Direct Business
                       </p>
                     </div>
@@ -897,7 +866,7 @@ export default function FranchisePage({ params }) {
                       <p className="text-2xl font-black text-black tracking-tight">
                         ₹1-3L
                       </p>
-                      <p className="mt-1 text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">
+                      <p className="mt-1 text-[9px] font-black text-slate-500 uppercase tracking-[0.15em]">
                         Monthly Potential
                       </p>
                     </div>
@@ -912,7 +881,7 @@ export default function FranchisePage({ params }) {
                       "Exclusive rights in your city",
                     ].map((item, j) => (
                       <li key={j} className="flex items-start gap-3">
-                        <CheckCircle className="w-4.5 h-4.5 text-lemon-hover shrink-0 mt-0.5" />
+                        <CheckCircle className="w-4.5 h-4.5 text-lemon-ink shrink-0 mt-0.5" />
                         <span className="text-[13px] font-bold text-slate-600 leading-snug">
                           {item}
                         </span>
@@ -1019,7 +988,7 @@ export default function FranchisePage({ params }) {
             {/* ================= EARNINGS PROCESS EXPLAINER ================= */}
             <div className="relative z-10 mt-8 overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50/60 p-7 sm:p-9">
               <div className="text-center mb-8">
-                <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] mb-2">
+                <p className="text-lemon-ink text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] mb-2">
                   How Your Earnings Work
                 </p>
                 <h3
@@ -1038,7 +1007,7 @@ export default function FranchisePage({ params }) {
                       Direct Business
                     </span>
                     <span
-                      className="text-3xl font-black text-lemon-hover tracking-tighter"
+                      className="text-3xl font-black text-lemon-ink tracking-tighter"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
                       50%
@@ -1058,7 +1027,7 @@ export default function FranchisePage({ params }) {
                       Channel Business
                     </span>
                     <span
-                      className="text-3xl font-black text-lemon-hover tracking-tighter"
+                      className="text-3xl font-black text-lemon-ink tracking-tighter"
                       style={{ fontFamily: "var(--font-heading)" }}
                     >
                       6%
@@ -1073,7 +1042,7 @@ export default function FranchisePage({ params }) {
                 </div>
               </div>
 
-              <p className="mt-6 text-center text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em]">
+              <p className="mt-6 text-center text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
                 Direct 50% + Channel 6% = build once, earn from your whole network
               </p>
             </div>
@@ -1091,7 +1060,7 @@ export default function FranchisePage({ params }) {
         <div className="max-w-5xl mx-auto relative z-10">
           {/* ================= HEADER ================= */}
           <div className="text-center mb-14">
-            <p className="text-lemon-hover text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
+            <p className="text-lemon-ink text-[10px] sm:text-xs font-black uppercase tracking-[0.35em] mb-4">
               Support & Help
             </p>
 
@@ -1103,10 +1072,10 @@ export default function FranchisePage({ params }) {
               }}
             >
               Frequently Asked{" "}
-              <span className="text-lemon-hover">Questions</span>
+              <span className="text-lemon-ink">Questions</span>
             </h2>
 
-            <p className="mt-4 text-xs sm:text-sm text-slate-400 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
+            <p className="mt-4 text-xs sm:text-sm text-slate-500 font-bold uppercase tracking-[0.22em] max-w-2xl mx-auto">
               Everything you need to know before starting your AI franchise
               business
             </p>
@@ -1144,7 +1113,7 @@ export default function FranchisePage({ params }) {
                 {/* Question */}
                 <div className="relative z-10 flex items-start gap-4">
                   <div className="w-10 h-10 rounded-2xl bg-lemon-glow/15 border border-lemon-glow/20 flex items-center justify-center shrink-0">
-                    <span className="text-lemon-hover font-black text-sm">
+                    <span className="text-lemon-ink font-black text-sm">
                       Q
                     </span>
                   </div>
@@ -1162,7 +1131,7 @@ export default function FranchisePage({ params }) {
                       faq.q === "When Will I Recover My Investment?" ? (
                         <>
                           Most{" "}
-                          <span className="text-lemon-hover">{cityName}</span>{" "}
+                          <span className="text-lemon-ink">{cityName}</span>{" "}
                           franchise partners recover their investment within 4
                           to 6 months when following our proven system.
                         </>
@@ -1217,7 +1186,7 @@ export default function FranchisePage({ params }) {
                 {cityName ? (
                   <>
                     Start Your{" "}
-                    <span className="text-lemon-hover">{cityName}</span>
+                    <span className="text-lemon-ink">{cityName}</span>
                   </>
                 ) : (
                   "Start Your Business"
@@ -1233,7 +1202,7 @@ export default function FranchisePage({ params }) {
                 {cityName ? (
                   <>
                     Secure your{" "}
-                    <span className="text-lemon-hover">{cityName}</span>{" "}
+                    <span className="text-lemon-ink">{cityName}</span>{" "}
                     franchise territory before someone else takes it.
                   </>
                 ) : (
@@ -1302,7 +1271,6 @@ export default function FranchisePage({ params }) {
       </section>
 
       <FooterSection />
-      <BookDemoModal />
     </div>
   );
 }

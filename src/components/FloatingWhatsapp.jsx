@@ -15,12 +15,14 @@ export default function FloatingWhatsapp() {
       className="fixed bottom-6 right-6 z-50 group"
     >
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-xl transition-all duration-300 hover:scale-110 hover:shadow-2xl">
+        {/* `priority` hata diya: ye floating icon hero image ke saath bandwidth
+            ke liye ladta tha aur LCP late kar deta tha. */}
         <Image
           src="/social-icon/whatsaap-icon.png"
           alt="WhatsApp"
           width={42}
           height={42}
-          priority
+          loading="lazy"
         />
       </div>
 

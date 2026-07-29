@@ -1,17 +1,30 @@
 import React from "react";
+import Image from "next/image";
 import { TrendingUp } from "lucide-react";
+import { getImageDimensions } from "@/utils/industryImageDimensions";
 
 export default function IndustryROISection({ industryName, heroimage2 }) {
+  const imageDimensions = getImageDimensions(heroimage2, {
+    width: 1024,
+    height: 572,
+  });
+
   return (
     <section className="py-12 lg:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-50 overflow-hidden">
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
         <div className="order-2 lg:order-1 relative group">
           <div className="absolute -inset-4 bg-lemon-glow/10 blur-2xl rounded-[3rem] group-hover:bg-lemon-glow/20 transition-all duration-700 -z-10" />
-          <img
+          {/* Hero jaisa hi maamla: plain <img> ke wajah se ~1 MB ka original PNG
+              seedha ja raha tha. Below-the-fold hai, isliye lazy. */}
+          <Image
             src={heroimage2}
             alt={`${industryName} GMB Growth`}
-            className="rounded-3xl shadow-2xl border border-slate-100 group-hover:scale-[1.01] transition-transform duration-500 w-full object-cover"
+            width={imageDimensions.width}
+            height={imageDimensions.height}
+            sizes="(max-width: 1023px) 92vw, 600px"
+            loading="lazy"
+            className="rounded-3xl shadow-2xl border border-slate-100 group-hover:scale-[1.01] transition-transform duration-500 w-full h-auto object-cover"
           />
 
           {/* Floating Metric Card */}

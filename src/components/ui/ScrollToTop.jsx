@@ -6,14 +6,26 @@ import { ArrowUp } from "lucide-react";
 export default function ScrollToTop() {
   const [show, setShow] = useState(false);
 
-  // Show button after scroll
+  // Show button after scroll.
+  // Listener passive hai (warna browser har scroll par preventDefault ka
+  // intezaar karta hai) aur kaam rAF me hota hai, to ek frame me ek hi baar.
   useEffect(() => {
+    let frame = 0;
+
     const handleScroll = () => {
-      setShow(window.scrollY > 300); // show after 300px
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setShow(window.scrollY > 300); // show after 300px
+      });
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
   }, []);
 
   // Scroll to top

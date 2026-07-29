@@ -1,7 +1,11 @@
 import React from "react";
+import Image from "next/image";
 import { ArrowRight, Star } from "lucide-react";
+import { getImageDimensions } from "@/utils/industryImageDimensions";
 
 export default function IndustryHeroSection({ industryName, heroHeading, heroSubheading, whatsappLink, heroImage }) {
+  const heroDimensions = getImageDimensions(heroImage);
+
   return (
     <section className="relative px-4 pt-2 sm:pt-0 sm:px-6 lg:px-8 max-w-7xl mx-auto py-8 lg:py-12">
       {/* Decorative Background Glows */}
@@ -54,10 +58,17 @@ export default function IndustryHeroSection({ industryName, heroHeading, heroSub
 
         <div className="relative lg:h-[450px] flex justify-center items-center group">
           <div className="absolute inset-0 bg-gradient-to-tr from-lemon-glow/15 via-transparent to-blue-50/20 rounded-[2.5rem] -z-10 transform rotate-1 group-hover:rotate-0 transition-transform duration-700" />
-          <img
+          {/* Ye LCP element hai. Pehle plain <img> tha, yaani Next ka optimizer
+              bypass ho jata tha aur poora original PNG (jaise jim.png = 1.3 MB)
+              raw download hota tha. Ab AVIF/WebP me, layout width ke hisaab se. */}
+          <Image
             src={heroImage}
             alt={`${industryName} Marketing`}
-            className="relative z-10 w-full max-w-md object-contain drop-shadow-[0_15px_40px_rgba(0,0,0,0.12)] group-hover:-translate-y-2 transition-transform duration-500"
+            width={heroDimensions.width}
+            height={heroDimensions.height}
+            sizes="(max-width: 1023px) 90vw, 448px"
+            priority
+            className="relative z-10 w-full h-auto max-w-md object-contain drop-shadow-[0_15px_40px_rgba(0,0,0,0.12)] group-hover:-translate-y-2 transition-transform duration-500"
           />
         </div>
       </div>

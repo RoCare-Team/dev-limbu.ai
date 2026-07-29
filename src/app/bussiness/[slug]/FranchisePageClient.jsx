@@ -60,12 +60,19 @@ function parseCityName(rawParam) {
     .join(" ");
 }
 
-export default function FranchisePageClient({ params, cityName }) {
+export default function FranchisePageClient({
+  params,
+  cityName,
+  autoOpenPlan = "premium",
+  onClose,
+}) {
   const rawParam = params?.slug ?? "";
   const resolvedCityName = cityName || parseCityName(rawParam);
 
-  const [selectedPlan, setSelectedPlan] = useState("premium");
-  const [showForm, setShowForm] = useState(false);
+  // Ye component ab sirf tab mount hota hai jab user CTA dabata hai
+  // (dekho FranchiseApplyTrigger), isliye form shuru se hi khula rehta hai.
+  const [selectedPlan, setSelectedPlan] = useState(autoOpenPlan);
+  const [showForm, setShowForm] = useState(true);
   const [formStep, setFormStep] = useState(1);
   const [createdFranchiseId, setCreatedFranchiseId] = useState(null);
   const [serviceForm, setServiceForm] = useState({
@@ -408,23 +415,17 @@ export default function FranchisePageClient({ params, cityName }) {
     }
   };
 
+  // Mount hote hi wahi plan khol do jis CTA par click hua tha, aur pending
+  // application (agar koi hai) DB se prefill kar lo.
   useEffect(() => {
-    const buttons = Array.from(
-      document.querySelectorAll('button[data-franchise-action="open"]'),
-    );
+    handleOpenForm(autoOpenPlan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const winHandler = async (event) => {
-      const plan = event.currentTarget.dataset.plan || "premium";
-      await handleOpenForm(plan);
-    };
-
-    buttons.forEach((button) => button.addEventListener("click", winHandler));
-    return () => {
-      buttons.forEach((button) => {
-        button.removeEventListener("click", winHandler);
-      });
-    };
-  }, [resolvedCityName]);
+  // Form band hone par parent ko batao taaki poora chunk unmount ho jaye.
+  useEffect(() => {
+    if (!showForm) onClose?.();
+  }, [showForm, onClose]);
 
   if (!showForm) {
     return null;
@@ -471,7 +472,7 @@ export default function FranchisePageClient({ params, cityName }) {
 
                 <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-sm border border-lemon-glow/20 bg-lemon-glow/10">
                   <span className="w-2 h-2 rounded-full animate-pulse bg-lemon-hover" />
-                  <span className="text-[10px] font-black uppercase text-lemon-hover tracking-widest">
+                  <span className="text-[10px] font-black uppercase text-lemon-ink tracking-widest">
                     {formStep === 1
                       ? "Step 1: Your Details"
                       : remainingAmount !== null
@@ -502,7 +503,7 @@ export default function FranchisePageClient({ params, cityName }) {
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
                         Your Name
                       </label>
                       <input
@@ -520,7 +521,7 @@ export default function FranchisePageClient({ params, cityName }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
                         Phone Number
                       </label>
                       <input
@@ -540,7 +541,7 @@ export default function FranchisePageClient({ params, cityName }) {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                    <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
                       Email Address
                     </label>
                     <input
@@ -560,7 +561,7 @@ export default function FranchisePageClient({ params, cityName }) {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
                         Your City
                       </label>
                       <input
@@ -578,7 +579,7 @@ export default function FranchisePageClient({ params, cityName }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">
+                      <label className="block text-[10px] sm:text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">
                         GST Number
                       </label>
                       <input
@@ -619,23 +620,23 @@ export default function FranchisePageClient({ params, cityName }) {
                             <span className="text-xs sm:text-sm font-black text-black uppercase tracking-widest">
                               Remaining (Installment 2):
                             </span>
-                            <span className="text-lg sm:text-xl font-black text-lemon-hover tracking-tight">
+                            <span className="text-lg sm:text-xl font-black text-lemon-ink tracking-tight">
                               ₹{remainingAmount.toLocaleString()}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                             Pay this to complete your franchise activation
                           </p>
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">
                           <span>Franchise Fee:</span>
                           <span className="text-black">₹{investmentAmount.toLocaleString()}</span>
                         </div>
 
-                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        <div className="flex justify-between items-center text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">
                           <span>GST (18%):</span>
                           <span className="text-black">₹{gstAmount.toLocaleString()}</span>
                         </div>
@@ -645,7 +646,7 @@ export default function FranchisePageClient({ params, cityName }) {
                             <span className="text-xs sm:text-sm font-black text-black uppercase tracking-widest">
                               Total Amount:
                             </span>
-                            <span className="text-lg sm:text-xl font-black text-lemon-hover tracking-tight">
+                            <span className="text-lg sm:text-xl font-black text-lemon-ink tracking-tight">
                               ₹{totalAmount.toLocaleString()}
                             </span>
                           </div>

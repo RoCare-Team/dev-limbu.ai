@@ -29,13 +29,18 @@ const nextConfig = {
       },
       {
         // `public/` se serve hone wale assets par Next default `max-age=0` bhejta
-        // hai, isliye har visit par sab dobara download hota tha. Ye files
-        // content-hashed nahi hain, to `must-revalidate` ke saath ek din rakha hai.
+        // hai, isliye har visit par sab dobara download hota tha.
+        //
+        // Ye files content-hashed nahi hain, isliye immutable nahi kar sakte —
+        // par 1 din bahut chhota tha (Lighthouse "inefficient cache lifetime"
+        // yahi flag karta hai). 30 din + lamba stale-while-revalidate matlab
+        // repeat visitor cache se serve hota hai aur naya version background me
+        // aa jata hai.
         source: "/images/:path*",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            value: "public, max-age=2592000, stale-while-revalidate=2592000",
           },
         ],
       },
@@ -44,7 +49,7 @@ const nextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=86400, stale-while-revalidate=604800",
+            value: "public, max-age=2592000, stale-while-revalidate=2592000",
           },
         ],
       },

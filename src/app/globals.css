@@ -7,6 +7,10 @@
   --color-deep-charcoal: #f8fafc;
   --color-lemon-glow: #facc15;
   --color-lemon-hover: #eab308;
+  /* Yellow ke saath white background par #eab308 sirf 1.9:1 deta hai, jo WCAG AA
+     fail karta hai. `lemon-ink` wahi brand yellow ka dark shade hai (4.9:1) —
+     isse sirf TEXT ke liye use karo, backgrounds/borders `lemon-hover` hi rahenge. */
+  --color-lemon-ink: #a16207;
   --color-tech-silver: #475569;
   --color-tech-gray: #64748b;
   --color-pure-white: #ffffff;
@@ -21,6 +25,7 @@
   --deep-charcoal: #f8fafc;
   --lemon-glow: #facc15;
   --lemon-hover: #eab308;
+  --lemon-ink: #a16207;
   --tech-silver: #475569;
   --tech-gray: #64748b;
   --pure-white: #ffffff;

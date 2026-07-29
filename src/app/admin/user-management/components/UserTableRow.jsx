@@ -343,6 +343,57 @@ export default function UserTableRow({
           </div>
         </td>
 
+        {/* BUSINESS REPORT */}
+        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col items-start gap-1.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenReportModal(user);
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-100 whitespace-nowrap"
+              title="Generate Business Report"
+            >
+              <FileText size={14} />
+              {user.businessReport?.pdfUrl ? "View / Regenerate" : "Generate"}
+            </button>
+
+            {/* Sirf tab dikhta hai jab is lead ki analysis ho chuki ho */}
+            {aiAnalysisSummary && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenAiAnalysisModal?.(user);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-100 whitespace-nowrap"
+                title={`AI analysis · ${new Date(aiAnalysisSummary.aiAnalysedAt).toLocaleDateString("en-IN")}`}
+              >
+                <Sparkles size={14} />
+                AI Analysis
+                {aiAnalysisSummary.overallScore != null && (
+                  <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                    {aiAnalysisSummary.overallScore}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {user.businessReport?.pdfUrl && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSendReportWhatsApp(user);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 whitespace-nowrap"
+                title="Send report on WhatsApp"
+              >
+                <MessageCircle size={14} />
+                WhatsApp
+              </button>
+            )}
+          </div>
+        </td>
+
         {/* CHAT BUTTON & PROGRESS COUNT */}
         <td className="px-6 py-5">
           <button
@@ -592,57 +643,6 @@ export default function UserTableRow({
           ) : (
             <span className="text-[10px] text-gray-400 italic">No Listing</span>
           )}
-        </td>
-
-        {/* BUSINESS REPORT */}
-        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-          <div className="flex flex-col gap-1.5 items-start">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenReportModal(user);
-                }}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-100 whitespace-nowrap"
-                title="Generate Business Report"
-              >
-                <FileText size={14} />
-                {user.businessReport?.pdfUrl ? "View / Regenerate" : "Generate"}
-              </button>
-              {/* Only shown once this lead already has a saved AI analysis. */}
-              {aiAnalysisSummary && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenAiAnalysisModal?.(user);
-                  }}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-100 whitespace-nowrap"
-                  title={`AI analysis · ${new Date(aiAnalysisSummary.aiAnalysedAt).toLocaleDateString("en-IN")}`}
-                >
-                  <Sparkles size={14} />
-                  AI Analysis
-                  {aiAnalysisSummary.overallScore != null && (
-                    <span className="ml-0.5 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-black text-white">
-                      {aiAnalysisSummary.overallScore}
-                    </span>
-                  )}
-                </button>
-              )}
-            </div>
-            {user.businessReport?.pdfUrl && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSendReportWhatsApp(user);
-                }}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-green-50 text-green-700 rounded-lg text-xs font-bold hover:bg-green-100 whitespace-nowrap"
-                title="Send report on WhatsApp"
-              >
-                <MessageCircle size={14} />
-                WhatsApp
-              </button>
-            )}
-          </div>
         </td>
 
         {/* ACTIONS */}

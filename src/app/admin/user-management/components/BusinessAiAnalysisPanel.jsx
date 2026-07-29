@@ -10,6 +10,8 @@ import {
   ShieldQuestion,
   ArrowRight,
   Copy,
+  Zap,
+  CircleAlert,
 } from "lucide-react";
 
 const TEMP_STYLES = {
@@ -64,7 +66,12 @@ function ListCard({ icon: Icon, title, items, tone }) {
 }
 
 /** Renders a saved AI sales analysis for a business. */
-export default function BusinessAiAnalysisPanel({ analysis, analysedAt, showToast }) {
+export default function BusinessAiAnalysisPanel({
+  analysis,
+  analysedAt,
+  businessName,
+  showToast,
+}) {
   if (!analysis) return null;
 
   const copy = (text, label) => {
@@ -79,7 +86,12 @@ export default function BusinessAiAnalysisPanel({ analysis, analysedAt, showToas
         <div className="flex items-center gap-2">
           <Sparkles size={18} />
           <div>
-            <p className="text-sm font-bold">AI Sales Analysis</p>
+            <p className="text-sm font-bold">
+              {businessName || "AI Sales Analysis"}
+            </p>
+            {businessName && (
+              <p className="text-[10px] opacity-80">AI Sales Analysis</p>
+            )}
             {analysedAt && (
               <p className="text-[10px] opacity-80">
                 {new Date(analysedAt).toLocaleString("en-IN")}
@@ -110,6 +122,90 @@ export default function BusinessAiAnalysisPanel({ analysis, analysedAt, showToas
           <p className="rounded-xl bg-white p-3 text-xs leading-relaxed text-gray-700 border border-violet-100">
             {analysis.summary}
           </p>
+        )}
+
+        {/* ── Problem → Limbu solution (agent ka main section) ───────── */}
+        {analysis.problemSolutions?.length > 0 && (
+          <div className="rounded-xl border-2 border-violet-300 bg-white p-3">
+            <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-violet-800">
+              <Zap size={14} /> Problem → Limbu AI Solution
+            </p>
+            <div className="mt-2 space-y-2.5">
+              {analysis.problemSolutions.map((ps, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-gray-200 overflow-hidden"
+                >
+                  {/* Problem side */}
+                  <div className="bg-red-50 px-3 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="flex items-start gap-1.5 text-xs font-bold text-red-800">
+                        <CircleAlert size={13} className="mt-0.5 shrink-0" />
+                        {ps.problem}
+                      </p>
+                      {ps.priority && (
+                        <span
+                          className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
+                            PRIORITY_STYLES[ps.priority] || PRIORITY_STYLES.Low
+                          }`}
+                        >
+                          {ps.priority}
+                        </span>
+                      )}
+                    </div>
+                    {ps.evidence && (
+                      <p className="mt-1 text-[11px] text-red-700">
+                        <span className="font-semibold">Proof: </span>
+                        {ps.evidence}
+                      </p>
+                    )}
+                    {ps.impact && (
+                      <p className="mt-0.5 text-[11px] text-red-600">
+                        <span className="font-semibold">Nuksaan: </span>
+                        {ps.impact}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Solution side */}
+                  <div className="bg-emerald-50 px-3 py-2 border-t border-emerald-100">
+                    {ps.limbuFeatures?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {ps.limbuFeatures.map((f, j) => (
+                          <span
+                            key={j}
+                            className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white"
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {ps.howLimbuFixes && (
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-800">
+                        {ps.howLimbuFixes}
+                      </p>
+                    )}
+                    {ps.salesPitchLine && (
+                      <div className="mt-1.5 flex items-start justify-between gap-2 rounded-lg bg-white p-2 border border-emerald-200">
+                        <p className="text-[11px] italic leading-relaxed text-gray-800">
+                          “{ps.salesPitchLine}”
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => copy(ps.salesPitchLine, "Pitch line")}
+                          className="shrink-0 text-emerald-600 hover:text-emerald-800"
+                          title="Copy pitch line"
+                        >
+                          <Copy size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* Meta chips */}
@@ -176,29 +272,57 @@ export default function BusinessAiAnalysisPanel({ analysis, analysedAt, showToas
           />
         </div>
 
-        {/* Recommended services */}
+        {/* Recommended services — har card: issue → Limbu ka solution */}
         {analysis.recommendedServices?.length > 0 && (
           <div className="rounded-xl bg-white p-3 border border-violet-100">
             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-gray-700">
               <Lightbulb size={13} /> Recommended Services
             </p>
+            {businessName && (
+              <p className="mt-0.5 text-[11px] text-gray-500">
+                <span className="font-bold text-gray-800">{businessName}</span> ke
+                liye — issue aur Limbu AI ka solution
+              </p>
+            )}
             <div className="mt-2 space-y-2">
               {analysis.recommendedServices.map((s, i) => (
                 <div
                   key={i}
-                  className="flex items-start gap-2 rounded-lg border border-gray-100 p-2"
+                  className="rounded-xl border border-gray-200 overflow-hidden"
                 >
-                  <span
-                    className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
-                      PRIORITY_STYLES[s.priority] || PRIORITY_STYLES.Low
-                    }`}
-                  >
-                    {s.priority || "—"}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-900">{s.service}</p>
+                  {/* Issue */}
+                  <div className="flex items-start justify-between gap-2 bg-red-50 px-3 py-2">
+                    <p className="flex items-start gap-1.5 text-[11px] font-bold text-red-800">
+                      <CircleAlert size={12} className="mt-0.5 shrink-0" />
+                      <span>
+                        <span className="uppercase tracking-wide opacity-70">
+                          Issue:{" "}
+                        </span>
+                        {s.problem || "Profile improvement zaroori hai"}
+                      </span>
+                    </p>
+                    <span
+                      className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-bold ${
+                        PRIORITY_STYLES[s.priority] || PRIORITY_STYLES.Low
+                      }`}
+                    >
+                      {s.priority || "—"}
+                    </span>
+                  </div>
+
+                  {/* Limbu solution */}
+                  <div className="bg-emerald-50 px-3 py-2 border-t border-emerald-100">
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900">
+                      <ArrowRight size={12} className="shrink-0" />
+                      <span className="uppercase tracking-wide opacity-70">
+                        Limbu AI:
+                      </span>
+                      <span className="rounded-md bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        {s.service}
+                      </span>
+                    </p>
                     {s.reason && (
-                      <p className="text-[11px] text-gray-600 leading-relaxed">
+                      <p className="mt-1 text-[11px] leading-relaxed text-emerald-800">
                         {s.reason}
                       </p>
                     )}

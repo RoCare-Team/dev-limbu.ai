@@ -135,6 +135,9 @@ export default function BusinessAiAnalysisModal({
             <BusinessAiAnalysisPanel
               analysis={analysis}
               analysedAt={analysedAt}
+              businessName={
+                business?.displayName || business?.searchedBusinessName || ""
+              }
               showToast={showToast}
             />
           ) : (

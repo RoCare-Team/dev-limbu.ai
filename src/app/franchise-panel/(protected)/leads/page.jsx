@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
   Download,
   Edit2,
+  LogIn,
   Mail,
   MessageCircle,
   Phone,
@@ -177,6 +178,12 @@ export default function UserManagement() {
   const [savingStageId, setSavingStageId] = useState("");
   const [savingTagId, setSavingTagId] = useState("");
   const [savingAssigneeId, setSavingAssigneeId] = useState("");
+  const [impersonatingId, setImpersonatingId] = useState("");
+
+  // Bulk selection / reassign
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkAgentId, setBulkAgentId] = useState("");
+  const [reassigning, setReassigning] = useState(false);
 
   const [teamMembers, setTeamMembers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -184,8 +191,8 @@ export default function UserManagement() {
   const canManageBookings = canAccessBookings(currentUser?.role);
   const canUpdateWallet = canManageWallet(currentUser?.role);
 
-  // Lead, Contact, Tag, Stage, Source, Assigned To, Remarks, Wallet, Actions
-  const COLUMN_COUNT = canManageBookings ? 10 : 9;
+  // Select, Lead, Contact, Tag, Stage, Source, Assigned To, Remarks, Wallet, Actions
+  const COLUMN_COUNT = canManageBookings ? 11 : 10;
 
   useEffect(() => {
     setCurrentUser(getFranchiseUserFromStorage());
@@ -323,6 +330,11 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers(currentPage);
   }, [fetchUsers, currentPage]);
+
+  // Selection is page-scoped — a hidden selected row would be a nasty surprise.
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [currentPage, debouncedSearch, filters]);
 
   const goToPage = (page) => {
     const nextPage = Math.min(Math.max(1, page), totalPages);
@@ -523,6 +535,109 @@ export default function UserManagement() {
   };
 
   const getLeadDisplayCode = (user) => user.referCode || "-";
+
+  // ── Bulk selection ────────────────────────────────────────────
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  const allPageSelected =
+    users.length > 0 && users.every((user) => selectedSet.has(user._id));
+
+  const toggleRow = (id) =>
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+
+  const toggleAllOnPage = () =>
+    setSelectedIds(allPageSelected ? [] : users.map((user) => user._id));
+
+  const handleBulkReassign = async () => {
+    if (!selectedIds.length) return;
+
+    setReassigning(true);
+    try {
+      const res = await fetch("/api/franchise-panel/lead-assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          userIds: selectedIds,
+          assignedAgentId: bulkAgentId || null,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showToast(data.message || "Could not reassign leads", "error");
+        return;
+      }
+
+      showToast(data.message);
+      if (data.skipped > 0) {
+        showToast(`${data.skipped} skipped — not in your franchise`, "error");
+      }
+
+      // Update in place so the table does not jump back to page 1.
+      setUsers((prev) =>
+        prev.map((user) =>
+          selectedSet.has(user._id)
+            ? {
+                ...user,
+                assignedAgentId: data.assignedAgentId,
+                referredByAgentId: data.assignedAgentId,
+                referredByAgentName: data.assignedAgentName,
+              }
+            : user,
+        ),
+      );
+      setSelectedIds([]);
+    } catch (error) {
+      console.error("Bulk reassign error:", error);
+      showToast("Could not reassign leads", "error");
+    } finally {
+      setReassigning(false);
+    }
+  };
+
+  // ── Login as this lead ────────────────────────────────────────
+  const handleLoginAsUser = async (user) => {
+    if (!user.userId) {
+      showToast("This lead has no user account yet", "error");
+      return;
+    }
+
+    setImpersonatingId(user._id);
+    try {
+      const res = await fetch("/api/franchise-panel/login-as-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ userId: user.userId }),
+      });
+      const data = await res.json();
+
+      if (!data.success || !data.token) {
+        showToast(data.message || "Unable to log in as this user", "error");
+        return;
+      }
+
+      // The handoff page writes the session in the new tab, so the franchise
+      // admin's own session in this tab is untouched.
+      const payload = encodeURIComponent(
+        JSON.stringify({
+          token: data.token,
+          userId: data.user.userId,
+          impersonatedUser: data.user.userId,
+          impersonatedName: data.user.fullName,
+          impersonatedEmail: data.user.email,
+        }),
+      );
+
+      window.open(`/impersonate-login?data=${payload}`, "_blank", "noopener");
+    } catch (error) {
+      console.error("Login as user error:", error);
+      showToast("Unable to log in as this user", "error");
+    } finally {
+      setImpersonatingId("");
+    }
+  };
 
   return (
     <>
@@ -735,11 +850,64 @@ export default function UserManagement() {
           getAuthHeaders={getAuthHeaders}
         />
 
+        {/* Bulk actions — appears once rows are selected */}
+        {selectedIds.length > 0 && (
+          <div className="sticky top-2 z-20 mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-gray-950 px-4 py-3 shadow-lg">
+            <span className="text-sm font-semibold text-white">
+              {selectedIds.length} lead{selectedIds.length === 1 ? "" : "s"}{" "}
+              selected
+            </span>
+
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                value={bulkAgentId}
+                onChange={(e) => setBulkAgentId(e.target.value)}
+                className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-none"
+              >
+                <option value="">Unassign</option>
+                {teamMembers.map((member) => (
+                  <option key={member._id} value={member._id}>
+                    {member.fullName}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={handleBulkReassign}
+                disabled={reassigning}
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-bold text-gray-950 hover:bg-gray-100 disabled:opacity-60"
+              >
+                <UserRound size={15} />
+                {reassigning ? "Reassigning..." : "Reassign"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+              >
+                <X size={15} />
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Table */}
         <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full min-w-[1240px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allPageSelected}
+                    onChange={toggleAllOnPage}
+                    aria-label="Select all leads on this page"
+                    className="h-4 w-4 cursor-pointer accent-gray-900"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left">Lead</th>
                 <th className="px-4 py-3 text-left">Contact</th>
                 <th className="px-4 py-3 text-left">Tag</th>
@@ -789,7 +957,24 @@ export default function UserManagement() {
                 </tr>
               ) : (
                 users.map((user) => (
-                  <tr key={user._id} className="transition hover:bg-gray-50/70">
+                  <tr
+                    key={user._id}
+                    className={`transition ${
+                      selectedSet.has(user._id)
+                        ? "bg-gray-50"
+                        : "hover:bg-gray-50/70"
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedSet.has(user._id)}
+                        onChange={() => toggleRow(user._id)}
+                        aria-label={`Select ${user.fullName || "lead"}`}
+                        className="h-4 w-4 cursor-pointer accent-gray-900"
+                      />
+                    </td>
+
                     {/* Lead */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -956,6 +1141,22 @@ export default function UserManagement() {
                     {/* Actions */}
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleLoginAsUser(user)}
+                          disabled={
+                            impersonatingId === user._id || !user.userId
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-2 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          title={
+                            user.userId
+                              ? `Open ${user.fullName || "this lead"}'s dashboard`
+                              : "This lead has no user account yet"
+                          }
+                        >
+                          <LogIn size={14} />
+                          {impersonatingId === user._id ? "..." : "Login"}
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditModal(user)}

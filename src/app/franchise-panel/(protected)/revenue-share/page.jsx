@@ -15,7 +15,6 @@ import {
   Layers,
   PieChart,
   Radio,
-  Users,
   Wallet,
   X,
 } from "lucide-react";
@@ -30,13 +29,7 @@ import ImagePreviewModal from "@/components/ImagePreviewModal";
 /** Franchise keeps 50%, Limbu Ai keeps 50%. */
 const SHARE_RATE = 0.5;
 
-const EMPTY_DRILL = {
-  type: "",
-  plan: "",
-  source: "",
-  month: "",
-  clientStatus: "",
-};
+const EMPTY_DRILL = { type: "", plan: "", source: "", month: "" };
 
 const PAYMENT_MODE_LABELS = {
   "bank-transfer": "Bank Transfer",
@@ -56,55 +49,6 @@ const formatDate = (value) => {
     year: "numeric",
   });
 };
-
-/** Days from today until a date. Negative = already past. */
-function daysUntil(value) {
-  if (!value) return null;
-  const expiry = new Date(value);
-  if (isNaN(expiry.getTime())) return null;
-
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const expiryDay = new Date(expiry);
-  expiryDay.setHours(0, 0, 0, 0);
-
-  return Math.round((expiryDay - startOfToday) / 86400000);
-}
-
-/** A client's subscription bucket, derived from its latest package expiry. */
-function statusFromDays(days) {
-  if (days === null) return "unknown";
-  if (days < 0) return "expired";
-  if (days <= 7) return "expiring";
-  return "active";
-}
-
-const CLIENT_STATUS_META = {
-  active: {
-    label: "Active",
-    chip: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    text: "text-emerald-600",
-  },
-  expiring: {
-    label: "Expiring Soon",
-    chip: "border-amber-200 bg-amber-50 text-amber-700",
-    text: "text-amber-600",
-  },
-  expired: {
-    label: "Expired",
-    chip: "border-red-200 bg-red-50 text-red-700",
-    text: "text-red-600",
-  },
-  unknown: {
-    label: "No Expiry Set",
-    chip: "border-gray-200 bg-gray-50 text-gray-600",
-    text: "text-gray-400",
-  },
-};
-
-/** One row can be one of several payments by the same client. */
-const clientKeyOf = (row) =>
-  String(row.leadId || row.email || row.leadName || row._id).toLowerCase();
 
 const typeKeyOf = (row) => {
   if (row.type === "user_onboard" || row.type === "plan") return "package";
@@ -268,62 +212,6 @@ export default function RevenueShare() {
     };
   }, [rows, payoutSummary]);
 
-  /**
-   * Collapse payments down to one entry per client, keyed on their latest
-   * package expiry — a client who renewed is active, not expired, even though
-   * the older payment row has a past expiry date.
-   */
-  const clients = useMemo(() => {
-    const byClient = new Map();
-
-    rows.forEach((row) => {
-      const key = clientKeyOf(row);
-      const expiry = row.packageExpiryDate || null;
-      const existing = byClient.get(key);
-
-      if (!existing) {
-        byClient.set(key, {
-          key,
-          name: row.leadName || row.email || "Unknown",
-          email: row.email || "",
-          plan: row.plan || "",
-          expiry,
-          gross: Number(row.amount) || 0,
-        });
-        return;
-      }
-
-      existing.gross += Number(row.amount) || 0;
-
-      const currentTime = existing.expiry ? new Date(existing.expiry).getTime() : -Infinity;
-      const nextTime = expiry ? new Date(expiry).getTime() : -Infinity;
-      if (nextTime > currentTime) {
-        existing.expiry = expiry;
-        existing.plan = row.plan || existing.plan;
-      }
-    });
-
-    return [...byClient.values()].map((client) => {
-      const days = daysUntil(client.expiry);
-      return { ...client, days, status: statusFromDays(days) };
-    });
-  }, [rows]);
-
-  /** clientKey → status, so table rows can be filtered by the cards. */
-  const clientStatusByKey = useMemo(() => {
-    const map = new Map();
-    clients.forEach((client) => map.set(client.key, client));
-    return map;
-  }, [clients]);
-
-  const clientStats = useMemo(() => {
-    const counts = { active: 0, expiring: 0, expired: 0, unknown: 0 };
-    clients.forEach((client) => {
-      counts[client.status] += 1;
-    });
-    return { ...counts, total: clients.length };
-  }, [clients]);
-
   const breakdown = useMemo(
     () => ({
       byType: groupRows(rows, typeKeyOf, typeLabelOf),
@@ -356,14 +244,9 @@ export default function RevenueShare() {
         )
           return false;
         if (drill.month && monthKeyOf(row) !== drill.month) return false;
-        if (
-          drill.clientStatus &&
-          clientStatusByKey.get(clientKeyOf(row))?.status !== drill.clientStatus
-        )
-          return false;
         return true;
       }),
-    [rows, drill, clientStatusByKey],
+    [rows, drill],
   );
 
   const visibleTotal = useMemo(
@@ -379,13 +262,6 @@ export default function RevenueShare() {
     setShowBreakdown(true);
   };
 
-  /** Client status cards filter the table without opening the breakdown panel. */
-  const toggleClientStatus = (status) => {
-    setDrill((prev) => ({
-      ...prev,
-      clientStatus: prev.clientStatus === status ? "" : status,
-    }));
-  };
 
   const formatAmount = (amount) =>
     `₹${Math.round(Number(amount) || 0).toLocaleString("en-IN")}`;
@@ -394,8 +270,6 @@ export default function RevenueShare() {
     if (field === "type") return typeLabelOf(value);
     if (field === "source") return sourceLabel(value);
     if (field === "month") return monthLabelOf(value);
-    if (field === "clientStatus")
-      return CLIENT_STATUS_META[value]?.label || value;
     return value;
   };
 
@@ -514,116 +388,6 @@ export default function RevenueShare() {
           icon={<AlertCircle size={18} />}
           tone={summary.pending > 0 ? "amber" : "emerald"}
         />
-      </div>
-
-      {/* Client subscription status — click a card to filter the table */}
-      <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Users size={18} className="text-gray-500" />
-            <h2 className="text-lg font-bold text-gray-950">Onboard Client Status</h2>
-          </div>
-          <p className="text-sm text-gray-500">
-            Based on each client&apos;s latest package expiry. Click a card to
-            filter.
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <ClientStatCard
-            label="Total Clients"
-            value={clientStats.total}
-            hint="Unique paying customers"
-            icon={<Users size={18} />}
-            active={!drill.clientStatus}
-            activeClass="border-gray-900 bg-gray-900 text-white"
-            idleIcon="text-gray-700"
-            onClick={() => toggleClientStatus("")}
-          />
-          <ClientStatCard
-            label="Active"
-            value={clientStats.active}
-            hint="More than 7 days left"
-            icon={<CheckCircle2 size={18} />}
-            active={drill.clientStatus === "active"}
-            activeClass="border-emerald-600 bg-emerald-600 text-white"
-            idleIcon="text-emerald-600"
-            onClick={() => toggleClientStatus("active")}
-          />
-          <ClientStatCard
-            label="Expiring in 7 Days"
-            value={clientStats.expiring}
-            hint="Renew these first"
-            icon={<CalendarRange size={18} />}
-            active={drill.clientStatus === "expiring"}
-            activeClass="border-amber-500 bg-amber-500 text-white"
-            idleIcon="text-amber-600"
-            onClick={() => toggleClientStatus("expiring")}
-          />
-          <ClientStatCard
-            label="Expired"
-            value={clientStats.expired}
-            hint="Package already lapsed"
-            icon={<AlertCircle size={18} />}
-            active={drill.clientStatus === "expired"}
-            activeClass="border-red-600 bg-red-600 text-white"
-            idleIcon="text-red-600"
-            onClick={() => toggleClientStatus("expired")}
-          />
-        </div>
-
-        {clientStats.unknown > 0 && (
-          <button
-            type="button"
-            onClick={() => toggleClientStatus("unknown")}
-            className={`mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
-              drill.clientStatus === "unknown"
-                ? "border-gray-900 bg-gray-900 text-white"
-                : "border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-400"
-            }`}
-          >
-            {clientStats.unknown} client
-            {clientStats.unknown === 1 ? "" : "s"} without an expiry date
-          </button>
-        )}
-
-        {/* Renewal queue — the 7-day list spelled out */}
-        {(clientStats.expiring > 0 || clientStats.expired > 0) && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
-              Needs attention
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {clients
-                .filter(
-                  (client) =>
-                    client.status === "expiring" || client.status === "expired",
-                )
-                .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
-                .slice(0, 12)
-                .map((client) => (
-                  <span
-                    key={client.key}
-                    title={`${client.plan || "Package"} · expires ${formatDate(
-                      client.expiry,
-                    )}`}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-                      CLIENT_STATUS_META[client.status].chip
-                    }`}
-                  >
-                    {client.name}
-                    <span className="opacity-70">
-                      {client.days < 0
-                        ? `${Math.abs(client.days)}d ago`
-                        : client.days === 0
-                          ? "today"
-                          : `${client.days}d`}
-                    </span>
-                  </span>
-                ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Breakdown */}
@@ -761,7 +525,6 @@ export default function RevenueShare() {
                   Provider {(1 - SHARE_RATE) * 100}%
                 </th>
                 <th className="px-6 py-4 text-right font-semibold">Date</th>
-                <th className="px-6 py-4 text-left font-semibold">Expires On</th>
                 <th className="px-6 py-4 text-center font-semibold">
                   Proof &amp; Invoice
                 </th>
@@ -810,32 +573,6 @@ export default function RevenueShare() {
                         {new Date(row.createdAt).toLocaleDateString("en-IN")}
                       </td>
                       <td className="px-6 py-4">
-                        {(() => {
-                          const days = daysUntil(row.packageExpiryDate);
-                          const status = statusFromDays(days);
-                          const meta = CLIENT_STATUS_META[status];
-
-                          if (days === null) {
-                            return <span className="text-gray-400">—</span>;
-                          }
-
-                          return (
-                            <div>
-                              <p className={`font-semibold ${meta.text}`}>
-                                {formatDate(row.packageExpiryDate)}
-                              </p>
-                              <p className="mt-0.5 text-xs text-gray-500">
-                                {days < 0
-                                  ? `Expired ${Math.abs(days)}d ago`
-                                  : days === 0
-                                    ? "Expires today"
-                                    : `${days}d left`}
-                              </p>
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
@@ -879,7 +616,7 @@ export default function RevenueShare() {
                 })
               ) : (
                 <tr>
-                  <td colSpan="10" className="py-16 text-center text-gray-500">
+                  <td colSpan="9" className="py-16 text-center text-gray-500">
                     {rows.length
                       ? "No revenue matches the selected breakdown."
                       : "No revenue found for this franchise."}
@@ -903,7 +640,7 @@ export default function RevenueShare() {
                   <td className="px-6 py-4 text-right text-blue-700">
                     {formatAmount(visibleTotal * (1 - SHARE_RATE))}
                   </td>
-                  <td className="px-6 py-4" colSpan="3" />
+                  <td className="px-6 py-4" colSpan="2" />
                 </tr>
               </tfoot>
             )}
@@ -1003,51 +740,6 @@ export default function RevenueShare() {
 
       <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>
-  );
-}
-
-function ClientStatCard({
-  label,
-  value,
-  hint,
-  icon,
-  active,
-  activeClass,
-  idleIcon,
-  onClick,
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={`rounded-xl border p-4 text-left transition ${
-        active
-          ? `${activeClass} shadow-md`
-          : "border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <p
-          className={`text-[11px] font-bold uppercase tracking-wide ${
-            active ? "text-white/80" : "text-gray-500"
-          }`}
-        >
-          {label}
-        </p>
-        <span className={active ? "text-white/90" : idleIcon}>{icon}</span>
-      </div>
-      <p
-        className={`mt-1.5 text-2xl font-bold tabular-nums ${
-          active ? "text-white" : "text-gray-950"
-        }`}
-      >
-        {value}
-      </p>
-      <p className={`mt-0.5 text-xs ${active ? "text-white/70" : "text-gray-500"}`}>
-        {hint}
-      </p>
-    </button>
   );
 }
 

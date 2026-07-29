@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Eye, FileText } from "lucide-react";
 import {
@@ -8,6 +8,12 @@ import {
   getFranchiseUserFromStorage,
 } from "@/lib/franchiseAuth";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import ClientStatusStats from "@/components/FranchiseLeads/ClientStatusStats";
+import {
+  buildClientStatuses,
+  clientKeyOf,
+  summarizeClientStatuses,
+} from "@/lib/clientExpiry";
 
 export default function FranchisePackageBookingList() {
   const router = useRouter();
@@ -16,6 +22,30 @@ export default function FranchisePackageBookingList() {
   const [error, setError] = useState("");
   const [previewUrl, setPreviewUrl] = useState(null);
   const [downloadingId, setDownloadingId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const clients = useMemo(() => buildClientStatuses(data), [data]);
+  const clientStats = useMemo(
+    () => summarizeClientStatuses(clients),
+    [clients],
+  );
+
+  /** clientKey → status, so the cards can filter the booking rows. */
+  const statusByClient = useMemo(() => {
+    const map = new Map();
+    clients.forEach((client) => map.set(client.key, client.status));
+    return map;
+  }, [clients]);
+
+  const visibleRows = useMemo(() => {
+    if (!statusFilter) return data;
+    return data.filter(
+      (row) => statusByClient.get(clientKeyOf(row)) === statusFilter,
+    );
+  }, [data, statusFilter, statusByClient]);
+
+  const toggleStatus = (status) =>
+    setStatusFilter((prev) => (prev === status ? "" : status));
 
   const handleViewProof = (item) => {
     const proof = item.paymentScreenshot || item.screenshot;
@@ -159,7 +189,31 @@ export default function FranchisePackageBookingList() {
 
   return (
     <div className="p-2 sm:p-6">
-      <h2 className="text-2xl font-bold mb-6">Package Bookings</h2>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-950">Package Bookings</h2>
+          <p className="mt-0.5 text-sm text-gray-500">
+            {visibleRows.length} booking{visibleRows.length === 1 ? "" : "s"}
+            {statusFilter ? " in this status" : ""}
+          </p>
+        </div>
+        {statusFilter && (
+          <button
+            type="button"
+            onClick={() => setStatusFilter("")}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
+      <ClientStatusStats
+        clients={clients}
+        stats={clientStats}
+        activeStatus={statusFilter}
+        onSelectStatus={toggleStatus}
+      />
 
       {/* ── Desktop Table ── */}
       <div className="hidden md:block bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-md">
@@ -186,8 +240,8 @@ export default function FranchisePackageBookingList() {
 
             {/* White tbody */}
             <tbody className="bg-white divide-y divide-gray-100">
-              {data.length > 0 ? (
-                data.map((item) => (
+              {visibleRows.length > 0 ? (
+                visibleRows.map((item) => (
                   <tr
                     key={item._id}
                     className="hover:bg-gray-50 transition duration-150"
@@ -333,8 +387,8 @@ export default function FranchisePackageBookingList() {
 
       {/* ── Mobile Cards ── */}
       <div className="grid gap-4 md:hidden">
-        {data.length > 0 ? (
-          data.map((item) => (
+        {visibleRows.length > 0 ? (
+          visibleRows.map((item) => (
             <div
               key={item._id}
               className="bg-white rounded-xl shadow p-4 space-y-2 border border-gray-100"

@@ -134,7 +134,7 @@ function ClientGrowthSection() {
               >
                 <TrendingUp className="w-3 h-3" style={{ color: "#EAB308" }} />
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "#EAB308" }}>
-                  Live GMB Growth Data
+                  Live GBP Growth Data
                 </span>
               </div>
               <h3 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-slate-900" style={{ fontFamily: "var(--font-heading)" }}>

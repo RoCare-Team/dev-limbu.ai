@@ -13,6 +13,7 @@ import {
   ArrowUpIcon,
   IndianRupee,
   KeyRound,
+  Settings,
   UserCircle,
   X, // Import X for close button
 } from "lucide-react";
@@ -38,6 +39,7 @@ export default function SidebarFranchisePanel({ isOpen, onClose }) {
     { name: "Service Booking", icon: Server, href: "/franchise-panel/service-booking" },
     { name: "Package Booking", icon: Package, href: "/franchise-panel/package-booking" },
     { name: "Revenue Share", icon: IndianRupee, href: "/franchise-panel/revenue-share" },
+    { name: "Settings", icon: Settings, href: "/franchise-panel/settings" },
     { name: "Visit Website", icon: ArrowUpIcon, href: "/" },
   ];
 

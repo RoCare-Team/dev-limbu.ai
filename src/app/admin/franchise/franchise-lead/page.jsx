@@ -1156,6 +1156,57 @@ export default function FranchiseLeadsPage() {
     [leads],
   );
 
+  // ── WhatsApp chat counts for the rows on screen ────────────────
+  const [chatCounts, setChatCounts] = useState({});
+
+  /** Match the normalisation the counts API uses, so lookups line up. */
+  const chatPhoneKey = (value) => {
+    let digits = String(value || "")
+      .replace(/^wa_/i, "")
+      .replace(/\D/g, "");
+    if (!digits) return "";
+    if (digits.length === 10) digits = `91${digits}`;
+    return digits;
+  };
+
+  const visiblePhoneKey = useMemo(
+    () =>
+      paginatedLeads
+        .map((lead) => chatPhoneKey(lead?.phone_number))
+        .filter(Boolean)
+        .join(","),
+    [paginatedLeads],
+  );
+
+  useEffect(() => {
+    const phones = visiblePhoneKey ? visiblePhoneKey.split(",") : [];
+    if (!phones.length) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/limbubot/history/counts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phones, source: "franchise" }),
+        });
+        const data = await res.json();
+
+        if (!cancelled && data.success) {
+          // Merge so counts for earlier pages survive when paging back.
+          setChatCounts((prev) => ({ ...prev, ...(data.counts || {}) }));
+        }
+      } catch (err) {
+        console.error("Chat count fetch failed:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visiblePhoneKey]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [
@@ -4051,17 +4102,38 @@ export default function FranchiseLeadsPage() {
                           })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenChat(lead);
-                            }}
-                            className="p-2 hover:bg-indigo-100 rounded-lg transition-colors group"
-                            title="Chat History"
-                            type="button"
-                          >
-                            <MessageCircle className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" />
-                          </button>
+                          {(() => {
+                            const count =
+                              chatCounts[chatPhoneKey(lead?.phone_number)] ?? null;
+                            const hasChat = count > 0;
+
+                            return (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenChat(lead);
+                                }}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors group ${
+                                  hasChat
+                                    ? "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                    : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                                }`}
+                                title={
+                                  hasChat
+                                    ? `${count} message${count === 1 ? "" : "s"}`
+                                    : "Chat History"
+                                }
+                                type="button"
+                              >
+                                <MessageCircle className="w-4 h-4" />
+                                {count === null ? (
+                                  <span className="inline-block h-3 w-3 animate-pulse rounded bg-gray-200" />
+                                ) : (
+                                  count
+                                )}
+                              </button>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex flex-col gap-2">

@@ -73,7 +73,7 @@ export default function HeroSection() {
                 <span className="block text-[0.8em] text-slate-900 mt-1">
                   Manage Your{" "}
                   <span className="text-[#eab308]">
-                    GMB{" "}
+                    GBP{" "}
                     <br className="hidden lg:block" />
                     with Limbu AI
                   </span>

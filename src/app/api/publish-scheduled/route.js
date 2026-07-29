@@ -8,8 +8,7 @@ import InstagramPage from "@/models/InstagramPage";
 import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
-import { getGmbConnection } from "@/lib/gmbSession";
-import GmbConnection from "@/models/GmbConnection";
+import { resolveGmbAccessToken } from "@/lib/gmbSession";
 import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePhone } from "@/lib/gmbPostSanitize";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
@@ -176,47 +175,9 @@ const formatGmbDate = (value) => {
   return year && month && day ? `${day}-${month}-${year}` : "";
 };
 
-async function getFreshAccessToken(refreshToken) {
-  log("🔄 Refreshing access token");
-
-  // Transient failures (network / 5xx) par retry — ek hiccup se scheduled post
-  // fail nahi hona chahiye. invalid_grant par turant fail (reconnect chahiye).
-  const MAX_ATTEMPTS = 3;
-  let lastData = null;
-
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const res = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-    });
-    const data = await res.json();
-    lastData = data;
-
-    if (res.ok) {
-      log("✅ Access token refreshed");
-      return data.access_token;
-    }
-
-    // Refresh token pakka mar gaya — retry se fayda nahi.
-    if (data.error === "invalid_grant") {
-      log("❌ Token refresh invalid_grant — user must reconnect GMB", data);
-      throw new Error("invalid_grant: reconnect GMB required");
-    }
-
-    log(`⚠ Token refresh attempt ${attempt}/${MAX_ATTEMPTS} failed`, data);
-    if (attempt < MAX_ATTEMPTS) {
-      await new Promise((r) => setTimeout(r, 500 * attempt));
-    }
-  }
-
-  throw new Error(lastData?.error_description || "Token refresh failed");
-}
+// Google token refresh ab `resolveGmbAccessToken` (src/lib/gmbSession.js) karta
+// hai — wo har stored refresh token snapshot try karta hai, isliye ek stale
+// snapshot se poora post fail nahi hota.
 
 async function fetchWithTimeout(promise, ms = 20000) {
   let timer;
@@ -746,42 +707,20 @@ export async function GET(req) {
 
       // ── GMB ─────────────────────────────────────────────
       if (hasGmb) {
-        // Live token PEHLE (GmbConnection se, userId ke against). Reason: post par
-        // stored refreshToken ek snapshot hai — agar user schedule karne ke BAAD
-        // GMB reconnect kar le (Google naya refresh token deta hai, purana revoke
-        // ho jata hai), to snapshot invalid_grant se fail hoga. Live token us
-        // reconnect ko survive karta hai. Snapshot sirf fallback hai (purane
-        // scheduled posts / connection na milne par).
-        let liveRefreshToken = null;
-        try {
-          const conn = await getGmbConnection(post.userId);
-          if (conn?.refreshToken && !conn.invalid) {
-            liveRefreshToken = conn.refreshToken;
-          }
-        } catch (connErr) {
-          log("⚠ GmbConnection lookup failed, will use post snapshot:", connErr.message);
-        }
-
-        const refreshToken = liveRefreshToken || post.refreshToken;
-        if (!refreshToken) {
-          log("❌ No refresh token (neither live connection nor post):", postId);
-          slog.fail("publish:gmb", "no Google refreshToken — user must reconnect GMB");
-          post.whenPosted = markWhenFailed(
-            post.whenPosted,
-            "gmb",
-            "No Google refresh token on scheduled post.",
-          );
-          post.markModified("whenPosted");
-          failed = true;
-          failedCount++;
-        } else {
+        // Token resolve ab MULTI-SOURCE hai (dekho: src/lib/gmbSession.js).
+        // post.refreshToken sirf ek snapshot hai jo queue banate waqt copy hua
+        // tha; user ke reconnect karte hi Google use revoke kar deta hai. Pehle
+        // yahi akela try hota tha aur post "Reconnect GMB required" bolke fail
+        // ho jata — jabki GmbConnection / AutomationPlan par valid token maujood
+        // tha. Ab live connection → plan → snapshot, teeno try hote hain.
+        {
           try {
-            log(
-              liveRefreshToken
-                ? "🔑 Using live refreshToken from GmbConnection."
-                : "🔑 Using stored refreshToken from post document (fallback).",
-            );
-            const accessToken = await getFreshAccessToken(refreshToken);
+            const { accessToken, source } = await resolveGmbAccessToken({
+              userId: post.userId,
+              extraRefreshTokens: [post.refreshToken],
+              log: (m) => log(m),
+            });
+            log(`🔑 GMB access token resolved from ${source}.`);
             const processedLocIds = new Set();
             const gmbMeta = post.gmbPostMeta || {};
             const isVideoSelection =
@@ -980,25 +919,13 @@ export async function GET(req) {
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
 
-            // invalid_grant = refresh token sach me revoke ho chuka hai. Naya
-            // access token banana namumkin — user ko ek baar GMB reconnect karna
-            // hi padega. Connection ko `invalid` mark karo taaki dashboard turant
-            // "Reconnect" prompt dikhaye (chup-chaap fail na ho), aur error message
-            // saaf ho.
-            const isInvalidGrant = /invalid_grant/i.test(err.message || "");
-            if (isInvalidGrant) {
-              try {
-                await GmbConnection.updateOne(
-                  { userId: post.userId },
-                  { $set: { invalid: true, invalidReason: "invalid_grant", updatedAt: new Date() } },
-                );
-                log("🔒 GmbConnection marked invalid — user must reconnect GMB");
-              } catch (markErr) {
-                log("⚠ Could not mark GmbConnection invalid:", markErr.message);
-              }
-            }
+            // Reconnect sirf tab, jab resolveGmbAccessToken ne SAARE stored
+            // tokens try karke haar maani ho (wahi connection ko `invalid` bhi
+            // mark karta hai — yahan dobara karne ki zaroorat nahi). Transient
+            // Google failure par status waisa hi "try again" rehta hai.
+            const needsReconnect = err.code === "GMB_RECONNECT_REQUIRED";
 
-            const failReason = isInvalidGrant
+            const failReason = needsReconnect
               ? "GMB reconnect required (access revoked). Reconnect Google Business Profile."
               : err.message || "GMB critical error";
 

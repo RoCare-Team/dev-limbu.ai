@@ -54,6 +54,7 @@ import BulkDeleteModal from "./components/BulkDeleteModal";
 import DeleteUserModal from "./components/DeleteUserModal";
 import EditUserModal from "./components/EditUserModal";
 import GenerateReportModal from "./components/GenerateReportModal";
+import BusinessAiAnalysisModal from "./components/BusinessAiAnalysisModal";
 import OnboardClientModal from "./components/OnboardClientModal";
 import MeetingModal from "./components/MeetingModal";
 import PlanUpgradeModal from "./components/PlanUpgradeModal";
@@ -205,6 +206,11 @@ export default function UserManagement() {
     setOnboardData,
     uploadingOnboard,
     paidUsersStatus,
+    aiAnalysisStatusMap,
+    aiAnalysisModalUser,
+    setAiAnalysisModalUser,
+    handleOpenAiAnalysisModal,
+    fetchAiAnalysisStatuses,
     searchQuery,
     setSearchQuery,
     filterStatus,
@@ -911,6 +917,10 @@ export default function UserManagement() {
                                   agents={agents}
                                   userPostsData={userPostsData}
                                   paidUsersStatus={paidUsersStatus}
+                                  aiAnalysisStatusMap={aiAnalysisStatusMap}
+                                  handleOpenAiAnalysisModal={
+                                    handleOpenAiAnalysisModal
+                                  }
                                   bulkWaSelectedUserIds={bulkWaSelectedUserIds}
                                   chatbotMetricFilter={chatbotMetricFilter}
                                   getAgentName={getAgentName}
@@ -1155,6 +1165,14 @@ export default function UserManagement() {
           setReportModalUser={setReportModalUser}
           showToast={showToast}
           onReportGenerated={applyUserReport}
+          onAiAnalysisSaved={fetchAiAnalysisStatuses}
+        />
+
+        {/* Saved AI Sales Analysis (opened from the table) */}
+        <BusinessAiAnalysisModal
+          aiAnalysisModalUser={aiAnalysisModalUser}
+          setAiAnalysisModalUser={setAiAnalysisModalUser}
+          showToast={showToast}
         />
 
         {/* Edit User (Name & Email) Modal */}

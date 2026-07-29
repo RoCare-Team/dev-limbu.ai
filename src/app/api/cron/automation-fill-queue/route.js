@@ -191,7 +191,10 @@ export async function GET() {
         scheduledDate,
         automationQueued:    true,
         automationPlanId:    plan._id,
-        accessToken:         plan.accessToken  || '',
+        // accessToken jaan-boojhkar copy NAHI karte — ye post kal/parso publish
+        // hoga, tab tak Google ka 1-ghante wala token mar chuka hoga. Publish ke
+        // waqt resolveGmbAccessToken() naya bana leta hai. refreshToken sirf
+        // last-resort fallback ke liye rakha hai (live connection na mile to).
         refreshToken:        plan.refreshToken || '',
         checkmark:           'both',
         error:               '',

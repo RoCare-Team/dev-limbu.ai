@@ -98,6 +98,7 @@ export default function HeroSection() {
                 src="/images/hero8.jpeg"
                 alt="Limbu AI Dashboard UI"
                 fill
+                sizes="(max-width: 1024px) 100vw, 640px"
                 className="object-contain mix-blend-multiply rounded-xl"
                 priority
               />
@@ -122,6 +123,8 @@ export default function HeroSection() {
   src={client.src}
   alt={client.name}
   fill
+  sizes="208px"
+  loading="lazy"
   className={`object-contain ${
     ["Inpect", "Solution", "Deit-detox", "Indo-motive", "zion1"].includes(client.name)
       ? "scale-150"

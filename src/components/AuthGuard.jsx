@@ -32,10 +32,91 @@ const APP_ROUTE_SEGMENTS = new Set([
   "yoga-wellness-marketing-software",
 ]);
 
+const PUBLIC_ROUTES = new Set([
+  "/",
+  "/login",
+  "/adminLogin",
+  "/about",
+  "/contact",
+  "/privacy-policy",
+  "/franchise-opportunities",
+  "/webinar-demo",
+  "/cancellation-policy",
+  "/terms-and-conditions",
+  "/refund-policy",
+  "/franchise-panel/login",
+  "/work-with-us",
+  "/thank-you",
+  "/pricing",
+  "/blog",
+  "/how-to-connect-gmb",
+  "/how-to-create-post",
+  "/how-to-reply-review",
+  "/how-to-generate-magic-qr",
+  "/how-to-post-on-gmb",
+  "/gym-marketing-software",
+  "/restaurant-marketing-software",
+  "/clinic-marketing-software",
+  "/bakery-marketing-software",
+  "/salon-marketing-software",
+  "/pest-control-marketing-software",
+  "/car-garage-marketing-software",
+  "/tour-travel-marketing-software",
+  "/yoga-wellness-marketing-software",
+  "/handyman-marketing-software",
+  "/google-business-management-service",
+  "/education-marketing-software",
+  "/realestate-marketing-software",
+  "/auth/signin",
+  "/connect-google-business",
+  "/connect-business",
+  "/bussiness",
+  "/automation-logs",
+]);
+
+const ALLOWED_ADMIN_ROLES = [
+  "admin",
+  "superAdmin",
+  "superFranchiseAdmin",
+  "franchiseAdmin",
+  "manager",
+  "agent",
+  "subadmin",
+];
+
+/**
+ * Purely from the pathname — no `window`, no localStorage — so it produces the
+ * same answer on the server and on the first client render.
+ *
+ * Ye hi wajah hai ki marketing pages ka HTML ab server par hi ban jata hai:
+ * pehle guard `null` return karta tha jab tak `useEffect` nahi chalta, isliye
+ * poora document khaali jata tha aur LCP JS ke baad hi shuru hota tha.
+ */
+function isAlwaysPublic(pathname) {
+  if (PUBLIC_ROUTES.has(pathname)) return true;
+
+  if (
+    pathname.startsWith("/reviews") ||
+    pathname.startsWith("/franchise-panel") ||
+    pathname.startsWith("/city") ||
+    pathname.startsWith("/services") ||
+    pathname.startsWith("/bussiness/")
+  ) {
+    return true;
+  }
+
+  // Tenant microsite reached by path (localhost / bare domain) instead of subdomain
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.length === 1 && !APP_ROUTE_SEGMENTS.has(segments[0]);
+}
+
 export default function AuthGuard({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
+
+  // Public routes never gate — they render straight into the server HTML.
+  const isPublic = isAlwaysPublic(pathname);
+  const [isChecking, setIsChecking] = useState(!isPublic);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -54,126 +135,46 @@ export default function AuthGuard({ children }) {
 
     const userId = localStorage.getItem("userId");
     const role = localStorage.getItem("role"); // admin | franchiseAdmin
+    const isAdmin = ALLOWED_ADMIN_ROLES.includes(role);
 
-    const publicRoutes = [
-      "/",
-      "/login",
-      "/adminLogin",
-      "/about",
-      "/contact",
-      "/privacy-policy",
-      "/franchise-opportunities",
-      "/webinar-demo",
-      "/cancellation-policy",
-      "/terms-and-conditions",
-      "/refund-policy",
-      "/franchise-panel/login",
-      "/work-with-us",
-      "/thank-you",
-      "/pricing",
-      "/blog",
-      "/how-to-connect-gmb",
-      "/how-to-create-post",
-      "/how-to-reply-review",
-      "/how-to-generate-magic-qr",
-      "/how-to-post-on-gmb",
-      "/gym-marketing-software",
-      "/restaurant-marketing-software",
-      "/clinic-marketing-software",
-      "/bakery-marketing-software",
-      "/salon-marketing-software",
-      "/pest-control-marketing-software",
-      "/car-garage-marketing-software",
-      "/tour-travel-marketing-software",
-      "/yoga-wellness-marketing-software",
-      "/handyman-marketing-software",
-      "/google-business-management-service",
-      "/education-marketing-software",
-      "/realestate-marketing-software",
-      "/auth/signin",
-      "/connect-google-business",
-      "/connect-business",
-      "/bussiness",
-      "/automation-logs"
-    ];
-
-    const allowedAdminRoles = [
-      "admin",
-      "superAdmin",
-      "superFranchiseAdmin",
-      "franchiseAdmin",
-      "manager",
-      "agent",
-      "subadmin",
-    ];
-
-    const isPublicRoute = publicRoutes.includes(pathname);
-
-    // 👇 ADD THIS HERE
-    const isAdminRoute = pathname.startsWith("/admin");
-    const isReviewRoute = pathname.startsWith("/reviews");
-    const isFranchiseRoute = pathname.startsWith("/franchise-panel");
-    const isCityRoute = pathname.startsWith("/city");
-    const isServicesRoute = pathname.startsWith("/services");
-    const isBusinessSlugRoute = pathname.startsWith("/bussiness/");
-
-    // Tenant microsite reached by path (localhost / bare domain) instead of subdomain
-    const segments = pathname.split("/").filter(Boolean);
-    const isTenantSiteRoute =
-      segments.length === 1 && !APP_ROUTE_SEGMENTS.has(segments[0]);
-
-    setTimeout(() => {
-      // 👇 UPDATE THIS CONDITION
-      if (
-        isReviewRoute ||
-        isFranchiseRoute ||
-        isCityRoute ||
-        isServicesRoute ||
-        isBusinessSlugRoute ||
-        isTenantSiteRoute
-      ) {
-        setIsChecking(false);
-        return;
-      }
-
-      // Admin protection
-      if (isAdminRoute) {
-        if (!allowedAdminRoles.includes(role)) {
-          router.replace("/adminLogin");
-          setIsChecking(false);
-          return;
-        }
-        setIsChecking(false);
-        return;
-      }
-
-      // Normal user protection
-      if (!userId && !isPublicRoute && !allowedAdminRoles.includes(role)) {
-        router.replace("/");
-        setIsChecking(false);
-        return;
-      }
-
-      // User logged in but opens /login
-      if (userId && pathname === "/login") {
-        router.replace("/dashboard");
-        setIsChecking(false);
-        return;
-      }
-
-      // Any Admin role opens adminLogin
-      if (allowedAdminRoles.includes(role) && pathname === "/adminLogin") {
-        if (["superFranchiseAdmin", "franchiseAdmin"].includes(role)) {
-          router.replace("/admin/franchise/franchise-lead");
-        } else {
-          router.replace("/admin/dashboard");
-        }
-        setIsChecking(false);
-        return;
-      }
-
+    // Already-signed-in users should not sit on a login screen. These routes are
+    // public, so the redirect runs without ever hiding the rendered page.
+    if (userId && pathname === "/login") {
+      router.replace("/dashboard");
       setIsChecking(false);
-    }, 100);
+      return;
+    }
+
+    if (isAdmin && pathname === "/adminLogin") {
+      router.replace(
+        ["superFranchiseAdmin", "franchiseAdmin"].includes(role)
+          ? "/admin/franchise/franchise-lead"
+          : "/admin/dashboard"
+      );
+      setIsChecking(false);
+      return;
+    }
+
+    if (isAlwaysPublic(pathname)) {
+      setIsChecking(false);
+      return;
+    }
+
+    // Admin protection
+    if (pathname.startsWith("/admin")) {
+      if (!isAdmin) router.replace("/adminLogin");
+      setIsChecking(false);
+      return;
+    }
+
+    // Normal user protection
+    if (!userId && !isAdmin) {
+      router.replace("/");
+      setIsChecking(false);
+      return;
+    }
+
+    setIsChecking(false);
   }, [pathname, router]);
 
   if (isChecking) return null;

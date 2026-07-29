@@ -316,11 +316,18 @@ export default function CaseStudyCarousel({
 
                       <div className="mt-auto flex items-center gap-5 pt-6 border-t border-slate-100">
                         <div className="relative w-16 h-16 rounded-2xl overflow-hidden border-2 border-yellow-300/30 shrink-0">
+                          {/* Plain <img>: ye freepik URLs `images.remotePatterns`
+                              me nahi hain. Full-size original download na ho
+                              isliye lazy + explicit dimensions. */}
                           <img
                             src={study.clientImage}
                             alt={
                               study.clientName
                             }
+                            width={64}
+                            height={64}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         </div>

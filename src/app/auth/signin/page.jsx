@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { startGmbConnect } from "@/hooks/useGmbConnection";
 
 /**
@@ -13,7 +13,7 @@ import { startGmbConnect } from "@/hooks/useGmbConnection";
  * wo error class exist hi nahi karti. Ye page ek seedha connect screen hai,
  * koi auto-retry nahi.
  */
-export default function SignInPage() {
+function SignInForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -45,25 +45,52 @@ export default function SignInPage() {
   };
 
   return (
+    <Shell>
+      {message && (
+        <p className="mb-4 text-sm text-red-600 text-center">{message}</p>
+      )}
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={handleConnect}
+        className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:pointer-events-none"
+      >
+        {busy ? "Redirecting..." : "Continue with Google"}
+      </button>
+    </Shell>
+  );
+}
+
+function Shell({ children }) {
+  return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-xl shadow-xl w-[350px]">
         <h1 className="text-xl font-bold text-center mb-6">
           Connect Google Business
         </h1>
-
-        {message && (
-          <p className="mb-4 text-sm text-red-600 text-center">{message}</p>
-        )}
-
-        <button
-          type="button"
-          disabled={busy}
-          onClick={handleConnect}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:pointer-events-none"
-        >
-          {busy ? "Redirecting..." : "Continue with Google"}
-        </button>
+        {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * `useSearchParams()` prerender ke waqt bail out karta hai, isliye Suspense
+ * boundary zaroori hai — warna poora page client-render par chala jata hai.
+ */
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <Shell>
+          <div className="w-full bg-blue-600/60 text-white py-3 rounded-lg text-center">
+            Loading...
+          </div>
+        </Shell>
+      }
+    >
+      <SignInForm />
+    </Suspense>
   );
 }

@@ -3,75 +3,275 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  AlertCircle,
+  Building2,
+  CalendarRange,
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  Eye,
+  FileText,
+  IndianRupee,
+  Layers,
+  PieChart,
+  Radio,
+  Wallet,
+  X,
+} from "lucide-react";
+import {
   canAccessBookings,
   getFranchiseAuthHeaders,
   getFranchiseUserFromStorage,
 } from "@/lib/franchiseAuth";
+import { sourceBadgeClass, sourceLabel } from "@/lib/sourceBadge";
+import ImagePreviewModal from "@/components/ImagePreviewModal";
+
+/** Franchise keeps 50%, Limbu Ai keeps 50%. */
+const SHARE_RATE = 0.5;
+
+const EMPTY_DRILL = { type: "", plan: "", source: "", month: "" };
+
+const PAYMENT_MODE_LABELS = {
+  "bank-transfer": "Bank Transfer",
+  upi: "UPI",
+  cheque: "Cheque",
+  cash: "Cash",
+  other: "Other",
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const typeKeyOf = (row) => {
+  if (row.type === "user_onboard" || row.type === "plan") return "package";
+  if (row.type === "service") return "service";
+  return row.type || "other";
+};
+
+const typeLabelOf = (key) =>
+  key === "package" ? "Package" : key === "service" ? "Service" : "Other";
+
+const monthKeyOf = (row) => {
+  const date = new Date(row.createdAt);
+  if (isNaN(date.getTime())) return "unknown";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const monthLabelOf = (key) => {
+  if (key === "unknown") return "Unknown";
+  const [year, month] = key.split("-");
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString("en-IN", {
+    month: "short",
+    year: "numeric",
+  });
+};
+
+/** Roll rows up into { key, label, count, gross } buckets, biggest first. */
+function groupRows(rows, keyOf, labelOf) {
+  const buckets = new Map();
+
+  rows.forEach((row) => {
+    const key = keyOf(row);
+    if (!buckets.has(key)) {
+      buckets.set(key, { key, label: labelOf(key), count: 0, gross: 0 });
+    }
+    const bucket = buckets.get(key);
+    bucket.count += 1;
+    bucket.gross += Number(row.amount) || 0;
+  });
+
+  return [...buckets.values()].sort((a, b) => b.gross - a.gross);
+}
 
 export default function RevenueShare() {
   const router = useRouter();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [drill, setDrill] = useState(EMPTY_DRILL);
+  const [payouts, setPayouts] = useState([]);
+  const [payoutSummary, setPayoutSummary] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [downloadingId, setDownloadingId] = useState("");
 
   useEffect(() => {
-  const fetchRevenue = async () => {
+    const fetchRevenue = async () => {
+      try {
+        const franchiseUser = getFranchiseUserFromStorage();
+        const token = localStorage.getItem("franchise_token");
+
+        if (!canAccessBookings(franchiseUser?.role)) {
+          router.replace("/franchise-panel/dashboard");
+          return;
+        }
+
+        const franchiseCode = franchiseUser?.franchiseCode || "";
+
+        if (!franchiseCode || !token) {
+          setError("Franchise session not found");
+          return;
+        }
+
+        const [revenueRes, payoutRes] = await Promise.all([
+          fetch(
+            `/api/franchise-revenue?franchiseCode=${encodeURIComponent(
+              franchiseCode,
+            )}`,
+            { headers: getFranchiseAuthHeaders() },
+          ),
+          fetch(
+            `/api/franchise-payout?franchiseCode=${encodeURIComponent(
+              franchiseCode,
+            )}`,
+            { headers: getFranchiseAuthHeaders() },
+          ),
+        ]);
+
+        if (!revenueRes.ok) {
+          throw new Error(`HTTP ${revenueRes.status}`);
+        }
+
+        const json = await revenueRes.json();
+
+        if (!json.success) {
+          throw new Error(json.message || "Failed to fetch revenue");
+        }
+
+        setRows(json.data || []);
+
+        // Payouts are informational — a failure here must not blank the page.
+        try {
+          const payoutJson = await payoutRes.json();
+          if (payoutJson.success) {
+            setPayouts(payoutJson.data || []);
+            setPayoutSummary(payoutJson.summary || null);
+          }
+        } catch (payoutErr) {
+          console.error("Payout fetch error:", payoutErr);
+        }
+      } catch (err) {
+        console.error("Revenue fetch error:", err);
+        setError(err.message || "Failed to fetch revenue");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRevenue();
+  }, [router]);
+
+  const handleDownloadInvoice = async (row) => {
+    setDownloadingId(row._id);
     try {
-      const franchiseUser = getFranchiseUserFromStorage();
-      const token = localStorage.getItem("franchise_token");
-
-      if (!canAccessBookings(franchiseUser?.role)) {
-        router.replace("/franchise-panel/dashboard");
+      if (row.invoiceUrl) {
+        window.open(row.invoiceUrl, "_blank", "noopener,noreferrer");
         return;
       }
 
-      const franchiseCode = franchiseUser?.franchiseCode || "";
+      const res = await fetch(`/api/admin/invoice-tax?id=${row._id}`);
+      if (!res.ok) throw new Error("Invoice generation failed");
 
-      if (!franchiseCode || !token) {
-        setError("Franchise session not found");
-        return;
-      }
-
-      const res = await fetch(
-        `/api/franchise-revenue?franchiseCode=${encodeURIComponent(
-          franchiseCode,
-        )}`,
-        { headers: getFranchiseAuthHeaders() },
-      );
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const json = await res.json();
-
-      if (!json.success) {
-        throw new Error(json.message || "Failed to fetch revenue");
-      }
-
-      setRows(json.data || []);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Invoice-${row.leadName || "customer"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error("Revenue fetch error:", err);
-      setError(err.message || "Failed to fetch revenue");
+      console.error("Invoice download error:", err);
+      alert(err.message || "Invoice download failed");
     } finally {
-      setLoading(false);
+      setDownloadingId("");
     }
   };
 
-  fetchRevenue();
-}, [router]);
-
   const summary = useMemo(() => {
     const total = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    const franchise = total * SHARE_RATE;
+    // Prefer the server's payout totals; fall back to what we can derive here.
+    const paid = payoutSummary?.totalPaid ?? 0;
+
     return {
       total,
-      franchise: total * 0.5,
-      provider: total * 0.5,
+      franchise,
+      provider: total * (1 - SHARE_RATE),
+      paid,
+      pending: Math.max(0, franchise - paid),
     };
-  }, [rows]);
+  }, [rows, payoutSummary]);
+
+  const breakdown = useMemo(
+    () => ({
+      byType: groupRows(rows, typeKeyOf, typeLabelOf),
+      byPlan: groupRows(
+        rows,
+        (row) => row.plan?.trim() || "Unspecified",
+        (key) => key,
+      ),
+      bySource: groupRows(
+        rows,
+        (row) => row.bookingSource?.trim() || "manual-upload",
+        (key) => sourceLabel(key),
+      ),
+      byMonth: groupRows(rows, monthKeyOf, monthLabelOf).sort((a, b) =>
+        b.key.localeCompare(a.key),
+      ),
+    }),
+    [rows],
+  );
+
+  const visibleRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        if (drill.type && typeKeyOf(row) !== drill.type) return false;
+        if (drill.plan && (row.plan?.trim() || "Unspecified") !== drill.plan)
+          return false;
+        if (
+          drill.source &&
+          (row.bookingSource?.trim() || "manual-upload") !== drill.source
+        )
+          return false;
+        if (drill.month && monthKeyOf(row) !== drill.month) return false;
+        return true;
+      }),
+    [rows, drill],
+  );
+
+  const visibleTotal = useMemo(
+    () => visibleRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+    [visibleRows],
+  );
+
+  const activeDrills = Object.entries(drill).filter(([, value]) => value);
+
+  // Clicking the same bucket again clears it.
+  const toggleDrill = (field, value) => {
+    setDrill((prev) => ({ ...prev, [field]: prev[field] === value ? "" : value }));
+    setShowBreakdown(true);
+  };
+
 
   const formatAmount = (amount) =>
-    `₹${(Number(amount) || 0).toLocaleString("en-IN")}`;
+    `₹${Math.round(Number(amount) || 0).toLocaleString("en-IN")}`;
+
+  const drillLabel = (field, value) => {
+    if (field === "type") return typeLabelOf(value);
+    if (field === "source") return sourceLabel(value);
+    if (field === "month") return monthLabelOf(value);
+    return value;
+  };
 
   if (loading) {
     return (
@@ -82,23 +282,231 @@ export default function RevenueShare() {
   }
 
   if (error) {
-    return <div className="py-10 text-center font-semibold text-red-600">{error}</div>;
+    return (
+      <div className="py-10 text-center font-semibold text-red-600">{error}</div>
+    );
   }
 
   return (
     <div className="p-2 sm:p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-950">Revenue Share</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-950">Revenue Share</h1>
+          <p className="mt-0.5 text-sm text-gray-500">
+            Every payment received and how it splits between you and Limbu Ai.
+          </p>
+        </div>
         <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700">
           {rows.length} records
         </span>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-3">
-        <SummaryCard label="Total Revenue" value={formatAmount(summary.total)} />
-        <SummaryCard label="Franchise Share (50%)" value={formatAmount(summary.franchise)} />
-        <SummaryCard label="Limbu Ai Share (50%)" value={formatAmount(summary.provider)} />
+      {/* Summary — Total Revenue opens the full breakdown */}
+      <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => setShowBreakdown((prev) => !prev)}
+          className={`rounded-xl border p-5 text-left shadow-sm transition ${
+            showBreakdown
+              ? "border-gray-900 bg-gray-900 text-white shadow-md"
+              : "border-gray-200 bg-white hover:border-gray-400 hover:shadow"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p
+                className={`text-sm font-medium ${
+                  showBreakdown ? "text-white/70" : "text-gray-500"
+                }`}
+              >
+                Total Revenue
+              </p>
+              <p
+                className={`mt-2 text-2xl font-bold ${
+                  showBreakdown ? "text-white" : "text-gray-950"
+                }`}
+              >
+                {formatAmount(summary.total)}
+              </p>
+            </div>
+            <span
+              className={`rounded-lg p-2 ${
+                showBreakdown ? "bg-white/15 text-white" : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              <IndianRupee size={18} />
+            </span>
+          </div>
+          <p
+            className={`mt-3 inline-flex items-center gap-1 text-xs font-semibold ${
+              showBreakdown ? "text-white/80" : "text-indigo-600"
+            }`}
+          >
+            {showBreakdown ? "Hide breakdown" : "View full breakdown"}
+            <ChevronDown
+              size={14}
+              className={showBreakdown ? "rotate-180 transition" : "transition"}
+            />
+          </p>
+        </button>
+
+        <SummaryCard
+          label={`Your Franchise Share (${SHARE_RATE * 100}%)`}
+          value={formatAmount(summary.franchise)}
+          hint="Total you have earned so far"
+          icon={<Wallet size={18} />}
+          tone="indigo"
+        />
+        <SummaryCard
+          label={`Company Share (${(1 - SHARE_RATE) * 100}%)`}
+          value={formatAmount(summary.provider)}
+          hint="Platform's portion of the same payments"
+          icon={<Building2 size={18} />}
+          tone="blue"
+        />
       </div>
+
+      {/* Payout settlement */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <SummaryCard
+          label="Payout Received"
+          value={formatAmount(summary.paid)}
+          hint={
+            payouts.length
+              ? `${payouts.length} payout${
+                  payouts.length === 1 ? "" : "s"
+                } · last on ${formatDate(payouts[0]?.paidAt)}`
+              : "No payout settled yet"
+          }
+          icon={<CheckCircle2 size={18} />}
+          tone="emerald"
+        />
+        <SummaryCard
+          label="Pending With Company"
+          value={formatAmount(summary.pending)}
+          hint="Your earned share that is yet to be transferred"
+          icon={<AlertCircle size={18} />}
+          tone={summary.pending > 0 ? "amber" : "emerald"}
+        />
+      </div>
+
+      {/* Breakdown */}
+      {showBreakdown && (
+        <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <PieChart size={18} className="text-gray-500" />
+              <h2 className="text-lg font-bold text-gray-950">
+                Revenue Breakdown
+              </h2>
+            </div>
+            <p className="text-sm text-gray-500">
+              Click any row to filter the table below.
+            </p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <BreakdownGroup
+              title="Where the payment came from"
+              subtitle="By booking source"
+              icon={<Radio size={15} />}
+              buckets={breakdown.bySource}
+              total={summary.total}
+              activeKey={drill.source}
+              onSelect={(key) => toggleDrill("source", key)}
+              formatAmount={formatAmount}
+              renderLabel={(bucket) => (
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${sourceBadgeClass(
+                    bucket.key,
+                  )}`}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                  {bucket.label}
+                </span>
+              )}
+            />
+
+            <BreakdownGroup
+              title="What was sold"
+              subtitle="By revenue type"
+              icon={<Layers size={15} />}
+              buckets={breakdown.byType}
+              total={summary.total}
+              activeKey={drill.type}
+              onSelect={(key) => toggleDrill("type", key)}
+              formatAmount={formatAmount}
+            />
+
+            <BreakdownGroup
+              title="Plan-wise collection"
+              subtitle="By plan"
+              icon={<Layers size={15} />}
+              buckets={breakdown.byPlan}
+              total={summary.total}
+              activeKey={drill.plan}
+              onSelect={(key) => toggleDrill("plan", key)}
+              formatAmount={formatAmount}
+            />
+
+            <BreakdownGroup
+              title="Month-wise collection"
+              subtitle="By booking month"
+              icon={<CalendarRange size={15} />}
+              buckets={breakdown.byMonth}
+              total={summary.total}
+              activeKey={drill.month}
+              onSelect={(key) => toggleDrill("month", key)}
+              formatAmount={formatAmount}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-3">
+            <TotalLine
+              label="Total collected"
+              value={formatAmount(summary.total)}
+              tone="text-gray-950"
+            />
+            <TotalLine
+              label={`Paid out to franchise (${SHARE_RATE * 100}%)`}
+              value={formatAmount(summary.franchise)}
+              tone="text-emerald-700"
+            />
+            <TotalLine
+              label={`Retained by Limbu Ai (${(1 - SHARE_RATE) * 100}%)`}
+              value={formatAmount(summary.provider)}
+              tone="text-blue-700"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Active drill-down chips */}
+      {activeDrills.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-gray-600">
+            Showing only:
+          </span>
+          {activeDrills.map(([field, value]) => (
+            <button
+              key={field}
+              type="button"
+              onClick={() => toggleDrill(field, value)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-50"
+            >
+              {drillLabel(field, value)}
+              <X size={13} />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setDrill(EMPTY_DRILL)}
+            className="text-xs font-semibold text-indigo-600 hover:underline"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
         <div className="overflow-x-auto">
@@ -108,19 +516,27 @@ export default function RevenueShare() {
                 <th className="px-6 py-4 text-left font-semibold">Customer</th>
                 <th className="px-6 py-4 text-left font-semibold">Type</th>
                 <th className="px-6 py-4 text-left font-semibold">Plan</th>
+                <th className="px-6 py-4 text-left font-semibold">Source</th>
                 <th className="px-6 py-4 text-right font-semibold">Amount</th>
-                <th className="px-6 py-4 text-right font-semibold">Franchise 50%</th>
-                <th className="px-6 py-4 text-right font-semibold">Provider 50%</th>
+                <th className="px-6 py-4 text-right font-semibold">
+                  Franchise {SHARE_RATE * 100}%
+                </th>
+                <th className="px-6 py-4 text-right font-semibold">
+                  Provider {(1 - SHARE_RATE) * 100}%
+                </th>
                 <th className="px-6 py-4 text-right font-semibold">Date</th>
+                <th className="px-6 py-4 text-center font-semibold">
+                  Proof &amp; Invoice
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {rows.length ? (
-                rows.map((row) => {
+              {visibleRows.length ? (
+                visibleRows.map((row) => {
                   const amount = Number(row.amount) || 0;
                   return (
                     <tr key={row._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-5">
+                      <td className="px-6 py-4">
                         <div className="font-semibold text-gray-950">
                           {row.leadName || "Customer"}
                         </div>
@@ -128,29 +544,192 @@ export default function RevenueShare() {
                           {row.email || "-"}
                         </div>
                       </td>
-                      <td className="px-6 py-5 capitalize text-gray-700">
-                        {row.type === "user_onboard" ? "package" : row.type}
+                      <td className="px-6 py-4 text-gray-700">
+                        {typeLabelOf(typeKeyOf(row))}
                       </td>
-                      <td className="px-6 py-5 text-gray-700">{row.plan || "-"}</td>
-                      <td className="px-6 py-5 text-right font-bold">
+                      <td className="px-6 py-4 text-gray-700">
+                        {row.plan || "-"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${sourceBadgeClass(
+                            row.bookingSource,
+                          )}`}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                          {sourceLabel(row.bookingSource)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold">
                         {formatAmount(amount)}
                       </td>
-                      <td className="px-6 py-5 text-right font-semibold text-emerald-700">
-                        {formatAmount(amount * 0.5)}
+                      <td className="px-6 py-4 text-right font-semibold text-emerald-700">
+                        {formatAmount(amount * SHARE_RATE)}
                       </td>
-                      <td className="px-6 py-5 text-right font-semibold text-blue-700">
-                        {formatAmount(amount * 0.5)}
+                      <td className="px-6 py-4 text-right font-semibold text-blue-700">
+                        {formatAmount(amount * (1 - SHARE_RATE))}
                       </td>
-                      <td className="px-6 py-5 text-right text-gray-500">
+                      <td className="px-6 py-4 text-right text-gray-500">
                         {new Date(row.createdAt).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              row.paymentScreenshot || row.screenshot
+                                ? setPreviewUrl(
+                                    row.paymentScreenshot || row.screenshot,
+                                  )
+                                : alert("No payment proof uploaded")
+                            }
+                            disabled={!row.paymentScreenshot && !row.screenshot}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            title="View payment proof"
+                          >
+                            <Eye size={14} />
+                            Proof
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadInvoice(row)}
+                            disabled={downloadingId === row._id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
+                            title={
+                              row.invoiceUrl
+                                ? "Open invoice PDF"
+                                : "Generate & download invoice"
+                            }
+                          >
+                            {row.invoiceUrl ? (
+                              <FileText size={14} />
+                            ) : (
+                              <Download size={14} />
+                            )}
+                            {downloadingId === row._id ? "..." : "Invoice"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan="7" className="py-16 text-center text-gray-500">
-                    No revenue found for this franchise.
+                  <td colSpan="9" className="py-16 text-center text-gray-500">
+                    {rows.length
+                      ? "No revenue matches the selected breakdown."
+                      : "No revenue found for this franchise."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {visibleRows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-200 bg-gray-50 text-sm font-bold text-gray-900">
+                  <td className="px-6 py-4" colSpan="4">
+                    Total ({visibleRows.length} record
+                    {visibleRows.length === 1 ? "" : "s"})
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {formatAmount(visibleTotal)}
+                  </td>
+                  <td className="px-6 py-4 text-right text-emerald-700">
+                    {formatAmount(visibleTotal * SHARE_RATE)}
+                  </td>
+                  <td className="px-6 py-4 text-right text-blue-700">
+                    {formatAmount(visibleTotal * (1 - SHARE_RATE))}
+                  </td>
+                  <td className="px-6 py-4" colSpan="2" />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* Payouts settled to this franchise */}
+      <div className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-6 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-950">Payout History</h2>
+            <p className="text-sm text-gray-500">
+              Amounts Limbu Ai has transferred to you, with transfer proof.
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Total received
+            </p>
+            <p className="text-xl font-bold text-emerald-700">
+              {formatAmount(summary.paid)}
+            </p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                <th className="px-6 py-3 text-left font-semibold">Paid On</th>
+                <th className="px-6 py-3 text-right font-semibold">Amount</th>
+                <th className="px-6 py-3 text-left font-semibold">Mode</th>
+                <th className="px-6 py-3 text-left font-semibold">UTR / Ref</th>
+                <th className="px-6 py-3 text-left font-semibold">Period</th>
+                <th className="px-6 py-3 text-left font-semibold">Notes</th>
+                <th className="px-6 py-3 text-center font-semibold">Proof</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {payouts.length ? (
+                payouts.map((payout) => (
+                  <tr key={payout._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      {formatDate(payout.paidAt)}
+                    </td>
+                    <td className="px-6 py-4 text-right text-base font-bold text-emerald-700">
+                      {formatAmount(payout.amount)}
+                    </td>
+                    <td className="px-6 py-4 text-gray-700">
+                      {PAYMENT_MODE_LABELS[payout.paymentMode] ||
+                        payout.paymentMode}
+                    </td>
+                    <td className="px-6 py-4 font-mono text-xs text-gray-600">
+                      {payout.referenceNo || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-xs text-gray-600">
+                      {payout.periodFrom || payout.periodTo
+                        ? `${formatDate(payout.periodFrom)} → ${formatDate(
+                            payout.periodTo,
+                          )}`
+                        : "—"}
+                    </td>
+                    <td className="max-w-xs px-6 py-4 text-gray-600">
+                      {payout.notes || "—"}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewUrl(payout.screenshot)}
+                        disabled={!payout.screenshot}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-indigo-300 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        <Eye size={14} />
+                        View Proof
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="7" className="py-12 text-center text-gray-500">
+                    <p className="text-sm font-semibold text-gray-900">
+                      No payout received yet
+                    </p>
+                    <p className="mt-1 text-sm">
+                      Your pending share of {formatAmount(summary.pending)} will
+                      appear here once Limbu Ai settles it.
+                    </p>
                   </td>
                 </tr>
               )}
@@ -158,15 +737,127 @@ export default function RevenueShare() {
           </table>
         </div>
       </div>
+
+      <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>
   );
 }
 
-function SummaryCard({ label, value }) {
+function SummaryCard({ label, value, hint, icon, tone }) {
+  const tones = {
+    emerald: "bg-emerald-50 text-emerald-700",
+    blue: "bg-blue-50 text-blue-700",
+    indigo: "bg-indigo-50 text-indigo-700",
+    amber: "bg-amber-50 text-amber-700",
+  };
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-gray-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold text-gray-950">{value}</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{label}</p>
+          <p className="mt-2 text-2xl font-bold text-gray-950">{value}</p>
+        </div>
+        <span className={`rounded-lg p-2 ${tones[tone] || tones.blue}`}>
+          {icon}
+        </span>
+      </div>
+      {hint && <p className="mt-3 text-xs text-gray-500">{hint}</p>}
+    </div>
+  );
+}
+
+function BreakdownGroup({
+  title,
+  subtitle,
+  icon,
+  buckets,
+  total,
+  activeKey,
+  onSelect,
+  formatAmount,
+  renderLabel,
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200">
+      <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500">{icon}</span>
+          <div>
+            <p className="text-sm font-bold text-gray-900">{title}</p>
+            <p className="text-xs text-gray-500">{subtitle}</p>
+          </div>
+        </div>
+      </div>
+
+      {buckets.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-gray-500">
+          No data yet.
+        </p>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {buckets.map((bucket) => {
+            const share = total > 0 ? (bucket.gross / total) * 100 : 0;
+            const isActive = activeKey === bucket.key;
+
+            return (
+              <button
+                key={bucket.key}
+                type="button"
+                onClick={() => onSelect(bucket.key)}
+                className={`block w-full px-4 py-3 text-left transition ${
+                  isActive ? "bg-indigo-50" : "hover:bg-gray-50"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    {renderLabel ? (
+                      renderLabel(bucket)
+                    ) : (
+                      <span className="truncate text-sm font-semibold text-gray-900">
+                        {bucket.label}
+                      </span>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">
+                      {bucket.count} payment{bucket.count === 1 ? "" : "s"} ·{" "}
+                      {share.toFixed(1)}% of total
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold text-gray-950">
+                      {formatAmount(bucket.gross)}
+                    </p>
+                    <p className="text-xs font-semibold text-emerald-700">
+                      Your share {formatAmount(bucket.gross * SHARE_RATE)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className={`h-full rounded-full ${
+                      isActive ? "bg-indigo-600" : "bg-gray-400"
+                    }`}
+                    style={{ width: `${Math.max(share, 2)}%` }}
+                  />
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TotalLine({ label, value, tone }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </p>
+      <p className={`mt-1 text-xl font-bold ${tone}`}>{value}</p>
     </div>
   );
 }

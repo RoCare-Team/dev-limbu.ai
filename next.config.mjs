@@ -2,6 +2,11 @@
 const nextConfig = {
   output: "standalone",
 
+  // gzip/brotli on HTML + RSC payloads (nginx isse aage bas pass karta hai)
+  compress: true,
+
+  poweredByHeader: false,
+
   // Prevent build failures
   eslint: {
     ignoreDuringBuilds: true,
@@ -22,10 +27,37 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // `public/` se serve hone wale assets par Next default `max-age=0` bhejta
+        // hai, isliye har visit par sab dobara download hota tha. Ye files
+        // content-hashed nahi hain, to `must-revalidate` ke saath ek din rakha hai.
+        source: "/images/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
+        source: "/:path*.(svg|ico|png|jpg|jpeg|webp|avif|gif|woff|woff2)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
     ];
   },
 
   images: {
+    formats: ["image/avif", "image/webp"],
+
+    // Optimizer ka apna cache — upstream (S3) koi Cache-Control nahi bhejta,
+    // to bina iske har baar re-fetch + re-encode hota hai.
+    minimumCacheTTL: 2678400, // 31 din
+
     remotePatterns: [
       // S3
       {

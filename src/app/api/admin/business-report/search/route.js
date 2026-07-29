@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 
-// Full profile pull — everything here is persisted to BusinessDetails so the
-// sales agent / AI has the complete Google profile to analyse.
+
 const FIELD_MASK = [
   "places.id",
   "places.name",

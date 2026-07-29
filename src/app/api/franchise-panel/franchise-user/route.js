@@ -167,26 +167,100 @@ export async function GET(req) {
     );
     const skip = (page - 1) * limit;
 
-    let finalFilter = scopedFilter;
+    // ── Optional filters ────────────────────────────────────────
+    const leadStage = (searchParams.get("leadStage") || "").trim();
+    const leadStatus = (searchParams.get("leadStatus") || "").trim();
+    const source = (searchParams.get("source") || "").trim();
+    const assignedAgentId = (searchParams.get("assignedAgentId") || "").trim();
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+
+    // Everything except the stage filter — stat cards stay a full breakdown
+    // even while the table is narrowed down to a single stage.
+    const statsConditions = [scopedFilter];
+
     if (search) {
       const searchRegex = new RegExp(escapeRegex(search), "i");
-      finalFilter = {
-        $and: [
-          scopedFilter,
-          {
-            $or: [
-              { fullName: searchRegex },
-              { email: searchRegex },
-              { phone: searchRegex },
-              { referCode: searchRegex },
-              { referredByAgentName: searchRegex },
-              { leadStatus: searchRegex },
-              { source: searchRegex },
-            ],
-          },
+      statsConditions.push({
+        $or: [
+          { fullName: searchRegex },
+          { email: searchRegex },
+          { phone: searchRegex },
+          { referCode: searchRegex },
+          { referredByAgentName: searchRegex },
+          { leadStatus: searchRegex },
+          { source: searchRegex },
         ],
-      };
+      });
     }
+
+    const createdAtRange = {};
+    if (startDate && !Number.isNaN(new Date(startDate).getTime())) {
+      createdAtRange.$gte = new Date(startDate);
+    }
+    if (endDate && !Number.isNaN(new Date(endDate).getTime())) {
+      createdAtRange.$lte = new Date(endDate);
+    }
+    if (Object.keys(createdAtRange).length) {
+      statsConditions.push({ createdAt: createdAtRange });
+    }
+
+    if (leadStatus) {
+      if (leadStatus === "Untagged") {
+        statsConditions.push({
+          $or: [
+            { leadStatus: "" },
+            { leadStatus: null },
+            { leadStatus: { $exists: false } },
+          ],
+        });
+      } else if (["Hot", "Warm", "Cold"].includes(leadStatus)) {
+        statsConditions.push({ leadStatus });
+      }
+    }
+
+    if (source) {
+      statsConditions.push({
+        source: { $regex: new RegExp(`^${escapeRegex(source)}$`, "i") },
+      });
+    }
+
+    if (assignedAgentId) {
+      if (assignedAgentId === "unassigned") {
+        statsConditions.push({
+          $and: [
+            {
+              $or: [
+                { referredByAgentId: null },
+                { referredByAgentId: { $exists: false } },
+              ],
+            },
+            {
+              $or: [
+                { assignedAgentId: null },
+                { assignedAgentId: { $exists: false } },
+              ],
+            },
+          ],
+        });
+      } else if (mongoose.Types.ObjectId.isValid(assignedAgentId)) {
+        const agentObjectId = new mongoose.Types.ObjectId(assignedAgentId);
+        statsConditions.push({
+          $or: [
+            { referredByAgentId: agentObjectId },
+            { assignedAgentId: agentObjectId },
+          ],
+        });
+      }
+    }
+
+    const statsFilter =
+      statsConditions.length === 1 ? scopedFilter : { $and: statsConditions };
+
+    const allowedStages = ["Active", "Follow Up", "Inactive", "Onboard"];
+    const finalFilter = allowedStages.includes(leadStage)
+      ? { $and: [...statsConditions, { leadStage }] }
+      : statsFilter;
 
     const total = await User.countDocuments(finalFilter);
 
@@ -196,7 +270,7 @@ export async function GET(req) {
     todayEnd.setHours(23, 59, 59, 999);
 
     const statsAgg = await User.aggregate([
-      { $match: finalFilter },
+      { $match: statsFilter },
       {
         $group: {
           _id: null,
@@ -242,6 +316,12 @@ export async function GET(req) {
       .skip(skip)
       .limit(limit);
 
+    // Dropdown options — always the full franchise scope so the list of
+    // choices does not shrink as filters are applied.
+    const sources = (await User.distinct("source", scopedFilter))
+      .filter(Boolean)
+      .sort();
+
     return NextResponse.json({
       success: true,
       total,
@@ -249,6 +329,7 @@ export async function GET(req) {
       limit,
       totalPages: Math.max(1, Math.ceil(total / limit)),
       users,
+      sources,
       totalCoins: statsRow.totalCoins || 0,
       stats: {
         totalUsers: statsRow.totalUsers || 0,

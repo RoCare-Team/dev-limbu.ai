@@ -11,9 +11,6 @@ import {
   Share2,
   Link2,
   ExternalLink,
-  Calendar,
-  Filter,
-  X,
 } from "lucide-react";
 
 export default function FranchiseDashboard() {
@@ -22,12 +19,13 @@ export default function FranchiseDashboard() {
   const [leadsCount, setLeadsCount] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
   const [usersList, setUsersList] = useState([]);
-  const [stats, setStats] = useState({ total: 0, followUp: 0, inactive: 0, onboarded: 0, active: 0 });
-  const [filterDate, setFilterDate] = useState("All");
-  const [customStartDate, setCustomStartDate] = useState("");
-  const [customEndDate, setCustomEndDate] = useState("");
-  const [filterUserType, setFilterUserType] = useState("All");
-  const [filterLeadStage, setFilterLeadStage] = useState("All");
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    followUpUsers: 0,
+    inactiveUsers: 0,
+    onboardUsers: 0,
+  });
 
   useEffect(() => {
     const storedUser = localStorage.getItem("franchise_user");
@@ -37,38 +35,6 @@ export default function FranchiseDashboard() {
     fetchLeads();
   }, []);
 
-  useEffect(() => {
-    fetchLeads();
-  }, [filterDate, customStartDate, customEndDate, filterUserType, filterLeadStage]);
-
-  const getDateRangeParams = () => {
-    if (filterDate === "All") return { start: null, end: null };
-    
-    const now = new Date();
-    let start = new Date();
-    let end = new Date();
-
-    if (filterDate === "Today") {
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-    } else if (filterDate === "Last 7 Days") {
-      start.setDate(now.getDate() - 7);
-      start.setHours(0, 0, 0, 0);
-    } else if (filterDate === "Last 30 Days") {
-      start.setDate(now.getDate() - 30);
-      start.setHours(0, 0, 0, 0);
-    } else if (filterDate === "Custom" && customStartDate && customEndDate) {
-      start = new Date(customStartDate);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(customEndDate);
-      end.setHours(23, 59, 59, 999);
-    } else {
-      return { start: null, end: null };
-    }
-
-    return { start: start.toISOString(), end: end.toISOString() };
-  };
-
   const fetchLeads = async () => {
     try {
       const storedUserStr = localStorage.getItem("franchise_user");
@@ -76,24 +42,16 @@ export default function FranchiseDashboard() {
       const storedUser = JSON.parse(storedUserStr);
       const token = localStorage.getItem("franchise_token");
 
-      const { start, end } = getDateRangeParams();
       const params = new URLSearchParams({
         referCode: storedUser.franchiseCode,
+        limit: "10",
       });
-
-      if (start && end) {
-        params.append("startDate", start);
-        params.append("endDate", end);
-      }
-      if (filterUserType !== "All") params.append("userType", filterUserType);
-      if (filterLeadStage !== "All") params.append("leadStage", filterLeadStage);
 
       const res = await fetch(`/api/franchise-panel/franchise-user?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      console.log("datadata",data);
-      
+
       if (data.success && Array.isArray(data.users)) {
         setLeadsCount(data.total ? data.total : 0);
         setUsersList(data.users);
@@ -218,14 +176,6 @@ export default function FranchiseDashboard() {
 
   const getCodeLabel = () => (isAgent() ? "Agent Refer Code" : "Franchise Code");
 
-  const clearFilters = () => {
-    setFilterDate("All");
-    setCustomStartDate("");
-    setCustomEndDate("");
-    setFilterUserType("All");
-    setFilterLeadStage("All");
-  };
-
   return (
     <div className="space-y-8">
       {/* 🔥 Hero Section */}
@@ -260,9 +210,6 @@ export default function FranchiseDashboard() {
         </div>
       </div>
 
-      {/* 🔍 Filters Section */}
-    
-
       {/* 📊 Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
@@ -274,19 +221,19 @@ export default function FranchiseDashboard() {
         <StatCard
           icon={<ClipboardList />}
           title="Follow Up"
-          value={stats.followUp}
+          value={stats.followUpUsers || 0}
           color="bg-indigo-500"
         />
         <StatCard
           icon={<TrendingUp />}
           title="Onboarded"
-          value={stats.onboarded}
+          value={stats.onboardUsers || 0}
           color="bg-green-500"
         />
         <StatCard
           icon={<Crown />}
           title="Inactive"
-          value={stats.inactive}
+          value={stats.inactiveUsers || 0}
           color="bg-gray-500"
         />
       </div>
@@ -486,12 +433,12 @@ export default function FranchiseDashboard() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        lead.userType === 'Hot' ? 'bg-red-100 text-red-700' :
-                        lead.userType === 'Warm' ? 'bg-orange-100 text-orange-700' :
-                        lead.userType === 'Cold' ? 'bg-blue-100 text-blue-700' :
+                        lead.leadStatus === 'Hot' ? 'bg-red-100 text-red-700' :
+                        lead.leadStatus === 'Warm' ? 'bg-orange-100 text-orange-700' :
+                        lead.leadStatus === 'Cold' ? 'bg-blue-100 text-blue-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
-                      {lead.userType || 'None'}
+                      {lead.leadStatus || 'Untagged'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -509,25 +456,12 @@ export default function FranchiseDashboard() {
               ) : (
                 <tr>
                   <td colSpan="5" className="px-6 py-8 text-center text-gray-500 text-sm">
-                    No leads found matching your filters.
+                    No leads found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* 👥 Team Overview */}
-      <div className="bg-white rounded-2xl shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">
-          Franchise Network Overview
-        </h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <InfoBox label="Direct Referrals" value={leadsCount} />
-          <InfoBox label="Pending Approvals" value="0" />
-          <InfoBox label="Active Franchises" value="0" />
         </div>
       </div>
     </div>
@@ -548,11 +482,3 @@ function StatCard({ icon, title, value, color }) {
   );
 }
 
-function InfoBox({ label, value }) {
-  return (
-    <div className="border-2 border-gray-200 rounded-xl p-4 text-center hover:border-indigo-300 transition-colors">
-      <p className="text-gray-500 text-xs uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold mt-2 text-gray-900">{value}</p>
-    </div>
-  );
-}

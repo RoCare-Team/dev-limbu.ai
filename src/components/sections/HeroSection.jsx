@@ -30,7 +30,7 @@ export default function HeroSection() {
   return (
     <section className="relative w-full min-h-[calc(100vh-80px)] flex flex-col bg-white overflow-hidden text-slate-900 pt-20 lg:pt-28">
 
-      {/* Webinar CTA */}
+      {/* Demo CTA */}
       <div className="absolute top-22 md:top-24 right-2 md:right-10 lg:right-16 z-30 scale-90 sm:scale-100 origin-top-right">
         <Link
           href="/webinar-demo"
@@ -38,15 +38,9 @@ export default function HeroSection() {
         >
           <span className="w-2.5 h-2.5 rounded-full bg-[#eab308] animate-pulse" />
 
-          <div className="flex flex-col leading-tight">
-            <span className="text-[11px] font-bold whitespace-nowrap text-slate-900">
-              Free AI Webinar
-            </span>
-
-            <span className="text-[10px] font-medium text-slate-500">
-              🔥 128 joined in last 1 hr
-            </span>
-          </div>
+          <span className="text-[11px] font-bold whitespace-nowrap text-slate-900">
+            Free Demo
+          </span>
 
           <span className="text-xs transition-transform duration-200 group-hover:-translate-y-1 group-hover:translate-x-1 text-[#eab308] font-bold">
             ↗
@@ -79,7 +73,7 @@ export default function HeroSection() {
                 <span className="block text-[0.8em] text-slate-900 mt-1">
                   Manage Your{" "}
                   <span className="text-[#eab308]">
-                    GMB
+                    GBP{" "}
                     <br className="hidden lg:block" />
                     with Limbu AI
                   </span>
@@ -104,6 +98,7 @@ export default function HeroSection() {
                 src="/images/hero8.jpeg"
                 alt="Limbu AI Dashboard UI"
                 fill
+                sizes="(max-width: 1024px) 100vw, 640px"
                 className="object-contain mix-blend-multiply rounded-xl"
                 priority
               />
@@ -128,6 +123,8 @@ export default function HeroSection() {
   src={client.src}
   alt={client.name}
   fill
+  sizes="208px"
+  loading="lazy"
   className={`object-contain ${
     ["Inpect", "Solution", "Deit-detox", "Indo-motive", "zion1"].includes(client.name)
       ? "scale-150"

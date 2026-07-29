@@ -284,6 +284,12 @@ export default function AdminLayout({ children }) {
             },
 
             {
+              name: "Franchise Payouts",
+              href: "/admin/franchise-payout",
+              icon: <Wallet size={16} />,
+            },
+
+            {
               name: "Business Connected Nodes",
               href: "/admin/connected-node",
               icon: <Workflow size={16} />,

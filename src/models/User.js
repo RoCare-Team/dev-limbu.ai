@@ -140,6 +140,10 @@ const userSchema = new mongoose.Schema(
         "Real estate leads",
         "expolead",
         "gmb-scraper",
+        // Franchise-panel connected lead sources (see FranchiseLeadSource)
+        "google-ads",
+        "whatsapp",
+        "other-platform",
       ],
       default: "signup",
     },

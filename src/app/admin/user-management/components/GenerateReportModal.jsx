@@ -13,7 +13,9 @@ import {
   Globe2,
   CheckCircle,
   Loader2,
+  Sparkles,
 } from "lucide-react";
+import BusinessAiAnalysisPanel from "./BusinessAiAnalysisPanel";
 
 // "Generate Report" flow: search Google Places by business + city, pick one,
 // generate a Limbu-watermarked PDF (saved to DB + S3), then send it on WhatsApp.
@@ -22,6 +24,7 @@ export default function GenerateReportModal({
   setReportModalUser,
   showToast,
   onReportGenerated,
+  onAiAnalysisSaved,
 }) {
   const [businessName, setBusinessName] = useState("");
   const [city, setCity] = useState("");
@@ -32,6 +35,9 @@ export default function GenerateReportModal({
   const [pdfUrl, setPdfUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [cached, setCached] = useState(false);
+  const [analysing, setAnalysing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiAnalysedAt, setAiAnalysedAt] = useState(null);
 
   const open = !!reportModalUser;
 
@@ -49,6 +55,30 @@ export default function GenerateReportModal({
     setSelectedIdx(null);
     setPdfUrl(reportModalUser.businessReport?.pdfUrl || "");
     setCached(false);
+    setAiAnalysis(null);
+    setAiAnalysedAt(null);
+
+    // Pull any analysis already saved for this lead (no new AI run).
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/business-report/ai-analysis?userId=${encodeURIComponent(
+            reportModalUser.userId,
+          )}`,
+        );
+        const data = await res.json();
+        if (cancelled || !data.success || !data.aiAnalysis) return;
+        setAiAnalysis(data.aiAnalysis);
+        setAiAnalysedAt(data.aiAnalysedAt);
+      } catch {
+        // No stored analysis yet — the agent can generate one on demand.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [reportModalUser]);
 
   if (!open) return null;
@@ -124,6 +154,50 @@ export default function GenerateReportModal({
       showToast?.("Something went wrong while generating", "error");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // Runs the AI sales analysis on the selected business and saves it to
+  // BusinessDetails. Works without generating the PDF first.
+  const handleAnalyse = async ({ force = false } = {}) => {
+    if (selectedIdx == null || !results[selectedIdx]) {
+      showToast?.("Please select a business first", "error");
+      return;
+    }
+    setAnalysing(true);
+    try {
+      const res = await fetch("/api/admin/business-report/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          place: results[selectedIdx],
+          businessName,
+          city,
+          force,
+          adminEmail:
+            typeof window !== "undefined"
+              ? localStorage.getItem("email") || ""
+              : "",
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast?.(data.error || "AI analysis failed", "error");
+        return;
+      }
+      setAiAnalysis(data.aiAnalysis);
+      setAiAnalysedAt(data.aiAnalysedAt);
+      // Let the table light up its "AI Analysis" button for this lead.
+      onAiAnalysisSaved?.(userId);
+      showToast?.(
+        data.cached ? "Showing saved analysis (within 7 days)" : "AI analysis ready",
+        "success",
+      );
+    } catch (e) {
+      showToast?.("Something went wrong during AI analysis", "error");
+    } finally {
+      setAnalysing(false);
     }
   };
 
@@ -273,8 +347,45 @@ export default function GenerateReportModal({
                   </div>
                 </button>
               ))}
+
+              {/* Selecting a business unlocks the AI analysis right here — no
+                  need to generate the PDF first. */}
+              {selectedIdx != null && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-violet-200 bg-violet-50 p-3">
+                  <p className="text-xs text-violet-900">
+                    <span className="font-bold">
+                      {placeName(results[selectedIdx])}
+                    </span>{" "}
+                    selected — run an AI sales analysis on this profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyse({ force: !!aiAnalysis })}
+                    disabled={analysing}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-60"
+                  >
+                    {analysing ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={13} />
+                    )}
+                    {analysing
+                      ? "Analysing..."
+                      : aiAnalysis
+                        ? "Re-run AI Analysis"
+                        : "Generate AI Analysis"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
+
+          {/* AI analysis result */}
+          <BusinessAiAnalysisPanel
+            analysis={aiAnalysis}
+            analysedAt={aiAnalysedAt}
+            showToast={showToast}
+          />
 
           {/* Generated PDF actions */}
           {pdfUrl && (
@@ -298,12 +409,28 @@ export default function GenerateReportModal({
         </div>
 
         {/* Footer actions */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-end gap-3">
           <button
             onClick={() => setReportModalUser(null)}
             className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200"
           >
             Close
+          </button>
+          <button
+            onClick={() => handleAnalyse({ force: !!aiAnalysis })}
+            disabled={analysing || selectedIdx == null}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50"
+          >
+            {analysing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Sparkles size={16} />
+            )}
+            {analysing
+              ? "Analysing..."
+              : aiAnalysis
+                ? "Re-run AI Analysis"
+                : "AI Analysis"}
           </button>
           <button
             onClick={handleGenerate}

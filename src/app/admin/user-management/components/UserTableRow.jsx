@@ -19,6 +19,7 @@ import {
   Phone,
   QrCode,
   RefreshCw,
+  Sparkles,
   Trash2,
   User2Icon,
   Wallet,
@@ -41,6 +42,8 @@ export default function UserTableRow({
   agents,
   userPostsData,
   paidUsersStatus,
+  aiAnalysisStatusMap,
+  handleOpenAiAnalysisModal,
   bulkWaSelectedUserIds,
   chatbotMetricFilter,
   getAgentName,
@@ -70,6 +73,9 @@ export default function UserTableRow({
     posted: 0,
     rejected: 0,
   };
+
+  // Present only when this lead already has a saved AI analysis.
+  const aiAnalysisSummary = aiAnalysisStatusMap?.[user.userId] || null;
 
   // --- CONVERSATION STEPS LOGIC ---
   const stage = getConversationStageDisplay(user);
@@ -591,17 +597,38 @@ export default function UserTableRow({
         {/* BUSINESS REPORT */}
         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-1.5 items-start">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenReportModal(user);
-              }}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-100 whitespace-nowrap"
-              title="Generate Business Report"
-            >
-              <FileText size={14} />
-              {user.businessReport?.pdfUrl ? "View / Regenerate" : "Generate"}
-            </button>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenReportModal(user);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-100 whitespace-nowrap"
+                title="Generate Business Report"
+              >
+                <FileText size={14} />
+                {user.businessReport?.pdfUrl ? "View / Regenerate" : "Generate"}
+              </button>
+              {/* Only shown once this lead already has a saved AI analysis. */}
+              {aiAnalysisSummary && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenAiAnalysisModal?.(user);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-100 whitespace-nowrap"
+                  title={`AI analysis · ${new Date(aiAnalysisSummary.aiAnalysedAt).toLocaleDateString("en-IN")}`}
+                >
+                  <Sparkles size={14} />
+                  AI Analysis
+                  {aiAnalysisSummary.overallScore != null && (
+                    <span className="ml-0.5 rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-black text-white">
+                      {aiAnalysisSummary.overallScore}
+                    </span>
+                  )}
+                </button>
+              )}
+            </div>
             {user.businessReport?.pdfUrl && (
               <button
                 onClick={(e) => {

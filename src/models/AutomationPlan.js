@@ -103,8 +103,9 @@ const automationPlanSchema = new mongoose.Schema(
       address:     { type: String },
       locality:    { type: String },
       websiteUrl:  { type: String, default: '' },
+      primaryPhone: { type: String, default: '' }, // GMB CALL button (default CTA)
       isVerified:  { type: Boolean, default: false },
-     
+
       isPosted:    { type: Boolean, default: false },
     }],
 

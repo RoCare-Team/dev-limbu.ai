@@ -37,6 +37,7 @@ import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
 import { getGmbConnection } from '@/lib/gmbSession';
+import { sanitizeGmbDescription, resolveDefaultGmbCta } from '@/lib/gmbPostSanitize';
 import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
   matchesPostingWindow,
@@ -190,7 +191,7 @@ function isGalleryOnlyFailure(failList) {
  * nothing succeeded — that step is intermittent on freshly generated images.
  * Returns { ok, httpStatus, data }
  */
-async function postToGmb({ account, locationData, imageUrl, description, accessToken, postId, userId }, log) {
+async function postToGmb({ account, locationData, imageUrl, description, accessToken, postId, userId, cta = 'learn_more' }, log) {
   // ── Build payload for GMB publish — EXACT manual-flow shape ──────────────
   // Diagnostic proof: the SAME image fails with "Photo gallery upload failed"
   // when sent WITHOUT postId/userId (and with skipDbUpdate:true), but SUCCEEDS
@@ -203,11 +204,11 @@ async function postToGmb({ account, locationData, imageUrl, description, accessT
     locationData,          // [{ city, cityName, bookUrl, account }]
     output:      imageUrl || '',
     video_url:   '',
-    description,
+    description: sanitizeGmbDescription(description),
     accessToken: accessToken || '',
     checkmark:   'both',   // image attaches to the post AND the photo gallery
     post_type:   'standard',
-    cta:         'learn_more',
+    cta,                   // '' = no button (jab valid URL na ho)
     startDate:   '',
     endDate:     '',
     tittle:      '',
@@ -905,12 +906,23 @@ export async function GET(request) {
 
     // ── 9. Post to GMB (skip if dryRun) ──────────────────────────────────────
     const account      = loc0?.accountId || gmbProjectId || '';
-    const locationData = locations.map((loc) => ({
-      city:     loc.locationId,
-      cityName: loc.locality || loc.name || '',
-      bookUrl:  loc.websiteUrl || '',
-      account:  loc.accountId || account,
-    }));
+    // DEFAULT CTA = call_now — us business location ka apna phone use hota hai.
+    // Phone na ho to website→learn_more, warna koi button nahi. Isse post kabhi
+    // "Request contains an invalid argument" se fail nahi hota.
+    const { cta: gmbCta } = resolveDefaultGmbCta({
+      phone:   loc0?.primaryPhone,
+      website: loc0?.websiteUrl,
+    });
+    const locationData = locations.map((loc) => {
+      const perLoc = resolveDefaultGmbCta({ phone: loc.primaryPhone, website: loc.websiteUrl });
+      return {
+        city:     loc.locationId,
+        cityName: loc.locality || loc.name || '',
+        // call_now → phone; learn_more → website; warna khaali.
+        bookUrl:  perLoc.url,
+        account:  loc.accountId || account,
+      };
+    });
 
     if (dryRun) {
       slog.success('dryrun', `dryRun — image+text generated & saved pending _id=${savedPostId}; live posts skipped`);
@@ -931,7 +943,7 @@ export async function GET(request) {
       const GMB_RETRY_DELAY_MS = Math.max(1000, Number(process.env.AUTOMATION_GMB_RETRY_DELAY_MS) || 4000);
 
       for (let attempt = 1; attempt <= MAX_GMB_ATTEMPTS; attempt++) {
-        gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken, postId: savedPostId, userId: resolvedUserId }, log);
+        gmbResult = await postToGmb({ account, locationData, imageUrl, description: postText, accessToken, postId: savedPostId, userId: resolvedUserId, cta: gmbCta }, log);
 
         log(`GMB attempt ${attempt}/${MAX_GMB_ATTEMPTS}`, {
           ok: gmbResult.ok,

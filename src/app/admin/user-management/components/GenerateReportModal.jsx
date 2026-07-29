@@ -384,6 +384,11 @@ export default function GenerateReportModal({
           <BusinessAiAnalysisPanel
             analysis={aiAnalysis}
             analysedAt={aiAnalysedAt}
+            businessName={
+              selectedIdx != null
+                ? placeName(results[selectedIdx])
+                : businessName
+            }
             showToast={showToast}
           />
 

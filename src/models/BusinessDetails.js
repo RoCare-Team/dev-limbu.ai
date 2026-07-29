@@ -34,6 +34,27 @@ const aiAnalysisSchema = new mongoose.Schema(
     },
     estimatedMonthlyBudget: { type: String, default: "" },
 
+    /* ── Problem → Limbu solution mapping (agent ka main hathiyar) ─── */
+    problemSolutions: {
+      type: [
+        {
+          problem: { type: String, default: "" }, // business ki dikkat
+          evidence: { type: String, default: "" }, // Google data se proof
+          impact: { type: String, default: "" }, // isse business ko kya nuksaan
+          limbuFeatures: { type: [String], default: [] }, // catalog ke naam
+          howLimbuFixes: { type: String, default: "" }, // Limbu kaise theek karta hai
+          salesPitchLine: { type: String, default: "" }, // agent ye line bolega
+          priority: {
+            type: String,
+            enum: ["High", "Medium", "Low", ""],
+            default: "",
+          },
+          _id: false,
+        },
+      ],
+      default: [],
+    },
+
     /* ── What the agent actually pitches ───────────────────────────── */
     strengths: { type: [String], default: [] },
     weaknesses: { type: [String], default: [] },
@@ -55,13 +76,14 @@ const aiAnalysisSchema = new mongoose.Schema(
     recommendedServices: {
       type: [
         {
-          service: { type: String, default: "" },
+          problem: { type: String, default: "" }, // business ki dikkat
+          service: { type: String, default: "" }, // Limbu ka solution
           priority: {
             type: String,
             enum: ["High", "Medium", "Low", ""],
             default: "",
           },
-          reason: { type: String, default: "" },
+          reason: { type: String, default: "" }, // ye service kaise fix karegi
           _id: false,
         },
       ],

@@ -172,10 +172,12 @@ const WebsiteFooter = ({ data }) => {
               </div>
             </div>
 
-            <div className="flex items-center">
-              <Mail className="w-5 h-5 mr-3 shrink-0" style={{ color: theme.secondaryColor }} />
-              <p className="truncate" style={textMuted}>{business.email}</p>
-            </div>
+            {business.email && (
+              <div className="flex items-center">
+                <Mail className="w-5 h-5 mr-3 shrink-0" style={{ color: theme.secondaryColor }} />
+                <a href={`mailto:${business.email}`} className="truncate hover:text-white transition-colors" style={textMuted}>{business.email}</a>
+              </div>
+            )}
           </div>
         </div>
 

@@ -7,6 +7,7 @@ import {
   Star,
   ChevronDown,
   CheckCircle,
+  Download,
 } from "lucide-react";
 import { SiteAnimations } from "@/components/Siteclientcomponents";
 import NavBar from "@/components/websiteNavbar";
@@ -106,6 +107,12 @@ export default async function SitePage({ params }) {
       : []),
     { label: "Contact", href: "#contact" },
   ];
+
+  // ✅ PDF download button — enabled only for these slugs (and only if a pdf_uri exists)
+  const PDF_DOWNLOAD_SLUGS = ["the-great-top-10-gadgets-gautam-buddha-nagar"];
+  const pdfUri = PDF_DOWNLOAD_SLUGS.includes(slug)
+    ? aiContent?.pdf_uri || null
+    : null;
 
   // ✅ SEO: LocalBusiness JSON-LD (use saved schema, else generate on the fly)
   const schemaData =
@@ -212,6 +219,19 @@ export default async function SitePage({ params }) {
                   <MessageCircle className="w-5 h-5" />
                   WhatsApp
                 </a>
+                {pdfUri && (
+                  <a
+                    href={pdfUri}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex items-center gap-3 bg-white border-2 px-8 py-4 rounded-2xl font-bold text-lg transition-all transform hover:-translate-y-1"
+                    style={{ borderColor: secondary, color: secondary }}
+                  >
+                    <Download className="w-5 h-5" />
+                    Download PDF
+                  </a>
+                )}
               </div>
             </div>
 

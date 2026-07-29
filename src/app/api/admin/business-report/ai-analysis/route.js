@@ -4,6 +4,10 @@ import User from "@/models/User";
 import BusinessDetails, {
   buildBusinessDetailsDoc,
 } from "@/models/BusinessDetails";
+import {
+  LIMBU_SOLUTION_CATALOG_TEXT,
+  LIMBU_SOLUTION_NAMES,
+} from "@/lib/limbuSolutionCatalog";
 
 const MODEL = "gpt-4o-mini";
 const PROMPT_VERSION = "v2-hinglish";
@@ -62,6 +66,32 @@ Sirf ye fields fixed English values rakhenge (enum hain, translate mat karna):
 leadTemperature (Hot/Warm/Cold), businessSize (Micro/Small/Medium/Large),
 priority (High/Medium/Low), aur "service" ka naam.
 
+*** LIMBU AI KA PRODUCT CATALOG ***
+Solutions SIRF is list mein se choose karna hai. Koi aisa feature mat likhna jo
+is list mein nahi hai — agent ko galat product bech dega.
+${LIMBU_SOLUTION_CATALOG_TEXT}
+
+*** SABSE ZAROORI KAAM: problemSolutions ***
+Agent ko exact point chahiye: "business ki ye dikkat hai, Limbu AI isko aise
+solve karta hai". Google data mein jitni bhi problem dikhe, HAR problem ka ek
+entry banao (kam se kam 4, zyada se zyada 8). Har entry mein:
+- problem: dikkat kya hai, seedha aur simple
+- evidence: Google data se proof — asli number/fact likho (e.g. "rating 3.2 hai,
+  sirf 11 reviews", "koi photo nahi hai", "website field khaali hai")
+- impact: isse business ko kya nuksaan ho raha hai (customer kahan ja raha hai)
+- limbuFeatures: catalog se 1-2 feature ke EXACT naam
+- howLimbuFixes: Limbu wo feature se kaise theek karta hai, 1-2 line
+- salesPitchLine: agent call pe jo line bolega, ready-to-speak Hinglish
+- priority: High/Medium/Low
+
+Examples of the mapping style expected:
+- rating kam / negative reviews  → Magic QR + Review Management & Auto Reply
+- profile adhoora, photos nahi   → GMB Health Check + AI Image & Video Generation
+- posting consistency nahi       → Smart Scheduling & Post Automation + AI Post Generation
+- 'near me' pe rank nahi karte   → Keyword Planner + Local Rank Tracker
+- website nahi hai               → AI Website Builder
+- performance ka data nahi       → GMB Insights Report
+
 BUSINESS DATA:
 ${JSON.stringify(input, null, 2)}
 
@@ -88,6 +118,17 @@ Return ONLY valid JSON in exactly this shape (saari text values Hinglish mein):
   "businessCategory": "category Hinglish mein, e.g. 'Mobile shop'",
   "businessSize": "Micro|Small|Medium|Large",
   "estimatedMonthlyBudget": "e.g. 'Rs 5,000 - Rs 15,000 mahina'",
+  "problemSolutions": [
+    {
+      "problem": "dikkat, Hinglish",
+      "evidence": "Google data se asli proof, Hinglish",
+      "impact": "business ko kya nuksaan, Hinglish",
+      "limbuFeatures": ["catalog se exact feature naam"],
+      "howLimbuFixes": "Limbu kaise solve karta hai, Hinglish",
+      "salesPitchLine": "agent ye line bolega, Hinglish",
+      "priority": "High|Medium|Low"
+    }
+  ],
   "strengths": ["Hinglish points"],
   "weaknesses": ["Hinglish points"],
   "opportunities": ["Hinglish points"],
@@ -98,9 +139,10 @@ Return ONLY valid JSON in exactly this shape (saari text values Hinglish mein):
   ],
   "recommendedServices": [
     {
-      "service": "service ka naam (English)",
+      "problem": "business ki wo dikkat jo ye service theek karegi, Hinglish",
+      "service": "catalog se exact feature naam (English)",
       "priority": "High|Medium|Low",
-      "reason": "kyun, Hinglish mein"
+      "reason": "ye service us dikkat ko kaise fix karegi, Hinglish"
     }
   ],
   "pitchAngle": "is call ki strategy ek line mein, Hinglish",
@@ -140,6 +182,25 @@ function normaliseAnalysis(ai, { tokensUsed, generatedBy }) {
       contentQuality: score(ai?.scores?.contentQuality),
       competitiveness: score(ai?.scores?.competitiveness),
     },
+    problemSolutions: Array.isArray(ai?.problemSolutions)
+      ? ai.problemSolutions
+          .filter((p) => p?.problem)
+          .map((p) => ({
+            problem: p.problem || "",
+            evidence: p.evidence || "",
+            impact: p.impact || "",
+            // Drop any feature the model invented — agent ko sirf real
+            // Limbu products hi dikhne chahiye.
+            limbuFeatures: strList(p.limbuFeatures).filter((f) =>
+              LIMBU_SOLUTION_NAMES.includes(f),
+            ),
+            howLimbuFixes: p.howLimbuFixes || "",
+            salesPitchLine: p.salesPitchLine || "",
+            priority: ["High", "Medium", "Low"].includes(p.priority)
+              ? p.priority
+              : "",
+          }))
+      : [],
     businessCategory: ai?.businessCategory || "",
     businessSize: size,
     estimatedMonthlyBudget: ai?.estimatedMonthlyBudget || "",
@@ -160,6 +221,7 @@ function normaliseAnalysis(ai, { tokensUsed, generatedBy }) {
       ? ai.recommendedServices
           .filter((s) => s?.service)
           .map((s) => ({
+            problem: s.problem || "",
             service: s.service || "",
             priority: ["High", "Medium", "Low"].includes(s.priority)
               ? s.priority

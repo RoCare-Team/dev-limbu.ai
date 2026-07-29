@@ -296,8 +296,14 @@ export async function POST(request) {
           address:    loc.address    || '',
           locality:   loc.locality   || '',
           websiteUrl: loc.websiteUrl || '',
+          // Phone — GMB CALL button (default CTA) ke liye. Alag-alag shapes
+          // se aata hai, isliye sab try karte hain.
+          primaryPhone:
+            loc.primaryPhone ||
+            loc.phoneNumbers?.primaryPhone ||
+            loc.phone || '',
           isVerified: loc.isVerified || false,
-          
+
         }))
       : [];
 
@@ -695,6 +701,7 @@ export async function POST(request) {
             address:    l.address    || '',
             locality:   l.locality   || '',
             websiteUrl: l.websiteUrl || '',
+            primaryPhone: l.primaryPhone || '', // GMB CALL button (default CTA)
             isPosted:   false,
           }))
         : resolvedBusiness?.locationId

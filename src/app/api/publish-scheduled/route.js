@@ -10,6 +10,7 @@ import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
 import { getGmbConnection } from "@/lib/gmbSession";
 import GmbConnection from "@/models/GmbConnection";
+import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePhone } from "@/lib/gmbPostSanitize";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
 
@@ -408,14 +409,40 @@ export async function GET(req) {
 
     const now = new Date();
     const BATCH_SIZE = 25;
-    const candidates = await Post.find({
-      status: "scheduled",
-      scheduledDate: { $lte: now },
-    })
-      .sort({ scheduledDate: 1 })
-      .limit(BATCH_SIZE)
-      .select("_id")
-      .lean();
+
+    // ?postId=… → sirf us EK post ko publish karo (automation-logs ke "Publish"
+    // retry button ke liye). Failed / partial post ko wapas publish karne deta
+    // hai, chahe uski scheduledDate window nikal chuki ho.
+    const retryPostId = new URL(req.url).searchParams.get("postId")?.trim();
+    const RETRYABLE = ["scheduled", "failed", "partial_failed", "processing"];
+
+    let candidates;
+    if (retryPostId) {
+      const one = await Post.findById(retryPostId).select("_id status").lean();
+      if (!one) {
+        return NextResponse.json(
+          { success: false, error: "Post not found", postId: retryPostId },
+          { status: 404 },
+        );
+      }
+      if (!RETRYABLE.includes(one.status)) {
+        return NextResponse.json(
+          { success: false, error: `Post status "${one.status}" is not retryable`, postId: retryPostId },
+          { status: 409 },
+        );
+      }
+      candidates = [{ _id: one._id }];
+      log(`🔁 Manual retry for single post ${retryPostId} (status=${one.status})`);
+    } else {
+      candidates = await Post.find({
+        status: "scheduled",
+        scheduledDate: { $lte: now },
+      })
+        .sort({ scheduledDate: 1 })
+        .limit(BATCH_SIZE)
+        .select("_id")
+        .lean();
+    }
 
     if (!candidates.length) {
       return NextResponse.json({
@@ -440,8 +467,13 @@ export async function GET(req) {
     const run = createRunLogger({ phase: "publish-scheduled", trigger: "cron" });
 
     for (const candidate of candidates) {
+      // Manual retry: kisi bhi retryable status se claim karo. Normal cron:
+      // sirf "scheduled" (taaki do runs ek hi post double na karein).
+      const claimFilter = retryPostId
+        ? { _id: candidate._id, status: { $in: RETRYABLE } }
+        : { _id: candidate._id, status: "scheduled" };
       const post = await Post.findOneAndUpdate(
-        { _id: candidate._id, status: "scheduled" },
+        claimFilter,
         { status: "processing" },
         { new: true },
       );
@@ -765,6 +797,33 @@ export async function GET(req) {
                 continue;
 
               try {
+                // CTA decide karo. User ne choose kiya to wahi; warna DEFAULT
+                // call_now — us location ka apna phone. Phone/URL na mile to
+                // graceful fallback taaki Google "invalid argument" na de.
+                const chosenCta = isVideoSelection ? "learn_more" : gmbMeta.ctaType;
+                let safeCta, safeCtaUrl;
+                if (!chosenCta) {
+                  // Koi CTA nahi chuna → default call_now (phone) / fallback.
+                  ({ cta: safeCta, url: safeCtaUrl } = resolveDefaultGmbCta({
+                    phone: loc.primaryPhone,
+                    website: gmbMeta.customUrl || loc.websiteUrl,
+                  }));
+                } else if (chosenCta === "call_now") {
+                  safeCta = "call_now";
+                  safeCtaUrl = sanitizePhone(loc.primaryPhone);
+                  // Phone hi nahi to call button ka matlab nahi — fallback.
+                  if (!safeCtaUrl) {
+                    ({ cta: safeCta, url: safeCtaUrl } = resolveDefaultGmbCta({
+                      phone: "", website: gmbMeta.customUrl || loc.websiteUrl,
+                    }));
+                  }
+                } else {
+                  ({ cta: safeCta, url: safeCtaUrl } = resolveGmbCta(
+                    chosenCta,
+                    gmbMeta.customUrl || loc.websiteUrl || "",
+                  ));
+                }
+
                 const payload = {
                   postId: post._id.toString(), // ✅ added
                   userId: post.userId, // ✅ added
@@ -774,10 +833,7 @@ export async function GET(req) {
                       locationId: loc.locationId.replace(/^locations\//, ""), // ✅ add karo
                       city: loc.locationId.replace(/^locations\//, ""),
                       cityName: loc.locality || loc.city || "",
-                      bookUrl:
-                        !isVideoSelection && gmbMeta.ctaType === "call_now"
-                          ? loc.primaryPhone || ""
-                          : gmbMeta.customUrl || loc.websiteUrl || "",
+                      bookUrl: safeCtaUrl,
                       account: loc.accountId,
                     },
                   ],
@@ -785,7 +841,7 @@ export async function GET(req) {
                   video_url: isVideoSelection
                     ? post.videoOutput || post.aiOutput || ""
                     : "",
-                  description: post.gmbDescription || post.description || "",
+                  description: sanitizeGmbDescription(post.gmbDescription || post.description || ""),
                   accessToken,
                   checkmark: ["post", "photo", "both", "video"].includes(
                     post.checkmark,
@@ -795,9 +851,7 @@ export async function GET(req) {
                   post_type: isVideoSelection
                     ? "standard"
                     : gmbMeta.postType || "standard",
-                  cta: isVideoSelection
-                    ? "learn_more"
-                    : gmbMeta.ctaType || "book",
+                  cta: safeCta,
                   startDate: isVideoSelection
                     ? ""
                     : formatGmbDate(gmbMeta.startDate),

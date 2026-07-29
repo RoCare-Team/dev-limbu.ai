@@ -114,7 +114,7 @@ export default function FooterSection() {
                 rel="noopener noreferrer"
               >
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                  src="/images/badges/google-play-badge.svg"
                   alt="Google Play"
                   width={120}
                   height={40}
@@ -128,7 +128,7 @@ export default function FooterSection() {
                 rel="noopener noreferrer"
               >
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                  src="/images/badges/app-store-badge.svg"
                   alt="App Store"
                   width={110}
                   height={40}

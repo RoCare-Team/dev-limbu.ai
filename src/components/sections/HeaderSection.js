@@ -98,7 +98,7 @@ export default function Navbar() {
                       <sub.icon size={18} className="text-lemon-hover mt-0.5 shrink-0" />
                       <div>
                         <p className="text-sm font-bold text-black/80 group-hover/item:text-black transition-colors">{sub.name}</p>
-                        {sub.sub && <p className="text-[10px] text-black/40 font-medium leading-tight mt-0.5">{sub.sub}</p>}
+                        {sub.sub && <p className="text-[10px] text-black/60 font-medium leading-tight mt-0.5">{sub.sub}</p>}
                       </div>
                     </Link>
                   ))}
@@ -179,7 +179,7 @@ export default function Navbar() {
 
           {/* Mobile Resources Section */}
           <div className="flex flex-col gap-3 mt-2 border-t border-black/5 pt-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-black/30">GMB Mastery Guide</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-black/60">GMB Mastery Guide</p>
             <div className="grid grid-cols-1 gap-2">
               {resourceLinks.map((sub) => (
                 <Link
@@ -191,7 +191,7 @@ export default function Navbar() {
                   <sub.icon size={16} className="text-lemon-hover" />
                   <div>
                     <span>{sub.name}</span>
-                    {sub.sub && <p className="text-[9px] text-black/30 font-medium -mt-1">{sub.sub}</p>}
+                    {sub.sub && <p className="text-[9px] text-black/60 font-medium -mt-1">{sub.sub}</p>}
                   </div>
                 </Link>
               ))}

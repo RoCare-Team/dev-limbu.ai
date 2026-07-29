@@ -105,7 +105,7 @@ export default function FooterSection() {
                 rel="noopener noreferrer"
               >
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg"
+                  src="/images/badges/google-play-badge.svg"
                   alt="Play Store"
                   width={140}
                   height={42}
@@ -118,7 +118,7 @@ export default function FooterSection() {
                 rel="noopener noreferrer"
               >
                 <Image
-                  src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Download_on_the_App_Store_Badge.svg"
+                  src="/images/badges/app-store-badge.svg"
                   alt="App Store"
                   width={125}
                   height={42}
@@ -217,11 +217,13 @@ export default function FooterSection() {
 
         {/* ── Bottom Bar ── */}
         <div className="flex flex-col md:flex-row justify-between items-center pt-8 border-t border-slate-200 gap-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          {/* slate-400 (#94a3b8) footer ke #fafafa background par sirf ~2.5:1 deta
+              tha — WCAG AA fail. slate-600 par 6.8:1 milta hai. */}
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">
             © {currentYear} Limbu.ai. Built for Local Growth.
           </p>
 
-          <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
+          <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-[0.15em] text-slate-600">
             <Link
               href="/privacy-policy"
               className="hover:text-[#EAB308] transition-colors"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -9,6 +9,7 @@ import {
   Building2,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Clock,
   Copy,
@@ -21,12 +22,14 @@ import {
   Loader2,
   MinusCircle,
   RefreshCw,
+  RotateCw,
   Search,
   Send,
   SkipForward,
   Sparkles,
   User as UserIcon,
   UserCog,
+  X,
   XCircle,
 } from "lucide-react";
 
@@ -222,6 +225,71 @@ function UrlCopyRow({ text }) {
   );
 }
 
+// ─── republish (retry) button — failed publishes ko ek click me dobara post karo ──
+function RepublishButton({ postId, onDone }) {
+  const [state, setState] = useState("idle"); // idle | busy | ok | err
+  const [msg, setMsg] = useState("");
+  if (!postId) return null;
+
+  const run = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (state === "busy") return;
+    setState("busy");
+    setMsg("");
+    try {
+      const res = await fetch(`/api/publish-scheduled?postId=${encodeURIComponent(postId)}`, {
+        cache: "no-store",
+      });
+      const data = await res.json();
+      const posted = data?.stats?.posted ?? 0;
+      const failed = data?.stats?.failed ?? 0;
+      if (res.ok && posted > 0 && failed === 0) {
+        setState("ok");
+        setMsg("Published ✓");
+      } else if (res.ok && posted > 0) {
+        setState("ok");
+        setMsg("Partially published");
+      } else {
+        setState("err");
+        setMsg(data?.error || "Still failing — check error");
+      }
+      setTimeout(() => onDone && onDone(), 900);
+    } catch (err) {
+      setState("err");
+      setMsg(err.message || "Network error");
+    }
+  };
+
+  const skin =
+    state === "ok"
+      ? { btn: "border-emerald-200 bg-emerald-50 text-emerald-700", msg: "text-emerald-700", Icon: Check, text: "Retried" }
+      : state === "err"
+      ? { btn: "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100", msg: "text-rose-700", Icon: RotateCw, text: "Try again" }
+      : state === "busy"
+      ? { btn: "border-emerald-600 bg-emerald-600 text-white", msg: "text-slate-500", Icon: Loader2, text: "Publishing…" }
+      : { btn: "border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.98]", msg: "text-slate-500", Icon: RotateCw, text: "Publish now" };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={run}
+        disabled={state === "busy"}
+        title="Is post ko dobara publish karo — already posted locations skip ho jayenge"
+        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[11.5px] font-extrabold leading-none transition disabled:cursor-wait ${skin.btn}`}
+      >
+        <skin.Icon className={`h-3.5 w-3.5 ${state === "busy" ? "animate-spin" : ""}`} />
+        {skin.text}
+      </button>
+      {msg && <span className={`text-[11px] font-bold ${skin.msg}`}>{msg}</span>}
+      {state === "idle" && (
+        <span className="text-[11px] text-slate-400">Already posted locations skip honge</span>
+      )}
+    </div>
+  );
+}
+
 // ─── small components ───────────────────────────────────────────────────────
 function StatCard({ label, value, Icon, tone, active, onClick }) {
   return (
@@ -292,7 +360,13 @@ function StepRow({ s }) {
   );
 }
 
-function LogCard({ log, expanded, onToggle }) {
+// Failed publish (GMB/FB/IG) jise dobara publish kiya ja sakta hai.
+const PUBLISH_PHASES = ["publish", "publish-scheduled"];
+function canRepublish(log) {
+  return !!log.postId && log.outcome === "failed" && PUBLISH_PHASES.includes(log.phase);
+}
+
+function LogCard({ log, expanded, onToggle, onDone }) {
   const oc = OUTCOME[log.outcome] || OUTCOME.unknown;
   const failStep = (log.steps || []).find((s) => s.status === "fail");
   const mgr = log.accountManagerName;
@@ -425,6 +499,14 @@ function LogCard({ log, expanded, onToggle }) {
             </div>
           )}
 
+          {/* Failed publish → ek click me dobara publish karo. Already-posted
+              locations skip hote hain, sirf failed target retry hota hai. */}
+          {canRepublish(log) && (
+            <div className="mt-3">
+              <RepublishButton postId={log.postId} onDone={onDone} />
+            </div>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {log.userId && <CopyBtn value={log.userId} label="userId" title={`Copy userId: ${log.userId}`} />}
             {log.runId && <CopyBtn value={log.runId} label="runId" title={`Copy runId: ${log.runId}`} />}
@@ -483,6 +565,118 @@ function MgrBtn({ id, label, count, avatar, active, onClick }) {
   );
 }
 
+// Searchable business dropdown — manager ke andar ka business chunne ke liye.
+function BusinessPicker({ value, options, allCount, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [hi, setHi] = useState(0);
+  const boxRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const items = useMemo(() => {
+    const list = [{ name: "all", label: "All businesses", count: allCount }]
+      .concat(options.map((o) => ({ name: o.name, label: o.name, count: o.count })));
+    const needle = q.trim().toLowerCase();
+    return needle ? list.filter((i) => i.name === "all" || i.label.toLowerCase().includes(needle)) : list;
+  }, [options, allCount, q]);
+
+  // bahar click / Esc pe band
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  useEffect(() => {
+    if (open) { setQ(""); setHi(0); setTimeout(() => inputRef.current?.focus(), 0); }
+  }, [open]);
+
+  useEffect(() => { setHi(0); }, [q]);
+
+  const pick = (name) => { onChange(name); setOpen(false); };
+
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setHi((i) => Math.min(i + 1, items.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHi((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter") { e.preventDefault(); if (items[hi]) pick(items[hi].name); }
+  };
+
+  const selected = value === "all" ? null : options.find((o) => o.name === value);
+
+  return (
+    <div ref={boxRef} className="relative min-w-60 flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center gap-2 rounded-lg border bg-white py-2 pl-3 pr-2 text-left text-[13px] font-semibold transition
+          ${open ? "border-slate-300 ring-2 ring-slate-900/5" : "border-slate-200 hover:border-slate-300"}`}
+      >
+        <Building2 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <span className={`flex-1 truncate ${selected ? "text-slate-800" : "text-slate-400"}`}>
+          {selected ? selected.name : "All businesses"}
+        </span>
+        <span className="rounded-full bg-slate-100 px-2 py-px text-[11px] font-bold text-slate-500">
+          {selected ? selected.count : allCount}
+        </span>
+        {value !== "all" && (
+          <span
+            role="button"
+            tabIndex={-1}
+            title="Clear"
+            onClick={(e) => { e.stopPropagation(); onChange("all"); }}
+            className="rounded-full p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X className="h-3.5 w-3.5" />
+          </span>
+        )}
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+          <div className="relative border-b border-slate-100 p-2">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              ref={inputRef}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={onKeyDown}
+              placeholder="Business name search karo…"
+              className="w-full rounded-lg bg-slate-50 py-2 pl-8 pr-3 text-[13px] outline-none placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-900/5"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto py-1">
+            {items.length === 0 ? (
+              <div className="px-3 py-6 text-center text-[12.5px] text-slate-400">Koi business nahi mila</div>
+            ) : items.map((it, i) => {
+              const active = value === it.name;
+              return (
+                <button
+                  key={it.name}
+                  type="button"
+                  onMouseEnter={() => setHi(i)}
+                  onClick={() => pick(it.name)}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition
+                    ${i === hi ? "bg-slate-50" : ""} ${active ? "font-bold text-slate-900" : "font-medium text-slate-600"}`}
+                >
+                  {active
+                    ? <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                    : <span className="h-3.5 w-3.5 shrink-0" />}
+                  <span className="flex-1 truncate">{it.label}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-px text-[11px] font-bold text-slate-500">{it.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── page ───────────────────────────────────────────────────────────────────
 export default function AutomationLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -491,6 +685,7 @@ export default function AutomationLogsPage() {
   const [err, setErr] = useState("");
   const [tab, setTab] = useState("automation"); // automation | manual
   const [manager, setManager] = useState("all"); // "all" | manager name | "Unassigned"
+  const [business, setBusiness] = useState("all"); // "all" | business name
   const [outcome, setOutcome] = useState("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(null);
@@ -554,20 +749,44 @@ export default function AutomationLogsPage() {
       : tabLogs.filter((l) => (l.accountManagerName || "Unassigned") === manager)
   ), [tabLogs, manager]);
 
-  const stats = useMemo(() => {
-    const s = { total: managerLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 };
+  // Selected manager ke under aane wale businesses hi dropdown me dikhte hain.
+  const businessOptions = useMemo(() => {
+    const counts = new Map();
     managerLogs.forEach((l) => {
+      const name = l.businessName || "(no business name)";
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [managerLogs]);
+
+  // Manager/source badla aur wo business yahan hai hi nahi → "all" pe reset.
+  useEffect(() => {
+    if (business !== "all" && !businessOptions.some((b) => b.name === business)) setBusiness("all");
+  }, [businessOptions, business]);
+
+  // Manager + business dono lag chuke — yahi set stats aur list dono chalata hai.
+  const scopedLogs = useMemo(() => (
+    business === "all"
+      ? managerLogs
+      : managerLogs.filter((l) => (l.businessName || "(no business name)") === business)
+  ), [managerLogs, business]);
+
+  const stats = useMemo(() => {
+    const s = { total: scopedLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 };
+    scopedLogs.forEach((l) => {
       s[l.outcome] = (s[l.outcome] || 0) + 1;
       const kind = failKind(l);
       if (kind === "publish") s.failPublish += 1;
       else if (kind === "generate") s.failGenerate += 1;
     });
     return s;
-  }, [managerLogs]);
+  }, [scopedLogs]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return managerLogs.filter((l) => {
+    return scopedLogs.filter((l) => {
       if (outcome === "failed-publish") { if (failKind(l) !== "publish") return false; }
       else if (outcome === "failed-generate") { if (failKind(l) !== "generate") return false; }
       else if (outcome !== "all" && l.outcome !== outcome) return false;
@@ -577,7 +796,14 @@ export default function AutomationLogsPage() {
       }
       return true;
     });
-  }, [managerLogs, outcome, search]);
+  }, [scopedLogs, outcome, search]);
+
+  // Manager badla to business selection bhi reset — nayi list ka apna scope hai.
+  const pickManager = useCallback((name) => {
+    setManager(name);
+    setBusiness("all");
+    setExpanded(null);
+  }, []);
 
   const successRate = stats.total ? Math.round((stats.success / stats.total) * 100) : 0;
 
@@ -634,7 +860,7 @@ export default function AutomationLogsPage() {
               <UserCog className="h-3 w-3" /> Account manager
             </div>
             <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <MgrBtn id="all" label="All" count={tabLogs.length} avatar={<ListFilter className="h-3 w-3" />} active={manager === "all"} onClick={setManager} />
+              <MgrBtn id="all" label="All" count={tabLogs.length} avatar={<ListFilter className="h-3 w-3" />} active={manager === "all"} onClick={pickManager} />
               {managerTabs.map((m) => (
                 <MgrBtn
                   key={m.name}
@@ -643,10 +869,26 @@ export default function AutomationLogsPage() {
                   count={m.count}
                   avatar={m.name === "Unassigned" ? <UserIcon className="h-3 w-3" /> : initials(m.name)}
                   active={manager === m.name}
-                  onClick={setManager}
+                  onClick={pickManager}
                 />
               ))}
             </div>
+
+            {/* selected manager ke under ka business — "All" ya koi ek (searchable) */}
+            {businessOptions.length > 0 && (
+              <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-100 bg-white p-2.5 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-400">
+                  <Building2 className="h-3 w-3" />
+                  {manager === "all" ? "Business" : `${manager} ka business`}
+                </span>
+                <BusinessPicker
+                  value={business}
+                  options={businessOptions}
+                  allCount={managerLogs.length}
+                  onChange={(v) => { setBusiness(v); setExpanded(null); }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -710,6 +952,7 @@ export default function AutomationLogsPage() {
             {filtered.length} log{filtered.length !== 1 ? "s" : ""}
             {outcome !== "all" ? ` · ${OUTCOME_LABEL[outcome] || outcome}` : ""}
             {manager !== "all" ? ` · ${manager}` : ""}
+            {business !== "all" ? ` · ${business}` : ""}
           </span>
           {lastLoaded && (
             <span className="inline-flex items-center gap-1">
@@ -755,6 +998,7 @@ export default function AutomationLogsPage() {
                   log={log}
                   expanded={isOpen}
                   onToggle={() => setExpanded(isOpen ? null : key)}
+                  onDone={load}
                 />
               );
             })}

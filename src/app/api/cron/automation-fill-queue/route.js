@@ -202,6 +202,7 @@ export async function GET() {
           address:    l.address    || '',
           locality:   l.locality   || '',
           websiteUrl: l.websiteUrl || '',
+          primaryPhone: l.primaryPhone || '', // GMB CALL button (default CTA)
           isPosted:   false,
         })),
         fbPages: platformsForPost.includes('fb') && Array.isArray(plan.fbPages)

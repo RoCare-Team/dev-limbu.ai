@@ -1,5 +1,14 @@
-"use client";
-import React, { useState, lazy } from "react";
+/**
+ * Ye template pehle `"use client"` tha, isliye hero, ROI, benefits, timeline,
+ * comparison, CTA aur stats — saari static sections client bundle me jaakar
+ * hydrate hoti thi, jabki inme ek bhi hook ya handler nahi hai. Wahi TBT khaa
+ * raha tha.
+ *
+ * Ab ye server component hai. Jinhe interactivity chahiye (ImageGallery,
+ * VideoGallery, FAQ, Navbar, Footer) unke paas apna `"use client"` pehle se hai,
+ * to woh waise hi kaam karti hain.
+ */
+import React from "react";
 import { Star, Zap, Search, Sparkles, MessageSquare } from "lucide-react";
 import FooterSection from "@/components/sections/FooterSection";
 import Navbar from "./sections/HeaderSection";
@@ -8,9 +17,6 @@ import IndustryFAQSection from "@/components/sections/industry/IndustryFAQSectio
 import ExamplesSection from "@/components/sections/ExamplesSection";
 import IndustryComparisonSection from "@/components/sections/industry/IndustryComparisonSection";
 import VideoExamplesSection from "@/components/sections/VideoExamplesSection";
-
-// Lazy load the ImageModal for performance
-const ImageModal = lazy(() => import("@/components/modals/ImageModal"));
 
 // Import pure specific sections
 import IndustryHeroSection from "@/components/sections/industry/IndustryHeroSection";
@@ -34,8 +40,6 @@ export default function IndustryLandingTemplate({
   postImages = [],
   videoExamples = [],
 }) {
-  const [selectedImage, setSelectedImage] = useState(null);
-
   // Generate dynamic steps if no custom howItWorks is provided
   const displaySteps = howItWorks || [
     {
@@ -88,7 +92,7 @@ export default function IndustryLandingTemplate({
           heroimage2={heroimage2}
         />
 
-        <ExamplesSection postImages={postImages} setSelectedImage={setSelectedImage} />
+        <ExamplesSection postImages={postImages} />
 
         <VideoExamplesSection videoExamples={videoExamples} />
 
@@ -122,13 +126,9 @@ export default function IndustryLandingTemplate({
         />
       </main>
 
+      {/* ImageModal yahan se hata diya: iski state kabhi set hi nahi hoti thi
+          (ImageGallery apna modal khud manage karta hai), to ye dead code tha. */}
       <FooterSection />
-      {selectedImage && (
-        <ImageModal
-          selectedImage={selectedImage}
-          setSelectedImage={setSelectedImage}
-        />
-      )}
     </div>
   );
 }

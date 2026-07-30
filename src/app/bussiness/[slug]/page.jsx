@@ -133,5 +133,5 @@ export default async function Page({ params }) {
     notFound();
   }
 
-  return <FranchisePage params={params} />;
+  return <FranchisePage slug={slug} cityName={cityName} />;
 }

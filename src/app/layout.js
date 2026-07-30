@@ -47,8 +47,20 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
         />
 
-        {/* Google Tag Manager - Using Next.js Script Component */}
-        <Script id="gtm-script" strategy="afterInteractive">
+        {/*
+          GTM aur Facebook Pixel dono pehle `afterInteractive` par the, yaani
+          hydration ke turant baad main thread par chalte the — TBT (~400ms) aur
+          INP (420ms, "poor") ka sabse bada hissa yahi tha.
+
+          Ab `lazyOnload`: browser ke `load` event ke baad, idle time me. Critical
+          path se poori tarah bahar.
+
+          Trade-off jaan lena zaroori hai: PageView ab thoda der se fire hota hai,
+          to jo visitor ~1-2s me hi bounce kar jaate hain woh analytics me miss ho
+          sakte hain. Conversion tracking (form submit, payment) par koi asar nahi
+          — woh events user ke rukne par hi hote hain.
+        */}
+        <Script id="gtm-script" strategy="lazyOnload">
           {`
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -59,7 +71,7 @@ export default function RootLayout({ children }) {
         </Script>
 
         {/* Facebook Pixel - Using Next.js Script Component */}
-        <Script id="fb-pixel" strategy="afterInteractive">
+        <Script id="fb-pixel" strategy="lazyOnload">
           {`
             !function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?

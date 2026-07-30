@@ -3766,6 +3766,9 @@ export default function FranchiseLeadsPage() {
                     </div>
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Contact
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                       Date
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
@@ -3791,9 +3794,6 @@ export default function FranchiseLeadsPage() {
                     Assign To
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                    Contact
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     WhatsApp
                   </th>
 
@@ -3811,6 +3811,9 @@ export default function FranchiseLeadsPage() {
                       Investment
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
                     </div>
+                  </th>
+                  <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Edit
                   </th>
                 </tr>
               </thead>
@@ -3870,6 +3873,9 @@ export default function FranchiseLeadsPage() {
                             <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
                             <Banknote className="w-3.5 h-3.5 text-transparent" />
                           </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="w-6 h-6 bg-gray-200 rounded mx-auto animate-pulse" />
                         </td>
                       </tr>
                     ))}
@@ -3995,23 +4001,6 @@ export default function FranchiseLeadsPage() {
                                   )}
                                 </span>
                               )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingLeadId(lead.id);
-                                  setEditNameValue(
-                                    lead.full_name || lead.fullName || "",
-                                  );
-                                }}
-                                className="p-1 hover:bg-gray-100 rounded transition-colors"
-                                title="Edit Name"
-                                type="button"
-                              >
-                                <Edit3
-                                  size={14}
-                                  className="text-gray-400 hover:text-blue-600"
-                                />
-                              </button>
                               {leadRevenueStatus[lead.id] && (
                                 <button
                                   onClick={(e) => {
@@ -4057,6 +4046,18 @@ export default function FranchiseLeadsPage() {
                                 </option>
                               ))}
                             </select>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                              <Phone className="w-3.5 h-3.5 text-gray-400" />
+                              {lead.phone_number || "-"}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                              <Mail className="w-3.5 h-3.5 text-gray-400" />
+                              {lead.email || "-"}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -4252,18 +4253,6 @@ export default function FranchiseLeadsPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                              <Phone className="w-3.5 h-3.5 text-gray-400" />
-                              {lead.phone_number || "-"}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                              <Mail className="w-3.5 h-3.5 text-gray-400" />
-                              {lead.email || "-"}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <div className="relative group cursor-pointer">
                               <div
@@ -4298,6 +4287,27 @@ export default function FranchiseLeadsPage() {
                               {lead.mention_investment_rang || "-"}
                             </span>
                           </div>
+                        </td>
+                        <td className="px-4 py-4 text-center whitespace-nowrap">
+                          {editingLeadId !== lead.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingLeadId(lead.id);
+                                setEditNameValue(
+                                  lead.full_name || lead.fullName || "",
+                                );
+                              }}
+                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              title="Edit Name"
+                              type="button"
+                            >
+                              <Edit3
+                                size={14}
+                                className="text-gray-400 hover:text-blue-600"
+                              />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );

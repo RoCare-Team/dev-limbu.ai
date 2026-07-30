@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/dbConnect";
+import { pickAgentForLead } from "@/lib/leadAgentAssign";
 import {
   fetchAllDemoBookings,
   getDemoBookingModel,
@@ -45,38 +46,8 @@ function getAgentPhone(agent) {
 // phir last assigned user ke agent ke baad wala do.
 // -------------------------
 async function getNextAgent() {
-  const agents = await Admin.find({
-    role: "agent",
-    isActive: true,
-  }).sort({ createdAt: 1 });
-
-  if (!agents.length) return null;
-
-  // Sabse recent assigned user dhundo
-  const lastAssignedUser = await User.findOne({
-    assignedAgentId: { $ne: null },
-  })
-    .sort({ createdAt: -1 })
-    .select("assignedAgentId");
-
-  // Koi user assign nahi hua abhi tak → pehla agent do
-  if (!lastAssignedUser) {
-    console.log(`Round Robin → First agent: ${agents[0].fullName}`);
-    return agents[0];
-  }
-
-  const currentIndex = agents.findIndex(
-    (a) => a._id.toString() === lastAssignedUser.assignedAgentId?.toString(),
-  );
-
-  if (currentIndex === -1) {
-    console.warn("Last agent active list mein nahi mila → agents[0] pe reset");
-    return agents[0];
-  }
-
-  const nextIndex = (currentIndex + 1) % agents.length;
-  console.log(`Round Robin → Next agent: ${agents[nextIndex].fullName}`);
-  return agents[nextIndex];
+  // Least-loaded assignment — dekho lib/leadAgentAssign.js
+  return pickAgentForLead();
 }
 
 // -------------------------

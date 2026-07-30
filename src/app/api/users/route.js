@@ -14,6 +14,7 @@ import {
   fetchLimbuBotAdminUsers,
 } from "@/lib/limbuBotUserSync";
 import { META_LEAD_TAG_KEYS } from "@/lib/metaFormLeadsConfig";
+import { getActiveAgents, pickAgentForLead } from "@/lib/leadAgentAssign";
 
 /** User.source values that count as Meta / instant-form leads (not site signup). */
 const META_LEAD_SOURCES = [
@@ -441,33 +442,21 @@ export async function POST(req) {
     }
 
     // 1️⃣ Fetch ONLY active agents
-    const agents = await Admin.find({ role: "agent", isActive: true })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean();
+    const agents = await getActiveAgents();
 
     let assignedAgentId = null;
-    let rrValue = 0;
     let assignedAgent = null;
 
     if (agents && agents.length > 0) {
-      // 2️⃣ Round Robin Counter
-      const RR_KEY = "agentLeadRR";
-
-      const rrDoc = await bumpAgentRoundRobin(RR_KEY);
-
-      rrValue = parseInt(rrDoc?.value, 10);
-      if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-      // 3️⃣ Round robin index
-      const index = rrValue % agents.length;
-      assignedAgent = agents[index];
       console.log(
         "[RR] activeAgents:",
         agents
           .map((a) => `${a._id}:${a.fullName || a.name || a.email}`)
           .join(" | "),
       );
-      console.log("[RR] rrValue:", rrValue, "index:", index);
+
+      // 2️⃣ Least-loaded agent (24h window) — dekho leadAgentAssign.js
+      assignedAgent = await pickAgentForLead(agents);
       if (assignedAgent) {
         assignedAgentId = assignedAgent._id;
       }
@@ -494,7 +483,6 @@ export async function POST(req) {
             name: assignedAgent.fullName || assignedAgent.name,
           }
         : null,
-      rrIndex: rrValue,
       totalAgents: agents ? agents.length : 0,
       user,
     });

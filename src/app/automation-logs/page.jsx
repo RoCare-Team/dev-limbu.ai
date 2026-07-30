@@ -18,6 +18,7 @@ import {
   Image as ImageIcon,
   Info,
   KeyRound,
+  Layers,
   ListFilter,
   Loader2,
   MinusCircle,
@@ -29,6 +30,7 @@ import {
   Sparkles,
   User as UserIcon,
   UserCog,
+  Wrench,
   X,
   XCircle,
 } from "lucide-react";
@@ -56,18 +58,48 @@ const PHASE_LABEL = {
 
 // Fail do tarah ka hota hai — content ban hi nahi paaya (fill-queue), ya
 // content ban gaya par publish nahi hua (publish / publish-scheduled).
-const isGeneratePhase = (log) => log?.phase === "fill-queue";
-const failKind = (log) => (log?.outcome !== "failed" ? null : isGeneratePhase(log) ? "generate" : "publish");
+// Phase se pata nahi chalta — `publish` phase ke andar content generation bhi
+// hota hai aur publishing bhi. Isliye failed step ke naam se decide karte hain.
+const GENERATE_STEP_RE = /^(content:|queue:generate|image:|caption:)/i;
+const PUBLISH_STEP_RE = /^(publish:|done:(partial|failed))/i;
+function failKind(log) {
+  if (log?.outcome !== "failed") return null;
+  const failed = (log.steps || []).filter((s) => s.status === "fail").map((s) => s.name || "");
+  if (failed.some((n) => GENERATE_STEP_RE.test(n))) return "generate";
+  if (failed.some((n) => PUBLISH_STEP_RE.test(n))) return "publish";
+  if (failed.length) return "other";           // config: / token: / db: / notify:
+  return log.phase === "fill-queue" ? "generate" : "publish"; // step detail hi nahi
+}
+// Post kaise queue hua — user ne Post Management se khud banaya (manual) ya
+// automation plan ne khud generate kiya (automation).
+const SOURCE_TAG = {
+  manual: {
+    label: "Manual",
+    hint: "User ne Post Management se khud banaya",
+    Icon: Hand,
+    className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  },
+  automation: {
+    label: "Automation",
+    hint: "Automation plan ne khud generate kiya",
+    Icon: Bot,
+    className: "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  },
+};
+const sourceTag = (log) => SOURCE_TAG[log?.source === "manual" ? "manual" : "automation"];
+
 const OUTCOME_LABEL = {
   success: "success",
   failed: "failed (all)",
   skipped: "skipped",
   "failed-publish": "publish fail",
   "failed-generate": "generate fail",
+  "failed-other": "setup fail",
 };
 const FAIL_KIND = {
-  generate: { label: "Generation failed", short: "Content generate nahi hua", className: "bg-orange-50 text-orange-700 ring-orange-200", Icon: Sparkles },
+  generate: { label: "Generation failed", short: "Content generate hi nahi hua", className: "bg-orange-50 text-orange-700 ring-orange-200", Icon: Sparkles },
   publish: { label: "Publish failed", short: "Content bana, publish nahi hua", className: "bg-rose-50 text-rose-700 ring-rose-200", Icon: Send },
+  other: { label: "Setup failed", short: "Config/token/DB issue — generate se pehle ruk gaya", className: "bg-slate-100 text-slate-600 ring-slate-200", Icon: Wrench },
 };
 
 function timeAgo(d) {
@@ -128,6 +160,7 @@ async function copyText(text) {
 function buildTrail(log) {
   const L = [];
   L.push(`[${(log.outcome || "unknown").toUpperCase()}] ${PHASE_LABEL[log.phase] || log.phase || "-"}`);
+  L.push(`source: ${log.source === "manual" ? "manual (user ne banaya)" : "automation"}`);
   L.push(`userId: ${log.userId || "-"}`);
   if (log.accountManagerName) L.push(`manager: ${log.accountManagerName}`);
   if (log.businessName) L.push(`business: ${log.businessName}${log.locality ? ` (${log.locality})` : ""}`);
@@ -372,6 +405,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
   const mgr = log.accountManagerName;
   const kind = failKind(log);
   const fk = kind ? FAIL_KIND[kind] : null;
+  const st = sourceTag(log);
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white transition-all
       ${expanded ? `border-transparent ring-1 ${oc.ring} shadow-md` : "border-slate-100 shadow-sm hover:border-slate-200 hover:shadow-md"}`}>
@@ -385,6 +419,11 @@ function LogCard({ log, expanded, onToggle, onDone }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${oc.dot}`} />
           <span className={`text-[13px] font-extrabold ${oc.text}`}>{oc.label}</span>
+          <span title={st.hint}>
+            <Chip className={st.className}>
+              <st.Icon className="h-3 w-3" />{st.label}
+            </Chip>
+          </span>
           {fk && (
             <Chip className={fk.className}>
               <fk.Icon className="h-3 w-3" />{fk.label}
@@ -442,7 +481,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
 
         {!expanded && failStep && (
           <div className={`flex items-center gap-1.5 overflow-hidden truncate rounded-lg px-2.5 py-1.5 text-xs ring-1 ring-inset
-            ${kind === "generate" ? "bg-orange-50 text-orange-700 ring-orange-200" : "bg-rose-50 text-rose-700 ring-rose-200"}`}>
+            ${fk?.className || "bg-rose-50 text-rose-700 ring-rose-200"}`}>
             <XCircle className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{failStep.name}: {failStep.error || failStep.message}</span>
           </div>
@@ -514,7 +553,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
             <CopyBtn value={buildTrail(log)} label="Copy full trail" tone="text-slate-900" title="Copy the whole step-by-step trail as text" />
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            {fmtTime(log.createdAt)} · runId {String(log.runId || "").slice(-10)}
+            {fmtTime(log.createdAt)} · {st.hint} · runId {String(log.runId || "").slice(-10)}
           </div>
         </div>
       )}
@@ -720,6 +759,7 @@ export default function AutomationLogsPage() {
   }, [auto, load]);
 
   const bySource = useMemo(() => ({
+    all: logs,
     automation: logs.filter((l) => l.source !== "manual"),
     manual: logs.filter((l) => l.source === "manual"),
   }), [logs]);
@@ -774,12 +814,13 @@ export default function AutomationLogsPage() {
   ), [managerLogs, business]);
 
   const stats = useMemo(() => {
-    const s = { total: scopedLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 };
+    const s = { total: scopedLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0, failOther: 0 };
     scopedLogs.forEach((l) => {
       s[l.outcome] = (s[l.outcome] || 0) + 1;
       const kind = failKind(l);
       if (kind === "publish") s.failPublish += 1;
       else if (kind === "generate") s.failGenerate += 1;
+      else if (kind === "other") s.failOther += 1;
     });
     return s;
   }, [scopedLogs]);
@@ -789,6 +830,7 @@ export default function AutomationLogsPage() {
     return scopedLogs.filter((l) => {
       if (outcome === "failed-publish") { if (failKind(l) !== "publish") return false; }
       else if (outcome === "failed-generate") { if (failKind(l) !== "generate") return false; }
+      else if (outcome === "failed-other") { if (failKind(l) !== "other") return false; }
       else if (outcome !== "all" && l.outcome !== outcome) return false;
       if (q) {
         const hay = `${l.userId || ""} ${l.businessName || ""} ${l.keyword || ""} ${l.postId || ""} ${l.accountManagerName || ""}`.toLowerCase();
@@ -849,6 +891,7 @@ export default function AutomationLogsPage() {
 
         {/* tabs */}
         <div className="mb-3 flex gap-2">
+          <TabBtn id="all" label="All" Icon={Layers} count={bySource.all.length} active={tab === "all"} onClick={(id) => { setTab(id); setExpanded(null); }} />
           <TabBtn id="automation" label="Automation" Icon={Bot} count={bySource.automation.length} active={tab === "automation"} onClick={(id) => { setTab(id); setExpanded(null); }} />
           <TabBtn id="manual" label="Manual" Icon={Hand} count={bySource.manual.length} active={tab === "manual"} onClick={(id) => { setTab(id); setExpanded(null); }} />
         </div>
@@ -904,6 +947,10 @@ export default function AutomationLogsPage() {
             tone={{ value: "text-rose-600", chip: "bg-rose-50 text-rose-600", border: "border-rose-400", glow: "ring-2 ring-rose-500/15" }} />
           <StatCard label="Generate fail" value={stats.failGenerate} Icon={Sparkles} active={outcome === "failed-generate"} onClick={() => setOutcome("failed-generate")}
             tone={{ value: "text-orange-600", chip: "bg-orange-50 text-orange-600", border: "border-orange-400", glow: "ring-2 ring-orange-500/15" }} />
+          {stats.failOther > 0 && (
+            <StatCard label="Setup fail" value={stats.failOther} Icon={Wrench} active={outcome === "failed-other"} onClick={() => setOutcome("failed-other")}
+              tone={{ value: "text-slate-700", chip: "bg-slate-100 text-slate-500", border: "border-slate-400", glow: "ring-2 ring-slate-500/10" }} />
+          )}
           <StatCard label="Skipped" value={stats.skipped} Icon={SkipForward} active={outcome === "skipped"} onClick={() => setOutcome("skipped")}
             tone={{ value: "text-amber-600", chip: "bg-amber-50 text-amber-600", border: "border-amber-400", glow: "ring-2 ring-amber-500/15" }} />
         </div>

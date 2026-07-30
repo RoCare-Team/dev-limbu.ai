@@ -37,6 +37,7 @@ import User             from '@/models/User';
 import Post             from '@/models/PostStatus';
 import AutomationPlan   from '@/models/AutomationPlan';
 import { resolveGmbAccessToken } from '@/lib/gmbSession';
+import { warmImageUrl, isGalleryOnlyFailure, sleep } from '@/lib/gmbMedia';
 import { sanitizeGmbDescription, resolveDefaultGmbCta } from '@/lib/gmbPostSanitize';
 import { getPlanPostLimit } from '@/utils/userSettingsHelpers';
 import {
@@ -104,37 +105,9 @@ async function resolvePlanUser(userRef, userId, projection) {
 
 // ─── GMB posting ──────────────────────────────────────────────────────────────
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-// "Photo gallery upload failed" happens when Google fetches the image for the photo
-// gallery (checkmark 'both') before the freshly generated image is fully available on
-// S3, or on a transient media hiccup. Warm the URL first so Google's fetch succeeds.
-async function warmImageUrl(url, log) {
-  if (!url) return false;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const r = await fetch(url, { method: 'GET', cache: 'no-store' });
-      if (r.ok) {
-        // Drain the body so the S3/CDN object is definitely materialized before Google fetches it.
-        await r.arrayBuffer().catch(() => {});
-        if (log) log(`Image warm OK (attempt ${attempt + 1}) — ${url.slice(0, 80)}`);
-        return true;
-      }
-      if (log) log(`Image warm HTTP ${r.status} (attempt ${attempt + 1})`);
-    } catch (e) {
-      if (log) log(`Image warm error (attempt ${attempt + 1}): ${e.message}`);
-    }
-    await sleep(1500 * (attempt + 1));
-  }
-  return false;
-}
-
-// A failure list where EVERY failure is the photo-gallery step (and nothing succeeded)
-// is safe to retry — no post was created, and the gallery step is the flaky part.
-function isGalleryOnlyFailure(failList) {
-  if (!Array.isArray(failList) || failList.length === 0) return false;
-  return failList.every((f) => /photo gallery|gallery upload/i.test(String(f?.error || f?.message || '')));
-}
+// warmImageUrl / isGalleryOnlyFailure / sleep ab @/lib/gmbMedia me hain —
+// publish-scheduled bhi wahi logic use karta hai (pehle sirf yahan tha, isliye
+// scheduled publish "Photo gallery upload failed" par bina retry hi fail hota).
 
 /**
  * Calls /api/gmb/publish — the SAME working endpoint the manual frontend uses

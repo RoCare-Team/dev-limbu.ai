@@ -9,6 +9,7 @@ import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
 import { resolveGmbAccessToken } from "@/lib/gmbSession";
+import { warmImageUrl, isGalleryOnlyFailure, sleep } from "@/lib/gmbMedia";
 import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePhone } from "@/lib/gmbPostSanitize";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
@@ -808,27 +809,68 @@ export async function GET(req) {
 
                 console.log("base uri:-", baseUri);
 
-                // ✅ Use /api/gmb/publish directly
-                const result = await fetchWithTimeout(
-                  fetch(`${baseUri}/api/gmb/publish`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                  }).then(async (res) => {
-                    const text = await res.text();
-                    const data = text ? JSON.parse(text) : {};
-                    return {
-                      ok: res.ok && data?.ok !== false,
-                      data: data?.data ?? data,
-                    };
-                  }),
-                  20000,
-                );
+                const mediaUrl = isVideoSelection
+                  ? payload.video_url
+                  : payload.output;
 
-                // ✅ Proper success check
-                const gmbSucceeded =
-                  result?.data?.succeeded ?? result?.data?.success?.length ?? 0;
-                const gmbFailed = result?.data?.fail ?? [];
+                // Google photo gallery ke liye image URL KHUD fetch karta hai.
+                // Pehle hum warm kar dete hain — warna fresh S3 object par uska
+                // fetch race/timeout kar jata hai aur "Photo gallery upload
+                // failed" aata hai (yahi is post ke fail hone ki wajah thi).
+                if (!isVideoSelection) await warmImageUrl(mediaUrl, log);
+
+                const callPublish = () =>
+                  fetchWithTimeout(
+                    fetch(`${baseUri}/api/gmb/publish`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify(payload),
+                    }).then(async (res) => {
+                      const text = await res.text();
+                      const data = text ? JSON.parse(text) : {};
+                      return {
+                        ok: res.ok && data?.ok !== false,
+                        data: data?.data ?? data,
+                      };
+                    }),
+                    // Photo gallery upload me Google ko 5-6 MB image fetch karni
+                    // hoti hai — 20s bahut kam tha (upstream ka apna limit 300s).
+                    120000,
+                  );
+
+                // Gallery-only failure me GMB par kuch bhi publish nahi hota,
+                // isliye retry safe hai (duplicate post ka risk nahi).
+                const MAX_GALLERY_ATTEMPTS = 3;
+                let result;
+                let gmbSucceeded = 0;
+                let gmbFailed = [];
+
+                for (let attempt = 1; attempt <= MAX_GALLERY_ATTEMPTS; attempt++) {
+                  result = await callPublish();
+                  gmbSucceeded =
+                    result?.data?.succeeded ?? result?.data?.success?.length ?? 0;
+                  gmbFailed = result?.data?.fail ?? [];
+
+                  const galleryRetryable =
+                    (!result?.ok || gmbSucceeded === 0) &&
+                    isGalleryOnlyFailure(gmbFailed);
+
+                  if (!galleryRetryable) break;
+
+                  if (attempt === MAX_GALLERY_ATTEMPTS) {
+                    log(
+                      `⚠ GMB gallery upload still failing after ${attempt} attempts — giving up`,
+                    );
+                    break;
+                  }
+
+                  const waitMs = 4000 * attempt; // 4s, phir 8s — media settle hone do
+                  log(
+                    `↻ "Photo gallery upload failed" — image re-warm karke ${waitMs / 1000}s me retry (attempt ${attempt + 1}/${MAX_GALLERY_ATTEMPTS})`,
+                  );
+                  await warmImageUrl(mediaUrl, log);
+                  await sleep(waitMs);
+                }
 
                 if (!result?.ok || gmbSucceeded === 0) {
                   const errMsg =

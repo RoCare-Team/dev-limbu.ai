@@ -4,17 +4,11 @@
 
 const WHATSAPP_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
-// NOTE: ye demo campaigns ek specific AiSensy account (ws_fca30...) pe bane hain,
-// generic LIMBU_AI_WHATSAPP_KEY (ws_2870...) pe ye campaigns exist nahi karte.
-// Isliye dedicated env var, warna sahi wali key default.
-const API_KEY =
-  process.env.FRANCHISE_DEMO_WHATSAPP_KEY ||
-  "ws_fca30eb07595f51089b57a862ecac20c12947558b56f1a70";
-
-const CLIENT_CAMPAIGN =
-  process.env.AISENSY_CLIENT_CAMPAIGN || "franchise_demo_client_confirm";
-const AGENT_CAMPAIGN =
-  process.env.AISENSY_AGENT_CAMPAIGN || "franchise_demo_agent_notify";
+// Sabhi WhatsApp keys hardcoded (env me nahi). Ye demo campaigns is specific
+// AiSensy account (ws_fca30...) pe bane hain.
+const API_KEY = "ws_fca30eb07595f51089b57a862ecac20c12947558b56f1a70";
+const CLIENT_CAMPAIGN = "franchise_demo_client_confirm";
+const AGENT_CAMPAIGN = "franchise_demo_agent_notify";
 
 /** Normalize to 91XXXXXXXXXX (12 digit). Return "" if invalid. */
 function normalizeNumber(num) {
@@ -44,7 +38,12 @@ async function sendCampaign({ campaignName, destination, templateParams, paramsF
       campaignName,
       destination: to,
       userName: "Limbu AI",
-      templateParams: templateParams.map((p) => String(p ?? "")),
+      // WhatsApp templates khaali variable accept nahi karte (Meta #131008).
+      // Isliye har param non-empty banao — khaali ho to "-" bhej do.
+      templateParams: templateParams.map((p) => {
+        const s = String(p ?? "").trim();
+        return s === "" ? "-" : s;
+      }),
       source: "api",
       media: {},
       buttons: [],

@@ -114,15 +114,27 @@ export async function GET(request) {
     }
 
     // Quick rollup so you can eyeball health at a glance.
-    // Fail do type ka hota hai: content generate hi nahi hua (fill-queue) vs
-    // content bana par publish fail (publish / publish-scheduled).
-    const blank = () => ({ total: 0, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 });
+    // Fail kis stage pe hua — phase se nahi pata chalta, kyunki `publish` phase
+    // ke andar hi content generation bhi hota hai. Failed step ke naam se:
+    //   content:* / queue:generate → generate,  publish:* / done:partial → publish,
+    //   baaki (config/token/db/notify) → other.
+    const GEN_RE = /^(content:|queue:generate|image:|caption:)/i;
+    const PUB_RE = /^(publish:|done:(partial|failed))/i;
+    const failTypeOf = (d) => {
+      if (d.outcome !== "failed") return null;
+      const names = (d.steps || []).filter((s) => s.status === "fail").map((s) => s.name || "");
+      if (names.some((n) => GEN_RE.test(n))) return "failGenerate";
+      if (names.some((n) => PUB_RE.test(n))) return "failPublish";
+      if (names.length) return "failOther";
+      return d.phase === "fill-queue" ? "failGenerate" : "failPublish";
+    };
+    const blank = () => ({ total: 0, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0, failOther: 0 });
     const summary = { ...blank(), total: result.length };
     const bySource = { automation: blank(), manual: blank() };
     const byManager = {};
     for (const d of result) {
       summary[d.outcome] = (summary[d.outcome] || 0) + 1;
-      const failType = d.outcome === "failed" ? (d.phase === "fill-queue" ? "failGenerate" : "failPublish") : null;
+      const failType = failTypeOf(d);
       if (failType) summary[failType] += 1;
       const s = bySource[d.source] || bySource.automation;
       s.total++;

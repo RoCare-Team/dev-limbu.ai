@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   Bot,
   Building2,
+  CalendarDays,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -18,6 +19,7 @@ import {
   Image as ImageIcon,
   Info,
   KeyRound,
+  Layers,
   ListFilter,
   Loader2,
   MinusCircle,
@@ -29,6 +31,7 @@ import {
   Sparkles,
   User as UserIcon,
   UserCog,
+  Wrench,
   X,
   XCircle,
 } from "lucide-react";
@@ -56,19 +59,82 @@ const PHASE_LABEL = {
 
 // Fail do tarah ka hota hai — content ban hi nahi paaya (fill-queue), ya
 // content ban gaya par publish nahi hua (publish / publish-scheduled).
-const isGeneratePhase = (log) => log?.phase === "fill-queue";
-const failKind = (log) => (log?.outcome !== "failed" ? null : isGeneratePhase(log) ? "generate" : "publish");
+// Phase se pata nahi chalta — `publish` phase ke andar content generation bhi
+// hota hai aur publishing bhi. Isliye failed step ke naam se decide karte hain.
+const GENERATE_STEP_RE = /^(content:|queue:generate|image:|caption:)/i;
+const PUBLISH_STEP_RE = /^(publish:|done:(partial|failed))/i;
+function failKind(log) {
+  if (log?.outcome !== "failed") return null;
+  const failed = (log.steps || []).filter((s) => s.status === "fail").map((s) => s.name || "");
+  if (failed.some((n) => GENERATE_STEP_RE.test(n))) return "generate";
+  if (failed.some((n) => PUBLISH_STEP_RE.test(n))) return "publish";
+  if (failed.length) return "other";           // config: / token: / db: / notify:
+  return log.phase === "fill-queue" ? "generate" : "publish"; // step detail hi nahi
+}
+// Post kaise queue hua — user ne Post Management se khud banaya (manual) ya
+// automation plan ne khud generate kiya (automation).
+const SOURCE_TAG = {
+  manual: {
+    label: "Manual",
+    hint: "User ne Post Management se khud banaya",
+    Icon: Hand,
+    className: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  },
+  automation: {
+    label: "Automation",
+    hint: "Automation plan ne khud generate kiya",
+    Icon: Bot,
+    className: "bg-cyan-50 text-cyan-700 ring-cyan-200",
+  },
+};
+const sourceTag = (log) => SOURCE_TAG[log?.source === "manual" ? "manual" : "automation"];
+
 const OUTCOME_LABEL = {
   success: "success",
   failed: "failed (all)",
   skipped: "skipped",
   "failed-publish": "publish fail",
   "failed-generate": "generate fail",
+  "failed-other": "setup fail",
 };
 const FAIL_KIND = {
-  generate: { label: "Generation failed", short: "Content generate nahi hua", className: "bg-orange-50 text-orange-700 ring-orange-200", Icon: Sparkles },
+  generate: { label: "Generation failed", short: "Content generate hi nahi hua", className: "bg-orange-50 text-orange-700 ring-orange-200", Icon: Sparkles },
   publish: { label: "Publish failed", short: "Content bana, publish nahi hua", className: "bg-rose-50 text-rose-700 ring-rose-200", Icon: Send },
+  other: { label: "Setup failed", short: "Config/token/DB issue — generate se pehle ruk gaya", className: "bg-slate-100 text-slate-600 ring-slate-200", Icon: Wrench },
 };
+
+// ─── date filter ────────────────────────────────────────────────────────────
+const DATE_PRESETS = [
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "7d", label: "Last 7 days" },
+  { id: "30d", label: "Last 30 days" },
+  { id: "all", label: "All time" },
+  { id: "custom", label: "Custom" },
+];
+const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x.getTime(); };
+const daysAgo = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return x; };
+const toInputDate = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+
+// Preset/custom ko [from, to] epoch me badalta hai. null = us side koi limit nahi.
+function dateBounds(preset, from, to) {
+  const now = new Date();
+  switch (preset) {
+    case "today": return { from: startOfDay(now), to: endOfDay(now) };
+    case "yesterday": return { from: startOfDay(daysAgo(1)), to: endOfDay(daysAgo(1)) };
+    case "7d": return { from: startOfDay(daysAgo(6)), to: endOfDay(now) };
+    case "30d": return { from: startOfDay(daysAgo(29)), to: endOfDay(now) };
+    case "custom": return {
+      from: from ? startOfDay(from) : null,
+      to: to ? endOfDay(to) : null,
+    };
+    default: return { from: null, to: null };
+  }
+}
 
 function timeAgo(d) {
   if (!d) return "";
@@ -128,6 +194,7 @@ async function copyText(text) {
 function buildTrail(log) {
   const L = [];
   L.push(`[${(log.outcome || "unknown").toUpperCase()}] ${PHASE_LABEL[log.phase] || log.phase || "-"}`);
+  L.push(`source: ${log.source === "manual" ? "manual (user ne banaya)" : "automation"}`);
   L.push(`userId: ${log.userId || "-"}`);
   if (log.accountManagerName) L.push(`manager: ${log.accountManagerName}`);
   if (log.businessName) L.push(`business: ${log.businessName}${log.locality ? ` (${log.locality})` : ""}`);
@@ -372,6 +439,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
   const mgr = log.accountManagerName;
   const kind = failKind(log);
   const fk = kind ? FAIL_KIND[kind] : null;
+  const st = sourceTag(log);
   return (
     <div className={`overflow-hidden rounded-2xl border bg-white transition-all
       ${expanded ? `border-transparent ring-1 ${oc.ring} shadow-md` : "border-slate-100 shadow-sm hover:border-slate-200 hover:shadow-md"}`}>
@@ -385,6 +453,11 @@ function LogCard({ log, expanded, onToggle, onDone }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${oc.dot}`} />
           <span className={`text-[13px] font-extrabold ${oc.text}`}>{oc.label}</span>
+          <span title={st.hint}>
+            <Chip className={st.className}>
+              <st.Icon className="h-3 w-3" />{st.label}
+            </Chip>
+          </span>
           {fk && (
             <Chip className={fk.className}>
               <fk.Icon className="h-3 w-3" />{fk.label}
@@ -442,7 +515,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
 
         {!expanded && failStep && (
           <div className={`flex items-center gap-1.5 overflow-hidden truncate rounded-lg px-2.5 py-1.5 text-xs ring-1 ring-inset
-            ${kind === "generate" ? "bg-orange-50 text-orange-700 ring-orange-200" : "bg-rose-50 text-rose-700 ring-rose-200"}`}>
+            ${fk?.className || "bg-rose-50 text-rose-700 ring-rose-200"}`}>
             <XCircle className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{failStep.name}: {failStep.error || failStep.message}</span>
           </div>
@@ -514,7 +587,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
             <CopyBtn value={buildTrail(log)} label="Copy full trail" tone="text-slate-900" title="Copy the whole step-by-step trail as text" />
           </div>
           <div className="mt-2 text-[11px] text-slate-400">
-            {fmtTime(log.createdAt)} · runId {String(log.runId || "").slice(-10)}
+            {fmtTime(log.createdAt)} · {st.hint} · runId {String(log.runId || "").slice(-10)}
           </div>
         </div>
       )}
@@ -686,6 +759,9 @@ export default function AutomationLogsPage() {
   const [tab, setTab] = useState("automation"); // automation | manual
   const [manager, setManager] = useState("all"); // "all" | manager name | "Unassigned"
   const [business, setBusiness] = useState("all"); // "all" | business name
+  const [datePreset, setDatePreset] = useState("all"); // today | yesterday | 7d | 30d | all | custom
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
   const [outcome, setOutcome] = useState("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState(null);
@@ -719,10 +795,47 @@ export default function AutomationLogsPage() {
     return () => clearInterval(id);
   }, [auto, load]);
 
+  // URL me ?manager=Shivani ho to page usi manager pe lock — uska hi sab kuch
+  // (stats, business list, logs) dikhta hai, doosre managers ke tabs nahi.
+  const [lockedManager, setLockedManager] = useState(null);
+  useEffect(() => {
+    const raw = new URLSearchParams(window.location.search).get("manager");
+    setLockedManager(raw && raw.trim() ? raw.trim() : null);
+  }, []);
+
+  // Locked naam ko actual data se case-insensitive match karke resolve karte hain.
+  const lockedResolved = useMemo(() => {
+    if (!lockedManager) return null;
+    const needle = lockedManager.toLowerCase();
+    const hit = logs.find((l) => (l.accountManagerName || "").toLowerCase() === needle);
+    if (hit) return hit.accountManagerName;
+    return /^unassigned$/i.test(lockedManager) ? "Unassigned" : lockedManager;
+  }, [lockedManager, logs]);
+
+  const managerScoped = useMemo(() => (
+    lockedResolved
+      ? logs.filter((l) => (l.accountManagerName || "Unassigned") === lockedResolved)
+      : logs
+  ), [logs, lockedResolved]);
+
+  // Date filter — preset ya custom range. Range inclusive hai (local time).
+  const scopeLogs = useMemo(() => {
+    const { from, to } = dateBounds(datePreset, customFrom, customTo);
+    if (!from && !to) return managerScoped;
+    return managerScoped.filter((l) => {
+      const t = new Date(l.createdAt).getTime();
+      if (Number.isNaN(t)) return false;
+      if (from && t < from) return false;
+      if (to && t > to) return false;
+      return true;
+    });
+  }, [managerScoped, datePreset, customFrom, customTo]);
+
   const bySource = useMemo(() => ({
-    automation: logs.filter((l) => l.source !== "manual"),
-    manual: logs.filter((l) => l.source === "manual"),
-  }), [logs]);
+    all: scopeLogs,
+    automation: scopeLogs.filter((l) => l.source !== "manual"),
+    manual: scopeLogs.filter((l) => l.source === "manual"),
+  }), [scopeLogs]);
 
   const tabLogs = bySource[tab] || [];
 
@@ -774,12 +887,13 @@ export default function AutomationLogsPage() {
   ), [managerLogs, business]);
 
   const stats = useMemo(() => {
-    const s = { total: scopedLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0 };
+    const s = { total: scopedLogs.length, success: 0, failed: 0, skipped: 0, unknown: 0, failPublish: 0, failGenerate: 0, failOther: 0 };
     scopedLogs.forEach((l) => {
       s[l.outcome] = (s[l.outcome] || 0) + 1;
       const kind = failKind(l);
       if (kind === "publish") s.failPublish += 1;
       else if (kind === "generate") s.failGenerate += 1;
+      else if (kind === "other") s.failOther += 1;
     });
     return s;
   }, [scopedLogs]);
@@ -789,6 +903,7 @@ export default function AutomationLogsPage() {
     return scopedLogs.filter((l) => {
       if (outcome === "failed-publish") { if (failKind(l) !== "publish") return false; }
       else if (outcome === "failed-generate") { if (failKind(l) !== "generate") return false; }
+      else if (outcome === "failed-other") { if (failKind(l) !== "other") return false; }
       else if (outcome !== "all" && l.outcome !== outcome) return false;
       if (q) {
         const hay = `${l.userId || ""} ${l.businessName || ""} ${l.keyword || ""} ${l.postId || ""} ${l.accountManagerName || ""}`.toLowerCase();
@@ -803,7 +918,23 @@ export default function AutomationLogsPage() {
     setManager(name);
     setBusiness("all");
     setExpanded(null);
+    // URL bhi update — link share karo to wahi manager khulega.
+    const url = new URL(window.location.href);
+    if (name === "all") url.searchParams.delete("manager");
+    else url.searchParams.set("manager", name);
+    window.history.replaceState({}, "", url);
   }, []);
+
+  const dateRangeLabel = useMemo(() => {
+    if (datePreset !== "custom") return DATE_PRESETS.find((p) => p.id === datePreset)?.label || "";
+    if (customFrom && customTo) return `${customFrom} → ${customTo}`;
+    if (customFrom) return `${customFrom} se aage`;
+    if (customTo) return `${customTo} tak`;
+    return "Custom";
+  }, [datePreset, customFrom, customTo]);
+
+  // Jo manager actually scope me hai — URL lock ya pill selection.
+  const effManager = lockedResolved || (manager !== "all" ? manager : null);
 
   const successRate = stats.total ? Math.round((stats.success / stats.total) * 100) : 0;
 
@@ -847,39 +978,114 @@ export default function AutomationLogsPage() {
           </div>
         </div>
 
+        {/* date filter — preset pills + custom range */}
+        <div className="mb-3 rounded-2xl border border-slate-100 bg-white p-2.5 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-400">
+              <CalendarDays className="h-3 w-3" /> Date
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {DATE_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setDatePreset(p.id);
+                    setExpanded(null);
+                    if (p.id === "custom" && !customFrom && !customTo) {
+                      setCustomFrom(toInputDate(daysAgo(6)));
+                      setCustomTo(toInputDate(new Date()));
+                    }
+                  }}
+                  className={`rounded-full border px-3 py-1.5 text-[12px] font-bold transition
+                    ${datePreset === p.id
+                      ? "border-slate-900 bg-slate-900 text-white shadow-sm shadow-slate-900/10"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <span className="ml-auto text-[11px] font-semibold text-slate-400">
+              {scopeLogs.length} log is range me
+            </span>
+          </div>
+
+          {datePreset === "custom" && (
+            <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-dashed border-slate-100 pt-2.5">
+              <label className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500">
+                From
+                <input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || undefined}
+                  onChange={(e) => { setCustomFrom(e.target.value); setExpanded(null); }}
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-700 outline-none transition hover:border-slate-300 focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5"
+                />
+              </label>
+              <span className="text-slate-300">→</span>
+              <label className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500">
+                To
+                <input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  onChange={(e) => { setCustomTo(e.target.value); setExpanded(null); }}
+                  className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-700 outline-none transition hover:border-slate-300 focus:border-slate-300 focus:ring-2 focus:ring-slate-900/5"
+                />
+              </label>
+              {(customFrom || customTo) && (
+                <button
+                  type="button"
+                  onClick={() => { setCustomFrom(""); setCustomTo(""); }}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11.5px] font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                >
+                  <X className="h-3.5 w-3.5" /> Clear
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* tabs */}
         <div className="mb-3 flex gap-2">
+          <TabBtn id="all" label="All" Icon={Layers} count={bySource.all.length} active={tab === "all"} onClick={(id) => { setTab(id); setExpanded(null); }} />
           <TabBtn id="automation" label="Automation" Icon={Bot} count={bySource.automation.length} active={tab === "automation"} onClick={(id) => { setTab(id); setExpanded(null); }} />
           <TabBtn id="manual" label="Manual" Icon={Hand} count={bySource.manual.length} active={tab === "manual"} onClick={(id) => { setTab(id); setExpanded(null); }} />
         </div>
 
-        {/* manager-wise tabs — jis manager ko user assign hai uske naam ka tab */}
-        {managerTabs.length > 0 && (
+        {/* manager scope — URL me ?manager=Naam ho to sirf usi ka sab kuch */}
+        {(managerTabs.length > 0 || lockedResolved) && (
           <div className="mb-4">
-            <div className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-400">
-              <UserCog className="h-3 w-3" /> Account manager
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <MgrBtn id="all" label="All" count={tabLogs.length} avatar={<ListFilter className="h-3 w-3" />} active={manager === "all"} onClick={pickManager} />
-              {managerTabs.map((m) => (
-                <MgrBtn
-                  key={m.name}
-                  id={m.name}
-                  label={m.name}
-                  count={m.count}
-                  avatar={m.name === "Unassigned" ? <UserIcon className="h-3 w-3" /> : initials(m.name)}
-                  active={manager === m.name}
-                  onClick={pickManager}
-                />
-              ))}
-            </div>
+            {!lockedResolved && (
+              <div className="mb-1.5 flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-400">
+                <UserCog className="h-3 w-3" /> Account manager
+              </div>
+            )}
+
+            {lockedResolved ? null : (
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <MgrBtn id="all" label="All" count={tabLogs.length} avatar={<ListFilter className="h-3 w-3" />} active={manager === "all"} onClick={pickManager} />
+                {managerTabs.map((m) => (
+                  <MgrBtn
+                    key={m.name}
+                    id={m.name}
+                    label={m.name}
+                    count={m.count}
+                    avatar={m.name === "Unassigned" ? <UserIcon className="h-3 w-3" /> : initials(m.name)}
+                    active={manager === m.name}
+                    onClick={pickManager}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* selected manager ke under ka business — "All" ya koi ek (searchable) */}
             {businessOptions.length > 0 && (
               <div className="mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border border-slate-100 bg-white p-2.5 shadow-sm">
                 <span className="inline-flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-400">
                   <Building2 className="h-3 w-3" />
-                  {manager === "all" ? "Business" : `${manager} ka business`}
+                  {effManager ? `${effManager} ka business` : "Business"}
                 </span>
                 <BusinessPicker
                   value={business}
@@ -904,6 +1110,10 @@ export default function AutomationLogsPage() {
             tone={{ value: "text-rose-600", chip: "bg-rose-50 text-rose-600", border: "border-rose-400", glow: "ring-2 ring-rose-500/15" }} />
           <StatCard label="Generate fail" value={stats.failGenerate} Icon={Sparkles} active={outcome === "failed-generate"} onClick={() => setOutcome("failed-generate")}
             tone={{ value: "text-orange-600", chip: "bg-orange-50 text-orange-600", border: "border-orange-400", glow: "ring-2 ring-orange-500/15" }} />
+          {stats.failOther > 0 && (
+            <StatCard label="Setup fail" value={stats.failOther} Icon={Wrench} active={outcome === "failed-other"} onClick={() => setOutcome("failed-other")}
+              tone={{ value: "text-slate-700", chip: "bg-slate-100 text-slate-500", border: "border-slate-400", glow: "ring-2 ring-slate-500/10" }} />
+          )}
           <StatCard label="Skipped" value={stats.skipped} Icon={SkipForward} active={outcome === "skipped"} onClick={() => setOutcome("skipped")}
             tone={{ value: "text-amber-600", chip: "bg-amber-50 text-amber-600", border: "border-amber-400", glow: "ring-2 ring-amber-500/15" }} />
         </div>
@@ -951,7 +1161,8 @@ export default function AutomationLogsPage() {
           <span className="font-semibold">
             {filtered.length} log{filtered.length !== 1 ? "s" : ""}
             {outcome !== "all" ? ` · ${OUTCOME_LABEL[outcome] || outcome}` : ""}
-            {manager !== "all" ? ` · ${manager}` : ""}
+            {datePreset !== "all" ? ` · ${dateRangeLabel}` : ""}
+            {effManager ? ` · ${effManager}` : ""}
             {business !== "all" ? ` · ${business}` : ""}
           </span>
           {lastLoaded && (
@@ -982,7 +1193,9 @@ export default function AutomationLogsPage() {
             </span>
             <div className="text-sm font-bold text-slate-600">Koi log nahi mila</div>
             <div className="max-w-xs text-[12.5px] leading-relaxed text-slate-400">
-              {tab === "manual"
+              {lockedResolved
+                ? `"${lockedResolved}" ke kisi user ka log is filter me nahi hai.`
+                : tab === "manual"
                 ? "Manually scheduled posts ka log yahan aayega."
                 : "Automation cron chalega to yahan step-by-step log dikhega."}
             </div>

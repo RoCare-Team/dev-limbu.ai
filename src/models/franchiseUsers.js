@@ -41,6 +41,9 @@ const franchiseAdminSchema = new mongoose.Schema(
 // auto permissions
 
 
-export default mongoose.models.Admin ||
-  mongoose.model("Admin", franchiseAdminSchema);
+// NOTE: model ka naam "Admin" NAHI hona chahiye — models/Admin.js already us
+// naam se register karta hai, aur jo file pehle import hoti hai wahi jeet jaati
+// hai. Us collision se agent list (role:"agent") galat schema se query hoti.
+export default mongoose.models.FranchiseUser ||
+  mongoose.model("FranchiseUser", franchiseAdminSchema, "admins");
   

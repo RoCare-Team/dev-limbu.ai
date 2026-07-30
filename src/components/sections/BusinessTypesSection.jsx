@@ -110,11 +110,19 @@ export default function BusinessTypesSection() {
 
                 {/* IMAGE */}
                 <div className="w-1/2 h-full relative">
+                  {/*
+                    Yeh box kabhi ~175px se bada nahi hota (card ka aadha,
+                    h-40 = 160px tall). Pehle `sizes` 100vw/50vw tha, to mobile
+                    par Next 750w variant bhejta tha — 12 images × ~5x extra
+                    pixels = ~428 KiB bekaar. `sizes` ko asli box se match
+                    karaya; flat illustrations hain to quality 70 kaafi hai.
+                  */}
                   <Image
                     src={type.image}
                     alt={type.title}
                     fill
-                    sizes="(max-width: 768px) 100vw, 50vw"
+                    sizes="(max-width: 639px) 50vw, (max-width: 1023px) 25vw, 160px"
+                    quality={70}
                     className="object-contain object-bottom translate-y-2 group-hover:scale-110 transition-transform duration-500"
                   />
                 </div>

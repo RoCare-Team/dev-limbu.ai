@@ -63,6 +63,16 @@ const nextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
 
+    // Har <Image> apne srcSet me in sab widths ki poori `/_next/image?url=...`
+    // URL likhta hai. Default 16 widths the (16…3840), to homepage par ~64
+    // images × ~15 entries = 216 KiB srcSet — poore HTML ka 35%.
+    //
+    // Site ki sabse badi image hero hai (~640 CSS px), to 1920 se aage kuch
+    // chahiye hi nahi; chhote 16/48/96 bhi koi layout use nahi karta.
+    // 16 widths → 10 widths.
+    deviceSizes: [640, 750, 828, 1080, 1920],
+    imageSizes: [32, 64, 128, 256, 384],
+
     // Optimizer ka apna cache — upstream (S3) koi Cache-Control nahi bhejta,
     // to bina iske har baar re-fetch + re-encode hota hai.
     minimumCacheTTL: 2678400, // 31 din

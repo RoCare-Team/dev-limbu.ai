@@ -115,16 +115,17 @@ export default function PopularCitiesSection() {
                 className="group relative w-64 h-48 rounded-2xl overflow-hidden shrink-0 block shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-slate-100"
               >
 
-                {/* IMAGE */}
-                <div className="relative w-full h-full">
-                  <Image
-                    src={city.image}
-                    alt={`${city.name} Local SEO`}
-                    fill
-                    sizes="256px"
-                    className="object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                </div>
+                {/* IMAGE — box fixed 256×192, so explicit dims keep the
+                    srcSet at 1x/2x instead of every configured width */}
+                <Image
+                  src={city.image}
+                  alt={`${city.name} Local SEO`}
+                  width={256}
+                  height={192}
+                  quality={60}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
 
                 {/* OVERLAY */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />

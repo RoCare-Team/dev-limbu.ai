@@ -23,11 +23,15 @@ export default function ImageGallery({ images }) {
               }}
             >
 
+              {/*
+                `sizes` jaan-boojh kar hataya hai. Uska value px-only tha aur
+                Next px-only `sizes` par srcSet me har configured width bhar
+                deta hai. Sirf width/height rakhne par 1x/2x — do entries.
+              */}
               <Image
                 src={image}
                 width={256}
                 height={288}
-                sizes="(max-width: 640px) 224px, 256px"
                 quality={50}
                 loading="lazy"
                 alt={`Post example ${idx + 1}`}

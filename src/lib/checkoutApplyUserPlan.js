@@ -9,6 +9,7 @@ import { normalizeBillingCycle } from "@/lib/planCheckout"
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser"
 import { mergeMetaLeadsTag } from "@/lib/bookingSource"
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp"
+import { pickAgentIdForLead } from "@/lib/leadAgentAssign"
 
 const SettingSchema = new mongoose.Schema({
   key: String,
@@ -48,35 +49,12 @@ export function computePackageExpiryDate(startDate, planDurationRaw) {
 }
 
 async function assignAgentRoundRobin() {
-  let assignedAgentId = null
   try {
-    const activeAgents = await Admin.find({
-      role: "agent",
-      isActive: true,
-    })
-      .sort({ createdAt: 1, _id: 1 })
-      .lean()
-    if (activeAgents.length > 0) {
-      const rrDoc = await Setting.findOneAndUpdate(
-        { key: "agentLeadRR" },
-        [
-          {
-            $set: {
-              key: "agentLeadRR",
-              value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
-            },
-          },
-        ],
-        { new: true, upsert: true },
-      )
-      let rrValue = parseInt(rrDoc.value, 10)
-      if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0
-      assignedAgentId = activeAgents[rrValue % activeAgents.length]._id
-    }
+    return await pickAgentIdForLead()
   } catch (e) {
     console.error("checkout assignAgentRoundRobin", e)
+    return null
   }
-  return assignedAgentId
 }
 
 function verifyRazorpaySignature(orderId, paymentId, signature) {

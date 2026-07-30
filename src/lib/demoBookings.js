@@ -3,6 +3,7 @@ import User from "@/models/User";
 import Admin from "@/models/Admin";
 import dbConnect from "@/lib/dbConnect";
 import { getAppDayBounds } from "@/lib/appDayBounds";
+import { pickAgentForLead } from "@/lib/leadAgentAssign";
 
 const DEMO_COLLECTION = "demoBookings";
 const DEV_REMOTE_BOOK_DEMO_URL =
@@ -362,24 +363,8 @@ export function filterBookingsBySelectedDate(bookings = [], calendarDate) {
 }
 
 async function getNextAgent() {
-  const agents = await Admin.find({ role: "agent", isActive: true }).sort({
-    createdAt: 1,
-  });
-  if (!agents.length) return null;
-
-  const lastAssignedUser = await User.findOne({
-    assignedAgentId: { $ne: null },
-  })
-    .sort({ createdAt: -1 })
-    .select("assignedAgentId");
-
-  if (!lastAssignedUser) return agents[0];
-
-  const currentIndex = agents.findIndex(
-    (a) => a._id.toString() === lastAssignedUser.assignedAgentId?.toString(),
-  );
-  if (currentIndex === -1) return agents[0];
-  return agents[(currentIndex + 1) % agents.length];
+  // Least-loaded assignment — dekho lib/leadAgentAssign.js
+  return pickAgentForLead();
 }
 
 async function sendAgentLeadAssignedTemplate({

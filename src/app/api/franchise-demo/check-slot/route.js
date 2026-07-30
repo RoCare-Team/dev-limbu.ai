@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import FranchiseDemoBooking from "@/models/FranchiseDemoBooking";
 import FranchiseDemoAgent from "@/models/FranchiseDemoAgent";
-import { isValidDate, isValidSlotTime } from "@/utils/franchiseDemoSlots";
+import { isValidDate, isValidSlotTime, isSlotPast } from "@/utils/franchiseDemoSlots";
 
 // GET /api/franchise-demo/check-slot?date=YYYY-MM-DD&slotTime=10:00-11:00
 // -> { isAvailable, freeAgentsCount }
@@ -41,13 +41,16 @@ export async function GET(req) {
       (a) => !bookedAgentIds.has(String(a._id))
     );
 
+    const isPast = isSlotPast(date, slotTime); // IST ke hisaab se
+
     return NextResponse.json(
       {
         success: true,
         date,
         slotTime,
-        isAvailable: freeAgents.length > 0,
-        freeAgentsCount: freeAgents.length,
+        isAvailable: !isPast && freeAgents.length > 0,
+        isPast,
+        freeAgentsCount: isPast ? 0 : freeAgents.length,
         totalActiveAgents: activeAgents.length,
       },
       { status: 200 }

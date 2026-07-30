@@ -15,6 +15,7 @@ import {
   META_LEAD_TAG_KEYS,
   META_FRANCHISE_FORM_ID,
 } from "@/lib/metaFormLeadsConfig";
+import { pickAgentIdForLead } from "@/lib/leadAgentAssign";
 
 export const dynamic = "force-dynamic";
 
@@ -153,20 +154,10 @@ async function bumpAgentRoundRobin(SettingModel, rrKey) {
   return doc;
 }
 
-async function getNextAgentId(activeAgents = [], roundRobinKey = "agentLeadRR") {
+async function getNextAgentId(activeAgents = []) {
   if (!activeAgents.length) return null;
-
-  const RR_KEY = roundRobinKey || "agentLeadRR";
-  const rrDoc = await bumpAgentRoundRobin(Setting, RR_KEY);
-  let rrValue = parseInt(rrDoc?.value, 10);
-  if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-  const index = rrValue % activeAgents.length;
-  const agentId = activeAgents[index]._id;
-  console.log(
-    `[MetaSync] Round-robin assigned agent index: ${index} | agentId: ${agentId}`,
-  );
-  return agentId;
+  // Least-loaded assignment — dekho lib/leadAgentAssign.js
+  return pickAgentIdForLead(activeAgents);
 }
 
 /* ================= TATA AUTODIAL ================= */

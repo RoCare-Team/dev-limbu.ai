@@ -12,6 +12,7 @@ import mongoose from "mongoose"; // custom schema banane ke liye
 import { runNewUserOnboarding } from "@/lib/onboardingNewUser";
 import { getEffectivePackageExpiry } from "@/utils/userPlanExpiry";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
+import { pickAgentIdForLead } from "@/lib/leadAgentAssign";
 
 // Define Setting Schema for Round Robin
 const SettingSchema = new mongoose.Schema({
@@ -62,33 +63,10 @@ export async function POST(req) {
 
     const formattedUserId = `MB-${String(nextNumber).padStart(2, "0")}`;
 
-    // Round-robin Agent Assignment
+    // Least-loaded Agent Assignment (dekho lib/leadAgentAssign.js)
     let assignedAgentId = null;
     try {
-      const activeAgents = await Admin.find({ role: "agent", isActive: true })
-        .sort({ createdAt: 1, _id: 1 })
-        .lean();
-
-      if (activeAgents.length > 0) {
-        const RR_KEY = "agentLeadRR";
-        const rrDoc = await Setting.findOneAndUpdate(
-          { key: RR_KEY },
-          [
-            {
-              $set: {
-                key: RR_KEY,
-                value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
-              },
-            },
-          ],
-          { new: true, upsert: true },
-        );
-
-        let rrValue = parseInt(rrDoc.value, 10);
-        if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-        assignedAgentId = activeAgents[rrValue % activeAgents.length]._id;
-      }
+      assignedAgentId = await pickAgentIdForLead();
     } catch (error) {
       console.error("Agent assignment error:", error);
     }

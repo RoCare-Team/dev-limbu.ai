@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import FranchiseDemoBooking from "@/models/FranchiseDemoBooking";
 import FranchiseDemoAgent from "@/models/FranchiseDemoAgent";
-import { isValidDate, getAllSlotTimes } from "@/utils/franchiseDemoSlots";
+import { isValidDate, getAllSlotTimes, isSlotPast } from "@/utils/franchiseDemoSlots";
 
 // GET /api/franchise-demo/slots?date=YYYY-MM-DD
 // -> poore din ke 10 slots ka status (calendar UI ke liye)
@@ -36,14 +36,17 @@ export async function GET(req) {
       bookedBySlot.get(b.slotTime).add(b.agentId);
     }
 
+    const now = new Date();
     const slots = getAllSlotTimes().map((slotTime) => {
       const bookedAgentIds = bookedBySlot.get(slotTime) || new Set();
-      const freeAgentsCount = activeAgents.filter(
-        (a) => !bookedAgentIds.has(String(a._id))
-      ).length;
+      const isPast = isSlotPast(date, slotTime, now); // IST ke hisaab se
+      const freeAgentsCount = isPast
+        ? 0
+        : activeAgents.filter((a) => !bookedAgentIds.has(String(a._id))).length;
       return {
         slotTime,
-        isAvailable: freeAgentsCount > 0,
+        isAvailable: !isPast && freeAgentsCount > 0,
+        isPast,
         freeAgentsCount,
         bookedCount: bookedAgentIds.size,
       };

@@ -1,6 +1,4 @@
-import mongoose from "mongoose";
 import User from "@/models/User";
-import Admin from "@/models/Admin";
 import ChatbotStageSnapshot from "@/models/ChatbotStageSnapshot";
 import ChatbotMessage from "@/models/ChatbotMessage";
 import dbConnect from "@/lib/dbConnect";
@@ -12,6 +10,7 @@ import {
   normalizeBookingPhone,
 } from "@/lib/demoBookings";
 import { getAgentDetails, getAgentPhone } from "@/utils/agentMapper";
+import { pickAgentIdForLead } from "@/lib/leadAgentAssign";
 
 const LIMBUBOT_ADMIN_USERS_URL =
   process.env.LIMBUBOT_ADMIN_USERS_URL ||
@@ -127,13 +126,6 @@ async function loadChatbotDemoBookingsByPhone() {
   return map;
 }
 
-const SettingSchema = new mongoose.Schema({
-  key: { type: String, required: true, unique: true },
-  value: { type: Number, default: -1 },
-});
-const Setting =
-  mongoose.models.settings || mongoose.model("settings", SettingSchema);
-
 /** `wa_918339876984` → 10-digit Indian mobile */
 export function waIdToPhone(waUserId) {
   if (!waUserId || typeof waUserId !== "string") return "";
@@ -243,45 +235,8 @@ export function getNonIndianCountryCode(waUserId) {
   return "unknown";
 }
 
-async function bumpAgentRoundRobin() {
-  const doc = await Setting.findOneAndUpdate(
-    { key: "agentLeadRR" },
-    [
-      {
-        $set: {
-          key: "agentLeadRR",
-          value: { $add: [{ $ifNull: ["$value", -1] }, 1] },
-        },
-      },
-    ],
-    { new: true, upsert: true },
-  );
-  return doc;
-}
-
 async function assignNextAgentId() {
-  const activeAgents = await Admin.find({ role: "agent", isActive: true })
-    .sort({ createdAt: 1, _id: 1 })
-    .lean();
-  if (!activeAgents.length) {
-    console.warn(
-      "[RoundRobin] ⚠️ Koi active agent nahi mila DB mein (role:agent, isActive:true)",
-    );
-    return null;
-  }
-
-  const rrDoc = await bumpAgentRoundRobin();
-  let rrValue = parseInt(rrDoc?.value, 10);
-  if (!Number.isFinite(rrValue) || rrValue < 0) rrValue = 0;
-
-  const index = rrValue % activeAgents.length;
-  const agent = activeAgents[index];
-
-  // console.log(
-  //   `[RoundRobin] ✅ Agent assign: ${agent.fullName || agent.email} | index=${index} | total agents=${activeAgents.length}`,
-  // );
-
-  return agent._id;
+  return pickAgentIdForLead();
 }
 
 export async function getNextChatbotEmailIndex() {

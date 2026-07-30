@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import FranchiseDemoBooking from "@/models/FranchiseDemoBooking";
 import FranchiseDemoAgent from "@/models/FranchiseDemoAgent";
-import { isValidDate, isValidSlotTime } from "@/utils/franchiseDemoSlots";
+import { isValidDate, isValidSlotTime, isSlotPast } from "@/utils/franchiseDemoSlots";
 import { sendDemoWhatsapp } from "@/utils/sendDemoWhatsapp";
 import { createDemoMeetEvent } from "@/utils/googleMeet";
 
@@ -30,6 +30,13 @@ export async function POST(req) {
     if (!isValidSlotTime(slotTime)) {
       return NextResponse.json(
         { success: false, message: "Invalid or missing slotTime" },
+        { status: 400 }
+      );
+    }
+    // Guzra hua slot book nahi ho sakta (IST ke hisaab se)
+    if (isSlotPast(date, slotTime)) {
+      return NextResponse.json(
+        { success: false, message: "Slot time already passed" },
         { status: 400 }
       );
     }

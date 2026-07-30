@@ -363,28 +363,48 @@ export async function POST(req) {
   }
 }
 
+// Heavy/private fields jo kabhi wapas nahi bhejne.
+const HIDE = "-rawResponse -__v -email -fullName -phone -plan -locationId";
+
 /**
- * GET — ek user ke saare saved audits laao (sirf real/zaroori data).
- * `rawResponse` aur mongoose internals (__v) chhod dete hain.
+ * GET —
+ *  • `?id=<auditId>`  → us ek audit ka POORA data (points, competitors, overall...).
+ *  • warna `?userId=` → us user ke saare audits ki LIGHT list (bas basic fields),
+ *    taaki multiple saves pe response bhaari na ho.
  *
- * Query: userId (required), keyword | businessName | gridSize (optional filters)
+ * Optional filters (list mode): keyword | businessName | gridSize
  */
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
-    const keyword = searchParams.get("keyword");
-    const businessName = searchParams.get("businessName");
-    const gridSize = searchParams.get("gridSize");
+    const id = searchParams.get("id");
 
+    await dbConnect();
+
+    // ── Single audit — poora data ──
+    if (id) {
+      const doc = await LocalRankResult.findById(id).select(HIDE).lean();
+      if (!doc) {
+        return Response.json(
+          { success: false, message: "Audit not found" },
+          { status: 404 },
+        );
+      }
+      return Response.json({ success: true, data: doc });
+    }
+
+    // ── List — light summary only ──
+    const userId = searchParams.get("userId");
     if (!userId) {
       return Response.json(
-        { success: false, message: "userId is required" },
+        { success: false, message: "userId (ya id) is required" },
         { status: 400 },
       );
     }
 
-    await dbConnect();
+    const keyword = searchParams.get("keyword");
+    const businessName = searchParams.get("businessName");
+    const gridSize = searchParams.get("gridSize");
 
     const query = { userId };
     if (keyword) query.keyword = keyword;
@@ -392,10 +412,10 @@ export async function GET(req) {
     if (gridSize) query.gridSize = gridSize;
 
     const results = await LocalRankResult.find(query)
-      // Faltu / bhaari fields hata do — sirf real saved data.
-      .select("-rawResponse -__v -email -fullName -phone -plan -locationId")
+      // Sirf zaroori light fields — baaki sab single (?id=) call se aayega.
+      .select("keyword city businessName createdAt")
       .sort({ createdAt: -1 })
-      .limit(50)
+      .limit(100)
       .lean();
 
     return Response.json({ success: true, count: results.length, data: results });

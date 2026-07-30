@@ -28,6 +28,7 @@ export default function ImageGallery({ images }) {
                 width={256}
                 height={288}
                 sizes="(max-width: 640px) 224px, 256px"
+                quality={50}
                 loading="lazy"
                 alt={`Post example ${idx + 1}`}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"

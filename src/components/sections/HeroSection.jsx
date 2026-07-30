@@ -101,6 +101,7 @@ export default function HeroSection() {
                 sizes="(max-width: 1024px) 100vw, 640px"
                 className="object-contain mix-blend-multiply rounded-xl"
                 priority
+                fetchPriority="high"
               />
             </div>
           </div>

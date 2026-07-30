@@ -45,7 +45,11 @@ const nextConfig = {
         ],
       },
       {
-        source: "/:path*.(svg|ico|png|jpg|jpeg|webp|avif|gif|woff|woff2)",
+        // `_next/static/*` ko chhodna zaroori hai. Wo already content-hashed hai
+        // aur Next usse `immutable, max-age=1 saal` bhejta hai; ye rule usse
+        // 30 din par downgrade kar deta tha — Lighthouse fonts (woff2) ko isi
+        // wajah se "inefficient cache lifetime" me dikhata tha.
+        source: "/:path((?!_next/).*)\\.(svg|ico|png|jpg|jpeg|webp|avif|gif|woff|woff2)",
         headers: [
           {
             key: "Cache-Control",

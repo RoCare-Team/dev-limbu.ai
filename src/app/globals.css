@@ -15,8 +15,21 @@
   --color-tech-gray: #64748b;
   --color-pure-white: #ffffff;
 
-  --font-sans: "Inter", "Montserrat", system-ui, sans-serif;
-  --font-heading: "Montserrat", "Inter", system-ui, sans-serif;
+  /* "Inter Fallback" yahan hona zaroori hai.
+     `next/font` Inter ke saath ek metric-adjusted fallback bhi banata hai
+     (local Arial + size-adjust:107.12% + ascent/descent overrides). Inter
+     `font-display:swap` par load hoti hai, to jab tak wo aati hai browser stack
+     ka agla available font use karta hai — pehle wo `system-ui` tha, jiski
+     metrics Inter se alag hain, isliye swap par text reflow hota tha
+     (Lighthouse: CLS 0.101, culprit "Web font").
+     "Inter Fallback" beech me daalne se swap se pehle-baad ki metrics match
+     karti hain aur shift ~0 ho jata hai.
+
+     Note: "Montserrat" ka koi @font-face kahin nahi hai — wo kabhi load hi nahi
+     hoti, headings practically Inter par hi girti hain. Order me rakha hai taaki
+     baad me Montserrat add karo to design intent bana rahe. */
+  --font-sans: "Inter", "Inter Fallback", system-ui, sans-serif;
+  --font-heading: "Montserrat", "Inter", "Inter Fallback", system-ui, sans-serif;
 }
 
 /* ── CSS Variables ── */

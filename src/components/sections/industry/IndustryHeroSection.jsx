@@ -68,6 +68,11 @@ export default function IndustryHeroSection({ industryName, heroHeading, heroSub
             height={heroDimensions.height}
             sizes="(max-width: 1023px) 90vw, 448px"
             priority
+            // Next 16 `priority` se preload link banta hai par `<img>` par
+            // fetchpriority attribute nahi lagta — Lighthouse ka
+            // "fetchpriority=high should be applied to the LCP image" isi wajah
+            // se fail hota hai. Isliye explicitly de rahe hain.
+            fetchPriority="high"
             className="relative z-10 w-full h-auto max-w-md object-contain drop-shadow-[0_15px_40px_rgba(0,0,0,0.12)] group-hover:-translate-y-2 transition-transform duration-500"
           />
         </div>

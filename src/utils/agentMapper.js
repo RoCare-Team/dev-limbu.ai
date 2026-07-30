@@ -11,6 +11,10 @@ const AGENT_DETAILS_MAP = {
     name: "Vishal",
     phone: "917303888099", // temporary
   },
+  "6a3e3834f17ad1fa6fbc13b6": {
+    name: "Anjali",
+    phone: "917065050071",
+  },
 };
 
 export function getAgentPhone(agentId) {

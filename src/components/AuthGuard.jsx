@@ -100,7 +100,8 @@ function isAlwaysPublic(pathname) {
     pathname.startsWith("/franchise-panel") ||
     pathname.startsWith("/city") ||
     pathname.startsWith("/services") ||
-    pathname.startsWith("/bussiness/")
+    pathname.startsWith("/bussiness/") ||
+    pathname.startsWith("/blog/")
   ) {
     return true;
   }

@@ -106,11 +106,13 @@ export async function startGmbConnect(callbackUrl = "/dashboard", options = {}) 
   }
 
   if (!res.ok) {
-    throw new Error(
-      res.status === 401
-        ? "Your login session isn't active. Please reload the page and try again."
-        : "Couldn't start Google connect. Please try again.",
-    );
+    if (res.status === 401) {
+      // Retry ke baad bhi 401 ka matlab hai login token sach me expire ho chuka
+      // hai — "reload karke dobara try karo" kehna bekaar tha, reload se wo wapas
+      // valid nahi hota. Seedha login par bhej do.
+      throw new Error("Your login has expired. Please log in again.");
+    }
+    throw new Error("Couldn't start Google connect. Please try again.");
   }
 
   const { url: consentUrl } = await res.json();

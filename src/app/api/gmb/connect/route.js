@@ -78,19 +78,26 @@ async function resolve(request) {
   const { searchParams } = new URL(request.url);
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
 
-  const appUser = getAppUser(request);
-  if (appUser?.userId) {
-    const identity = { userId: appUser.userId };
+  // WhatsApp chatbot flow (/connect-google-business?phone=…). Ye JAAN-BOOJHKAR
+  // app session se PEHLE dekha jata hai.
+  //
+  // Wajah: ye link WhatsApp se khulta hai aur aksar agent/shared device par —
+  // jahan browser me kisi AUR app user ka login pada ho sakta hai. Pehle app
+  // session ko priority thi, to connect us doosre user ke record par chala jata
+  // tha aur phone cookie set hi nahi hoti thi (callback sirf phone flow me set
+  // karta hai) — yaani galat account connect ho jata. URL ka phone hi is flow ki
+  // asli identity hai. `resolveGmbOwnerId` us phone ka asli User mil jaye to
+  // uske userId par hi store karta hai, isliye normal user ko koi nuksan nahi.
+  const phone = String(searchParams.get("phone") || "").replace(/\D/g, "");
+  if (phone) {
+    const identity = { phone };
     const forceConsent = await shouldForceConsent(request, identity);
     return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
   }
 
-  // WhatsApp chatbot flow: user app me logged in nahi hai, sirf phone hai.
-  // Ye wahi identifier hai jispar ye poora flow pehle se chalta hai
-  // (check-phone, sync-and-save, gmb/status sab phone se hi kaam karte hain).
-  const phone = String(searchParams.get("phone") || "").replace(/\D/g, "");
-  if (phone) {
-    const identity = { phone };
+  const appUser = getAppUser(request);
+  if (appUser?.userId) {
+    const identity = { userId: appUser.userId };
     const forceConsent = await shouldForceConsent(request, identity);
     return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
   }

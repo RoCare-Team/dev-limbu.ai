@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import GmbUser from "@/models/GmbUser";
 import connectDB from "@/lib/dbConnect";
+import { APP_JWT_SECRET } from "@/lib/appSession";
 
 export async function POST(req) {
   try {
@@ -50,7 +51,9 @@ export async function POST(req) {
     const googleProjects = gmbUser?.projects || [];
 
     // 4️⃣ JWT TOKEN
-    const secret = process.env.JWT_SECRET || "fallback-secret-key";
+    // Wahi secret jisse appSession verify karta hai — apna fallback rakhne se
+    // JWT_SECRET-less environment par ye token banate hi invalid ho jata tha.
+    const secret = APP_JWT_SECRET;
 
     const userToken = jwt.sign(
       {

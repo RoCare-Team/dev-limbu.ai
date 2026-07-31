@@ -8,6 +8,7 @@ import dbConnect from "@/lib/dbConnect";
 import User from "@/models/User";
 import FranchiseTeam from "@/models/FranchiseTeam";
 import { runWelcomeBonusForUserId } from "@/lib/welcomeBonusWhatsApp";
+import { APP_SESSION_DAYS } from "@/lib/appSession";
 
 // OTP store karne ke liye
 import OTP from "@/models/Otp";
@@ -315,7 +316,11 @@ export async function POST(req) {
         subscription: user.subscription || {},
       },
       JWT_SECRET,
-      { expiresIn: "7d" }, // ye 7 din baad expire ho jayega || agr expire nahi lagaya to  token lifetime infinete ho jayega ye unsafe he
+      // 30 din. Pehle 7d tha — user ko har hafte phone+OTP se dobara login karna
+      // padta tha. Expiry hataana theek nahi (lifetime token unsafe hai), isliye
+      // session ROLLING bana diya hai: /api/auth/session-cookie GET har page load
+      // par cookie 30 din aage badha deta hai, to active user kabhi nahi girta.
+      { expiresIn: `${APP_SESSION_DAYS}d` },
     );
 
     return NextResponse.json({

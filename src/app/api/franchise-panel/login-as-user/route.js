@@ -4,6 +4,7 @@ import User from "@/models/User";
 import GmbUser from "@/models/GmbUser";
 import { decodeFranchiseToken } from "@/lib/franchiseAuthServer";
 import { userBelongsToFranchise } from "@/lib/franchiseLeadsQuery";
+import { APP_JWT_SECRET } from "@/lib/appSession";
 
 /**
  * Lets a franchise admin open one of THEIR OWN leads' dashboards to support
@@ -68,7 +69,9 @@ export async function POST(req) {
         impersonatedBy: decoded.email || decoded.id,
         impersonatedByFranchise: decoded.franchiseCode,
       },
-      process.env.JWT_SECRET || "fallback-secret-key",
+      // appSession ka hi secret — apna fallback rakhne se JWT_SECRET-less env
+      // par token banate hi invalid ho jata tha.
+      APP_JWT_SECRET,
       { expiresIn: "2h" },
     );
 

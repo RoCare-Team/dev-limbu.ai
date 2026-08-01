@@ -26,7 +26,7 @@ export default function Navbar() {
 
   const resourceLinks = [
     {
-      name: "How To Connect GMB",
+      name: "How To Connect GBP",
       sub: "Step-by-step connection guide",
       href: "/how-to-connect-gmb",
       icon: LinkIcon
@@ -34,7 +34,7 @@ export default function Navbar() {
     { name: "Create AI Post", href: "/how-to-create-post", icon: BookOpen },
     { name: "Reply to Reviews", href: "/how-to-reply-review", icon: MessageSquare },
     { name: "Generate Magic QR", href: "/how-to-generate-magic-qr", icon: QrCode },
-    { name: "Post on GMB", href: "/how-to-post-on-gmb", icon: Send },
+    { name: "Post on GBP", href: "/how-to-post-on-gmb", icon: Send },
   ];
 
   return (

@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ensureAppSessionCookie, getAppLoginToken } from "@/lib/clientSession";
+import {
+  ensureAppSessionCookie,
+  getAppLoginToken,
+  appAuthHeaders,
+} from "@/lib/clientSession";
 
 export { getAppLoginToken };
 
@@ -29,7 +33,12 @@ export function useGmbConnection() {
     try {
       await ensureAppSessionCookie();
 
-      const res = await fetch("/api/gmb/connection", { cache: "no-store" });
+      // Header se identity bhejte hain — sirf cookie par bharosa karne se
+      // impersonation ki doosri tab wali cookie is tab ka status dikha deti thi.
+      const res = await fetch("/api/gmb/connection", {
+        cache: "no-store",
+        headers: appAuthHeaders(),
+      });
       const data = await res.json();
       setState({
         loading: false,
@@ -62,7 +71,13 @@ export function useGmbConnection() {
   /** `signOut()` ki jagah — sirf GMB hatata hai, app logout nahi karta. */
   const disconnect = useCallback(async () => {
     await ensureAppSessionCookie();
-    const res = await fetch("/api/gmb/disconnect", { method: "POST" });
+    // Header ke bina disconnect kabhi-kabhi GALAT user ka connection hata deta
+    // tha (cookie kisi doosri impersonation tab ki ho sakti hai) — aur is tab me
+    // "kuch hua hi nahi" jaisa dikhta tha.
+    const res = await fetch("/api/gmb/disconnect", {
+      method: "POST",
+      headers: appAuthHeaders(),
+    });
     await refresh();
     return res.ok;
   }, [refresh]);
@@ -90,7 +105,10 @@ export async function startGmbConnect(callbackUrl = "/dashboard", options = {}) 
   const url = `/api/gmb/connect?${params.toString()}`;
 
   await ensureAppSessionCookie();
-  let res = await fetch(url, { method: "POST" });
+  // Identity header ke saath — warna consent screen ke baad connection GALAT user
+  // ke record par ban jata tha (browser-wide cookie kisi doosri impersonation tab
+  // ki ho sakti hai). Us user ko baad me dobara "Connect GMB" dikhta tha.
+  let res = await fetch(url, { method: "POST", headers: appAuthHeaders() });
 
   if (res.status === 401) {
     // Cookie race / stale cookie — token se dobara set karke ek retry.
@@ -101,7 +119,7 @@ export async function startGmbConnect(callbackUrl = "/dashboard", options = {}) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
-      res = await fetch(url, { method: "POST" });
+      res = await fetch(url, { method: "POST", headers: appAuthHeaders() });
     }
   }
 

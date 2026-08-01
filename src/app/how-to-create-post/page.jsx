@@ -5,18 +5,15 @@ import {
   LayoutDashboard,
   Sparkles,
   Type,
-  Image as ImageIcon,
   Zap,
-  Eye,
-  Send,
   ArrowRight,
   MousePointer2,
   Palette,
   Mic,
-  Coins,
   Share2,
   Calendar,
 } from "lucide-react";
+import Image from "next/image";
 import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 import Link from "next/link";
@@ -27,49 +24,37 @@ export default function HowToCreatePost() {
       icon: LayoutDashboard,
       title: "Step 1: Access the Post Studio",
       desc: "Inside your Limbu AI Dashboard, click on 'Post Management' in the left sidebar. This opens your creative workspace.",
+      image: "/images/post-create-guid/1.png",
     },
     {
       icon: Share2,
       title: "Step 2: Choose Your Platforms",
       desc: "At the top, you'll see toggles for ALL, Google (G), Facebook (F), and Instagram (I). Select where you want your post to appear.",
+      image: "/images/post-create-guid/2.png",
     },
     {
       icon: Type,
       title: "Step 3: The AI Prompt Box",
       desc: "Tell the AI what to create in the 'What would you like to create?' box. You can type it out or click the Microphone icon to use your voice!",
+      image: "/images/post-create-guid/3.png",
     },
     {
       icon: MousePointer2,
       title: "Step 4: Business & Keywords",
       desc: "Select your Business Name and add relevant Keywords. This ensures the AI uses the right context for your specific location.",
+      image: "/images/post-create-guid/4.png",
     },
     {
       icon: Palette,
       title: "Step 5: The Brand Studio",
       desc: "Upload your Logo, Product images, or even staff in 'Uniform'. Choose your preferred 'Size' (e.g., 3:4 for Instagram) and 'Color' theme to match your brand.",
+      image: "/images/post-create-guid/5.png",
     },
     {
       icon: Sparkles,
       title: "Step 6: Initialize AI Magic",
       desc: "Click 'INITIALIZE AUTO POST'. Limbu AI will now combine your prompt, assets, and branding into a stunning professional post.",
-    },
-  ];
-
-  const previewActions = [
-    {
-      icon: Eye,
-      title: "Live Preview Hub",
-      desc: "On the right, you'll see exactly how your post looks. You can read the AI-generated caption and see the final design.",
-    },
-    {
-      icon: Coins,
-      title: "AI Video Upgrade",
-      desc: "Want more engagement? Click 'Convert to Video (auto)'. For 200 coins, our AI turns your static image into a high-quality short video.",
-    },
-    {
-      icon: Send,
-      title: "Publish or Schedule",
-      desc: "Final step! Click 'Post to GMB' to go live immediately, or click 'Schedule' to pick the perfect date and time for your audience.",
+      image: "/images/post-create-guid/6.png",
     },
   ];
 
@@ -133,89 +118,47 @@ export default function HowToCreatePost() {
         </div>
 
         {/* ── Main Creation Grid ── */}
-        <div className="grid lg:grid-cols-2 gap-12 items-start mb-20">
-          {/* Left Side: Creation Controls */}
-          <div>
-            <h2
-              className="text-xl font-black uppercase tracking-widest mb-8 flex items-center gap-3"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              <Zap className="text-lemon-hover" size={24} /> The Creation Panel
-            </h2>
-            <div className="space-y-6">
-              {creationSteps.map((step, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-50 border border-black/5 rounded-3xl p-6 hover:bg-white hover:shadow-xl hover:shadow-lemon-glow/5 transition-all group"
-                >
-                  <div className="flex gap-5">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-black/5 flex items-center justify-center text-lemon-hover group-hover:bg-lemon-glow group-hover:text-black transition-all shrink-0">
-                      <step.icon size={20} />
-                    </div>
-                    <div>
-                      <h3
-                        className="text-sm font-black uppercase tracking-wider mb-1"
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
-                        {step.title}
-                      </h3>
-                      <p className="text-sm text-black/70 leading-relaxed font-inter">
-                        {step.desc}
-                      </p>
+        <div className="mb-20">
+          <h2
+            className="text-xl font-black uppercase tracking-widest mb-8 flex items-center gap-3"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            <Zap className="text-lemon-hover" size={24} /> The Creation Panel
+          </h2>
+          <div className="space-y-6">
+            {creationSteps.map((step, idx) => (
+              <div
+                key={idx}
+                className="bg-slate-50 border border-black/5 rounded-3xl p-6 hover:bg-white hover:shadow-xl hover:shadow-lemon-glow/5 transition-all group"
+              >
+                <div className="flex gap-5">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-black/5 flex items-center justify-center text-lemon-hover group-hover:bg-lemon-glow group-hover:text-black transition-all shrink-0">
+                    <step.icon size={20} />
+                  </div>
+                  <div className="flex-1">
+                    <h3
+                      className="text-sm font-black uppercase tracking-wider mb-1"
+                      style={{ fontFamily: "var(--font-heading)" }}
+                    >
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-black/70 leading-relaxed font-inter mb-4">
+                      {step.desc}
+                    </p>
+                    <div className="relative w-full rounded-2xl overflow-hidden border border-black/10 bg-white shadow-sm">
+                      <Image
+                        src={step.image}
+                        alt={step.title}
+                        width={1600}
+                        height={900}
+                        className="w-full h-auto object-contain"
+                        sizes="100vw"
+                      />
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right Side: Preview & Publish */}
-          <div className="lg:sticky lg:top-32">
-            <h2
-              className="text-xl font-black uppercase tracking-widest mb-8 flex items-center gap-3"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              <Eye className="text-lemon-hover" size={24} /> Preview & Publish
-            </h2>
-            <div className="space-y-6">
-              {previewActions.map((step, idx) => (
-                <div
-                  key={idx}
-                  className="bg-slate-50 border border-black/5 rounded-3xl p-6 hover:bg-white hover:shadow-xl hover:shadow-lemon-glow/5 transition-all group"
-                >
-                  <div className="flex gap-5">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-black/5 flex items-center justify-center text-lemon-hover group-hover:bg-lemon-glow group-hover:text-black transition-all shrink-0">
-                      <step.icon size={20} />
-                    </div>
-                    <div>
-                      <h3
-                        className="text-sm font-black uppercase tracking-wider mb-1"
-                        style={{ fontFamily: "var(--font-heading)" }}
-                      >
-                        {step.title}
-                      </h3>
-                      <p className="text-sm text-black/70 leading-relaxed font-inter">
-                        {step.desc}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Coins Visual Hint */}
-              <div className="mt-8 p-6 bg-lemon-glow/5 border border-dashed border-lemon-glow/30 rounded-3xl text-center">
-                <div className="flex items-center justify-center gap-2 text-lemon-hover mb-2">
-                  <Coins size={20} />
-                  <span className="text-lg font-black tracking-widest">
-                    203 COINS
-                  </span>
-                </div>
-                <p className="text-[10px] text-black/40 font-bold uppercase tracking-tighter leading-tight">
-                  Your balance is shown at the top right. <br /> Use coins for
-                  premium AI video motion upgrades.
-                </p>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 

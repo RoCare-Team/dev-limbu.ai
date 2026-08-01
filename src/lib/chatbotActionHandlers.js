@@ -36,6 +36,7 @@ import {
   buildHealthScoreText,
 } from "@/lib/chatbotHealthPdfGenerator";
 import { getTokensByPhone, updateTokensByPhone } from "@/lib/gmbSessionStore";
+import { resolveGmbAccessToken } from "@/lib/gmbSession";
 import { generateMagicQrCard } from "@/lib/magicQrCardGenerator";
 import { formatMagicQrBusinessTitle } from "@/lib/magicQrBusinessName";
 import {
@@ -67,41 +68,40 @@ export function toShortLocationId(locationId) {
 // ── Token management ─────────────────────────────────────────────────────────
 
 /**
- * Refresh Google access token using the stored refresh token.
- * Updates the refreshed token back into GMBConnection so it stays fresh.
+ * Fresh Google access token nikaalo — phone-keyed store ka snapshot AKELA source
+ * nahi hai.
  *
- * @param {string} phone        - user's phone (to update DB after refresh)
- * @param {string} refreshToken - current refresh token
- * @returns {Promise<string>}   - new access token
+ * Chatbot ka store ("Continue to chatbot" par likha jata hai) ek snapshot rakhta
+ * hai. User baad me dashboard se GMB reconnect kare to Google purana refresh
+ * token revoke kar deta hai aur naya `gmb_connections` (live connection) par
+ * jata hai — chatbot store purana hi liye baitha rehta. Tab ye refresh fail
+ * hokar chup-chaap EXPIRED access token se aage chala jata tha, jisse har GMB
+ * call 401 par ajeeb khaali result deti thi.
+ *
+ * `resolveGmbAccessToken` live connection → plan → chatbot snapshot, sab try
+ * karta hai; jo chale wahi wapas store me likh dete hain.
+ *
+ * @param {string} phone        - user's phone (store update ke liye)
+ * @param {string} refreshToken - chatbot store ka snapshot (fallback candidate)
+ * @returns {Promise<string>}   - naya access token
  */
 async function refreshAndSaveAccessToken(phone, refreshToken) {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID     || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-      refresh_token: refreshToken,
-      grant_type:    "refresh_token",
-    }),
-  });
+  const { accessToken, refreshToken: workingRefresh, source } =
+    await resolveGmbAccessToken({
+      phone,
+      extraRefreshTokens: [refreshToken],
+      log: (m) => console.log("[chatbotAction]", m),
+    });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error_description || `Token refresh failed (${res.status})`);
-  }
+  console.log(`[chatbotAction] access token resolved from ${source}`);
 
-  const data = await res.json();
-  const newAccessToken = data.access_token;
-
-  // Persist refreshed token back to GMBConnection
-  if (phone && newAccessToken) {
-    await updateTokensByPhone(phone, newAccessToken, refreshToken).catch((e) =>
+  if (phone && accessToken) {
+    await updateTokensByPhone(phone, accessToken, workingRefresh).catch((e) =>
       console.warn("[chatbotAction] Token DB update failed:", e?.message)
     );
   }
 
-  return newAccessToken;
+  return accessToken;
 }
 
 // ── ACTION: website ──────────────────────────────────────────────────────────
@@ -897,11 +897,23 @@ export async function processAction(actionDoc, sessionDoc) {
     return;
   }
 
-  // 3. Refresh access token (keeps it fresh, saves back to DB)
+  // 3. Fresh access token (multi-source; jo chale wahi DB me wapas save)
   let { accessToken, refreshToken } = tokens;
   try {
     accessToken = await refreshAndSaveAccessToken(phone, refreshToken);
   } catch (refreshErr) {
+    // Reconnect chahiye = koi bhi stored refresh token zinda nahi. Stored
+    // accessToken bhi tab tak mar chuka hota hai (Google me ~1h), isliye usse
+    // aage badhna sirf ek confusing/khaali result deta tha. Saaf fail karo.
+    if (refreshErr?.code === "GMB_RECONNECT_REQUIRED") {
+      await markFailed(
+        _id, phone, action,
+        "Google access expired. Please reconnect your Google Business Profile."
+      );
+      return;
+    }
+    // Transient (Google abhi jawab nahi de raha) — stored token se koshish karo,
+    // ho sakta hai wo abhi bhi valid ho.
     console.warn("[chatbotAction] Token refresh failed, using stored token:", refreshErr?.message);
   }
 

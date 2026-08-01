@@ -61,17 +61,42 @@ export async function DELETE() {
   return res;
 }
 
-/** Cookie maujood hai ya nahi — client sirf tab POST kare jab zaroorat ho. */
+/**
+ * Cookie maujood hai ya nahi — client sirf tab POST kare jab zaroorat ho.
+ *
+ * Ye ROLLING session bhi hai: har valid check par cookie dobara issue ho jati
+ * hai (poore 30 din aage). SessionCookieSync ise har page load aur window focus
+ * par call karta hai, isliye regular user ka session kabhi expire nahi hota.
+ * Pehle ye fixed 7-din ka tha — user 8ve din "Your login session isn't active"
+ * dekhta tha, jabki UI use logged-in dikha raha hota tha.
+ *
+ * Impersonation session (6h) jaan-boojhkar extend NAHI hota — wo short-lived
+ * hi rehna chahiye.
+ */
 export async function GET(request) {
   const cookie = request.cookies.get(APP_SESSION_COOKIE)?.value;
   if (!cookie) return NextResponse.json({ active: false });
   try {
     const decoded = jwt.verify(cookie, JWT_SECRET);
-    return NextResponse.json({
+
+    const res = NextResponse.json({
       active: true,
       userId: decoded.userId,
       impersonated: decoded.impersonated === true,
     });
+
+    if (decoded.impersonated !== true) {
+      res.cookies.set({
+        ...appSessionCookieOptions(),
+        value: createAppSessionToken({
+          userId: decoded.userId,
+          email: decoded.email,
+          impersonated: false,
+        }),
+      });
+    }
+
+    return res;
   } catch {
     return NextResponse.json({ active: false });
   }

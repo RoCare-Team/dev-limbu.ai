@@ -1,10 +1,35 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
+/**
+ * Ek hi secret, poore app me.
+ *
+ * Pehle har route apna fallback rakhta tha — `admin/login-as-user` aur
+ * `franchise-panel/login-as-user` `"fallback-secret-key"` se SIGN karte the,
+ * jabki verify yahan `"mannubhai_secret"` se hota hai. Jis bhi environment me
+ * `JWT_SECRET` set nahi hai, wahan impersonation ka token banate hi invalid ho
+ * jata tha — user ko turant "Your login session isn't active" milta.
+ * Sign aur verify dono ab isi constant se hote hain.
+ */
+export const APP_JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
+const JWT_SECRET = APP_JWT_SECRET;
 
 /** httpOnly cookie jo har fetch ke saath apne aap jata hai — isliye call sites badalne ki zaroorat nahi. */
 export const APP_SESSION_COOKIE = "limbu_app_session";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // login token ke 7d ke barabar
+
+/**
+ * Session ki umr — login token (/api/auth/login) ke barabar rakhi jati hai.
+ *
+ * 7 din se badhakar 30 din: user ko har hafte phone+OTP se dobara login karna
+ * padta tha. Aur wo confusing tha, kyunki AuthGuard localStorage ke `userId`
+ * par chalta hai (jo kabhi expire nahi hota) — isliye UI logged-in dikhta tha
+ * par server 401 deta tha ("Your login session isn't active").
+ *
+ * Iske upar session ROLLING hai (dekho: /api/auth/session-cookie GET) — active
+ * user ki cookie har page load par 30 din aage badh jati hai, isliye regular
+ * user ko practically kabhi dobara login nahi karna padta.
+ */
+export const APP_SESSION_DAYS = 30;
+export const APP_SESSION_MAX_AGE = APP_SESSION_DAYS * 24 * 60 * 60;
 
 /**
  * App ka apna login token verify karta hai (/api/auth/login ya
@@ -30,7 +55,7 @@ export function createAppSessionToken({ userId, email, impersonated }) {
   return jwt.sign(
     { userId, email: email || null, impersonated: impersonated === true },
     JWT_SECRET,
-    { expiresIn: "7d" },
+    { expiresIn: `${APP_SESSION_DAYS}d` },
   );
 }
 
@@ -41,7 +66,7 @@ export function appSessionCookieOptions() {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: COOKIE_MAX_AGE,
+    maxAge: APP_SESSION_MAX_AGE,
   };
 }
 
@@ -54,10 +79,20 @@ export function appSessionCookieOptions() {
  * liye ek phone identity deti hai aur jaldi expire ho jati hai.
  */
 export const GMB_PHONE_COOKIE = "limbu_gmb_phone";
-const GMB_PHONE_MAX_AGE = 2 * 60 * 60; // 2 ghante — connect flow poora karne ke liye kaafi
+
+/**
+ * 12 ghante. Pehle 2 the — WhatsApp user connect karke beech me chala jata tha
+ * aur wapas aakar "Continue to chatbot" dabaata, tab tak cookie mar chuki hoti
+ * aur my-locations / sync-and-save "Unauthorized" de dete the.
+ * Scope phir bhi tang hai: sirf GMB routes, sirf us ek phone ki identity.
+ */
+const GMB_PHONE_HOURS = 12;
+const GMB_PHONE_MAX_AGE = GMB_PHONE_HOURS * 60 * 60;
 
 export function createGmbPhoneToken(phone) {
-  return jwt.sign({ phone, scope: "gmb" }, JWT_SECRET, { expiresIn: "2h" });
+  return jwt.sign({ phone, scope: "gmb" }, JWT_SECRET, {
+    expiresIn: `${GMB_PHONE_HOURS}h`,
+  });
 }
 
 export function gmbPhoneCookieOptions() {

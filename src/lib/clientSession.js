@@ -2,16 +2,82 @@
 
 import { getLocalStorage, getSessionStorage } from "@/utils/storage";
 
-/** Impersonation ko dhyan me rakhte hue app login token. */
+/** JWT abhi zinda hai? (60s skew — clock thoda aage-peeche ho sakta hai) */
+function isTokenAlive(token) {
+  if (!token) return false;
+  try {
+    const { exp } = JSON.parse(atob(token.split(".")[1]));
+    if (!exp) return true; // bina exp wala token server hi reject karega
+    return exp * 1000 > Date.now() + 60_000;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Impersonation ko dhyan me rakhte hue app login token.
+ *
+ * Do bugs jo yahan the:
+ *
+ *  1. `isImpersonating` localStorage me set hota hai (impersonate-login page) aur
+ *     kabhi clear nahi hota — localStorage browser-wide aur permanent hai. Us
+ *     browser me baad me koi NORMAL login kare, tab bhi ye 6-ghante wala
+ *     `userToken` hi uthata tha, user ka apna 30-din wala `token` nahi. Nateeja:
+ *     login karne ke kuch ghante baad hi "Your login session isn't active".
+ *
+ *  2. Impersonation token mar jaane par ye `null` laut deta tha, jabki usi
+ *     browser me user ka apna valid token pada hota tha.
+ *
+ * Ab expiry client par bhi check hoti hai aur jo token ZINDA hai wahi chunte
+ * hain — impersonation ko preference, par mar chuke token ke chakkar me valid
+ * session nahi girta.
+ */
 export function getAppLoginToken() {
   const impersonating =
     getLocalStorage("isImpersonating") === "true" ||
     getSessionStorage("isImpersonating") === "true";
 
-  if (impersonating) {
-    return getSessionStorage("userToken") || getLocalStorage("userToken") || null;
+  const impersonationToken =
+    getSessionStorage("userToken") || getLocalStorage("userToken") || null;
+  const ownToken = getLocalStorage("token") || null;
+
+  if (impersonating && isTokenAlive(impersonationToken)) return impersonationToken;
+  if (isTokenAlive(ownToken)) return ownToken;
+
+  // Impersonation khatam ho chuka hai par flag ab tak pada hai — hata do, warna
+  // ye har agle login ko bhi shadow karta rahega.
+  if (impersonating && !isTokenAlive(impersonationToken)) clearImpersonation();
+
+  return ownToken || impersonationToken || null;
+}
+
+/** Impersonation ke nishaan dono storages se hata do. */
+export function clearImpersonation() {
+  try {
+    ["isImpersonating", "userToken", "impersonatedUser", "impersonatedEmail"].forEach(
+      (k) => {
+        window.localStorage?.removeItem(k);
+        window.sessionStorage?.removeItem(k);
+      },
+    );
+  } catch {
+    /* storage blocked */
   }
-  return getLocalStorage("token") || null;
+}
+
+/**
+ * Mar chuke login ke nishaan hata do — warna AuthGuard (jo sirf `userId` dekhta
+ * hai) user ko andar rehne deta hai aur har API call 401 deti rehti hai.
+ */
+function clearStaleLogin() {
+  try {
+    ["token", "userToken", "userId", "isImpersonating"].forEach((k) => {
+      window.localStorage?.removeItem(k);
+      window.sessionStorage?.removeItem(k);
+    });
+  } catch {
+    /* storage blocked — kuch nahi kar sakte */
+  }
 }
 
 function tokenUserId(token) {
@@ -57,6 +123,16 @@ export function ensureAppSessionCookie() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token }),
       });
+
+      // 401 = localStorage ka login token sach me mar chuka hai (expired /
+      // invalid). Use pade rehne dena hi wo confusing haalat banata tha: AuthGuard
+      // localStorage ke `userId` par chalta hai, isliye UI logged-in dikhta tha
+      // par har server call 401 deti thi. Ab stale login saaf kar dete hain taaki
+      // user ko seedha login screen mile.
+      if (set.status === 401) {
+        clearStaleLogin();
+        return false;
+      }
       if (!set.ok) return false;
 
       // Set-Cookie sach me apply hui ya nahi, ye confirm karke hi aage badho.

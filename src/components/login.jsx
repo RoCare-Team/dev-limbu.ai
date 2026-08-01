@@ -7,6 +7,7 @@ import {
   completeRegistrationAction,
 } from "@/app/actions/authActions";
 import { useRouter, useSearchParams } from "next/navigation";
+import { clearImpersonation } from "@/lib/clientSession";
 import {
   Phone,
   Mail,
@@ -197,6 +198,10 @@ export default function LoginPage() {
           setMessage("");
         }, 600);
       } else if (ok && data.token) {
+        // Is browser me pehle kabhi impersonation hua ho to uske nishaan hata do —
+        // warna getAppLoginToken() ab bhi wahi purana (6h) userToken uthata rahega
+        // aur ye fresh 30-din wala login kuch ghante me hi "session expired" ho jata.
+        clearImpersonation();
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
         localStorage.setItem("fullName", data.user.fullName);
@@ -233,6 +238,7 @@ export default function LoginPage() {
         agentCode,
       );
       if (ok && data.token) {
+        clearImpersonation(); // dekho: verifyOtp me wahi wajah
         localStorage.setItem("token", data.token);
         localStorage.setItem("userId", data.user.userId);
 

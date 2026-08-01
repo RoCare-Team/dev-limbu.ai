@@ -194,7 +194,8 @@ async function exchangeRefreshToken(refreshToken) {
  * token snapshot try karke.
  *
  * @param {object}   opts
- * @param {string}   opts.userId            app userId (USR…/MB…/phone:…)
+ * @param {string}   [opts.userId]          app userId (USR…/MB…/phone:…)
+ * @param {string}   [opts.phone]           chatbot flow — userId ki jagah phone
  * @param {string[]} [opts.extraRefreshTokens] snapshot tokens (post / plan doc se)
  * @param {function} [opts.log]             optional logger
  * @returns {Promise<{accessToken: string, refreshToken: string, source: string}>}
@@ -202,19 +203,23 @@ async function exchangeRefreshToken(refreshToken) {
  */
 export async function resolveGmbAccessToken({
   userId,
+  phone,
   extraRefreshTokens = [],
   log = () => {},
 } = {}) {
   await dbConnect();
 
   let conn = null;
-  if (userId) {
-    try {
-      conn = await getGmbConnection(userId);
-    } catch (err) {
-      log(`⚠ GmbConnection lookup failed: ${err.message}`);
-    }
+  try {
+    if (userId) conn = await getGmbConnection(userId);
+    // Chatbot flow (WhatsApp) me app login nahi hota — identity sirf phone hai.
+    else if (phone) conn = await getGmbConnectionByPhone(phone);
+  } catch (err) {
+    log(`⚠ GmbConnection lookup failed: ${err.message}`);
   }
+  // Phone se mila connection apne asli userId par ho sakta hai — plan lookup
+  // ke liye wahi chahiye.
+  if (!userId && conn?.userId) userId = conn.userId;
 
   // Plan snapshot bhi candidate hai — cron path me plan par hi sabse naya token
   // hota hai jab user ne settings dobara save ki ho.

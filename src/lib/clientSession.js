@@ -51,6 +51,24 @@ export function getAppLoginToken() {
   return ownToken || impersonationToken || null;
 }
 
+/**
+ * Server calls ke liye identity header.
+ *
+ * Ye ZAROORI hai, sirf cookie kaafi nahi. `limbu_app_session` cookie
+ * browser-wide hoti hai — ek hi browser me admin do users ko impersonate kare to
+ * doosri tab ki cookie pehli ko overwrite kar deti hai. Tab A ka UI user A
+ * dikhata rehta hai par uski API calls user B ban ke jaati thi: GMB connect user
+ * B ke record par ban jata, disconnect user B ka hat jata, aur user A ko dobara
+ * "Connect GMB" dikhta.
+ *
+ * `getAppUser()` server par Authorization header ko cookie se PEHLE dekhta hai,
+ * isliye header bhejne se har tab ki apni identity sahi rehti hai.
+ */
+export function appAuthHeaders(extra = {}) {
+  const token = getAppLoginToken();
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
+}
+
 /** Impersonation ke nishaan dono storages se hata do. */
 export function clearImpersonation() {
   try {
@@ -124,13 +142,15 @@ export function ensureAppSessionCookie() {
         body: JSON.stringify({ token }),
       });
 
-      // 401 = localStorage ka login token sach me mar chuka hai (expired /
-      // invalid). Use pade rehne dena hi wo confusing haalat banata tha: AuthGuard
-      // localStorage ke `userId` par chalta hai, isliye UI logged-in dikhta tha
-      // par har server call 401 deti thi. Ab stale login saaf kar dete hain taaki
-      // user ko seedha login screen mile.
+      // 401 do wajah se aa sakta hai:
+      //   • token sach me EXPIRE ho gaya → login saaf karo, warna AuthGuard
+      //     (jo sirf `userId` dekhta hai) user ko andar rehne deta hai aur har
+      //     server call 401 deti rehti hai.
+      //   • token admin ka hai → usme `userId` hota hi nahi (adminId/role hote
+      //     hain), isliye ye route hamesha 401 dega. Ye BILKUL normal hai —
+      //     yahan login saaf karna admin ko admin panel se hi bahar phenk deta.
       if (set.status === 401) {
-        clearStaleLogin();
+        if (!isTokenAlive(token)) clearStaleLogin();
         return false;
       }
       if (!set.ok) return false;

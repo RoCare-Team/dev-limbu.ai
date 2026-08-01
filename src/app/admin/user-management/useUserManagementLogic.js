@@ -2682,29 +2682,28 @@ export default function useUserManagementLogic() {
       const data = await res.json();
 
       if (data.token) {
-        // 👇 Create new tab first
-        const newTab = window.open("/dashboard", "_blank");
-
-        // 👇 Wait until tab loads
-        newTab.onload = () => {
-          const impersonatedName = data.user.fullName || data.user.name || "";
-
-          const impersonatedEmail = data.user.email || "";
-
-          // 👇 Set data ONLY in new tab localStorage
-          newTab.localStorage.setItem("userToken", data.token);
-          newTab.localStorage.setItem("impersonatedUser", userId);
-          newTab.localStorage.setItem("userId", data.user.userId);
-          newTab.localStorage.setItem("impersonatedEmail", impersonatedEmail);
-          newTab.localStorage.setItem("isImpersonating", "true");
-
-          newTab.localStorage.setItem("userName", impersonatedName);
-          newTab.localStorage.setItem("fullName", impersonatedName);
-          newTab.localStorage.setItem("userEmail", impersonatedEmail);
-
-          // 👇 Reload dashboard with new storage
-          newTab.location.href = "/dashboard";
-        };
+        // Handoff `/impersonate-login` page ke through — wahi tareeka jo
+        // franchise panel pehle se use karta hai.
+        //
+        // Pehle yahan `window.open("/dashboard")` karke `newTab.onload` me
+        // localStorage bhara jata tha. Wo do wajah se toota tha:
+        //   • `onload` cross-document navigation par aksar chalta hi nahi, aur
+        //     tab tak /dashboard ek baar bina impersonation data ke render ho
+        //     chuka hota — user ko "logged out" jaisa page milta.
+        //   • data set hone se pehle hi dashboard ki API calls nikal jaati thi,
+        //     jo galat identity (ya bina identity) ke server par jaati thi.
+        // `/impersonate-login` page pehle storage bharta hai, PHIR dashboard par
+        // bhejta hai — koi race nahi.
+        const payload = encodeURIComponent(
+          JSON.stringify({
+            token: data.token,
+            userId: data.user.userId,
+            impersonatedUser: userId,
+            impersonatedEmail: data.user.email || "",
+            impersonatedName: data.user.fullName || data.user.name || "",
+          }),
+        );
+        window.open(`/impersonate-login?data=${payload}`, "_blank", "noopener");
       }
     } catch (error) {
       console.error(error);

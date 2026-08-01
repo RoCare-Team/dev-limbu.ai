@@ -13,9 +13,6 @@ import {
   Smartphone,
   Building2,
   ShieldCheck,
-  Video,
-  Users,
-  Gift,
 } from "lucide-react";
 
 const FIXED_SLOTS = [
@@ -95,8 +92,8 @@ function CalendarDropdown({ value, onChange, onClose }) {
   };
 
   return (
-    <div className="absolute bottom-full left-0 w-[260px] mb-2 z-50 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+    <div className="absolute bottom-full left-0 w-full max-w-[250px] mb-2 z-[100] bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100 bg-slate-50/50">
         <button
           type="button"
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
@@ -105,7 +102,7 @@ function CalendarDropdown({ value, onChange, onClose }) {
         >
           <ChevronLeft size={14} />
         </button>
-        <span className="text-xs font-bold text-slate-800 tracking-wide">
+        <span className="text-[11px] font-bold text-slate-700 tracking-wide">
           {MONTHS[month]} {year}
         </span>
         <button
@@ -122,13 +119,13 @@ function CalendarDropdown({ value, onChange, onClose }) {
           {DAYS.map((d) => (
             <div
               key={d}
-              className="text-center text-[10px] font-semibold text-slate-400 py-0.5"
+              className="text-center text-[10px] font-bold text-slate-400 py-0.5"
             >
               {d}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5">
           {cells.map((d, i) => {
             const past = d ? isPast(d) : false;
             const selected = isSelected(d);
@@ -138,12 +135,12 @@ function CalendarDropdown({ value, onChange, onClose }) {
                 type="button"
                 disabled={!d || past}
                 onClick={() => handleSelect(d)}
-                className={`relative w-full aspect-square flex items-center justify-center rounded-md text-xs font-medium transition-all
+                className={`relative w-full aspect-square flex items-center justify-center rounded-md text-[11px] font-medium transition-all
                   ${!d ? "invisible" : ""}
-                  ${past ? "text-slate-300 cursor-not-allowed" : "cursor-pointer"}
+                  ${past ? "text-slate-200 cursor-not-allowed" : "cursor-pointer"}
                   ${
                     selected
-                      ? "bg-gradient-to-br from-yellow-400 to-amber-400 text-black font-black shadow-md shadow-yellow-400/20"
+                      ? "bg-slate-900 text-white font-bold shadow-sm"
                       : !past && d
                         ? "hover:bg-slate-100 text-slate-700 hover:text-slate-900"
                         : ""
@@ -151,7 +148,7 @@ function CalendarDropdown({ value, onChange, onClose }) {
               >
                 {d}
                 {isToday(d) && !selected && (
-                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-yellow-500" />
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-amber-500" />
                 )}
               </button>
             );
@@ -214,7 +211,7 @@ function DatePickerField({ value, onChange }) {
         parsed.getMonth() !== mm ||
         parsed.getDate() !== dd
       ) {
-        setInputError("Invalid date — use DD/MM/YYYY");
+        setInputError("Invalid date format (DD/MM/YYYY)");
         onChange(null);
         return;
       }
@@ -234,9 +231,9 @@ function DatePickerField({ value, onChange }) {
   return (
     <div className="relative" ref={wrapRef}>
       <div
-        className={`flex items-center rounded-xl border overflow-hidden transition-all
-        ${hasError ? "border-red-300 bg-red-50" : value ? "border-yellow-300 bg-yellow-50" : "border-slate-200 bg-slate-50"}
-        focus-within:border-yellow-400 focus-within:bg-white`}
+        className={`flex items-center rounded-xl border transition-all duration-200
+        ${hasError ? "border-red-300 bg-red-50/30" : value ? "border-slate-300 bg-white" : "border-slate-200 bg-slate-50/50"}
+        focus-within:border-slate-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-slate-950/5`}
       >
         <button
           type="button"
@@ -245,8 +242,8 @@ function DatePickerField({ value, onChange }) {
           title="Pick from calendar"
         >
           <CalendarDays
-            size={15}
-            className={value ? "text-yellow-600" : "text-slate-400"}
+            size={16}
+            className={value ? "text-slate-800" : "text-slate-400"}
           />
         </button>
 
@@ -258,7 +255,7 @@ function DatePickerField({ value, onChange }) {
           onFocus={() => setCalOpen(true)}
           placeholder="DD/MM/YYYY"
           maxLength={10}
-          className="flex-1 min-w-0 bg-transparent py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className="flex-1 min-w-0 bg-transparent py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         />
 
         {(value || textVal) && (
@@ -272,14 +269,14 @@ function DatePickerField({ value, onChange }) {
             className="w-9 h-11 flex items-center justify-center text-slate-400 hover:text-slate-600 flex-shrink-0"
             aria-label="Clear date"
           >
-            <X size={13} />
+            <X size={14} />
           </button>
         )}
       </div>
 
       {value && !hasError && (
-        <p className="text-[11px] text-yellow-600 mt-1.5 px-1 flex items-center gap-1">
-          <span>📅</span>{" "}
+        <p className="text-[11px] text-slate-500 mt-1.5 px-1 flex items-center gap-1.5 font-medium">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           {new Date(value).toLocaleDateString("en-IN", {
             weekday: "short",
             day: "numeric",
@@ -290,7 +287,7 @@ function DatePickerField({ value, onChange }) {
       )}
 
       {hasError && (
-        <p className="text-[11px] text-red-500 mt-1.5 px-1 font-semibold">
+        <p className="text-[11px] text-red-500 mt-1.5 px-1 font-medium">
           {inputError}
         </p>
       )}
@@ -478,7 +475,7 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm demoModalFade"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[4px] demoModalFade"
       onMouseDown={(e) => {
         if (!dialogRef.current?.contains(e.target)) close();
       }}
@@ -488,70 +485,42 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
     >
       <div
         ref={dialogRef}
-        className="relative w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl demoModalPop"
+        className="relative w-full max-w-[440px] max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-slate-100 demoModalPop"
       >
-        {/* Close */}
+        {/* Close Button */}
         <button
           onClick={close}
-          className="absolute top-3 right-3 z-30 w-9 h-9 flex items-center justify-center bg-white/90 hover:bg-slate-900 text-slate-500 hover:text-white rounded-full shadow-md border border-slate-200 transition-all hover:rotate-90"
+          className="absolute top-4 right-4 z-30 w-8 h-8 flex items-center justify-center bg-slate-50 hover:bg-slate-100 text-slate-400 hover:text-slate-800 rounded-full transition-all"
           aria-label="Close"
         >
-          <X size={17} strokeWidth={2.5} />
+          <X size={15} strokeWidth={2.5} />
         </button>
 
-        <div className="h-1 w-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-t-2xl" />
+        {/* Elegant top accent bar */}
+        <div className="h-[5px] w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
 
-        <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-3 pr-14">
-          <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-          <p className="text-xs text-red-600 font-semibold">
-            ⚡ Hurry! <span className="text-red-800 font-black">1 Hour Left</span>{" "}
-            —{" "}
-            <span className="text-slate-900 font-black">
-              Limited Seats Available
-            </span>
-          </p>
-        </div>
-
-        <div className="p-5 sm:p-6">
-          <div className="flex items-start justify-between mb-4">
+        <div className="p-6 sm:p-7">
+          <div className="flex items-start justify-between mb-5">
             <div>
-              <h2 className="font-black text-lg text-slate-900">
+              <h2 className="font-bold text-xl text-slate-900 tracking-tight">
                 Book Your Free Demo
               </h2>
-              <p className="text-slate-500 text-xs mt-0.5">
+              <p className="text-slate-500 text-xs mt-1">
                 {formData.selectedDate
                   ? `${formatDate(formData.selectedDate)} · ${selectedTime || "Pick a time"}`
-                  : "9 AM – 9 PM IST · Online · Mon – Sat"}
+                  : "Select your preferred date and time below"}
               </p>
             </div>
-            <div className="bg-green-100 border border-green-200 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
-              <p className="text-green-700 text-base font-black leading-none">
+            <div className="bg-amber-50 border border-amber-200/50 rounded-xl px-3 py-1 flex-shrink-0">
+              <span className="text-amber-800 text-xs font-bold tracking-wide">
                 FREE
-              </p>
+              </span>
             </div>
-          </div>
-
-          {/* Value props */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {[
-              { icon: <Video size={13} />, label: "45 min live" },
-              { icon: <Users size={13} />, label: "1-on-1 expert" },
-              { icon: <Gift size={13} />, label: "No payment" },
-            ].map((f) => (
-              <div
-                key={f.label}
-                className="flex flex-col items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-1"
-              >
-                <span className="text-yellow-500">{f.icon}</span>
-                <span className="text-[10px] font-semibold text-slate-600 text-center leading-tight">
-                  {f.label}
-                </span>
-              </div>
-            ))}
           </div>
 
           <form onSubmit={handleSubmit} noValidate>
-            <div className="space-y-3">
+            <div className="space-y-3.5">
+              {/* Full Name */}
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <User size={15} />
@@ -563,10 +532,11 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                   onChange={handleInputChange}
                   placeholder="Your full name"
                   autoComplete="name"
-                  className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/5 transition-all duration-200"
                 />
               </div>
 
+              {/* WhatsApp Number */}
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <Smartphone size={15} />
@@ -579,10 +549,11 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                   placeholder="WhatsApp number (10 digits)"
                   maxLength={10}
                   autoComplete="tel"
-                  className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/5 transition-all duration-200"
                 />
               </div>
 
+              {/* Business Name */}
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   <Building2 size={15} />
@@ -593,10 +564,11 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                   value={formData.business}
                   onChange={handleInputChange}
                   placeholder="Business name (optional)"
-                  className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/5 transition-all duration-200"
                 />
               </div>
 
+              {/* Date Picker */}
               <DatePickerField
                 value={formData.selectedDate}
                 onChange={(d) => {
@@ -606,25 +578,26 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                 }}
               />
 
+              {/* Sunday Alert */}
               {isSunday && (
-                <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
-                  <span className="text-orange-500 text-sm">⚠️</span>
-                  <span className="text-orange-800 text-xs font-semibold">
-                    No demos on Sundays — please pick another day.
+                <div className="flex items-center gap-2.5 bg-amber-50/50 border border-amber-200/50 rounded-xl px-4 py-3">
+                  <span className="text-amber-600 text-sm">⚠️</span>
+                  <span className="text-amber-800 text-xs font-medium">
+                    No demos on Sundays. Please select a weekday or Saturday.
                   </span>
                 </div>
               )}
 
+              {/* Time Slots Selection */}
               {formData.selectedDate && !isSunday && (
-                <div className="space-y-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Choose time slot
                   </p>
                   {getAvailableSlots().length === 0 ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 font-semibold">
-                        Aaj ke saare slots complete ho gaye — apna preferred time
-                        likhein.
+                    <div className="space-y-3">
+                      <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium leading-relaxed">
+                        All slots for today are booked. Please specify your preferred time below.
                       </div>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
@@ -638,7 +611,7 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                             setSelectedTime(e.target.value);
                             if (error) setError("");
                           }}
-                          className="w-full pl-9 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-yellow-400 focus:bg-white transition-all"
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-950/5 transition-all duration-200"
                         />
                       </div>
                     </div>
@@ -652,14 +625,14 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                             setSelectedTime(slot);
                             if (error) setError("");
                           }}
-                          className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
+                          className={`rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition duration-200 ${
                             selectedTime === slot
-                              ? "border-yellow-400 bg-yellow-50 text-yellow-900 ring-2 ring-yellow-300"
-                              : "border-slate-200 bg-slate-50 text-slate-700 hover:border-yellow-300"
+                              ? "border-slate-900 bg-slate-900 text-white shadow-sm"
+                              : "border-slate-200 bg-slate-50/50 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                           }`}
                         >
                           {slot}
-                          <span className="block text-[10px] font-medium text-emerald-600 mt-0.5">
+                          <span className={`block text-[10px] font-medium mt-0.5 ${selectedTime === slot ? "text-slate-300" : "text-emerald-600"}`}>
                             Available
                           </span>
                         </button>
@@ -669,60 +642,64 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
                 </div>
               )}
 
+              {/* Confirmation Indicator */}
               {formData.selectedDate && !isSunday && selectedTime && (
-                <div className="flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-2.5">
-                  <Clock size={13} className="text-yellow-600 flex-shrink-0" />
-                  <span className="text-yellow-800 text-xs font-semibold">
-                    {formatDate(formData.selectedDate)} · {selectedTime} · 45 min
-                    · Online
+                <div className="flex items-center gap-2.5 bg-emerald-50/40 border border-emerald-100 rounded-xl px-4 py-3">
+                  <Clock size={14} className="text-emerald-600 flex-shrink-0" />
+                  <span className="text-emerald-800 text-xs font-medium">
+                    {formatDate(formData.selectedDate)} · {selectedTime} · 45-Min Live Demo
                   </span>
                 </div>
               )}
 
+              {/* Error Alert */}
               {error && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                <div className="flex items-start gap-2.5 bg-red-50/50 border border-red-200/50 rounded-xl px-4 py-3">
                   <span className="text-red-500 text-sm mt-0.5 flex-shrink-0">
-                    ⚠
+                    ⚠️
                   </span>
-                  <p className="text-red-700 text-xs font-semibold leading-relaxed">
+                  <p className="text-red-700 text-xs font-medium leading-relaxed">
                     {error}
                   </p>
                 </div>
               )}
 
+              {/* Submission Button */}
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-4 bg-gradient-to-r from-yellow-400 to-amber-400 hover:from-yellow-300 hover:to-amber-300 disabled:opacity-60 disabled:cursor-not-allowed text-black font-black rounded-xl text-sm sm:text-base transition-all active:scale-[0.98] shadow-lg shadow-yellow-400/20 mt-1 flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl text-sm transition-all duration-200 active:scale-[0.98] mt-2 flex items-center justify-center gap-2 shadow-sm"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Booking your demo…</span>
+                    <Loader2 size={16} className="animate-spin text-slate-400" />
+                    <span>Booking Session…</span>
                   </>
                 ) : (
-                  "🚀 Book My FREE Demo Now"
+                  "Book Free Demo"
                 )}
               </button>
 
+              {/* Cancel Button */}
               <button
                 type="button"
                 onClick={close}
-                className="w-full text-[10px] font-bold tracking-[0.15em] uppercase text-slate-400 hover:text-slate-600 transition-colors pt-1"
+                className="w-full text-[10px] font-bold tracking-wider uppercase text-slate-400 hover:text-slate-600 transition-colors pt-1.5"
               >
-                No thanks, maybe later
+                Maybe Later
               </button>
             </div>
           </form>
 
-          <div className="flex items-center justify-center gap-3 mt-4 pt-4 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
+          {/* Footer Assurances */}
+          <div className="flex items-center justify-center gap-3.5 mt-5 pt-4 border-t border-slate-100 text-[11px] text-slate-400 font-medium">
             <span className="flex items-center gap-1">
-              <ShieldCheck size={10} /> No spam
+              <ShieldCheck size={11} className="text-slate-400" /> Secure Booking
             </span>
             <span>·</span>
-            <span>Cancel anytime</span>
+            <span>Reschedule Anytime</span>
             <span>·</span>
-            <span>100% free</span>
+            <span>100% Free</span>
           </div>
         </div>
       </div>
@@ -730,11 +707,11 @@ export default function DemoBookingModal({ autoOpenDelay = 4000 }) {
       <style>{`
         @keyframes demoModalFadeIn { from { opacity: 0 } to { opacity: 1 } }
         @keyframes demoModalPopIn {
-          from { opacity: 0; transform: translateY(16px) scale(0.96) }
+          from { opacity: 0; transform: translateY(12px) scale(0.98) }
           to { opacity: 1; transform: translateY(0) scale(1) }
         }
         .demoModalFade { animation: demoModalFadeIn .2s ease forwards }
-        .demoModalPop { animation: demoModalPopIn .28s cubic-bezier(.2,.9,.3,1) forwards }
+        .demoModalPop { animation: demoModalPopIn .24s cubic-bezier(.16,1,.3,1) forwards }
       `}</style>
     </div>
   );

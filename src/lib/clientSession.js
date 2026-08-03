@@ -69,6 +69,14 @@ export function appAuthHeaders(extra = {}) {
   return token ? { ...extra, Authorization: `Bearer ${token}` } : { ...extra };
 }
 
+/** Is tab me abhi impersonation chal raha hai? */
+export function isImpersonatingNow() {
+  return (
+    getSessionStorage("isImpersonating") === "true" ||
+    getLocalStorage("isImpersonating") === "true"
+  );
+}
+
 /** Impersonation ke nishaan dono storages se hata do. */
 export function clearImpersonation() {
   try {

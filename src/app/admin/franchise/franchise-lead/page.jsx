@@ -547,7 +547,7 @@ export default function FranchiseLeadsPage() {
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
-    const userEmail = localStorage.getItem("email");
+    const userEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const userRole = localStorage.getItem("role");
 
     if (!userEmail || !userRole) return;
@@ -624,7 +624,7 @@ export default function FranchiseLeadsPage() {
     setLoading(true);
     setError(null);
 
-    const userEmail = localStorage.getItem("email");
+    const userEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
     // Dynamic Date Calculation on Frontend
     let startDateParam = "";
@@ -819,7 +819,7 @@ export default function FranchiseLeadsPage() {
   }, [role, franchiseFollowUpFilter]);
 
   useEffect(() => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const r = localStorage.getItem("role");
     if (
       !email ||
@@ -840,7 +840,7 @@ export default function FranchiseLeadsPage() {
   }, [leads.length, formId]);
 
   useEffect(() => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const r = localStorage.getItem("role");
     if (
       !email ||
@@ -871,7 +871,7 @@ export default function FranchiseLeadsPage() {
 
   /* Whole-DB per-agent lead stats (super admins only) */
   useEffect(() => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const r = localStorage.getItem("role");
     if (!email || !["superAdmin", "superFranchiseAdmin"].includes(r || "")) {
       return;
@@ -897,7 +897,7 @@ export default function FranchiseLeadsPage() {
   }, [leads.length, role]);
 
   useEffect(() => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const r = localStorage.getItem("role");
     if (
       !email ||
@@ -1592,7 +1592,7 @@ export default function FranchiseLeadsPage() {
           leadName: revenueModalLead.full_name,
           amount: parseFloat(revenueData.amount),
           paymentScreenshot: screenshotUrl,
-          email: localStorage.getItem("email"),
+          email: (localStorage.getItem("adminEmail") || localStorage.getItem("email")),
           notes: revenueData.notes,
           type: "franchise_lead",
         }),
@@ -1789,7 +1789,7 @@ export default function FranchiseLeadsPage() {
 
     if (typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
-      const email = (localStorage.getItem("email") || "").toLowerCase();
+      const email = ((localStorage.getItem("adminEmail") || localStorage.getItem("email")) || "").toLowerCase();
 
       // Primary fallback: the logged-in admin adding this remark is the executive.
       if (!executiveMobile) {
@@ -1991,7 +1991,7 @@ export default function FranchiseLeadsPage() {
           addedBy: "Admin",
           agentId: agentId,
           agentName: agentName,
-          adminEmail: localStorage.getItem("email") || undefined,
+          adminEmail: (localStorage.getItem("adminEmail") || localStorage.getItem("email")) || undefined,
           ...(effectiveFollowUpIso
             ? { followUpDate: effectiveFollowUpIso }
             : {}),
@@ -2023,7 +2023,7 @@ export default function FranchiseLeadsPage() {
             ? `${pendingRemarkTexts.length} remarks added`
             : "Remark added",
         );
-        const email = localStorage.getItem("email");
+        const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
         if (email) {
           fetch(
             `/api/admin/franchise-follow-up-stats?email=${encodeURIComponent(email)}&filter=${franchiseFollowUpFilter}`,
@@ -2109,7 +2109,7 @@ export default function FranchiseLeadsPage() {
         }));
         setShowMeetingModal(false);
         setMeetingData({ date: "", link: "", meetingId: "", passcode: "" });
-        const email = localStorage.getItem("email");
+        const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
         if (email) {
           fetch(
             `/api/admin/franchise-call-stats?email=${encodeURIComponent(email)}`,

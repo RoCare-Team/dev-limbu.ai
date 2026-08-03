@@ -1285,7 +1285,7 @@ export default function UserManagement() {
 }
 
 export const getTodayUsersData = async () => {
-  const adminEmail = localStorage.getItem("email");
+  const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
   if (!adminEmail) return null;
 
   try {

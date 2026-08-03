@@ -37,7 +37,7 @@ export default function MaintenancePage() {
         body: JSON.stringify({
           maintenanceMode,
           maintenanceMessage,
-          updatedBy: localStorage.getItem("email") || "admin",
+          updatedBy: (localStorage.getItem("adminEmail") || localStorage.getItem("email")) || "admin",
         }),
       });
       await loadStatus();

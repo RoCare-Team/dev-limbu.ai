@@ -287,7 +287,8 @@ export default function AdminServicepaneModal({ service, onClose }) {
     service?.leadName ||
     "Customer",
 
-  email: localStorage.getItem("email"),
+  // Admin ki apni identity — `email` impersonation se overwrite ho jati hai.
+  email: localStorage.getItem("adminEmail") || localStorage.getItem("email"),
 
   userEmail: service?.email || "",
 

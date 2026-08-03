@@ -1155,7 +1155,7 @@ export default function AccountManagerLeads() {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const adminEmail = localStorage.getItem("email");
+      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       let url = "/api/admin/account-manager-leads?leadStage=Onboard";
       if (adminEmail) url += `&email=${encodeURIComponent(adminEmail)}`;
       if (startDate) url += `&startDate=${startDate}`;

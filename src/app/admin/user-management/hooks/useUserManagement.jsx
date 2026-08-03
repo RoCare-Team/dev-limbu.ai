@@ -44,7 +44,7 @@ export default function useUserManagement(props = {}) {
 
   // ✅ FETCH USERS + STATS
   const fetchUsers = async () => {
-  const email = localStorage.getItem("email");
+  const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
   if (!email) return;
 
   try {
@@ -127,7 +127,7 @@ export default function useUserManagement(props = {}) {
   // ✅ REVENUE
   useEffect(() => {
     const fetchRevenue = async () => {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       const role = localStorage.getItem("role");
 
       if (!email || !role) return;

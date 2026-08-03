@@ -416,7 +416,7 @@ export default function useUserManagementLogic() {
   ]);
 
   const fetchAllUserIds = async () => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
     const params = new URLSearchParams({
       email: adminEmail,
@@ -734,7 +734,7 @@ export default function useUserManagementLogic() {
 
   const handleRefreshMetaLeads = async ({ silent = false } = {}) => {
     const adminRole = localStorage.getItem("role");
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!email) return;
 
     const canSyncMeta = ["superAdmin", "admin"].includes(adminRole);
@@ -832,7 +832,7 @@ export default function useUserManagementLogic() {
 
   useEffect(() => {
     const fetchCallStats = async () => {
-      const adminEmail = localStorage.getItem("email");
+      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
         return;
 
@@ -861,7 +861,7 @@ export default function useUserManagementLogic() {
   // Fetch follow-up leads when filter tab changes
   useEffect(() => {
     const fetchFollowUpLeads = async () => {
-      const adminEmail = localStorage.getItem("email");
+      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
         return;
 
@@ -890,7 +890,7 @@ export default function useUserManagementLogic() {
       setLoadingFollowUpTable(false);
       return;
     }
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const uniqueIds = [
       ...new Set(
         followUpLeads
@@ -996,7 +996,7 @@ export default function useUserManagementLogic() {
   ]);
 
   const fetchAgentStats = async () => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) return;
     try {
       const params = new URLSearchParams({
@@ -1076,7 +1076,7 @@ export default function useUserManagementLogic() {
 
   const fetchUsers = async (silent = false, overrides = {}) => {
     if (!silent) setLoading(true);
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const nextPage = overrides.currentPage ?? currentPage;
     const nextSearchQuery = overrides.searchQuery ?? searchQuery;
     const nextAssigneeFilter = overrides.assigneeFilter ?? assigneeFilter;
@@ -1268,7 +1268,7 @@ export default function useUserManagementLogic() {
 
   /* ---------------- FETCH REVENUE DATA ---------------- */
   const fetchRevenue = async () => {
-    const userEmail = localStorage.getItem("email");
+    const userEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const userRole = localStorage.getItem("role");
 
     if (!userEmail || !userRole) return;
@@ -1382,7 +1382,7 @@ export default function useUserManagementLogic() {
   const handleOpenAiAnalysisModal = (user) => setAiAnalysisModalUser(user);
 
   const syncWhatsAppUsersToDatabase = async () => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) return null;
 
     const res = await fetch(
@@ -1397,7 +1397,7 @@ export default function useUserManagementLogic() {
   };
 
   const fetchAgentTodayDemos = async () => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail || role !== "agent") return;
 
     setAgentTodayDemos((prev) => ({ ...prev, loading: true }));
@@ -1424,7 +1424,7 @@ export default function useUserManagementLogic() {
   };
 
   const fetchChatbotSummaryMetrics = async ({ showLoader = true } = {}) => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) return;
     if (showLoader) {
       setChatbotSummaryMetrics((prev) => ({ ...prev, loading: true }));
@@ -1465,7 +1465,7 @@ export default function useUserManagementLogic() {
     const page = options.page ?? currentPage;
     if (!options.silent) setChatbotMetricLoading(true);
     try {
-      const adminEmail = localStorage.getItem("email");
+      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       const limit = 70;
       const params = new URLSearchParams({
         email: adminEmail,
@@ -1660,7 +1660,7 @@ export default function useUserManagementLogic() {
   };
 
   const fetchTodayUsersCount = async () => {
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) return;
     try {
       const params = new URLSearchParams({
@@ -2081,7 +2081,7 @@ export default function useUserManagementLogic() {
             // ✅ Directly read phone from the user record
             phone: selectedUser.phone || "",
 
-            email: localStorage.getItem("email"),
+            email: (localStorage.getItem("adminEmail") || localStorage.getItem("email")),
             plan: selectedPlan,
             // ✅ comma जरूरी
 
@@ -2388,7 +2388,7 @@ export default function useUserManagementLogic() {
       return;
     }
 
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) {
       setBulkWaResult({ success: false, message: "Not logged in" });
       return;
@@ -2482,7 +2482,7 @@ export default function useUserManagementLogic() {
       return;
     }
 
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) {
       setBulkWaResult({ success: false, message: "Not logged in" });
       return;
@@ -2763,7 +2763,7 @@ export default function useUserManagementLogic() {
 
     if (!executiveMobile && typeof window !== "undefined") {
       const adminName = (localStorage.getItem("adminName") || "").toLowerCase();
-      const email = (localStorage.getItem("email") || "").toLowerCase();
+      const email = ((localStorage.getItem("adminEmail") || localStorage.getItem("email")) || "").toLowerCase();
 
       if (adminName.includes("aman") || email.includes("aman")) {
         executiveMobile = "919311587741";
@@ -2926,7 +2926,7 @@ export default function useUserManagementLogic() {
           (followUpIso && !Number.isNaN(new Date(followUpIso).getTime())) ||
           FOLLOW_UP_REMARKS.some((r) => trimmedR.startsWith(r));
         if (refreshFu) {
-          const adminEmail = localStorage.getItem("email");
+          const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
           if (adminEmail) {
             fetch(
               `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=${followUpFilter}`,
@@ -2994,7 +2994,10 @@ export default function useUserManagementLogic() {
     );
 
     // Get current admin info for call tracking
-    const adminId = localStorage.getItem("userId");
+    // `adminId` pehle — `userId` impersonation ke waqt impersonated user ka ho
+    // jata hai, jisse call tracking galat admin par log hoti thi.
+    const adminId =
+      localStorage.getItem("adminId") || localStorage.getItem("userId");
     const adminNameForCall = localStorage.getItem("adminName") || "Admin";
 
     try {
@@ -3053,7 +3056,7 @@ export default function useUserManagementLogic() {
           leadName: onboardModalUser.fullName,
           amount: parseFloat(onboardData.amount),
           paymentScreenshot: screenshotUrl,
-          email: localStorage.getItem("email"),
+          email: (localStorage.getItem("adminEmail") || localStorage.getItem("email")),
           notes: onboardData.notes,
           plan: onboardData.plan,
           type: "user_onboard",

@@ -588,7 +588,7 @@ export default function RevenueUsersPage() {
         };
 
   useEffect(() => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     fetch(`/api/users?email=${email}`)
       .then((res) => res.json())
       .then((data) => {
@@ -624,7 +624,7 @@ export default function RevenueUsersPage() {
   const fetchRevenueUsers = async () => {
     setLoadingRevenueUsers(true);
     try {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       const role = localStorage.getItem("role");
       const params = new URLSearchParams({ email, role });
       const res = await fetch(`/api/franchise-revenue?${params}`);
@@ -657,7 +657,7 @@ export default function RevenueUsersPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email:
-            typeof window !== "undefined" ? localStorage.getItem("email") : "",
+            typeof window !== "undefined" ? (localStorage.getItem("adminEmail") || localStorage.getItem("email")) : "",
           revenueId: String(id),
           decision,
         }),
@@ -697,7 +697,7 @@ export default function RevenueUsersPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: localStorage.getItem("email"),
+          email: (localStorage.getItem("adminEmail") || localStorage.getItem("email")),
           revenueId: String(revenueId),
           decision,
         }),

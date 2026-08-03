@@ -52,7 +52,7 @@ export default function AdminLayout({ children }) {
 
     setRole(localStorage.getItem("role") || "");
     setAdminName(localStorage.getItem("adminName") || "Admin");
-    setEmail(localStorage.getItem("email") || "");
+    setEmail((localStorage.getItem("adminEmail") || localStorage.getItem("email")) || "");
 
     try {
       setPermissions(JSON.parse(localStorage.getItem("permissions")) || {});

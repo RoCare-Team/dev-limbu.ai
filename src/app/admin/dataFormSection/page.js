@@ -88,7 +88,7 @@ export default function Page() {
   const handleSendTemplate = async (template) => {
     try {
       setSendingTemplateId(template.id);
-      const adminEmail = localStorage.getItem("email");
+      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
       const selectedUsersPayload = filteredRows
         .filter((_, idx) => selectedRows.includes(idx))

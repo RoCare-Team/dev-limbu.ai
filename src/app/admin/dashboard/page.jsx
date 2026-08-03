@@ -122,7 +122,7 @@ export default function AdminDashboard() {
     setLoading(true);
 
     try {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       const role = localStorage.getItem("role");
 
       let dateParams = "";
@@ -201,7 +201,7 @@ export default function AdminDashboard() {
         }
       }
 
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
       const res = await fetch(
         `/api/users?email=${email}&getTodayUsersCount=true${dateParams}`,
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
       const res = await fetch(`/api/users?email=${email}`);
       const data = await res.json();
@@ -254,7 +254,7 @@ export default function AdminDashboard() {
     setStageModal(stage);
 
     try {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
       if (!email) {
         console.warn("No email found in localStorage");
@@ -316,7 +316,7 @@ export default function AdminDashboard() {
   const fetchAgents = async () => {
     try {
       const res = await fetch(
-        `/api/users?email=${localStorage.getItem("email")}&getAgentStats=true`,
+        `/api/users?email=${(localStorage.getItem("adminEmail") || localStorage.getItem("email"))}&getAgentStats=true`,
       );
       const data = await res.json();
 
@@ -423,7 +423,7 @@ export default function AdminDashboard() {
     dEnd = globalEndDate,
   ) => {
     setLoading(true);
-    const adminEmail = localStorage.getItem("email");
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!adminEmail) {
       setLoading(false);
       return;
@@ -605,7 +605,7 @@ export default function AdminDashboard() {
 
   const fetchAgentRevenue = async () => {
     try {
-      const email = localStorage.getItem("email");
+      const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
       const role = localStorage.getItem("role");
 
       const res = await fetch(

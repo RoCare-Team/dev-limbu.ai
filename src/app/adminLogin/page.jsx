@@ -44,7 +44,13 @@ export default function Login() {
       localStorage.setItem("role", data.role || "");
       localStorage.setItem("permissions", JSON.stringify(data.permissions || []));
       localStorage.setItem("adminName", data.fullName || "");
+      // `email` sirf backward-compat ke liye. Asli admin identity `adminEmail`
+      // hai — kyunki impersonation (/impersonate-login) usi origin ke localStorage
+      // me `email` ko impersonated user ke email se overwrite kar deta hai, aur
+      // admin panel ki saari calls galat email bhejne lagti thi (aur admin ko
+      // dobara login karna padta tha).
       localStorage.setItem("email", data.email || "");
+      localStorage.setItem("adminEmail", data.email || "");
       localStorage.setItem("adminId", data.adminId || "");
 
       // 🔥 REDIRECT

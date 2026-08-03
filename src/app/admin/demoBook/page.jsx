@@ -96,7 +96,7 @@ export default function DemoPage() {
   };
 
   const syncUsers = async () => {
-    const email = localStorage.getItem("email");
+    const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!email) return;
     await fetch(
       `/api/admin/demo-bookings-sync?email=${encodeURIComponent(email)}`,

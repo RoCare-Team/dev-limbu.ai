@@ -74,7 +74,7 @@ export default function BusinessAiAnalysisModal({
           force: true,
           adminEmail:
             typeof window !== "undefined"
-              ? localStorage.getItem("email") || ""
+              ? (localStorage.getItem("adminEmail") || localStorage.getItem("email")) || ""
               : "",
         }),
       });

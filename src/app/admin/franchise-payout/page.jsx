@@ -53,7 +53,7 @@ export default function FranchisePayoutPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
-    setAdminEmail(localStorage.getItem("email") || "");
+    setAdminEmail((localStorage.getItem("adminEmail") || localStorage.getItem("email")) || "");
   }, []);
 
   const fetchSummary = useCallback(async () => {

@@ -27,6 +27,10 @@ import {
   Inbox,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
+import {
+  clearImpersonation,
+  isImpersonatingNow,
+} from "@/lib/clientSession";
 
 import { useSidebar } from "@/hooks/useSidebar";
 import SidebarNavItem from "./sidebar/SidebarNavItem";
@@ -63,6 +67,29 @@ export default function Sidebar({ children }) {
   }, []);
 
   const handleSignOut = useCallback(() => {
+    // Impersonated tab me `localStorage.clear()` ATOM BOMB tha: localStorage
+    // poore origin ka ek hi hota hai, isliye ye admin ka apna token/role/
+    // adminEmail bhi uda deta tha. Uske baad admin panel logged out ho jata aur
+    // /dashboard AuthGuard se seedha home (`/`) par chala jata — kyunki na
+    // `userId` bacha, na `role`.
+    //
+    // Impersonation khatam karna hai to sirf impersonation ke nishaan hatao;
+    // admin ki apni session ko haath mat lagao.
+    if (isImpersonatingNow()) {
+      clearImpersonation();
+      ["userId", "userName", "fullName", "userEmail", "email"].forEach((k) => {
+        try {
+          window.sessionStorage?.removeItem(k);
+        } catch {
+          /* storage blocked */
+        }
+      });
+      toast.success("Exited user view");
+      window.close(); // impersonation apni tab me khulta hai
+      router.push("/login");
+      return;
+    }
+
     localStorage.clear();
     toast.success("Logged out successfully!");
     router.push("/login");

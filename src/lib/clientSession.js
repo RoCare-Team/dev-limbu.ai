@@ -2,11 +2,28 @@
 
 import { getLocalStorage, getSessionStorage } from "@/utils/storage";
 
+/**
+ * JWT payload **base64url** hota hai (RFC 7519) — bina padding, `+`/`/` ki
+ * jagah `-`/`_`. Plain `atob()` isse decode nahi kar pata (invalid char /
+ * bad padding par throw karta hai), isliye ek valid, zinda token bhi "dead"
+ * treat ho jata tha aur `isTokenAlive` false laut deta tha. Neeche wala bug
+ * bahut serious tha: GMB connect flow me isi wajah se ek valid login token
+ * bhi expired samajh liya jata tha aur `clearStaleLogin()` poora localStorage
+ * saaf kar deta tha — user turant "logged out" dikhta tha.
+ */
+function decodeJwtPayload(token) {
+  const part = token.split(".")[1];
+  if (!part) return null;
+  const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  return JSON.parse(atob(padded));
+}
+
 /** JWT abhi zinda hai? (60s skew — clock thoda aage-peeche ho sakta hai) */
 function isTokenAlive(token) {
   if (!token) return false;
   try {
-    const { exp } = JSON.parse(atob(token.split(".")[1]));
+    const { exp } = decodeJwtPayload(token);
     if (!exp) return true; // bina exp wala token server hi reject karega
     return exp * 1000 > Date.now() + 60_000;
   } catch {
@@ -108,7 +125,7 @@ function clearStaleLogin() {
 
 function tokenUserId(token) {
   try {
-    return JSON.parse(atob(token.split(".")[1]))?.userId || null;
+    return decodeJwtPayload(token)?.userId || null;
   } catch {
     return null;
   }

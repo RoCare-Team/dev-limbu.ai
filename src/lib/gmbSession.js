@@ -92,8 +92,27 @@ async function refreshAccessToken(conn) {
       const googleErr = error.response?.data?.error;
       lastDetail = googleErr || error.message;
 
-      // Refresh token pakka mar gaya — retry se kuch nahi hoga. Reconnect chahiye.
+      // Is row ka token mar gaya. Reconnect maangne se pehle usi Google account
+      // ki doosri rows dekho — Google ke 100-token cap me purana token prune ho
+      // jata hai jabki account ka naya token doosri row par zinda hota hai.
       if (googleErr === "invalid_grant") {
+        for (const sibling of await siblingRefreshTokens(conn)) {
+          const healed = await exchangeRefreshToken(sibling);
+          if (!healed.accessToken) continue;
+
+          conn.accessToken = healed.accessToken;
+          conn.accessTokenExpires = Date.now() + healed.expiresIn * 1000;
+          conn.refreshToken = healed.newRefreshToken || sibling;
+          conn.invalid = false;
+          conn.invalidReason = undefined;
+          conn.updatedAt = new Date();
+          await conn.save();
+          console.log(
+            `[gmbSession] healed ${conn.userId} from another connection of the same Google account`,
+          );
+          return conn.accessToken;
+        }
+
         conn.invalid = true;
         conn.invalidReason = "invalid_grant";
         conn.updatedAt = new Date();
@@ -133,6 +152,65 @@ async function refreshAccessToken(conn) {
    likh diya jata hai (self-heal), taaki agli baar pehli hi koshish me lag jaye.
    "Reconnect" tabhi jab SAB candidates invalid_grant dein.
 ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Ek hi Google account aksar KAI app users par connected hota hai (agency ka
+ * account 50+ businesses chalata hai). Google har naye consent par naya refresh
+ * token deta hai aur **ek account + ek OAuth client par sirf 100 live refresh
+ * token** rakhta hai — limit cross hote hi sabse purana token bina bataye
+ * revoke ho jata hai. Isi wajah se 1-2 din purani entry achanak `invalid_grant`
+ * deti thi jabki usi account ka doosra, bilkul zinda token DB me pada tha.
+ *
+ * Isliye same `googleId` wali baaki rows ke token bhi candidate hain, aur
+ * jeetne wala token sab par likh diya jata hai (converge) — taaki account ke
+ * liye practically ek hi token zinda rahe.
+ */
+async function siblingRefreshTokens(conn) {
+  if (!conn?.googleId) return [];
+  try {
+    const siblings = await GmbConnection.find({
+      googleId: conn.googleId,
+      userId: { $ne: conn.userId },
+      refreshToken: { $nin: [null, ""] },
+    })
+      .select("refreshToken updatedAt")
+      .sort({ updatedAt: -1 })
+      .limit(10)
+      .lean();
+    return siblings.map((s) => s.refreshToken).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Us Google account ka koi bhi stored refresh token do.
+ * Callback isse use karta hai jab Google (already-granted account hone ki wajah
+ * se) naya refresh token nahi bhejta — tab naya token mint karne ki zaroorat hi
+ * nahi, purana hi kaam karta hai.
+ */
+export async function findRefreshTokenByGoogleId(googleId, { excludeUserId } = {}) {
+  if (!googleId) return null;
+  await dbConnect();
+  const query = { googleId, refreshToken: { $nin: [null, ""] }, invalid: { $ne: true } };
+  if (excludeUserId) query.userId = { $ne: excludeUserId };
+  const row = await GmbConnection.findOne(query).sort({ updatedAt: -1 }).select("refreshToken").lean();
+  return row?.refreshToken || null;
+}
+
+/** Ek account ke saare connections ko ek hi (working) refresh token par le aao. */
+export async function convergeGoogleAccountToken(googleId, refreshToken) {
+  if (!googleId || !refreshToken) return 0;
+  try {
+    const res = await GmbConnection.updateMany(
+      { googleId, refreshToken: { $ne: refreshToken } },
+      { $set: { refreshToken, invalid: false, invalidReason: null, updatedAt: new Date() } },
+    );
+    return res.modifiedCount || 0;
+  } catch {
+    return 0;
+  }
+}
 
 export class GmbReconnectRequiredError extends Error {
   constructor(message = "invalid_grant: reconnect GMB required") {
@@ -237,7 +315,13 @@ export async function resolveGmbAccessToken({
     }
   }
 
-  // Priority: live connection → plan (naya se purana) → caller ke snapshots.
+  // Usi Google account par bane doosre connections ke token bhi try karo —
+  // Google ke 100-token cap ki wajah se is row ka token mar sakta hai jabki
+  // account ka naya token doosri row par zinda hota hai.
+  const siblingTokens = await siblingRefreshTokens(conn);
+
+  // Priority: live connection → same account ki doosri rows → plan snapshot →
+  // caller ke snapshots.
   const candidates = [];
   const seen = new Set();
   const push = (token, source) => {
@@ -247,6 +331,7 @@ export async function resolveGmbAccessToken({
     candidates.push({ token: t, source });
   };
   push(conn?.refreshToken, "GmbConnection");
+  siblingTokens.forEach((t, i) => push(t, `SameGoogleAccount[${i}]`));
   planTokens.forEach((t, i) => push(t, `AutomationPlan[${i}]`));
   extraRefreshTokens.forEach((t, i) => push(t, `snapshot[${i}]`));
 
@@ -278,6 +363,13 @@ export async function resolveGmbAccessToken({
           await conn.save();
         } catch (saveErr) {
           log(`⚠ Could not persist healed token to GmbConnection: ${saveErr.message}`);
+        }
+
+        // Account ke baaki connections ko bhi isi token par le aao — warna har
+        // row apna purana (kabhi bhi prune ho sakne wala) token pakde rehti hai.
+        const converged = await convergeGoogleAccountToken(conn.googleId, workingRefresh);
+        if (converged) {
+          log(`↻ Same Google account ke ${converged} aur connection(s) working token par shift kiye.`);
         }
       }
 

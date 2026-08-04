@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import User from "@/models/User";
 import Admin from "@/models/Admin";
+import FranchisePanel from "@/models/franchisePanel";
 import {
   ALLOWED_USER_SOURCE_VALUES,
   mergeMetaLeadsTag,
@@ -579,6 +580,7 @@ export async function GET(req) {
     const remarkCount = searchParams.get("remarkCount");
     const chatbotChatDay = searchParams.get("chatbotChatDay");
     const franchiseLeads = searchParams.get("franchiseLeads");
+    const franchiseCode = (searchParams.get("franchiseCode") || "").trim();
 
     if (!email) {
       return NextResponse.json(
@@ -1006,10 +1008,18 @@ export async function GET(req) {
     }
 
     /* 7. Franchise filter */
-    // Show franchise leads to all roles by default (no exclusion).
-    // When the "Franchise Leads" filter is ON, show ONLY franchise leads.
+    // Franchise leads are hidden from the normal list; they only show up when
+    // the "Franchise Leads" checkbox is ON (then ONLY franchise leads show).
+    // `$in: [null, ""]` also matches docs where franchiseId is missing.
     if (franchiseLeads === "true") {
-      query = addMatchCondition(query, { franchiseId: { $ne: null } });
+      // Optional franchise-wise narrowing (dropdown next to the checkbox).
+      if (franchiseCode && franchiseCode !== "All") {
+        query = addMatchCondition(query, { franchiseId: franchiseCode });
+      } else {
+        query = addMatchCondition(query, { franchiseId: { $nin: [null, ""] } });
+      }
+    } else {
+      query = addMatchCondition(query, { franchiseId: { $in: [null, ""] } });
     }
 
     /* 8. Search */
@@ -1083,6 +1093,49 @@ export async function GET(req) {
       .skip(skip)
       .limit(limit);
 
+    /* 12.5 Franchise code → name
+       User.franchiseId stores the FranchisePanel.franchiseCode, so the UI needs
+       the name resolved here. `franchiseOptions` feeds the franchise-wise
+       dropdown and is only built when the franchise view is active. */
+    const franchiseNameByCode = new Map();
+    let franchiseOptions = [];
+
+    if (franchiseLeads === "true" || users.some((u) => u.franchiseId)) {
+      const [panels, usedCodes] = await Promise.all([
+        FranchisePanel.find({}).select("franchiseCode franchiseName").lean(),
+        franchiseLeads === "true"
+          ? User.distinct("franchiseId", { franchiseId: { $nin: [null, ""] } })
+          : Promise.resolve([]),
+      ]);
+
+      panels.forEach((panel) => {
+        if (panel.franchiseCode) {
+          franchiseNameByCode.set(
+            panel.franchiseCode,
+            panel.franchiseName || panel.franchiseCode,
+          );
+        }
+      });
+
+      franchiseOptions = usedCodes
+        .filter(Boolean)
+        .map((code) => ({
+          code,
+          name: franchiseNameByCode.get(code) || code,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const usersPayload = users.map((user) => {
+      const plain = typeof user.toObject === "function" ? user.toObject() : user;
+      if (!plain.franchiseId) return plain;
+      return {
+        ...plain,
+        franchiseName:
+          franchiseNameByCode.get(plain.franchiseId) || plain.franchiseId,
+      };
+    });
+
     /* 13. superAdmin extra stats */
     let superAdminData = {};
     if (admin.role === "superAdmin") {
@@ -1148,7 +1201,8 @@ export async function GET(req) {
       totalActiveUsers,
       totalPages: Math.ceil(totalUsers / limit),
       currentPage: page,
-      users,
+      users: usersPayload,
+      franchiseOptions,
       ...superAdminData,
     });
   } catch (error) {

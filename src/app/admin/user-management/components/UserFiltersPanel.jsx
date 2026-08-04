@@ -26,6 +26,9 @@ export default function UserFiltersPanel({
   filterStatus,
   followUpFilter,
   franchiseLeadsFilter,
+  franchiseCodeFilter = "All",
+  franchiseOptions = [],
+  setFranchiseCodeFilter,
   handleConversationStageFilterChange,
   handleSearch,
   isAgent,
@@ -339,12 +342,41 @@ export default function UserFiltersPanel({
               type="checkbox"
               checked={franchiseLeadsFilter}
               onChange={(e) => setFranchiseLeadsFilter(e.target.checked)}
+              // stop the click from bubbling to the Box, which would toggle
+              // a second time and cancel this change out
+              onClick={(e) => e.stopPropagation()}
               style={{ cursor: "pointer", width: 18, height: 18 }}
             />
             <label style={{ cursor: "pointer", fontSize: "14px", margin: 0 }}>
               Franchise Leads
             </label>
           </Box>
+
+          {/* Franchise-wise list — only meaningful inside the franchise view */}
+          {franchiseLeadsFilter && (
+            <FormControl size="small" fullWidth>
+              <Select
+                displayEmpty
+                value={franchiseCodeFilter}
+                onChange={(e) => setFranchiseCodeFilter(e.target.value)}
+                renderValue={(selected) => {
+                  if (selected === "All") return "Franchise: All";
+                  const match = franchiseOptions.find(
+                    (f) => f.code === selected,
+                  );
+                  return `Franchise: ${match?.name || selected}`;
+                }}
+                inputProps={{ "aria-label": "Franchise" }}
+              >
+                <MenuItem value="All">All Franchises</MenuItem>
+                {franchiseOptions.map((franchise) => (
+                  <MenuItem key={franchise.code} value={franchise.code}>
+                    {franchise.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
           {filterDate === "Custom Range" && (
             <Box

@@ -201,6 +201,9 @@ export default function useUserManagementLogic() {
   const [leadSourceFilter, setLeadSourceFilter] = useState("All");
   const [remarkCountFilter, setRemarkCountFilter] = useState("All");
   const [franchiseLeadsFilter, setFranchiseLeadsFilter] = useState(false);
+  // Franchise-wise narrowing inside the franchise leads view ("All" = every franchise)
+  const [franchiseCodeFilter, setFranchiseCodeFilter] = useState("All");
+  const [franchiseOptions, setFranchiseOptions] = useState([]);
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -475,6 +478,13 @@ export default function useUserManagementLogic() {
       params.append("remarkCount", remarkCountFilter);
     }
 
+    if (franchiseLeadsFilter) {
+      params.append("franchiseLeads", "true");
+      if (franchiseCodeFilter !== "All") {
+        params.append("franchiseCode", franchiseCodeFilter);
+      }
+    }
+
     const res = await fetch(`/api/users?${params.toString()}`);
     const data = await res.json();
 
@@ -509,6 +519,7 @@ export default function useUserManagementLogic() {
     customStartDate,
     customEndDate,
     franchiseLeadsFilter,
+    franchiseCodeFilter,
   ]);
 
   const agentFollowUpFilterLabel = useMemo(() => {
@@ -1095,6 +1106,8 @@ export default function useUserManagementLogic() {
       overrides.chatbotChatDayFilter ?? chatbotChatDayFilter;
     const nextFranchiseLeadsFilter =
       overrides.franchiseLeadsFilter ?? franchiseLeadsFilter;
+    const nextFranchiseCodeFilter =
+      overrides.franchiseCodeFilter ?? franchiseCodeFilter;
 
     const nextChatbotMetricFilter =
       overrides.chatbotMetricFilter ?? chatbotMetricFilter;
@@ -1157,6 +1170,9 @@ export default function useUserManagementLogic() {
 
       if (nextFranchiseLeadsFilter) {
         params.append("franchiseLeads", "true");
+        if (nextFranchiseCodeFilter && nextFranchiseCodeFilter !== "All") {
+          params.append("franchiseCode", nextFranchiseCodeFilter);
+        }
       }
 
       if (nextChatbotMetricFilter?.metricId) {
@@ -1169,6 +1185,10 @@ export default function useUserManagementLogic() {
 
       if (data.success) {
         setUsers(data.users);
+
+        if (Array.isArray(data.franchiseOptions)) {
+          setFranchiseOptions(data.franchiseOptions);
+        }
 
         setPagination({
           totalUsers: data.totalUsers,
@@ -1210,6 +1230,7 @@ export default function useUserManagementLogic() {
     remarkCountFilter,
     chatbotChatDayFilter,
     franchiseLeadsFilter,
+    franchiseCodeFilter,
   ]);
 
   useEffect(() => {
@@ -1997,7 +2018,16 @@ export default function useUserManagementLogic() {
     leadStatusFilter,
     leadStageFilter,
     remarkCountFilter,
+    franchiseLeadsFilter,
+    franchiseCodeFilter,
   ]);
+
+  // Leaving the franchise view drops the franchise-wise selection
+  useEffect(() => {
+    if (!franchiseLeadsFilter && franchiseCodeFilter !== "All") {
+      setFranchiseCodeFilter("All");
+    }
+  }, [franchiseLeadsFilter, franchiseCodeFilter]);
 
   useEffect(() => {
     if (planStartDate) {
@@ -3099,6 +3129,7 @@ export default function useUserManagementLogic() {
     setRemarkCountFilter("All");
     setChatbotChatDayFilter(null);
     setFranchiseLeadsFilter(false);
+    setFranchiseCodeFilter("All");
     clearChatbotMetricFilter();
   };
 
@@ -3302,6 +3333,9 @@ export default function useUserManagementLogic() {
     setRemarkCountFilter,
     franchiseLeadsFilter,
     setFranchiseLeadsFilter,
+    franchiseCodeFilter,
+    setFranchiseCodeFilter,
+    franchiseOptions,
     customStartDate,
     setCustomStartDate,
     customEndDate,

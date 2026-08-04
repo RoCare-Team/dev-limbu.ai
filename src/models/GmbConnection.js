@@ -21,7 +21,9 @@ const GmbConnectionSchema = new mongoose.Schema(
     phone: { type: String, index: true },
 
     // Google identity (sirf display / dedupe ke liye)
-    googleId: String,
+    // Ek hi Google account kai app users par connected ho sakta hai — token
+    // sharing/self-heal isi index se chalta hai (dekho gmbSession.js).
+    googleId: { type: String, index: true },
     email: String,
     name: String,
     image: String,

@@ -222,6 +222,9 @@ export default function UserManagement() {
     setRemarkCountFilter,
     franchiseLeadsFilter,
     setFranchiseLeadsFilter,
+    franchiseCodeFilter,
+    setFranchiseCodeFilter,
+    franchiseOptions,
     customStartDate,
     setCustomStartDate,
     customEndDate,
@@ -415,6 +418,9 @@ export default function UserManagement() {
             filterStatus={filterStatus}
             followUpFilter={followUpFilter}
             franchiseLeadsFilter={franchiseLeadsFilter}
+            franchiseCodeFilter={franchiseCodeFilter}
+            franchiseOptions={franchiseOptions}
+            setFranchiseCodeFilter={setFranchiseCodeFilter}
             handleConversationStageFilterChange={
               handleConversationStageFilterChange
             }

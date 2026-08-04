@@ -1,13 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getAppUser } from "@/lib/appSession";
-import {
-  GMB_SCOPE,
-  gmbRedirectUri,
-  GMB_BASE_URL,
-  getGmbConnection,
-  getGmbConnectionByPhone,
-} from "@/lib/gmbSession";
+import { GMB_SCOPE, gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +14,8 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
  * cookie me nahi. Isiliye `error=OAuthCallback` (state-cookie mismatch) wala
  * loop yahan ho hi nahi sakta — reverse proxy / subdomain par bhi nahi.
  */
-function buildAuthUrl(identity, callbackUrl, forceConsent) {
-  const state = jwt.sign({ ...identity, callbackUrl }, JWT_SECRET, {
+function buildAuthUrl(identity, callbackUrl, forceConsent, retried = false) {
+  const state = jwt.sign({ ...identity, callbackUrl, retried }, JWT_SECRET, {
     expiresIn: "10m",
   });
 
@@ -38,8 +32,16 @@ function buildAuthUrl(identity, callbackUrl, forceConsent) {
     // GMB ko sirf business.manage chahiye, incremental auth ki zaroorat nahi.
     state,
   });
-  // Consent sirf tab jab refresh token chahiye — har baar nahi.
-  if (forceConsent) params.set("prompt", "consent");
+  // `prompt=consent` har baar ek NAYA refresh token mint karta hai. Google ek
+  // Google-account + client par sirf 100 live refresh token rakhta hai aur
+  // limit par sabse purana chupchap revoke kar deta hai — ek hi agency account
+  // 50+ businesses par connected ho to ye cap jaldi hit hota hai aur purane
+  // connections "1-2 din me" invalid_grant dene lagte hain.
+  //
+  // Isliye consent sirf tab jab sach me naya token chahiye. Warna
+  // `select_account`: user account chun sakta hai, par naya token mint nahi
+  // hota — callback account ka pehle se stored token reuse kar leta hai.
+  params.set("prompt", forceConsent ? "consent" : "select_account");
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
@@ -56,22 +58,24 @@ function buildAuthUrl(identity, callbackUrl, forceConsent) {
  * `?consent=1` se caller jaan-boojhkar consent maang sakta hai (jaise "Switch
  * account" flow), aur `?consent=0` kabhi force nahi karta.
  */
-async function shouldForceConsent(request, identity) {
+async function shouldForceConsent(request) {
   const consentParam = new URL(request.url).searchParams.get("consent");
   if (consentParam === "1") return true;
   if (consentParam === "0") return false;
 
-  // Default: valid connection hai to consent skip, warna force.
-  try {
-    const conn = identity.userId
-      ? await getGmbConnection(identity.userId)
-      : await getGmbConnectionByPhone(identity.phone);
-    const hasValid = !!conn?.refreshToken && !conn.invalid;
-    return !hasValid;
-  } catch {
-    // Shaq ho to force — nahi to refresh token miss ho sakta hai.
-    return true;
-  }
+  // Default: consent NAHI.
+  //
+  // Pehle "is app user ka apna valid token nahi hai" par consent force hota
+  // tha — matlab har naye business/user ke connect par ek naya refresh token
+  // mint hota tha, chahe wahi Google account pehle se 50 jagah juda ho. Yahi
+  // Google ke 100-token-per-account cap ko hit karta tha aur purane tokens
+  // silently revoke hote the.
+  //
+  // Ab: pehle bina consent try karo. Google naya account hone par khud consent
+  // screen dikha kar refresh token deta hai; pehle se granted account par token
+  // nahi bhejta — us case me callback usi account ka stored token reuse karta
+  // hai, aur wo bhi na mile to ek baar `consent=1` ke saath dobara bhejta hai.
+  return false;
 }
 
 async function resolve(request) {
@@ -88,18 +92,20 @@ async function resolve(request) {
   // karta hai) — yaani galat account connect ho jata. URL ka phone hi is flow ki
   // asli identity hai. `resolveGmbOwnerId` us phone ka asli User mil jaye to
   // uske userId par hi store karta hai, isliye normal user ko koi nuksan nahi.
+  // Callback ka one-shot retry — dobara loop na ho isliye state me carry hota hai.
+  const retried = searchParams.get("retried") === "1";
+  const forceConsent = await shouldForceConsent(request);
+
   const phone = String(searchParams.get("phone") || "").replace(/\D/g, "");
   if (phone) {
-    const identity = { phone };
-    const forceConsent = await shouldForceConsent(request, identity);
-    return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
+    return { url: buildAuthUrl({ phone }, callbackUrl, forceConsent, retried) };
   }
 
   const appUser = getAppUser(request);
   if (appUser?.userId) {
-    const identity = { userId: appUser.userId };
-    const forceConsent = await shouldForceConsent(request, identity);
-    return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
+    return {
+      url: buildAuthUrl({ userId: appUser.userId }, callbackUrl, forceConsent, retried),
+    };
   }
 
   return { error: true };

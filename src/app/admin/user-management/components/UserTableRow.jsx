@@ -312,8 +312,11 @@ export default function UserTableRow({
             )}{" "}
             <div className="flex flex-wrap gap-1 mt-1">
               {user.franchiseId ? (
-                <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100 rounded-full">
-                  Franchise: {user.franchiseId}
+                <span
+                  className="inline-block px-2 py-0.5 text-[10px] font-semibold text-purple-700 bg-purple-100 rounded-full"
+                  title={`Franchise code: ${user.franchiseId}`}
+                >
+                  Franchise: {user.franchiseName || user.franchiseId}
                 </span>
               ) : (
                 <span className="inline-block px-2 py-0.5 text-[10px] font-semibold text-slate-700 bg-slate-100 rounded-full">

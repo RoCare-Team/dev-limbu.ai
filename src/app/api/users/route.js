@@ -1008,9 +1008,15 @@ export async function GET(req) {
     }
 
     /* 7. Franchise filter */
-    // Franchise leads are hidden from the normal list; they only show up when
-    // the "Franchise Leads" checkbox is ON (then ONLY franchise leads show).
-    // `$in: [null, ""]` also matches docs where franchiseId is missing.
+    // Franchise leads sirf poori lead list (superAdmin/admin view) se hide hote
+    // hain — wahan "Franchise Leads" checkbox se hi dikhte hain.
+    //
+    // Account managers (agent/manager) ka list already unke apne assigned leads
+    // tak scoped hai; unke panel se franchise leads hatana galat tha, kyunki jo
+    // franchise lead unhe assign hua hai wo unka hi kaam hai. Isliye unke liye
+    // koi default exclusion nahi.
+    const scopedToOwnLeads = admin.role === "agent" || admin.role === "manager";
+
     if (franchiseLeads === "true") {
       // Optional franchise-wise narrowing (dropdown next to the checkbox).
       if (franchiseCode && franchiseCode !== "All") {
@@ -1018,7 +1024,8 @@ export async function GET(req) {
       } else {
         query = addMatchCondition(query, { franchiseId: { $nin: [null, ""] } });
       }
-    } else {
+    } else if (!scopedToOwnLeads) {
+      // `$in: [null, ""]` missing field ko bhi cover karta hai.
       query = addMatchCondition(query, { franchiseId: { $in: [null, ""] } });
     }
 

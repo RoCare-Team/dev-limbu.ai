@@ -9,6 +9,9 @@ import { getValidFrequencies, getRecommendedFrequency } from "@/utils/userSettin
 
 const ASSET_IMAGE_FIELDS = ["characterImage", "uniformImage", "productImage", "backgroundImage", "logoImage"];
 const USER_SETTINGS_PASSKEY = "Limbu007";
+/** Ek baar passkey daalne ke baad isi browser me dobara na poocho (refresh/tab). */
+const PASSKEY_UNLOCK_KEY = "limbu:userSettingsUnlockedAt";
+const PASSKEY_UNLOCK_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 din
 
 function pickFirstNonEmpty(...vals) {
   for (const v of vals) {
@@ -705,6 +708,21 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [passkeyInput, setPasskeyInput] = useState("");
   const [passkeyError, setPasskeyError] = useState("");
 
+  // Pehle se unlocked browser me passkey dobara mat maango. Mount ke baad
+  // padhte hain (server render par localStorage nahi hota → hydration mismatch).
+  useEffect(() => {
+    try {
+      const at = Number(window.localStorage.getItem(PASSKEY_UNLOCK_KEY));
+      if (Number.isFinite(at) && at > 0 && Date.now() - at < PASSKEY_UNLOCK_TTL_MS) {
+        setPasskeyVerified(true);
+      } else if (at) {
+        window.localStorage.removeItem(PASSKEY_UNLOCK_KEY);
+      }
+    } catch {
+      /* storage blocked — normal passkey prompt dikhega */
+    }
+  }, []);
+
   const [gmbLocationsExpanded, setGmbLocationsExpanded] = useState(true);
   const [metaSyncing, setMetaSyncing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1180,6 +1198,12 @@ export default function AutomationSettings({ onNavigateBack }) {
     if (passkeyInput.trim() === USER_SETTINGS_PASSKEY) {
       setPasskeyVerified(true);
       setPasskeyError("");
+      // Isi browser me refresh / dobara khulne par phir se na poocha jaye.
+      try {
+        window.localStorage.setItem(PASSKEY_UNLOCK_KEY, String(Date.now()));
+      } catch {
+        /* storage blocked — tab tak session bhar chalega */
+      }
       return;
     }
     setPasskeyError("Invalid passkey. If you don't have a passkey, contact our Expert Team.");
@@ -1246,6 +1270,21 @@ export default function AutomationSettings({ onNavigateBack }) {
           )}
           <div style={{ fontSize: 12, color: "#64748b" }}>
             If you do not have a user passkey, contact our Expert Team.
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: "#92400e",
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 10,
+              padding: "8px 10px",
+              lineHeight: 1.45,
+            }}
+          >
+            <strong>Note:</strong> Saving changes in User Settings needs admin
+            approval. Please get your settings approved by the admin before
+            saving.
           </div>
           <button
             type="submit"
@@ -2605,6 +2644,26 @@ export default function AutomationSettings({ onNavigateBack }) {
         )}
 
         {/* Bottom save button */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 10,
+            fontSize: 12,
+            color: "#92400e",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 12,
+            padding: "10px 14px",
+            marginBottom: 12,
+          }}
+        >
+          <span>
+            <strong>Note:</strong> Settings save karne se pehle admin ki approval
+            zaroori hai — approval ke bina changes save na karein.
+          </span>
+        </div>
         <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: 20 }}>
           <button onClick={handleSave} disabled={saving || !planLive}
             style={{ display: "flex", alignItems: "center", gap: 8, background: saving || !planLive ? "#d1d5db" : "#111", color: "#fff", border: "none", padding: "11px 28px", borderRadius: 14, fontSize: 14, fontWeight: 700, cursor: saving || !planLive ? "not-allowed" : "pointer", boxShadow: saving || !planLive ? "none" : "0 2px 10px rgba(0,0,0,.15)", fontFamily: "inherit" }}>

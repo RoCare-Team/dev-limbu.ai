@@ -16,6 +16,23 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
 
+  async redirects() {
+    return [
+      {
+        // "Local Rank Tracker" ka naam "Competitor Analysis" ho gaya. Purane
+        // bookmarks / shared links na tooten isliye permanent redirect.
+        source: "/local-rank-tracker",
+        destination: "/competitor-analysis",
+        permanent: true,
+      },
+      {
+        source: "/local-rank-tracker/:path*",
+        destination: "/competitor-analysis/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

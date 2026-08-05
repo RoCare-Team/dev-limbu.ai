@@ -137,9 +137,9 @@ export default function Sidebar({ children }) {
         path: "/keyword-planner",
       },
       {
-        text: "Local Rank Tracker",
+        text: "Competitor Analysis",
         icon: <MapPin size={18} />,
-        path: "/local-rank-tracker",
+        path: "/competitor-analysis",
       },
       { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {

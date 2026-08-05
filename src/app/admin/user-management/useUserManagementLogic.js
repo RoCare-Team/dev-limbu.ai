@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import { META_FORM_SYNC_IDS } from "@/lib/metaFormLeadsConfig";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
@@ -147,6 +147,7 @@ export default function useUserManagementLogic() {
   const [isRefreshingWhatsAppData, setIsRefreshingWhatsAppData] =
     useState(false);
   const [callStats, setCallStats] = useState(null);
+  const [callStatsLoading, setCallStatsLoading] = useState(false);
 
   const [followUpDate, setFollowUpDate] = useState("");
   /** HH:mm — combined with followUpDate when saving follow-up */
@@ -841,33 +842,33 @@ export default function useUserManagementLogic() {
     if (bulkWaSelectedUserIds.length === 0) setBulkWaShowPanel(false);
   }, [bulkWaSelectedUserIds.length]);
 
+  const fetchCallStats = useCallback(async () => {
+    const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
+    if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+
+    setCallStatsLoading(true);
+    try {
+      const [callRes, followUpRes] = await Promise.all([
+        fetch(`/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`),
+        fetch(
+          `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`,
+        ),
+      ]);
+      const callData = await callRes.json();
+      const followUpData = await followUpRes.json();
+
+      if (callData.success) setCallStats(callData.stats);
+      if (followUpData.success) setFollowUpStats(followUpData.stats);
+    } catch (error) {
+      console.error("Failed to fetch call/follow-up stats:", error);
+    } finally {
+      setCallStatsLoading(false);
+    }
+  }, [role]);
+
   useEffect(() => {
-    const fetchCallStats = async () => {
-      const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
-      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
-        return;
-
-      try {
-        const [callRes, followUpRes] = await Promise.all([
-          fetch(
-            `/api/admin/call-stats?email=${encodeURIComponent(adminEmail)}`,
-          ),
-          fetch(
-            `/api/admin/follow-up-stats?email=${encodeURIComponent(adminEmail)}&filter=all`,
-          ),
-        ]);
-        const callData = await callRes.json();
-        const followUpData = await followUpRes.json();
-
-        if (callData.success) setCallStats(callData.stats);
-        if (followUpData.success) setFollowUpStats(followUpData.stats);
-      } catch (error) {
-        console.error("Failed to fetch call/follow-up stats:", error);
-      }
-    };
-
     fetchCallStats();
-  }, [role, users]);
+  }, [fetchCallStats, users]);
 
   // Fetch follow-up leads when filter tab changes
   useEffect(() => {
@@ -3286,6 +3287,8 @@ export default function useUserManagementLogic() {
     setIsRefreshingWhatsAppData,
     callStats,
     setCallStats,
+    callStatsLoading,
+    refreshCallStats: fetchCallStats,
     followUpDate,
     setFollowUpDate,
     followUpTime,

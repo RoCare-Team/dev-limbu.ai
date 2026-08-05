@@ -3765,10 +3765,13 @@ export default function FranchiseLeadsPage() {
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
                     </div>
                   </th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Remarks
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Contact
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                       Date
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
@@ -3780,9 +3783,6 @@ export default function FranchiseLeadsPage() {
 
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Chat
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                    Remarks
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
@@ -4048,6 +4048,62 @@ export default function FranchiseLeadsPage() {
                             </select>
                           </div>
                         </td>
+                        {/* REMARKS — moved up so it is visible without scrolling */}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setRemarkModalLead(lead)}
+                                className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
+                                title="Add Remark"
+                              >
+                                <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                                {remarkHistory[lead.id]?.length > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                    {remarkHistory[lead.id].length}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRevenueModalLead(lead);
+                                  setShowRevenueModal(true);
+                                }}
+                                className="p-2 hover:bg-emerald-100 rounded-lg transition-colors group"
+                                title="OnBoarded Franchise"
+                              >
+                                <BadgeCheck className="w-4 h-4 text-gray-400 group-hover:text-emerald-600" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLead(lead)}
+                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                              </button>
+                              {role === "superAdmin" && (
+                                <button
+                                  onClick={() => handleDeleteLead(lead.id)}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
+                                </button>
+                              )}
+                            </div>
+                            <div
+                              className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
+                                remarkHistory[lead.id]?.[0]?.text
+                                  ? "bg-blue-50 text-blue-800 border-blue-100"
+                                  : "text-gray-400 border-transparent italic"
+                              }`}
+                              title={remarkHistory[lead.id]?.[0]?.text || ""}
+                            >
+                              {remarkHistory[lead.id]?.[0]?.text ||
+                                "No remarks"}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -4060,13 +4116,35 @@ export default function FranchiseLeadsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {lead.created_time
-                              ? new Date(lead.created_time).toLocaleString()
-                              : "-"}
-                          </div>
+                        {/* DATE — date on top, time smaller underneath */}
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          {lead.created_time ? (
+                            <div className="flex items-start gap-1.5 text-gray-600">
+                              <Calendar className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
+                              <div className="leading-tight">
+                                <div className="text-[11px] font-medium text-gray-700 tabular-nums">
+                                  {new Date(
+                                    lead.created_time,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "2-digit",
+                                  })}
+                                </div>
+                                <div className="text-[10px] text-gray-400 tabular-nums">
+                                  {new Date(
+                                    lead.created_time,
+                                  ).toLocaleTimeString("en-IN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {(() => {
@@ -4135,61 +4213,6 @@ export default function FranchiseLeadsPage() {
                               </button>
                             );
                           })()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setRemarkModalLead(lead)}
-                                className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
-                                title="Add Remark"
-                              >
-                                <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
-                                {remarkHistory[lead.id]?.length > 0 && (
-                                  <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                    {remarkHistory[lead.id].length}
-                                  </span>
-                                )}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRevenueModalLead(lead);
-                                  setShowRevenueModal(true);
-                                }}
-                                className="p-2 hover:bg-emerald-100 rounded-lg transition-colors group"
-                                title="OnBoarded Franchise"
-                              >
-                                <BadgeCheck className="w-4 h-4 text-gray-400 group-hover:text-emerald-600" />
-                              </button>
-                              <button
-                                onClick={() => setSelectedLead(lead)}
-                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                              </button>
-                              {role === "superAdmin" && (
-                                <button
-                                  onClick={() => handleDeleteLead(lead.id)}
-                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
-                                  title="Delete Lead"
-                                >
-                                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
-                                </button>
-                              )}
-                            </div>
-                            <div
-                              className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
-                                remarkHistory[lead.id]?.[0]?.text
-                                  ? "bg-blue-50 text-blue-800 border-blue-100"
-                                  : "text-gray-400 border-transparent italic"
-                              }`}
-                              title={remarkHistory[lead.id]?.[0]?.text || ""}
-                            >
-                              {remarkHistory[lead.id]?.[0]?.text ||
-                                "No remarks"}
-                            </div>
-                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select

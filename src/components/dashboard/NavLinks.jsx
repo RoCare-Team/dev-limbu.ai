@@ -9,12 +9,12 @@ import MobileFeatureGuide from "./MobileFeatureGuide";
 // aur process kaise chalta hai.
 const navItems = [
     {
-        href: "/local-rank-tracker",
+        href: "/competitor-analysis",
         icon: <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />,
-        label: "Local Rank Tracker",
+        label: "Competitor Analysis",
         isFree: true,
         tooltip:
-            "See where you rank on Google Maps. Enter a keyword + location — we scan a grid of points around your business and show the rank at each point.",
+            "See where you rank on Google Maps against your competitors. Enter a keyword + location — we scan a grid of points around your business and show the rank at each point.",
     },
     {
         href: "/gmb-health",

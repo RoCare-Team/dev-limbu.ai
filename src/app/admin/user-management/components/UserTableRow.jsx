@@ -193,27 +193,34 @@ export default function UserTableRow({
         )}
 
         {/* DATE / FOLLOW UP */}
-        <td className="px-6 py-5">
-          <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-gray-400" />
-            <div className="text-sm text-gray-700">
-              {user.createdAt ? (
-                <div className="font-medium">
-                  {new Date(user.createdAt).toLocaleDateString("en-US", {
+        <td className="px-4 py-5">
+          <div className="flex items-start gap-2">
+            <Calendar size={14} className="text-gray-400 mt-0.5 shrink-0" />
+            {user.createdAt ? (
+              <div className="leading-tight">
+                <div className="text-xs font-medium text-gray-700 tabular-nums">
+                  {new Date(user.createdAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
                     month: "short",
-                    day: "numeric",
                     year: "numeric",
                   })}
                 </div>
-              ) : (
-                <span className="text-gray-400 italic">N/A</span>
-              )}
-            </div>
+                <div className="text-[10px] text-gray-400 tabular-nums">
+                  {new Date(user.createdAt).toLocaleTimeString("en-IN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: true,
+                  })}
+                </div>
+              </div>
+            ) : (
+              <span className="text-sm text-gray-400 italic">N/A</span>
+            )}
           </div>
         </td>
 
         {/* USER INFO & STATUS */}
-        <td className="px-6 py-5">
+        <td className="px-3 py-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               {user.fullName && (
@@ -347,7 +354,7 @@ export default function UserTableRow({
         </td>
 
         {/* BUSINESS REPORT */}
-        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+        <td className="px-2 py-4" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col items-start gap-1.5">
             <button
               onClick={(e) => {
@@ -393,6 +400,58 @@ export default function UserTableRow({
                 <MessageCircle size={14} />
                 WhatsApp
               </button>
+            )}
+          </div>
+        </td>
+
+        {/* REMARKS */}
+        <td className="px-3 py-4">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOpenRemarksModal(user);
+            }}
+            className="cursor-pointer"
+          >
+            <div className="flex items-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 w-fit">
+              <MessageSquare size={14} className="mr-1.5" />
+              <span className="font-bold text-xs">
+                {user.remarksHistory?.length || 0}
+              </span>
+            </div>
+
+            {/* ✅ Last remark date/time */}
+            {user.remarksHistory?.length > 0 &&
+              (() => {
+                const lastRemark =
+                  user.remarksHistory[user.remarksHistory.length - 1];
+                const date = lastRemark?.createdAt
+                  ? new Date(lastRemark.createdAt)
+                  : null;
+                return date ? (
+                  <div className="text-[10px] text-blue-400 font-bold mt-1 leading-tight">
+                    <div>
+                      {date.toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "2-digit",
+                      })}
+                    </div>
+                    <div className="text-[9px] font-semibold text-blue-400/80">
+                      {date.toLocaleTimeString("en-IN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+            {user.Remarks && (
+              <div className="text-[10px] text-gray-500 truncate max-w-[150px] mt-1 italic">
+                {user.Remarks}
+              </div>
             )}
           </div>
         </td>
@@ -501,54 +560,6 @@ export default function UserTableRow({
               {getAgentName(user.assignedAgentId)}
             </span>
           )}
-        </td>
-
-        {/* REMARKS */}
-        <td className="px-6 py-4">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              handleOpenRemarksModal(user);
-            }}
-            className="cursor-pointer"
-          >
-            <div className="flex items-center h-7 px-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-100 w-fit">
-              <MessageSquare size={14} className="mr-1.5" />
-              <span className="font-bold text-xs">
-                {user.remarksHistory?.length || 0}
-              </span>
-            </div>
-
-            {/* ✅ Last remark date/time */}
-            {user.remarksHistory?.length > 0 &&
-              (() => {
-                const lastRemark =
-                  user.remarksHistory[user.remarksHistory.length - 1];
-                const date = lastRemark?.createdAt
-                  ? new Date(lastRemark.createdAt)
-                  : null;
-                return date ? (
-                  <div className="text-[10px] text-blue-400 font-bold mt-1">
-                    {date.toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "2-digit",
-                    })}{" "}
-                    {date.toLocaleTimeString("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
-                  </div>
-                ) : null;
-              })()}
-
-            {user.Remarks && (
-              <div className="text-[10px] text-gray-500 truncate max-w-[150px] mt-1 italic">
-                {user.Remarks}
-              </div>
-            )}
-          </div>
         </td>
 
         {/* LEAD STAGE */}

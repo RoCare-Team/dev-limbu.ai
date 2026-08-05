@@ -63,6 +63,7 @@ import IssuesModal from "./components/IssuesModal";
 import UserPostsModal from "./components/UserPostsModal";
 import UserTableRow from "./components/UserTableRow";
 import AgentPerformanceDashboard from "./components/AgentPerformanceDashboard";
+import AgentCallStatsPanel from "./components/AgentCallStatsPanel";
 import UserFiltersPanel from "./components/UserFiltersPanel";
 import useUserManagementLogic from "./useUserManagementLogic";
 
@@ -186,6 +187,8 @@ export default function UserManagement() {
     setConversationStageTableActive,
     isRefreshingWhatsAppData,
     callStats,
+    callStatsLoading,
+    refreshCallStats,
     followUpDate,
     setFollowUpDate,
     followUpTime,
@@ -398,6 +401,19 @@ export default function UserManagement() {
                 onSelectCard={handleChatbotMetricCardClick}
                 agentTodayLeads={agentTodayLeads}
                 role={role}
+              />
+            </Box>
+          )}
+
+          {/* ── Agent call activity: today vs yesterday (superAdmin only) ─── */}
+          {role === "superAdmin" && (
+            <Box sx={{ mb: 1 }}>
+              <AgentCallStatsPanel
+                rows={callStats?.callsByAgentDayWise || []}
+                totalToday={callStats?.totalCallsToday || 0}
+                totalYesterday={callStats?.totalCallsYesterday || 0}
+                loading={callStatsLoading}
+                onRefresh={refreshCallStats}
               />
             </Box>
           )}
@@ -831,11 +847,14 @@ export default function UserManagement() {
                           ? "Follow-up"
                           : "Joined Date"}
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         User Name
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
+                      <th className="px-2 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[130px]">
                         Business Report
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
+                        Remarks
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[90px]">
                         Chat
@@ -848,9 +867,6 @@ export default function UserManagement() {
                     </th> */}
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Assign To
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
-                        Remarks
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Lead Stage

@@ -45,6 +45,7 @@ import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneM
 import AddExpoLeadUserModal from "./components/AddExpoLeadUserModal";
 
 import WhatsappModal from "./components/WhatsAppTemplateModel";
+import EmailTemplateModal from "./components/EmailTemplateModal";
 import ChatHistoryModal from "./components/ChatHistoryModal";
 import ChatbotSummaryMetrics from "./components/ChatbotSummaryMetrics";
 import WalletUpdateModal from "./components/WalletUpdateModal";
@@ -281,6 +282,10 @@ export default function UserManagement() {
     selectAllBulkWaOnPage,
     sendBulkUserManagementWhatsApp,
     sendTemplateWhatsApp,
+    isEmailModalOpen,
+    setIsEmailModalOpen,
+    emailSendingId,
+    sendTemplateEmail,
     handleAddUser,
     handleViewPosts,
     handleOpenWalletModal,
@@ -738,6 +743,8 @@ export default function UserManagement() {
                         </button>
 
                         <button
+                          type="button"
+                          onClick={() => setIsEmailModalOpen(true)}
                           className="
                            group bg-white px-6 py-3 rounded-2xl
                            flex items-center gap-2 text-purple-600 font-semibold
@@ -780,6 +787,14 @@ export default function UserManagement() {
                   bulkWaSending={bulkWaSending}
                   onSendTemplate={sendTemplateWhatsApp}
                   sendingTemplateId={templateWaSendingId}
+                />
+
+                <EmailTemplateModal
+                  isOpen={isEmailModalOpen}
+                  setIsOpen={setIsEmailModalOpen}
+                  selectedCount={bulkWaSelectedUserIds.length}
+                  onSendTemplate={sendTemplateEmail}
+                  sendingTemplateId={emailSendingId}
                 />
 
                 {bulkWaResult && (

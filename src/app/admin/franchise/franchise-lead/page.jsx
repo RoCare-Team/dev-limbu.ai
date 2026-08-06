@@ -47,6 +47,11 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import ChatHistoryModal from "../../user-management/components/ChatHistoryModal";
+import EmailTemplateModal from "../../user-management/components/EmailTemplateModal";
+import {
+  FRANCHISE_EMAIL_TEMPLATE_GROUPS,
+  getFranchiseEmailTemplatesForGroup,
+} from "@/lib/franchiseEmailTemplates";
 import useUserManagementLogic from "../../user-management/useUserManagementLogic";
 
 /* ---------------- CONFIG ---------------- */
@@ -395,6 +400,11 @@ export default function FranchiseLeadsPage() {
   const [isOfferTemplateModalOpen, setIsOfferTemplateModalOpen] =
     useState(false);
   const [sendingOfferMsg, setSendingOfferMsg] = useState(false);
+
+  /** Franchise email campaigns via mail.limbutech.in */
+  const [isEmailTemplateModalOpen, setIsEmailTemplateModalOpen] =
+    useState(false);
+  const [emailSendingId, setEmailSendingId] = useState("");
 
   const handleFilterChange = (setter, value) => {
     setFilterLoading(true);
@@ -1522,6 +1532,66 @@ export default function FranchiseLeadsPage() {
       toast.error("WhatsApp send failed");
     } finally {
       setSendingFranchiseMsg(false);
+    }
+  };
+
+  /* ---------------- FRANCHISE EMAIL TEMPLATES ---------------- */
+  const handleSendFranchiseEmail = async (template) => {
+    if (selectedLeads.length === 0) return;
+
+    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
+    const picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+
+    const recipients = picked
+      .map((lead) => {
+        const email = String(lead.email || "").trim();
+        if (!email) return null;
+        return {
+          email,
+          name: (lead.full_name || lead.fullName || "there").slice(0, 120),
+        };
+      })
+      .filter(Boolean);
+
+    if (recipients.length === 0) {
+      toast.error("No email addresses in the selected leads");
+      return;
+    }
+
+    const adminEmail =
+      localStorage.getItem("adminEmail") || localStorage.getItem("email");
+    if (!adminEmail) {
+      toast.error("Not logged in");
+      return;
+    }
+
+    setEmailSendingId(template.id);
+    try {
+      const res = await fetch("/api/franchise-leads/send-email-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          leads: recipients,
+          templateId: template.id,
+          customSubject: template.customSubject,
+          customMessage: template.customMessage,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success(data.message || "Email sent");
+        setSelectedLeads([]);
+        setIsEmailTemplateModalOpen(false);
+      } else {
+        toast.error(data.message || "Email send failed");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Email send failed");
+    } finally {
+      setEmailSendingId("");
     }
   };
 
@@ -3724,6 +3794,16 @@ export default function FranchiseLeadsPage() {
                 Offer Template ({OFFER_DISCOUNT_PERCENT}% Off)
               </button>
 
+              {/* Franchise Email Template Button */}
+              <button
+                type="button"
+                onClick={() => setIsEmailTemplateModalOpen(true)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Email Template
+              </button>
+
               {role === "superAdmin" && (
                 <button
                   onClick={handleBulkDelete}
@@ -5304,6 +5384,18 @@ export default function FranchiseLeadsPage() {
           </div>
         </div>
       )}
+
+      {/* Franchise Email Template Modal */}
+      <EmailTemplateModal
+        isOpen={isEmailTemplateModalOpen}
+        setIsOpen={setIsEmailTemplateModalOpen}
+        selectedCount={selectedLeads.length}
+        onSendTemplate={handleSendFranchiseEmail}
+        sendingTemplateId={emailSendingId}
+        groups={FRANCHISE_EMAIL_TEMPLATE_GROUPS}
+        templatesForGroup={getFranchiseEmailTemplatesForGroup}
+        heading="Franchise Email Templates"
+      />
 
       {/* Franchise Offer Template Modal (franchise_off_new) */}
       {isOfferTemplateModalOpen && (

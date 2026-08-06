@@ -224,6 +224,10 @@ export default function useUserManagementLogic() {
   const [templateWaSendingId, setTemplateWaSendingId] = useState("");
   const [bulkWaResult, setBulkWaResult] = useState(null);
 
+  /** SuperAdmin only — bulk email campaigns via mail.limbutech.in. */
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [emailSendingId, setEmailSendingId] = useState("");
+
   const [allUserIds, setAllUserIds] = useState([]);
 
   // remark
@@ -2559,6 +2563,80 @@ export default function useUserManagementLogic() {
     }
   };
 
+  const getSelectedEmailUsersPayload = () =>
+    allSelectedUsers
+      .filter((u) => bulkWaSelectedUserIds.includes(String(u.userId)))
+      .map((u) => {
+        const email = String(u.email || "").trim();
+        if (!email) return null;
+        return {
+          userId: u.userId,
+          email,
+          name: u.fullName || u.name || "there",
+        };
+      })
+      .filter(Boolean);
+
+  /** Sends one of the built-in email templates (or a custom one) to the selection. */
+  const sendTemplateEmail = async (template) => {
+    if (role !== "superAdmin") return;
+
+    const usersPayload = getSelectedEmailUsersPayload();
+
+    if (!usersPayload.length) {
+      setBulkWaResult({
+        success: false,
+        message: "No valid email addresses in selection",
+      });
+      return;
+    }
+
+    const adminEmail =
+      localStorage.getItem("adminEmail") || localStorage.getItem("email");
+    if (!adminEmail) {
+      setBulkWaResult({ success: false, message: "Not logged in" });
+      return;
+    }
+
+    setEmailSendingId(template.id);
+    setBulkWaResult(null);
+    try {
+      const response = await fetch("/api/admin/user-management-bulk-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          users: usersPayload,
+          templateId: template.id,
+          customSubject: template.customSubject,
+          customMessage: template.customMessage,
+        }),
+      });
+      const json = await response.json();
+
+      setBulkWaResult({
+        success: response.ok && json.success,
+        message:
+          json.message ||
+          (response.ok ? "Email processed" : "Server error occurred"),
+        sent: json.sent ?? 0,
+      });
+
+      if (response.ok && json.success) {
+        setBulkWaSelectedUserIds([]);
+        setIsEmailModalOpen(false);
+      }
+    } catch (error) {
+      console.error("Template email error:", error);
+      setBulkWaResult({
+        success: false,
+        message: "Something went wrong while sending",
+      });
+    } finally {
+      setEmailSendingId("");
+    }
+  };
+
   const handleAddUser = async () => {
     if (!newUser.fullName || !newUser.email) {
       alert("Please enter Full Name and Email");
@@ -3429,6 +3507,10 @@ export default function useUserManagementLogic() {
     sendBulkUserManagementWhatsApp,
     getSelectedWhatsAppUsersPayload,
     sendTemplateWhatsApp,
+    isEmailModalOpen,
+    setIsEmailModalOpen,
+    emailSendingId,
+    sendTemplateEmail,
     handleAddUser,
     handleViewPosts,
     handleOpenWalletModal,

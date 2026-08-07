@@ -484,8 +484,32 @@ export default function RevenueUsersPage() {
     (item) => item.type === "service",
   );
 
+  // Card click (e.g. "Today's Revenue") ko service list par bhi apply karo.
+  const filteredServiceRows = serviceRows.filter((item) => {
+    if (!cardFilter) return true;
+
+    // Plan card click → sirf usi plan ki rows (cardFilter = "plan:<name>")
+    if (cardFilter.startsWith("plan:")) {
+      const planName = cardFilter.slice(5).toLowerCase();
+      return (item.plan || "").trim().toLowerCase() === planName;
+    }
+
+    const isToday =
+      item.createdAt &&
+      new Date(item.createdAt).toDateString() === new Date().toDateString();
+
+    switch (cardFilter) {
+      case "today_users":
+        return isToday;
+      case "today_revenue":
+        return isToday && Number(item.amount || 0) > 0;
+      default:
+        return true;
+    }
+  });
+
   const groupedServiceRows = Object.values(
-    serviceRows.reduce((acc, item) => {
+    filteredServiceRows.reduce((acc, item) => {
       const key = item.leadId;
       if (!acc[key]) {
         acc[key] = {
@@ -567,6 +591,19 @@ export default function RevenueUsersPage() {
   const creationUsers = serviceRows.filter((item) =>
     item.plan?.toLowerCase().includes("creation"),
   ).length;
+
+  // Har distinct service plan ka apna card — plan name ke hisaab se group karke
+  // count + total amount nikaalo, taaki jitne plan honge utne cards dynamic banein.
+  const serviceCategories = Object.values(
+    serviceRows.reduce((acc, item) => {
+      const name = (item.plan || "Unknown").trim();
+      const key = name.toLowerCase();
+      if (!acc[key]) acc[key] = { name, count: 0, amount: 0 };
+      acc[key].count += 1;
+      acc[key].amount += Number(item.amount) || 0;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b.count - a.count);
 
   const planCounts =
     activeView === "package"
@@ -1204,6 +1241,7 @@ export default function RevenueUsersPage() {
           setCardFilter={setCardFilter}
           assistanceUsers={assistanceUsers}
           creationUsers={creationUsers}
+          serviceCategories={serviceCategories}
         />
 
         {/* ===== FILTER TOOLBAR ===== */}

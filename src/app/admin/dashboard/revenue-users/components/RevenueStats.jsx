@@ -27,7 +27,16 @@ export default function RevenueStats({
 
   assistanceUsers,
   creationUsers,
+  serviceCategories = [],
 }) {
+  // Har service plan card ke liye icon + rang rotate karo (jitne plan utne cards)
+  const serviceCardStyles = [
+    { bg: "bg-purple-50", border: "border-purple-200", icon: Headphones },
+    { bg: "bg-indigo-50", border: "border-indigo-200", icon: Settings },
+    { bg: "bg-emerald-50", border: "border-emerald-200", icon: Briefcase },
+    { bg: "bg-orange-50", border: "border-orange-200", icon: Layers },
+    { bg: "bg-blue-50", border: "border-blue-200", icon: Crown },
+  ];
   const totalPlans = revenueUsersList.filter(
     (r) => r.type === "user_onboard" || r.type === "plan",
   ).length;
@@ -117,7 +126,9 @@ export default function RevenueStats({
 
       {/* TODAY'S REVENUE */}
       <div
-        onClick={() => setCardFilter("today_revenue")}
+        onClick={() =>
+          setCardFilter(cardFilter === "today_revenue" ? "" : "today_revenue")
+        }
         className={`bg-white rounded-2xl p-5 shadow-md border hover:shadow-lg transition flex items-center justify-between cursor-pointer
               ${
                 cardFilter === "today_revenue"
@@ -390,37 +401,43 @@ export default function RevenueStats({
         </>
       )}
 
-      {activeView === "service" && (
-        <>
-          {/* ASSISTANCE */}
-          <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Assistance</p>
-              <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                {assistanceUsers}
-              </h2>
-            </div>
+      {activeView === "service" &&
+        serviceCategories.map((cat, idx) => {
+          const style = serviceCardStyles[idx % serviceCardStyles.length];
+          const Icon = style.icon;
+          const filterKey = `plan:${cat.name}`;
+          const isActive = cardFilter === filterKey;
+          return (
+            <div
+              key={cat.name}
+              onClick={() => setCardFilter(isActive ? "" : filterKey)}
+              className={`${style.bg} rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between gap-3 cursor-pointer border ${
+                isActive
+                  ? "border-blue-600 ring-2 ring-blue-300"
+                  : style.border
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-sm text-gray-600 line-clamp-2 wrap-break-word"
+                  title={cat.name}
+                >
+                  {cat.name}
+                </p>
+                <h2 className="text-2xl font-bold text-gray-700 mt-2">
+                  {cat.count}
+                </h2>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  ₹{cat.amount.toLocaleString("en-IN")}
+                </p>
+              </div>
 
-            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-              <Headphones size={24} />
+              <div className="bg-blue-100 text-gray-700 p-3 rounded-xl shrink-0 self-start">
+                <Icon size={24} />
+              </div>
             </div>
-          </div>
-
-          {/* CREATION */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Creation</p>
-              <h2 className="text-2xl font-bold text-gray-700 mt-2">
-                {creationUsers}
-              </h2>
-            </div>
-
-            <div className="bg-blue-100 text-gray-700 p-3 rounded-xl">
-              <Settings size={24} />
-            </div>
-          </div>
-        </>
-      )}
+          );
+        })}
     </div>
   );
 }

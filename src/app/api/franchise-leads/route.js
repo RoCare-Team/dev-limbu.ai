@@ -295,6 +295,7 @@ export async function POST(req) {
         leadId,
         text,
         texts,
+        entries,
         addedBy,
         followUpDate,
         agentId,
@@ -302,11 +303,26 @@ export async function POST(req) {
         adminEmail,
       } = body;
 
-      // `texts` adds several remarks in one shot; `text` stays supported for
-      // existing callers. Either way we end up with a list of entries to push.
-      const remarkTexts = (Array.isArray(texts) ? texts : [text])
-        .map((t) => (typeof t === "string" ? t.trim() : ""))
-        .filter(Boolean);
+      // `entries` carries a reason alongside each remark; `texts` adds several
+      // plain remarks in one shot; `text` stays supported for existing callers.
+      // Either way we end up with a list of { text, reason } to push.
+      const remarkItems = (
+        Array.isArray(entries) && entries.length
+          ? entries
+          : Array.isArray(texts)
+            ? texts
+            : [text]
+      )
+        .map((item) => {
+          const raw = item && typeof item === "object" ? item : { text: item };
+          return {
+            text: typeof raw.text === "string" ? raw.text.trim() : "",
+            reason: typeof raw.reason === "string" ? raw.reason.trim() : "",
+          };
+        })
+        .filter((r) => r.text);
+
+      const remarkTexts = remarkItems.map((r) => r.text);
 
       if (remarkTexts.length === 0) {
         return NextResponse.json(
@@ -354,8 +370,9 @@ export async function POST(req) {
       // Stagger addedAt by a millisecond each so a batch keeps a stable order
       // when anything downstream sorts by timestamp.
       const now = Date.now();
-      const remarkEntries = remarkTexts.map((t, i) => ({
+      const remarkEntries = remarkItems.map(({ text: t, reason }, i) => ({
         text: t,
+        ...(reason ? { reason } : {}),
         addedBy: addedBy || "Admin",
         addedAt: new Date(now + i),
         ...(fu && !Number.isNaN(fu.getTime()) ? { followUpDate: fu } : {}),
@@ -372,7 +389,9 @@ export async function POST(req) {
           agentId: agentObjId || null,
           agentName: resolvedName,
           calledAt: new Date(now),
-          remark: remarkTexts.join(" | "),
+          remark: remarkItems
+            .map((r) => (r.reason ? `${r.text} — ${r.reason}` : r.text))
+            .join(" | "),
         };
       }
 

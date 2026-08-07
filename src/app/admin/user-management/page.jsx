@@ -845,7 +845,11 @@ export default function UserManagement() {
                         <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
                           <input
                             type="checkbox"
-                            title="Select all leads on this page"
+                            title={
+                              allUserIds.length
+                                ? `Select all ${allUserIds.length} leads matching the current filters`
+                                : "No leads match the current filters"
+                            }
                             checked={
                               allUserIds.length > 0 &&
                               allUserIds.every((id) =>

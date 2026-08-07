@@ -32,6 +32,9 @@ const franchiseLeadSchema = new mongoose.Schema(
     remarks: [
       {
         text: { type: String, required: true },
+        /** Why this remark was picked — kept separate from `text` so remark
+         *  filters (exact match on `remarks.text`) keep working. */
+        reason: { type: String, default: "" },
         addedBy: { type: String, default: "Admin" },
         addedAt: { type: Date, default: Date.now },
         followUpDate: { type: Date, default: null },

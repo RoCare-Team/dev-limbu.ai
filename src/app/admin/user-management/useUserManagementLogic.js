@@ -13,6 +13,80 @@ import {
   hasGmbConnected,
 } from "./utils";
 
+/** Filter query params shared by the paginated table fetch and the "select all"
+ *  id fetch. Both must send the exact same filters — otherwise select-all picks
+ *  up rows the current filters (date range, status, source…) exclude. */
+function buildUserFilterParams(f) {
+  const params = new URLSearchParams();
+
+  if (f.assigneeFilter !== "All") {
+    params.append("assignedAgentId", f.assigneeFilter);
+  }
+
+  if (f.filterStatus !== "All") {
+    params.append("status", f.filterStatus);
+  }
+
+  if (f.filterDate !== "All") {
+    if (f.filterDate === "Custom Range") {
+      params.append("dateFilter", "Custom Range");
+      if (f.customStartDate) params.append("startDate", f.customStartDate);
+      if (f.customEndDate) params.append("endDate", f.customEndDate);
+    } else {
+      const ranges = getCalculatedDateRange(f.filterDate);
+      if (ranges) {
+        params.append("dateFilter", f.filterDate);
+        params.append("startDate", ranges.startDate);
+        params.append("endDate", ranges.endDate);
+      }
+    }
+  }
+
+  if (f.leadStatusFilter !== "All") {
+    params.append("leadStatus", f.leadStatusFilter);
+  }
+
+  if (f.leadStageFilter !== "All") {
+    params.append("leadStage", f.leadStageFilter);
+  }
+
+  if (f.leadSourceFilter !== "All") {
+    params.append("source", f.leadSourceFilter);
+  }
+
+  if (!f.chatbotChatDayFilter && f.conversationStageFilter !== "All") {
+    params.append("conversationStage", f.conversationStageFilter);
+  }
+
+  if (f.remarkCountFilter !== "All") {
+    params.append("remarkCount", f.remarkCountFilter);
+  }
+
+  if (f.chatbotChatDayFilter) {
+    params.append("chatbotChatDay", f.chatbotChatDayFilter);
+  }
+
+  if (f.franchiseLeadsFilter) {
+    params.append("franchiseLeads", "true");
+    if (f.franchiseCodeFilter && f.franchiseCodeFilter !== "All") {
+      params.append("franchiseCode", f.franchiseCodeFilter);
+    }
+  }
+
+  if (f.chatbotMetricFilter?.metricId) {
+    params.append("metricId", f.chatbotMetricFilter.metricId);
+    params.append("period", f.chatbotMetricFilter.period);
+  }
+
+  return params;
+}
+
+/** True while a custom range is picked but not fully entered — sending it would
+ *  drop the date filter server-side and match every user. */
+function isIncompleteCustomRange(filterDate, startDate, endDate) {
+  return filterDate === "Custom Range" && (!startDate || !endDate);
+}
+
 // All state, effects and handlers for the user-management admin page.
 // Extracted verbatim from page.jsx (the UserManagement component body, minus the
 // final JSX). Behaviour is unchanged — page.jsx now consumes this via destructure.
@@ -229,6 +303,8 @@ export default function useUserManagementLogic() {
   const [emailSendingId, setEmailSendingId] = useState("");
 
   const [allUserIds, setAllUserIds] = useState([]);
+  /** Bumped per select-all id request so late responses can be discarded. */
+  const allUserIdsReqRef = useRef(0);
 
   // remark
   const [planRemarks, setplanRemarks] = useState("");
@@ -426,84 +502,60 @@ export default function useUserManagementLogic() {
   const fetchAllUserIds = async () => {
     const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
-    const params = new URLSearchParams({
-      email: adminEmail,
-      page: "1",
-      limit: "10000",
-      search: searchQuery || "",
-    });
-
-    if (filterDate !== "All") {
-      if (filterDate === "Custom Range") {
-        params.append("dateFilter", "Custom Range");
-
-        if (customStartDate) {
-          params.append("startDate", customStartDate);
-        }
-
-        if (customEndDate) {
-          params.append("endDate", customEndDate);
-        }
-      } else {
-        const ranges = getCalculatedDateRange(filterDate);
-
-        if (ranges) {
-          params.append("dateFilter", filterDate);
-          params.append("startDate", ranges.startDate);
-          params.append("endDate", ranges.endDate);
-        }
-      }
-    }
-
-    if (assigneeFilter !== "All") {
-      params.append("assignedAgentId", assigneeFilter);
-    }
-
-    if (assigneeFilter !== "All") {
-      params.append("assignedAgentId", assigneeFilter);
-    }
-
-    if (leadStatusFilter !== "All") {
-      params.append("leadStatus", leadStatusFilter);
-    }
-
-    if (leadStageFilter !== "All") {
-      params.append("leadStage", leadStageFilter);
-    }
-
-    if (leadSourceFilter !== "All") {
-      params.append("source", leadSourceFilter);
-    }
-
-    if (conversationStageFilter !== "All") {
-      params.append("conversationStage", conversationStageFilter);
-    }
-
-    if (remarkCountFilter !== "All") {
-      params.append("remarkCount", remarkCountFilter);
-    }
-
-    if (franchiseLeadsFilter) {
-      params.append("franchiseLeads", "true");
-      if (franchiseCodeFilter !== "All") {
-        params.append("franchiseCode", franchiseCodeFilter);
-      }
-    }
-
-    const res = await fetch(`/api/users?${params.toString()}`);
-    const data = await res.json();
-
-    // console.log("ALL IDS API", data.totalUsers);
-    // console.log("ALL IDS USERS", data.users.length);
-
-    if (data.success) {
-      const ids = data.users.map((u) => String(u.userId));
-
-      setAllUserIds(ids);
-      setAllSelectedUsers(data.users);
-
-      // filter change hone par purani selection hatao
+    // Half-entered custom range: the API would ignore the dates and hand back
+    // every user, so keep the select-all pool empty until both dates are in.
+    if (isIncompleteCustomRange(filterDate, customStartDate, customEndDate)) {
+      setAllUserIds([]);
+      setAllSelectedUsers([]);
       setBulkWaSelectedUserIds([]);
+      return;
+    }
+
+    // Each filter change starts a new request; only the newest one may write
+    // the ids. Without this an earlier (unfiltered, slower) response could land
+    // last and leave every user selected.
+    const reqId = ++allUserIdsReqRef.current;
+
+    const params = buildUserFilterParams({
+      assigneeFilter,
+      filterStatus,
+      filterDate,
+      customStartDate,
+      customEndDate,
+      leadStatusFilter,
+      leadStageFilter,
+      leadSourceFilter,
+      conversationStageFilter,
+      remarkCountFilter,
+      chatbotChatDayFilter,
+      franchiseLeadsFilter,
+      franchiseCodeFilter,
+      chatbotMetricFilter,
+    });
+    params.set("email", adminEmail);
+    params.set("page", "1");
+    params.set("limit", "10000");
+    params.set("search", (searchQuery || "").trim());
+
+    try {
+      const res = await fetch(`/api/users?${params.toString()}`);
+      const data = await res.json();
+
+      if (reqId !== allUserIdsReqRef.current) return; // stale response
+
+      if (data.success) {
+        const ids = data.users.map((u) => String(u.userId));
+
+        setAllUserIds(ids);
+        setAllSelectedUsers(data.users);
+
+        // filter change hone par purani selection hatao
+        setBulkWaSelectedUserIds([]);
+      }
+    } catch (err) {
+      if (reqId === allUserIdsReqRef.current) {
+        console.error("Error fetching all user ids:", err);
+      }
     }
   };
 
@@ -515,11 +567,14 @@ export default function useUserManagementLogic() {
   }, [
     searchQuery,
     assigneeFilter,
+    filterStatus,
     leadStatusFilter,
     leadStageFilter,
     leadSourceFilter,
     remarkCountFilter,
     conversationStageFilter,
+    chatbotChatDayFilter,
+    chatbotMetricFilter,
     filterDate,
     customStartDate,
     customEndDate,
@@ -1072,7 +1127,7 @@ export default function useUserManagementLogic() {
   };
 
   useEffect(() => {
-    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
+    if (isIncompleteCustomRange(filterDate, customStartDate, customEndDate))
       return;
     fetchAgentStats();
   }, [
@@ -1118,72 +1173,27 @@ export default function useUserManagementLogic() {
       overrides.chatbotMetricFilter ?? chatbotMetricFilter;
 
     try {
-      const params = new URLSearchParams({
-        email: adminEmail, // 🔑 REQUIRED
-        page: nextPage,
-        search: nextSearchQuery.trim(),
-        limit: 70,
+      // Same builder the select-all id fetch uses, so both always agree.
+      const params = buildUserFilterParams({
+        assigneeFilter: nextAssigneeFilter,
+        filterStatus: nextFilterStatus,
+        filterDate: nextFilterDate,
+        customStartDate: nextCustomStartDate,
+        customEndDate: nextCustomEndDate,
+        leadStatusFilter: nextLeadStatusFilter,
+        leadStageFilter: nextLeadStageFilter,
+        leadSourceFilter: nextLeadSourceFilter,
+        conversationStageFilter: nextConversationStageFilter,
+        remarkCountFilter: nextRemarkCountFilter,
+        chatbotChatDayFilter: nextChatbotChatDayFilter,
+        franchiseLeadsFilter: nextFranchiseLeadsFilter,
+        franchiseCodeFilter: nextFranchiseCodeFilter,
+        chatbotMetricFilter: nextChatbotMetricFilter,
       });
-
-      if (nextAssigneeFilter !== "All") {
-        params.append("assignedAgentId", nextAssigneeFilter);
-      }
-
-      if (nextFilterStatus !== "All") {
-        params.append("status", nextFilterStatus);
-      }
-
-      if (nextFilterDate !== "All") {
-        if (nextFilterDate === "Custom Range") {
-          params.append("dateFilter", "Custom Range");
-          if (nextCustomStartDate)
-            params.append("startDate", nextCustomStartDate);
-          if (nextCustomEndDate) params.append("endDate", nextCustomEndDate);
-        } else {
-          const ranges = getCalculatedDateRange(nextFilterDate);
-          if (ranges) {
-            params.append("dateFilter", nextFilterDate);
-            params.append("startDate", ranges.startDate);
-            params.append("endDate", ranges.endDate);
-          }
-        }
-      }
-
-      if (nextLeadStatusFilter !== "All") {
-        params.append("leadStatus", nextLeadStatusFilter);
-      }
-
-      if (nextLeadStageFilter !== "All") {
-        params.append("leadStage", nextLeadStageFilter);
-      }
-
-      if (nextLeadSourceFilter !== "All") {
-        params.append("source", nextLeadSourceFilter);
-      }
-
-      if (!nextChatbotChatDayFilter && nextConversationStageFilter !== "All") {
-        params.append("conversationStage", nextConversationStageFilter);
-      }
-
-      if (nextRemarkCountFilter !== "All") {
-        params.append("remarkCount", nextRemarkCountFilter);
-      }
-
-      if (nextChatbotChatDayFilter) {
-        params.append("chatbotChatDay", nextChatbotChatDayFilter);
-      }
-
-      if (nextFranchiseLeadsFilter) {
-        params.append("franchiseLeads", "true");
-        if (nextFranchiseCodeFilter && nextFranchiseCodeFilter !== "All") {
-          params.append("franchiseCode", nextFranchiseCodeFilter);
-        }
-      }
-
-      if (nextChatbotMetricFilter?.metricId) {
-        params.append("metricId", nextChatbotMetricFilter.metricId);
-        params.append("period", nextChatbotMetricFilter.period);
-      }
+      params.set("email", adminEmail); // 🔑 REQUIRED
+      params.set("page", nextPage);
+      params.set("search", nextSearchQuery.trim());
+      params.set("limit", 70);
 
       const res = await fetch(`/api/users?${params.toString()}`);
       const data = await res.json();
@@ -1216,7 +1226,7 @@ export default function useUserManagementLogic() {
 
   useEffect(() => {
     if (conversationStageTableActive || chatbotMetricTableActive) return;
-    if (filterDate === "Custom Range" && (!customStartDate || !customEndDate))
+    if (isIncompleteCustomRange(filterDate, customStartDate, customEndDate))
       return;
     fetchUsers();
   }, [
@@ -2371,8 +2381,8 @@ export default function useUserManagementLogic() {
     );
   };
 
+  /** Selects every lead matching the current filters (across all pages). */
   const selectAllBulkWaOnPage = () => {
-    console.log("allUserIds", allUserIds.length);
     if (!allUserIds.length) return;
 
     setBulkWaSelectedUserIds((prev) => {

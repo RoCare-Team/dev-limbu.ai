@@ -5,7 +5,13 @@ import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import User from "@/models/User";
-import { gmbRedirectUri, GMB_BASE_URL, resolveGmbOwnerId } from "@/lib/gmbSession";
+import {
+  gmbRedirectUri,
+  GMB_BASE_URL,
+  resolveGmbOwnerId,
+  findRefreshTokenByGoogleId,
+  convergeGoogleAccountToken,
+} from "@/lib/gmbSession";
 import { createGmbPhoneToken, gmbPhoneCookieOptions } from "@/lib/appSession";
 
 export const dynamic = "force-dynamic";
@@ -97,10 +103,32 @@ export async function GET(request) {
     const connectedBy = phone ? "self" : (payload.impersonated ? "admin_impersonation" : "self");
 
     const existing = await GmbConnection.findOne({ userId: ownerId, connectedBy });
-    // Google re-consent par kabhi-kabhi refresh_token nahi bhejta — purana rakho.
-    const refreshToken = tokens.refresh_token || existing?.refreshToken || null;
+
+    // Google pehle se granted account par refresh_token nahi bhejta. Aise me
+    // naya token mint karna (prompt=consent) sirf nuksan karta hai: ek Google
+    // account + ek client par sirf 100 live refresh token hote hain, aur limit
+    // cross hote hi Google sabse purana chupchap revoke kar deta hai — wahi
+    // "1-2 din baad token dead" wali dikkat thi.
+    //
+    // Isliye order: naya token (agar mila) → is slot ka purana → USI Google
+    // account ki doosri row (kisi bhi user/slot) ka zinda token.
+    const refreshToken =
+      tokens.refresh_token ||
+      existing?.refreshToken ||
+      (await findRefreshTokenByGoogleId(profile.sub, { excludeUserId: ownerId })) ||
+      null;
 
     if (!refreshToken) {
+      // Ek hi baar consent force karke dobara bhejo — tab Google pakka refresh
+      // token deta hai. `retried` flag loop rokta hai.
+      if (!payload.retried) {
+        const retryUrl = new URL("/api/gmb/connect", GMB_BASE_URL);
+        retryUrl.searchParams.set("consent", "1");
+        retryUrl.searchParams.set("retried", "1");
+        retryUrl.searchParams.set("callbackUrl", callbackUrl);
+        if (payload.phone) retryUrl.searchParams.set("phone", payload.phone);
+        return NextResponse.redirect(retryUrl);
+      }
       return redirectBack(request, callbackUrl, { gmb_error: "no_refresh_token" });
     }
 
@@ -128,6 +156,13 @@ export async function GET(request) {
       },
       { upsert: true, new: true },
     );
+
+    // Naya token mila to usi Google account ke baaki connections ko bhi ispar
+    // shift kar do — warna wo purane token pakde rehte hain jo Google kabhi bhi
+    // prune kar sakta hai.
+    if (tokens.refresh_token) {
+      await convergeGoogleAccountToken(profile.sub, refreshToken);
+    }
 
     // Legacy mirror: purane code paths (admin panel, login-as-user) abhi bhi
     // GmbUser.projects[] padhte hain, isliye dono jagah likhte hain.

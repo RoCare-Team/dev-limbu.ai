@@ -98,9 +98,11 @@ export default function HeroSection() {
                 src="/images/hero8.jpeg"
                 alt="Limbu AI Dashboard UI"
                 fill
-                sizes="(max-width: 1024px) 100vw, 640px"
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 80vw, 640px"
+                quality={60}
                 className="object-contain mix-blend-multiply rounded-xl"
                 priority
+                fetchPriority="high"
               />
             </div>
           </div>
@@ -113,27 +115,30 @@ export default function HeroSection() {
         <div className="overflow-hidden">
           <div className="animate-scroll flex items-center w-max">
             {[...clientLogos, ...clientLogos].map((client, i) => (
-              <div
-  key={i}
-  className="shrink-0 px-3"
->
-  <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 h-24 w-52 flex items-center justify-center p-4">
-    <div className="relative w-full h-full">
-      <Image
-  src={client.src}
-  alt={client.name}
-  fill
-  sizes="208px"
-  loading="lazy"
-  className={`object-contain ${
-    ["Inpect", "Solution", "Deit-detox", "Indo-motive", "zion1"].includes(client.name)
-      ? "scale-150"
-      : ""
-  }`}
-/>
-    </div>
-  </div>
-</div>
+              <div key={i} className="shrink-0 px-3">
+                <div className="bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 h-24 w-52 flex items-center justify-center p-4">
+                  {/*
+                    Box fixed hai (176×64 after p-4), isliye `fill` + px-wala
+                    `sizes` galat trade tha: px-only `sizes` par Next poora
+                    srcSet likhta hai (~10 URLs), aur ye slider 36 images
+                    render karta hai. Explicit width/height par sirf 1x/2x —
+                    36 images × 8 entries kam. Wrapper div bhi hat gaya.
+                  */}
+                  <Image
+                    src={client.src}
+                    alt={client.name}
+                    width={176}
+                    height={64}
+                    quality={40}
+                    loading="lazy"
+                    className={`h-full w-full object-contain ${
+                      ["Inpect", "Solution", "Deit-detox", "Indo-motive", "zion1"].includes(client.name)
+                        ? "scale-150"
+                        : ""
+                    }`}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         </div>

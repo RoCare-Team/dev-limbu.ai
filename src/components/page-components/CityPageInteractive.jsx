@@ -10,6 +10,7 @@ import {
   Play,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 const DEFAULT_DEMO_IMAGE = "/images/city-page/hero.png";
@@ -219,9 +220,19 @@ export function DemoSection({ dashboardImg }) {
           onClick={() => setSelectedVideo(DEMO_VIDEO_URL)}
           className="relative w-full rounded-[2rem] overflow-hidden shadow-2xl cursor-pointer group border-4 border-white"
         >
-          <img
+          {/* Pehle plain <img> tha, yaani Next ka optimizer bypass ho jata tha
+              aur poora original PNG raw download hota tha —
+              /images/city-page/hero.png akela 1.07 MB hai (Lighthouse:
+              "Improve image delivery, est savings 962.9 KiB").
+              Ab AVIF/WebP me, layout size ke hisaab se, aur below-the-fold hone
+              ki wajah se lazy. */}
+          <Image
             src={dashboardImg || DEFAULT_DEMO_IMAGE}
             alt="Dashboard demo"
+            width={1024}
+            height={729}
+            sizes="(max-width: 767px) 100vw, 1024px"
+            loading="lazy"
             className="w-full h-64 md:h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-slate-900/40 group-hover:bg-slate-900/50 transition-colors flex flex-col items-center justify-center">

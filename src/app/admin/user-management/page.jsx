@@ -45,6 +45,7 @@ import AdminServicepaneModal from "../../../components/modals/AdminServicePlaneM
 import AddExpoLeadUserModal from "./components/AddExpoLeadUserModal";
 
 import WhatsappModal from "./components/WhatsAppTemplateModel";
+import EmailTemplateModal from "./components/EmailTemplateModal";
 import ChatHistoryModal from "./components/ChatHistoryModal";
 import ChatbotSummaryMetrics from "./components/ChatbotSummaryMetrics";
 import WalletUpdateModal from "./components/WalletUpdateModal";
@@ -63,6 +64,7 @@ import IssuesModal from "./components/IssuesModal";
 import UserPostsModal from "./components/UserPostsModal";
 import UserTableRow from "./components/UserTableRow";
 import AgentPerformanceDashboard from "./components/AgentPerformanceDashboard";
+import AgentCallStatsPanel from "./components/AgentCallStatsPanel";
 import UserFiltersPanel from "./components/UserFiltersPanel";
 import useUserManagementLogic from "./useUserManagementLogic";
 
@@ -186,6 +188,8 @@ export default function UserManagement() {
     setConversationStageTableActive,
     isRefreshingWhatsAppData,
     callStats,
+    callStatsLoading,
+    refreshCallStats,
     followUpDate,
     setFollowUpDate,
     followUpTime,
@@ -222,6 +226,9 @@ export default function UserManagement() {
     setRemarkCountFilter,
     franchiseLeadsFilter,
     setFranchiseLeadsFilter,
+    franchiseCodeFilter,
+    setFranchiseCodeFilter,
+    franchiseOptions,
     customStartDate,
     setCustomStartDate,
     customEndDate,
@@ -275,6 +282,10 @@ export default function UserManagement() {
     selectAllBulkWaOnPage,
     sendBulkUserManagementWhatsApp,
     sendTemplateWhatsApp,
+    isEmailModalOpen,
+    setIsEmailModalOpen,
+    emailSendingId,
+    sendTemplateEmail,
     handleAddUser,
     handleViewPosts,
     handleOpenWalletModal,
@@ -399,6 +410,19 @@ export default function UserManagement() {
             </Box>
           )}
 
+          {/* ── Agent call activity: today vs yesterday (superAdmin only) ─── */}
+          {role === "superAdmin" && (
+            <Box sx={{ mb: 1 }}>
+              <AgentCallStatsPanel
+                rows={callStats?.callsByAgentDayWise || []}
+                totalToday={callStats?.totalCallsToday || 0}
+                totalYesterday={callStats?.totalCallsYesterday || 0}
+                loading={callStatsLoading}
+                onRefresh={refreshCallStats}
+              />
+            </Box>
+          )}
+
           {/* Chat stats + revenue (My Revenue / User Onboard Revenue in this row for agent & superAdmin) */}
 
           {/* ── Today's Lead Assignments per Agent (superAdmin / admin) ───── */}
@@ -415,6 +439,9 @@ export default function UserManagement() {
             filterStatus={filterStatus}
             followUpFilter={followUpFilter}
             franchiseLeadsFilter={franchiseLeadsFilter}
+            franchiseCodeFilter={franchiseCodeFilter}
+            franchiseOptions={franchiseOptions}
+            setFranchiseCodeFilter={setFranchiseCodeFilter}
             handleConversationStageFilterChange={
               handleConversationStageFilterChange
             }
@@ -716,6 +743,8 @@ export default function UserManagement() {
                         </button>
 
                         <button
+                          type="button"
+                          onClick={() => setIsEmailModalOpen(true)}
                           className="
                            group bg-white px-6 py-3 rounded-2xl
                            flex items-center gap-2 text-purple-600 font-semibold
@@ -758,6 +787,14 @@ export default function UserManagement() {
                   bulkWaSending={bulkWaSending}
                   onSendTemplate={sendTemplateWhatsApp}
                   sendingTemplateId={templateWaSendingId}
+                />
+
+                <EmailTemplateModal
+                  isOpen={isEmailModalOpen}
+                  setIsOpen={setIsEmailModalOpen}
+                  selectedCount={bulkWaSelectedUserIds.length}
+                  onSendTemplate={sendTemplateEmail}
+                  sendingTemplateId={emailSendingId}
                 />
 
                 {bulkWaResult && (
@@ -808,7 +845,11 @@ export default function UserManagement() {
                         <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
                           <input
                             type="checkbox"
-                            title="Select all leads on this page"
+                            title={
+                              allUserIds.length
+                                ? `Select all ${allUserIds.length} leads matching the current filters`
+                                : "No leads match the current filters"
+                            }
                             checked={
                               allUserIds.length > 0 &&
                               allUserIds.every((id) =>
@@ -825,11 +866,14 @@ export default function UserManagement() {
                           ? "Follow-up"
                           : "Joined Date"}
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[180px]">
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         User Name
                       </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
+                      <th className="px-2 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[130px]">
                         Business Report
+                      </th>
+                      <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
+                        Remarks
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[90px]">
                         Chat
@@ -842,9 +886,6 @@ export default function UserManagement() {
                     </th> */}
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
                         Assign To
-                      </th>
-                      <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 min-w-[150px]">
-                        Remarks
                       </th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200">
                         Lead Stage

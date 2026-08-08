@@ -25,6 +25,7 @@ import {
   X,
   MapPin,
   Inbox,
+  Settings,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 import {
@@ -136,15 +137,20 @@ export default function Sidebar({ children }) {
         path: "/keyword-planner",
       },
       {
-        text: "Local Rank Tracker",
+        text: "Competitor Analysis",
         icon: <MapPin size={18} />,
-        path: "/local-rank-tracker",
+        path: "/competitor-analysis",
       },
       { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {
         text: "GMB Insights",
         icon: <BarChart3 size={18} />,
         path: "/gmb-insights",
+      },
+      {
+        text: "User Settings",
+        icon: <Settings size={18} />,
+        path: "/user-settings",
       },
       { text: "My Profile", icon: <User size={18} />, path: "/profile" },
     ],

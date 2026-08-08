@@ -1,20 +1,10 @@
 import { getPublicSiteUrl } from "@/lib/siteUrl";
-import { POPULAR_CITIES } from "@/utils/popularCity";
-
-function toKebabSegment(city) {
-  return city
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { getCitySlugs } from "@/utils/citySlug";
 
 export async function GET() {
   const base = getPublicSiteUrl();
 
-  const urls = POPULAR_CITIES.map((city) => {
-    const slug = toKebabSegment(city);
-
+  const urls = getCitySlugs().map((slug) => {
     return `
       <url>
         <loc>${base}/services/google-bussiness-profile-management-${slug}</loc>

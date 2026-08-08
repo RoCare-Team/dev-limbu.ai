@@ -674,9 +674,19 @@ function CaseStudiesSection({ cityName, caseStudies = [] }) {
             >
               {/* Image Container */}
               <div className="relative h-64 overflow-hidden">
+                {/* Plain <img> hi rakha hai: `c.img`/`c.imgUrl` CMS se aate hain
+                    aur unka host `images.remotePatterns` me ho — ye guarantee
+                    nahi, to next/image runtime par throw kar sakta hai.
+                    Ye cards fold se neeche hain par teeno eager load ho rahe the
+                    (~250 KB LCP ke critical path par). lazy + explicit
+                    dimensions se wo hat gaya aur CLS bhi nahi aata. */}
                 <img
                   src={c.img || c.imgUrl || DEFAULT_IMAGES.restaurant}
                   alt={c.name}
+                  width={400}
+                  height={256}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
@@ -959,11 +969,22 @@ export default function DynamicServiceCityPage({
               <div className="relative group">
                 <div className="absolute -inset-1 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000 group-hover:duration-200" />
                 <div className="relative bg-slate-800 rounded-[2rem] p-4 border border-slate-700 shadow-2xl">
+                  {/* Ye LCP element hai.
+                      - `priority` ke bina Next preload nahi banata tha, isliye
+                        image ki request hydration ke baad shuru hoti thi
+                        (Lighthouse: "resource load delay 1,560 ms", aur
+                        "fetchpriority=high should be applied" fail).
+                      - `sizes` ke bina browser 100vw maankar bada variant leta hai.
+                      - width/height pehle 800x500 the jo asli file (1024x729) ka
+                        aspect ratio nahi hai — image stretch ho rahi thi. */}
                   <Image
                     src={DEFAULT_IMAGES.hero}
                     alt="Limbu AI Dashboard"
-                    width={800} // adjust based on your image
-                    height={500} // adjust based on your image
+                    width={1024}
+                    height={729}
+                    sizes="(max-width: 1023px) 92vw, 552px"
+                    priority
+                    fetchPriority="high"
                     className="rounded-2xl shadow-inner"
                   />
 

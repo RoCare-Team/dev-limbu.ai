@@ -384,7 +384,9 @@ export default function AppDownloadSection() {
           borderTop: "1px solid #f0f0f0",
           borderBottom: "1px solid #f0f0f0",
           overflow: "hidden",
-          fontFamily: "'Inter', sans-serif",
+          // Token use karo — isme "Inter Fallback" hai, jo font swap par
+          // layout shift rokta hai. Plain "Inter, sans-serif" usse bypass karta.
+          fontFamily: "var(--font-sans)",
         }}
       >
         <div

@@ -93,10 +93,10 @@ export default function SavedAuditsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <Link
-            href="/local-rank-tracker"
+            href="/competitor-analysis"
             className="inline-flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-700 transition-colors mb-3"
           >
-            <ArrowLeft size={14} /> Back to Tracker
+            <ArrowLeft size={14} /> Back to Competitor Analysis
           </Link>
           <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
             <div className="bg-yellow-400 p-2 rounded-2xl shadow-lg shadow-yellow-100">
@@ -107,7 +107,7 @@ export default function SavedAuditsPage() {
             </span>
           </h1>
           <p className="text-slate-500 mt-2 font-medium">
-            All your saved Local Rank Tracker snapshots.
+            All your saved Competitor Analysis snapshots.
           </p>
         </div>
 
@@ -157,7 +157,7 @@ export default function SavedAuditsPage() {
           </p>
           {results.length === 0 && (
             <Link
-              href="/local-rank-tracker"
+              href="/competitor-analysis"
               className="inline-block mt-4 px-6 py-3 rounded-2xl bg-slate-900 text-white text-sm font-black hover:bg-black transition-all"
             >
               Run your first audit

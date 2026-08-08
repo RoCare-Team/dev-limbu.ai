@@ -1,13 +1,14 @@
-import { POPULAR_CITIES } from "@/utils/popularCity";
+import { findCityBySlug } from "@/utils/citySlug";
 import FranchisePage from "./FranchisePage";
 import { notFound } from "next/navigation";
 
-const SITE_URL = "https://limbu.ai";
+const SITE_URL = "https://www.limbu.ai";
 
 export const revalidate = 86400;
 
-// ✅ Extract city name from slug
-function getCityNameFromSlug(slug = "") {
+// ✅ Resolve city name from slug
+// Returns "" for the base route, null when the city is unknown (→ 404).
+function resolveCity(slug = "") {
   // Allow base route
   if (slug === "franchise-opportunities") {
     return "";
@@ -19,24 +20,7 @@ function getCityNameFromSlug(slug = "") {
     return "";
   }
 
-  return citySlug
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-// ✅ Validate route
-function validateRoute(slug, cityName) {
-  // Allow base route
-  if (slug === "franchise-opportunities") {
-    return true;
-  }
-
-  // Allow valid cities only
-  return POPULAR_CITIES.some(
-    (city) => city.toLowerCase() === cityName.toLowerCase()
-  );
+  return findCityBySlug(citySlug);
 }
 
 // ✅ Metadata
@@ -45,10 +29,10 @@ export async function generateMetadata({ params }) {
 
   const slug = resolvedParams?.slug || "";
 
-  const cityName = getCityNameFromSlug(slug);
+  const cityName = resolveCity(slug);
 
   // ❌ Invalid route
-  if (!validateRoute(slug, cityName)) {
+  if (cityName === null) {
     notFound();
   }
 
@@ -126,10 +110,10 @@ export default async function Page({ params }) {
 
   const slug = resolvedParams?.slug || "";
 
-  const cityName = getCityNameFromSlug(slug);
+  const cityName = resolveCity(slug);
 
   // ❌ Invalid route → 404
-  if (!validateRoute(slug, cityName)) {
+  if (cityName === null) {
     notFound();
   }
 

@@ -373,7 +373,10 @@ function DatePickerField({ value, onChange }) {
 }
 
 /* ─── FORM CARD ─── */
-function FormCard() {
+/* variant="page"  → inline card in the page grid
+   variant="modal" → demo-booking modal (demo copy, perk chips, dismiss link) */
+function FormCard({ variant = "page", onDismiss }) {
+  const isModal = variant === "modal";
   const router = useRouter();
 
   const [formData, setFormData] = useState({
@@ -539,27 +542,44 @@ function FormCard() {
     <div className="relative bg-white border border-slate-200 rounded-2xl overflow-visible shadow-2xl ">
       <div className="h-1 w-full bg-gradient-to-r from-yellow-400 to-amber-500 rounded-t-2xl " />
 
-      <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-3">
-        <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-        <p className="text-xs text-red-600 font-semibold">
-          ⚡ Hurry! Only{" "}
-          <span className="text-red-800 font-black">1 Hour Left</span> —{" "}
-          <span className="text-slate-900 font-black">
-            Limited Seats Available
-          </span>
-        </p>
-      </div>
+      {isModal ? (
+        <div className="bg-amber-50 border-b border-amber-100 px-5 py-3 flex items-center gap-3">
+          <span className="flex-shrink-0 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+          <p className="text-xs text-amber-700 font-semibold">
+            ⚡ Free 1-on-1 demo —{" "}
+            <span className="text-slate-900 font-black">
+              today&apos;s slots are filling fast
+            </span>
+          </p>
+        </div>
+      ) : (
+        <div className="bg-red-50 border-b border-red-100 px-5 py-3 flex items-center gap-3">
+          <span className="flex-shrink-0 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          <p className="text-xs text-red-600 font-semibold">
+            ⚡ Hurry! Only{" "}
+            <span className="text-red-800 font-black">1 Hour Left</span> —{" "}
+            <span className="text-slate-900 font-black">
+              Limited Seats Available
+            </span>
+          </p>
+        </div>
+      )}
 
       <div className="p-5 sm:p-6">
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between gap-3 mb-5">
           <div>
-            <h2 className="font-black text-lg text-slate-900">
+            <h2
+              id={isModal ? "demo-modal-title" : undefined}
+              className="font-black text-lg text-slate-900"
+            >
               Book Your Free Demo
             </h2>
             <p className="text-slate-500 text-xs mt-0.5">
               {formData.selectedDate
                 ? `${formatDate(formData.selectedDate)} · ${demoTime || "Pick a time"}`
-                : "9 AM – 9 PM IST · Online · Mon – Sat"}
+                : isModal
+                  ? "45-min live session · Online · Mon – Sat, 9 AM – 9 PM IST"
+                  : "9 AM – 9 PM IST · Online · Mon – Sat"}
             </p>
           </div>
           <div className="bg-green-100 border border-green-200 rounded-xl px-3 py-1.5 text-center flex-shrink-0">
@@ -568,6 +588,27 @@ function FormCard() {
             </p>
           </div>
         </div>
+
+        {/* What you get — demo perks */}
+        {isModal && (
+          <div className="grid grid-cols-3 gap-2 mb-5">
+            {[
+              { icon: <Video size={15} />, label: "45 min live" },
+              { icon: <Users size={15} />, label: "1-on-1 expert" },
+              { icon: <Gift size={15} />, label: "No payment" },
+            ].map((perk) => (
+              <div
+                key={perk.label}
+                className="flex flex-col items-center justify-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 text-center"
+              >
+                <span className="text-yellow-500">{perk.icon}</span>
+                <span className="text-[11px] font-semibold text-slate-600 leading-tight">
+                  {perk.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="space-y-3">
@@ -741,12 +782,22 @@ function FormCard() {
               )}
             </button>
 
-            <div className="flex items-center justify-center gap-1.5 pt-1">
-              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
-              <p className="text-[11px] text-red-600 font-semibold text-center">
-                Limited seats — register before it fills up
-              </p>
-            </div>
+            {isModal ? (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="w-full pt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                No thanks, maybe later
+              </button>
+            ) : (
+              <div className="flex items-center justify-center gap-1.5 pt-1">
+                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                <p className="text-[11px] text-red-600 font-semibold text-center">
+                  Limited seats — register before it fills up
+                </p>
+              </div>
+            )}
           </div>
         </form>
 
@@ -898,10 +949,32 @@ function LiveToast({ user }) {
   );
 }
 
-/* ─── AUTO MODAL ─── */
-function AutoModal({ onClose }) {
+/* ─── DEMO BOOKING MODAL ─── */
+function DemoModal({ onClose }) {
+  /* Escape closes, and the page behind must not scroll while it's open */
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="demo-modal-title"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
       className="fixed inset-0 z-[999] flex items-center justify-center p-4"
       style={{
         background: "rgba(15, 23, 42, 0.6)",
@@ -912,12 +985,13 @@ function AutoModal({ onClose }) {
         {/* Close button - inside the relative container of the card */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-50 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-full transition-all shadow-sm"
+          aria-label="Close demo booking"
+          className="absolute top-4 right-4 z-50 p-2 bg-slate-900 hover:bg-slate-700 text-white rounded-full transition-all shadow-lg"
           title="Close"
         >
           <X size={18} strokeWidth={3} />
         </button>
-        <FormCard />
+        <FormCard variant="modal" onDismiss={onClose} />
       </div>
     </div>
   );
@@ -974,7 +1048,7 @@ export default function WebinarPage() {
       </div>
       <FooterSection />
       <LiveToast user={liveUser} />
-      {modalOpen && <AutoModal onClose={() => setModalOpen(false)} />}
+      {modalOpen && <DemoModal onClose={() => setModalOpen(false)} />}
     </>
   );
 }

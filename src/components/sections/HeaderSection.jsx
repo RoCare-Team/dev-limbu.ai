@@ -76,7 +76,7 @@ export default function Navbar() {
                 onMouseLeave={() => setDropdownOpen(false)}
                 className="flex items-center gap-1 text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition cursor-pointer"
               >
-                GMB Guide <ChevronDown size={14} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
+                GBP Guide <ChevronDown size={14} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown Menu */}

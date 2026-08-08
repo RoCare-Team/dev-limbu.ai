@@ -81,7 +81,7 @@ export const LIMBU_SOLUTIONS = [
   },
   {
     key: "localRank",
-    name: "Local Rank Tracker",
+    name: "Competitor Analysis",
     what: "Geo-grid rank tracking — sheher ke alag alag points pe aapki ranking aur competitors ka comparison, snapshot ke saath taki improvement dikhe.",
     problemSignals: [
       "'near me' search mein nahi aate",

@@ -585,7 +585,7 @@ export default function RankTrackerPage() {
       doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(18);
-      doc.text("Local Rank Tracker Report", margin, 44);
+      doc.text("Competitor Analysis Report", margin, 44);
       y = 96;
 
       // Business meta (once)
@@ -1139,7 +1139,7 @@ const runAudit = async (chosenPlaceId, keywordString) => {
               <MapPin className="text-white" size={22} strokeWidth={3} />
             </div>
             <span>
-              Local <span className="text-yellow-500">Rank</span> Tracker
+              <span className="text-yellow-500">Competitor</span> Analysis
             </span>
           </h1>
           <p className="text-slate-500 mt-2 font-medium">
@@ -1149,7 +1149,7 @@ const runAudit = async (chosenPlaceId, keywordString) => {
 
         <div className="flex flex-wrap items-center gap-4">
           <Link
-            href="/local-rank-tracker/saved"
+            href="/competitor-analysis/saved"
             className="h-[56px] px-6 rounded-3xl bg-white border border-slate-100 shadow-xl shadow-slate-100 flex items-center gap-3 text-slate-700 hover:border-yellow-400 hover:text-slate-900 transition-all"
           >
             <div className="bg-slate-700 text-yellow-400 p-2.5 rounded-2xl">

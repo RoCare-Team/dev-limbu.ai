@@ -47,6 +47,11 @@ import animationData from "@/assets/animation/Loading.json"; // if not using pub
 import { useFollowUpVoiceAlerts } from "@/hooks/useFollowUpVoiceAlerts";
 import FollowUpDueAlertModal from "@/components/FollowUpDueAlertModal";
 import ChatHistoryModal from "../../user-management/components/ChatHistoryModal";
+import EmailTemplateModal from "../../user-management/components/EmailTemplateModal";
+import {
+  FRANCHISE_EMAIL_TEMPLATE_GROUPS,
+  getFranchiseEmailTemplatesForGroup,
+} from "@/lib/franchiseEmailTemplates";
 import useUserManagementLogic from "../../user-management/useUserManagementLogic";
 
 /* ---------------- CONFIG ---------------- */
@@ -153,8 +158,69 @@ const QUICK_REMARKS = [
   "Meeting Scheduled",
 ];
 
-/** Same as user-management: these open the follow-up date picker */
+/** Same as user-management: these make the follow-up date mandatory */
 const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+
+/** Preset reasons per quick remark — one tap instead of typing the usual ones.
+ *  Saved on the remark's own `reason` field, so `text` stays filterable. */
+const REMARK_REASONS = {
+  "Call Not Picked": [
+    "Ringing, no answer",
+    "Line busy",
+    "Not reachable",
+    "Cut the call",
+    "Tried multiple times",
+  ],
+  "Not Interested": [
+    "Budget / investment too high",
+    "Already running a business",
+    "Looking for a job, not franchise",
+    "City / location not suitable",
+    "Was just enquiring",
+    "Family not agreed",
+  ],
+  Interested: [
+    "Wants investment details",
+    "Wants a demo",
+    "Wants to visit office",
+    "Will confirm after discussion",
+    "Asked to share brochure",
+  ],
+  "Call Back Later": [
+    "Busy right now",
+    "Asked to call in the evening",
+    "Travelling",
+    "In a meeting",
+    "Will call back himself",
+  ],
+  "Wrong Number": [
+    "Number belongs to someone else",
+    "Invalid number",
+    "Wrong number filled in form",
+  ],
+  "Switch Off": [
+    "Phone switched off",
+    "Out of coverage area",
+    "Number temporarily unavailable",
+  ],
+  "Meeting Scheduled": [
+    "Office visit",
+    "Video call",
+    "Telephonic discussion",
+    "Site visit",
+  ],
+};
+
+/** Fallback list for custom remarks that have no preset reasons. */
+const GENERIC_REASONS = [
+  "Follow-up needed",
+  "Awaiting documents",
+  "Payment discussion",
+  "Shared details",
+];
+
+/** Key used for the reason of the free-typed custom remark. */
+const CUSTOM_REMARK_KEY = "__custom__";
 
 /** Shared styling so every filter control lines up on the same grid. */
 const FILTER_LABEL_CLASS =
@@ -184,6 +250,38 @@ function formatIvrInterestedAtDisplay(iso) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** `yyyy-mm-dd` in the browser's own timezone — `toISOString()` would shift
+ *  the day for anyone east of UTC late at night. */
+function toLocalDateInput(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** True when `date` is today and `time` (HH:mm) has already gone by. */
+function isPastTimeToday(date, time) {
+  if (!date || !/^\d{1,2}:\d{2}$/.test(String(time || "").trim())) return false;
+  const [hh, mm] = time.trim().split(":");
+  const picked = new Date(
+    `${date}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`,
+  );
+  return !Number.isNaN(picked.getTime()) && picked.getTime() < Date.now();
+}
+
+/** Next full hour as HH:mm — a safe default when "today" is picked late. */
+function nextHourTime() {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  return `${String(d.getHours()).padStart(2, "0")}:00`;
+}
+
+/** "15:00" → "3:00 PM" */
+function formatTimeLabel(t) {
+  const [hh, mm] = String(t).split(":");
+  const h = parseInt(hh, 10);
+  const suffix = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${mm} ${suffix}`;
 }
 
 /** Match `/api/admin/franchise-follow-up-stats` (Asia/Kolkata, no DST). */
@@ -304,6 +402,10 @@ export default function FranchiseLeadsPage() {
   const [newRemark, setNewRemark] = useState("");
   /** Quick remarks picked as chips — submitted alongside any typed remark. */
   const [selectedRemarks, setSelectedRemarks] = useState([]);
+  /** Reason per pending remark: { [remarkText | CUSTOM_REMARK_KEY]: reason }. */
+  const [remarkReasons, setRemarkReasons] = useState({});
+  /** Today in the browser's timezone — floor for the follow-up date picker. */
+  const todayInputDate = toLocalDateInput(new Date());
   const [remarkHistory, setRemarkHistory] = useState({});
   const [franchiseAdmins, setFranchiseAdmins] = useState([]);
   const [role, setRole] = useState("");
@@ -395,6 +497,11 @@ export default function FranchiseLeadsPage() {
   const [isOfferTemplateModalOpen, setIsOfferTemplateModalOpen] =
     useState(false);
   const [sendingOfferMsg, setSendingOfferMsg] = useState(false);
+
+  /** Franchise email campaigns via mail.limbutech.in */
+  const [isEmailTemplateModalOpen, setIsEmailTemplateModalOpen] =
+    useState(false);
+  const [emailSendingId, setEmailSendingId] = useState("");
 
   const handleFilterChange = (setter, value) => {
     setFilterLoading(true);
@@ -695,6 +802,7 @@ export default function FranchiseLeadsPage() {
             history[lead.id] = lead.remarks
               .map((r) => ({
                 text: r.text,
+                reason: r.reason || "",
                 timestamp: new Date(r.addedAt).toLocaleString(),
                 user: r.addedBy,
                 followUpDate: r.followUpDate,
@@ -1525,6 +1633,66 @@ export default function FranchiseLeadsPage() {
     }
   };
 
+  /* ---------------- FRANCHISE EMAIL TEMPLATES ---------------- */
+  const handleSendFranchiseEmail = async (template) => {
+    if (selectedLeads.length === 0) return;
+
+    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
+    const picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+
+    const recipients = picked
+      .map((lead) => {
+        const email = String(lead.email || "").trim();
+        if (!email) return null;
+        return {
+          email,
+          name: (lead.full_name || lead.fullName || "there").slice(0, 120),
+        };
+      })
+      .filter(Boolean);
+
+    if (recipients.length === 0) {
+      toast.error("No email addresses in the selected leads");
+      return;
+    }
+
+    const adminEmail =
+      localStorage.getItem("adminEmail") || localStorage.getItem("email");
+    if (!adminEmail) {
+      toast.error("Not logged in");
+      return;
+    }
+
+    setEmailSendingId(template.id);
+    try {
+      const res = await fetch("/api/franchise-leads/send-email-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminEmail,
+          leads: recipients,
+          templateId: template.id,
+          customSubject: template.customSubject,
+          customMessage: template.customMessage,
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        toast.success(data.message || "Email sent");
+        setSelectedLeads([]);
+        setIsEmailTemplateModalOpen(false);
+      } else {
+        toast.error(data.message || "Email send failed");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Email send failed");
+    } finally {
+      setEmailSendingId("");
+    }
+  };
+
   /* ---------------- MANUAL LEAD ADDITION ---------------- */
   const handleAddLead = async () => {
     setLoading(true);
@@ -1884,23 +2052,57 @@ export default function FranchiseLeadsPage() {
   /** Start every open of the remarks modal with an empty composer. */
   useEffect(() => {
     setSelectedRemarks([]);
+    setRemarkReasons({});
     setNewRemark("");
     setFollowUpDateFranchise("");
     setFollowUpTimeFranchise("10:00");
   }, [remarkModalLead]);
 
-  const toggleQuickRemark = (remark) =>
+  const toggleQuickRemark = (remark) => {
+    const wasSelected = selectedRemarks.includes(remark);
     setSelectedRemarks((prev) =>
       prev.includes(remark)
         ? prev.filter((r) => r !== remark)
         : [...prev, remark],
     );
+    // Dropping the chip drops its reason too, so a re-pick starts clean.
+    if (wasSelected) {
+      setRemarkReasons((prev) => {
+        const next = { ...prev };
+        delete next[remark];
+        return next;
+      });
+    }
+  };
+
+  /** Set (or clear, when the same preset is tapped again) a remark's reason. */
+  const setRemarkReason = (key, reason) =>
+    setRemarkReasons((prev) => ({ ...prev, [key]: reason }));
 
   /** Chips first, then the typed remark; duplicates dropped. */
   const pendingRemarkTexts = useMemo(() => {
     const typed = newRemark.trim();
     return [...new Set([...selectedRemarks, ...(typed ? [typed] : [])])];
   }, [selectedRemarks, newRemark]);
+
+  /** Each pending remark with the reason attached to it. `key` is what the
+   *  reason map is keyed by — the custom remark keeps a fixed key so its
+   *  reason survives while the text is still being typed. */
+  const pendingRemarkEntries = useMemo(() => {
+    const typed = newRemark.trim();
+    const entries = selectedRemarks.map((text) => ({
+      key: text,
+      text,
+      isCustom: false,
+    }));
+    if (typed && !selectedRemarks.includes(typed)) {
+      entries.push({ key: CUSTOM_REMARK_KEY, text: typed, isCustom: true });
+    }
+    return entries.map((e) => ({
+      ...e,
+      reason: (remarkReasons[e.key] || "").trim(),
+    }));
+  }, [selectedRemarks, newRemark, remarkReasons]);
 
   const pendingNeedsFollowUp = useMemo(
     () =>
@@ -1910,13 +2112,22 @@ export default function FranchiseLeadsPage() {
     [pendingRemarkTexts],
   );
 
-  /** Drop a scheduled follow-up once nothing in the batch calls for one. */
+  /** Latest follow-up already on the lead — shown for context in the composer. */
+  const existingFollowUp = useMemo(() => {
+    if (!remarkModalLead) return null;
+    const prev = [...(remarkModalLead.remarks || [])]
+      .reverse()
+      .find((r) => r.followUpDate);
+    return prev?.followUpDate ? new Date(prev.followUpDate) : null;
+  }, [remarkModalLead]);
+
+  /** Reset the picker once the composer is empty again. */
   useEffect(() => {
-    if (!pendingNeedsFollowUp) {
+    if (pendingRemarkTexts.length === 0) {
       setFollowUpDateFranchise("");
       setFollowUpTimeFranchise("10:00");
     }
-  }, [pendingNeedsFollowUp]);
+  }, [pendingRemarkTexts.length]);
 
   const handleRemarkSubmit = async () => {
     if (!remarkModalLead || pendingRemarkTexts.length === 0) return;
@@ -1955,6 +2166,15 @@ export default function FranchiseLeadsPage() {
       }
     }
 
+    // A follow-up in the past would never surface in the due buckets.
+    if (
+      effectiveFollowUpIso &&
+      new Date(effectiveFollowUpIso).getTime() < Date.now()
+    ) {
+      toast.error("Follow-up date & time must be in the future");
+      return;
+    }
+
     if (!effectiveFollowUpIso && isFuFranchise && role !== "franchiseAdmin") {
       const prev = [...(remarkModalLead.remarks || [])]
         .reverse()
@@ -1987,6 +2207,10 @@ export default function FranchiseLeadsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           leadId: remarkModalLead.id,
+          entries: pendingRemarkEntries.map(({ text, reason }) => ({
+            text,
+            reason,
+          })),
           texts: pendingRemarkTexts,
           addedBy: "Admin",
           agentId: agentId,
@@ -2004,6 +2228,7 @@ export default function FranchiseLeadsPage() {
         const updatedRemarks = data.remarks
           .map((r) => ({
             text: r.text,
+            reason: r.reason || "",
             timestamp: new Date(r.addedAt).toLocaleString(),
             user: r.addedBy,
             followUpDate: r.followUpDate,
@@ -2014,8 +2239,21 @@ export default function FranchiseLeadsPage() {
           ...prev,
           [remarkModalLead.id]: updatedRemarks,
         }));
+        // Keep the lead in sync so remark counts and the "already scheduled"
+        // follow-up hint reflect this submit without a refetch.
+        setLeads((prev) =>
+          prev.map((l) =>
+            l.id === remarkModalLead.id ? { ...l, remarks: data.remarks } : l,
+          ),
+        );
+        setRemarkModalLead((prev) =>
+          prev && prev.id === remarkModalLead.id
+            ? { ...prev, remarks: data.remarks }
+            : prev,
+        );
         setNewRemark("");
         setSelectedRemarks([]);
+        setRemarkReasons({});
         setFollowUpDateFranchise("");
         setFollowUpTimeFranchise("10:00");
         toast.success(
@@ -3724,6 +3962,16 @@ export default function FranchiseLeadsPage() {
                 Offer Template ({OFFER_DISCOUNT_PERCENT}% Off)
               </button>
 
+              {/* Franchise Email Template Button */}
+              <button
+                type="button"
+                onClick={() => setIsEmailTemplateModalOpen(true)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Email Template
+              </button>
+
               {role === "superAdmin" && (
                 <button
                   onClick={handleBulkDelete}
@@ -3765,10 +4013,13 @@ export default function FranchiseLeadsPage() {
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
                     </div>
                   </th>
+                  <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                    Remarks
+                  </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Contact
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
                       Date
                       <ArrowUpDown className="w-3 h-3 text-gray-400 group-hover:text-blue-600" />
@@ -3780,9 +4031,6 @@ export default function FranchiseLeadsPage() {
 
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     Chat
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
-                    Remarks
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider whitespace-nowrap">
                     <div className="flex items-center gap-2 cursor-pointer hover:text-blue-600 group">
@@ -4048,6 +4296,62 @@ export default function FranchiseLeadsPage() {
                             </select>
                           </div>
                         </td>
+                        {/* REMARKS — moved up so it is visible without scrolling */}
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setRemarkModalLead(lead)}
+                                className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
+                                title="Add Remark"
+                              >
+                                <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                                {remarkHistory[lead.id]?.length > 0 && (
+                                  <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                                    {remarkHistory[lead.id].length}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setRevenueModalLead(lead);
+                                  setShowRevenueModal(true);
+                                }}
+                                className="p-2 hover:bg-emerald-100 rounded-lg transition-colors group"
+                                title="OnBoarded Franchise"
+                              >
+                                <BadgeCheck className="w-4 h-4 text-gray-400 group-hover:text-emerald-600" />
+                              </button>
+                              <button
+                                onClick={() => setSelectedLead(lead)}
+                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                              </button>
+                              {role === "superAdmin" && (
+                                <button
+                                  onClick={() => handleDeleteLead(lead.id)}
+                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
+                                  title="Delete Lead"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
+                                </button>
+                              )}
+                            </div>
+                            <div
+                              className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
+                                remarkHistory[lead.id]?.[0]?.text
+                                  ? "bg-blue-50 text-blue-800 border-blue-100"
+                                  : "text-gray-400 border-transparent italic"
+                              }`}
+                              title={remarkHistory[lead.id]?.[0]?.text || ""}
+                            >
+                              {remarkHistory[lead.id]?.[0]?.text ||
+                                "No remarks"}
+                            </div>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="space-y-1">
                             <div className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -4060,13 +4364,35 @@ export default function FranchiseLeadsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {lead.created_time
-                              ? new Date(lead.created_time).toLocaleString()
-                              : "-"}
-                          </div>
+                        {/* DATE — date on top, time smaller underneath */}
+                        <td className="px-3 py-4 whitespace-nowrap">
+                          {lead.created_time ? (
+                            <div className="flex items-start gap-1.5 text-gray-600">
+                              <Calendar className="w-3 h-3 text-gray-400 mt-0.5 shrink-0" />
+                              <div className="leading-tight">
+                                <div className="text-[11px] font-medium text-gray-700 tabular-nums">
+                                  {new Date(
+                                    lead.created_time,
+                                  ).toLocaleDateString("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "2-digit",
+                                  })}
+                                </div>
+                                <div className="text-[10px] text-gray-400 tabular-nums">
+                                  {new Date(
+                                    lead.created_time,
+                                  ).toLocaleTimeString("en-IN", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {(() => {
@@ -4135,61 +4461,6 @@ export default function FranchiseLeadsPage() {
                               </button>
                             );
                           })()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setRemarkModalLead(lead)}
-                                className="relative p-2 hover:bg-purple-100 rounded-lg transition-colors group"
-                                title="Add Remark"
-                              >
-                                <MessageSquare className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
-                                {remarkHistory[lead.id]?.length > 0 && (
-                                  <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                                    {remarkHistory[lead.id].length}
-                                  </span>
-                                )}
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setRevenueModalLead(lead);
-                                  setShowRevenueModal(true);
-                                }}
-                                className="p-2 hover:bg-emerald-100 rounded-lg transition-colors group"
-                                title="OnBoarded Franchise"
-                              >
-                                <BadgeCheck className="w-4 h-4 text-gray-400 group-hover:text-emerald-600" />
-                              </button>
-                              <button
-                                onClick={() => setSelectedLead(lead)}
-                                className="p-2 hover:bg-blue-100 rounded-lg transition-colors group"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
-                              </button>
-                              {role === "superAdmin" && (
-                                <button
-                                  onClick={() => handleDeleteLead(lead.id)}
-                                  className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
-                                  title="Delete Lead"
-                                >
-                                  <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
-                                </button>
-                              )}
-                            </div>
-                            <div
-                              className={`text-[11px] px-2 py-1 rounded-md border max-w-[150px] truncate ${
-                                remarkHistory[lead.id]?.[0]?.text
-                                  ? "bg-blue-50 text-blue-800 border-blue-100"
-                                  : "text-gray-400 border-transparent italic"
-                              }`}
-                              title={remarkHistory[lead.id]?.[0]?.text || ""}
-                            >
-                              {remarkHistory[lead.id]?.[0]?.text ||
-                                "No remarks"}
-                            </div>
-                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
@@ -4599,43 +4870,102 @@ export default function FranchiseLeadsPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
 
-                {pendingRemarkTexts.length > 0 && (
-                  <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700 mb-2">
-                      Will be saved as {pendingRemarkTexts.length} separate{" "}
-                      {pendingRemarkTexts.length === 1 ? "remark" : "remarks"}
+                {pendingRemarkEntries.length > 0 && (
+                  <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-3 space-y-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-purple-700">
+                      Will be saved as {pendingRemarkEntries.length} separate{" "}
+                      {pendingRemarkEntries.length === 1 ? "remark" : "remarks"}{" "}
+                      — add a reason for each
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {pendingRemarkTexts.map((t) => (
-                        <span
-                          key={t}
-                          className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-purple-200 rounded-lg text-xs text-purple-900 max-w-full"
+
+                    {pendingRemarkEntries.map((entry) => {
+                      const presets =
+                        REMARK_REASONS[entry.text] || GENERIC_REASONS;
+                      return (
+                        <div
+                          key={entry.key}
+                          className="rounded-lg border border-purple-200 bg-white p-2.5"
                         >
-                          <span className="truncate">{t}</span>
-                          <button
-                            type="button"
-                            aria-label={`Remove ${t}`}
-                            onClick={() =>
-                              selectedRemarks.includes(t)
-                                ? toggleQuickRemark(t)
-                                : setNewRemark("")
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <span className="text-xs font-semibold text-purple-900 break-words">
+                              {entry.text}
+                              {entry.isCustom && (
+                                <span className="ml-1.5 text-[10px] font-medium text-gray-400 uppercase">
+                                  custom
+                                </span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label={`Remove ${entry.text}`}
+                              onClick={() =>
+                                entry.isCustom
+                                  ? (setNewRemark(""),
+                                    setRemarkReason(CUSTOM_REMARK_KEY, ""))
+                                  : toggleQuickRemark(entry.text)
+                              }
+                              className="text-purple-400 hover:text-red-500 shrink-0"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {presets.map((reason) => {
+                              const active = entry.reason === reason;
+                              return (
+                                <button
+                                  key={reason}
+                                  type="button"
+                                  aria-pressed={active}
+                                  onClick={() =>
+                                    setRemarkReason(
+                                      entry.key,
+                                      active ? "" : reason,
+                                    )
+                                  }
+                                  className={`px-2 py-1 text-[11px] rounded-lg border transition-colors ${
+                                    active
+                                      ? "bg-purple-600 border-purple-600 text-white"
+                                      : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                                  }`}
+                                >
+                                  {reason}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <input
+                            type="text"
+                            value={remarkReasons[entry.key] || ""}
+                            onChange={(e) =>
+                              setRemarkReason(entry.key, e.target.value)
                             }
-                            className="text-purple-400 hover:text-red-500 shrink-0"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
+                            placeholder="Reason (optional) — pick above or type your own"
+                            className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {pendingNeedsFollowUp && (
+                {pendingRemarkTexts.length > 0 && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Calendar size={13} className="text-amber-600" />
                       <span className="text-xs font-bold text-amber-700">
                         Schedule Follow-up
+                      </span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide ${
+                          pendingNeedsFollowUp
+                            ? "bg-red-100 text-red-600"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {pendingNeedsFollowUp ? "Required" : "Optional"}
                       </span>
                       {followUpDateFranchise && (
                         <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-semibold max-w-[55%] truncate text-right">
@@ -4669,7 +4999,9 @@ export default function FranchiseLeadsPage() {
                       {[
                         { label: "Today", days: 0 },
                         { label: "Tomorrow", days: 1 },
-                        { label: "Next 7 Days", days: 7 },
+                        // 6 days, not 7 — keeps the date inside the
+                        // "Next 7 Days" follow-up bucket window.
+                        { label: "Next 7 Days", days: 6 },
                         { label: "This Month", days: null },
                       ].map(({ label, days }) => {
                         const getDate = () => {
@@ -4679,7 +5011,7 @@ export default function FranchiseLeadsPage() {
                           } else {
                             d.setDate(d.getDate() + days);
                           }
-                          return d.toISOString().split("T")[0];
+                          return toLocalDateInput(d);
                         };
                         const val = getDate();
                         const isActive = followUpDateFranchise === val;
@@ -4687,9 +5019,20 @@ export default function FranchiseLeadsPage() {
                           <button
                             key={label}
                             type="button"
-                            onClick={() =>
-                              setFollowUpDateFranchise(isActive ? "" : val)
-                            }
+                            onClick={() => {
+                              if (isActive) {
+                                setFollowUpDateFranchise("");
+                                return;
+                              }
+                              setFollowUpDateFranchise(val);
+                              // Picking "Today" with a time that has already
+                              // passed would fail validation — nudge it ahead.
+                              if (val === todayInputDate) {
+                                setFollowUpTimeFranchise((t) =>
+                                  isPastTimeToday(val, t) ? nextHourTime() : t,
+                                );
+                              }
+                            }}
                             className={`px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-all ${
                               isActive
                                 ? "bg-amber-500 text-white border-amber-500 shadow-sm"
@@ -4701,11 +5044,40 @@ export default function FranchiseLeadsPage() {
                         );
                       })}
                     </div>
+
+                    {followUpDateFranchise && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {["10:00", "12:00", "15:00", "18:00", "20:00"].map(
+                          (t) => {
+                            const disabled = isPastTimeToday(
+                              followUpDateFranchise,
+                              t,
+                            );
+                            const isActive = followUpTimeFranchise === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => setFollowUpTimeFranchise(t)}
+                                className={`px-2 py-0.5 text-[10px] font-semibold rounded-md border transition-all ${
+                                  isActive
+                                    ? "bg-amber-500 text-white border-amber-500"
+                                    : "bg-white text-amber-700 border-amber-200 hover:bg-amber-100"
+                                } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                              >
+                                {formatTimeLabel(t)}
+                              </button>
+                            );
+                          },
+                        )}
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="date"
                         value={followUpDateFranchise}
-                        min={new Date().toISOString().split("T")[0]}
+                        min={todayInputDate}
                         onChange={(e) =>
                           setFollowUpDateFranchise(e.target.value)
                         }
@@ -4733,10 +5105,33 @@ export default function FranchiseLeadsPage() {
                         </button>
                       )}
                     </div>
-                    {role === "franchiseAdmin" && (
+                    {isPastTimeToday(
+                      followUpDateFranchise,
+                      followUpTimeFranchise,
+                    ) && (
+                      <p className="text-[10px] font-semibold text-red-600 mt-1">
+                        This time has already passed — pick a later slot.
+                      </p>
+                    )}
+
+                    {pendingNeedsFollowUp && role === "franchiseAdmin" && (
                       <p className="text-[10px] text-amber-800/90 mt-1">
                         Date and time are required when using Call Not Picked or
                         Call Back Later.
+                      </p>
+                    )}
+
+                    {existingFollowUp && (
+                      <p className="text-[10px] text-amber-800/80 mt-1">
+                        Currently scheduled:{" "}
+                        {existingFollowUp.toLocaleString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
                       </p>
                     )}
                   </div>
@@ -4781,9 +5176,19 @@ export default function FranchiseLeadsPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-900 font-medium mb-2">
+                        <p className="text-gray-900 font-medium mb-1">
                           {remark.text}
                         </p>
+                        {remark.reason ? (
+                          <p className="text-xs text-gray-600 mb-2">
+                            <span className="font-semibold text-gray-500">
+                              Reason:{" "}
+                            </span>
+                            {remark.reason}
+                          </p>
+                        ) : (
+                          <div className="mb-2" />
+                        )}
                         {remark.followUpDate && (
                           <p className="text-[11px] text-amber-700 font-semibold mb-1.5 flex items-center gap-1">
                             <Calendar className="w-3 h-3 shrink-0" />
@@ -5281,6 +5686,18 @@ export default function FranchiseLeadsPage() {
           </div>
         </div>
       )}
+
+      {/* Franchise Email Template Modal */}
+      <EmailTemplateModal
+        isOpen={isEmailTemplateModalOpen}
+        setIsOpen={setIsEmailTemplateModalOpen}
+        selectedCount={selectedLeads.length}
+        onSendTemplate={handleSendFranchiseEmail}
+        sendingTemplateId={emailSendingId}
+        groups={FRANCHISE_EMAIL_TEMPLATE_GROUPS}
+        templatesForGroup={getFranchiseEmailTemplatesForGroup}
+        heading="Franchise Email Templates"
+      />
 
       {/* Franchise Offer Template Modal (franchise_off_new) */}
       {isOfferTemplateModalOpen && (

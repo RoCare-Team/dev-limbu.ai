@@ -8,7 +8,7 @@ import GbpNationalServicePage from "@/components/page-components/GbpNationalServ
 import ServiceStructuredData from "@/components/seo/ServiceStructuredData";
 
 import { notFound } from "next/navigation";
-import { POPULAR_CITIES } from "@/utils/popularCity";
+import { findCityBySlug } from "@/utils/citySlug";
 
 const GBP_PREFIX = "google-bussiness-profile-management-";
 const GBP_BASE_SLUG = "google-bussiness-profile-management";
@@ -21,8 +21,6 @@ const SITE_URL = "https://www.limbu.ai";
 
 export const revalidate = 86400;
 
-const POPULAR_LOCAL_SEO_CITIES = POPULAR_CITIES;
-
 // =========================
 // HELPERS
 // =========================
@@ -31,22 +29,15 @@ const extractCity = (slug = "", prefix = "") => {
   return slug.replace(prefix, "");
 };
 
+// Take the display name straight from the city list — rebuilding it from the
+// slug loses commas/hyphens ("Sector 143, Noida", "Janjgir-champa") and made
+// those pages 404.
 const formatCityName = (city = "") => {
-  return city
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-};
-
-const normalizeCity = (city = "") => {
-  return city.trim().toLowerCase();
+  return findCityBySlug(city) ?? "";
 };
 
 const isValidCity = (city = "") => {
-  return POPULAR_LOCAL_SEO_CITIES.some(
-    (c) => normalizeCity(c) === normalizeCity(formatCityName(city))
-  );
+  return findCityBySlug(city) !== null;
 };
 
 // =========================

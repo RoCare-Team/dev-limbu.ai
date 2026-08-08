@@ -88,7 +88,7 @@ Examples of the mapping style expected:
 - rating kam / negative reviews  → Magic QR + Review Management & Auto Reply
 - profile adhoora, photos nahi   → GMB Health Check + AI Image & Video Generation
 - posting consistency nahi       → Smart Scheduling & Post Automation + AI Post Generation
-- 'near me' pe rank nahi karte   → Keyword Planner + Local Rank Tracker
+- 'near me' pe rank nahi karte   → Keyword Planner + Competitor Analysis
 - website nahi hai               → AI Website Builder
 - performance ka data nahi       → GMB Insights Report
 

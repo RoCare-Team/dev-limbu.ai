@@ -37,17 +37,37 @@ export async function POST(request) {
         })
       : await getGmbConnectionByPhone(phone);
 
+    // Google ka `revoke` ek token nahi, POORA GRANT hatata hai — us Google
+    // account ke saare access + refresh token, chahe wo doosre app users ke
+    // connections me store hon. Ek agency account 50+ businesses par juda hota
+    // hai, to ek disconnect sabki automation tod deta tha.
+    //
+    // Isliye revoke sirf tab jab ye us account ka AAKHRI connection ho. Warna
+    // apni copy hata dena hi kaafi hai; user chahe to Google account settings
+    // se access khud hata sakta hai.
     if (conn?.refreshToken) {
-      // Google ki taraf se bhi grant hata do, taaki agli baar saaf consent mile.
-      await axios
-        .post(
-          "https://oauth2.googleapis.com/revoke",
-          new URLSearchParams({ token: conn.refreshToken }).toString(),
-          { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
-        )
-        .catch((e) =>
-          console.warn("[gmb/disconnect] revoke failed:", e.response?.data || e.message),
+      const siblings = conn.googleId
+        ? await GmbConnection.countDocuments({
+            googleId: conn.googleId,
+            userId: { $ne: conn.userId },
+          })
+        : 0;
+
+      if (siblings > 0) {
+        console.log(
+          `[gmb/disconnect] skipping Google revoke — ${siblings} other connection(s) share this Google account`,
         );
+      } else {
+        await axios
+          .post(
+            "https://oauth2.googleapis.com/revoke",
+            new URLSearchParams({ token: conn.refreshToken }).toString(),
+            { headers: { "Content-Type": "application/x-www-form-urlencoded" } },
+          )
+          .catch((e) =>
+            console.warn("[gmb/disconnect] revoke failed:", e.response?.data || e.message),
+          );
+      }
     }
 
     // Jo record actually mila usi ko hatao — sirf uski `_id` se, kyunki ab

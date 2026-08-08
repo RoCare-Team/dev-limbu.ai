@@ -347,10 +347,11 @@ async function backfillFromGmbUser(userId) {
 
   console.log(`[gmbSession] backfilling GMB connection for ${userId} from GmbUser`);
   return GmbConnection.findOneAndUpdate(
-    { userId },
+    { userId, connectedBy: "self" },
     {
       $set: {
         userId,
+        connectedBy: "self",
         googleId: project.googleId,
         email: gmbUser.email,
         name: gmbUser.name,
@@ -368,12 +369,52 @@ async function backfillFromGmbUser(userId) {
   );
 }
 
-/** Ek userId ka connection record lao (backfill sameth). */
+/**
+ * Ek userId ka connection record lao (backfill sameth).
+ *
+ * Same userId ke do slots ho sakte hain — `connectedBy: "self"` (client ka
+ * apna) aur `connectedBy: "admin_impersonation"` (in-house team ne manager
+ * access se connect kiya). Ye function **background/functional** kaam ke
+ * liye hai (posting, cron, token refresh) jahan bas KOI bhi valid token
+ * chahiye — isliye self ko priority, warna admin wala fallback, taaki client
+ * ke khud connect karne se pehle bhi automation na ruke.
+ *
+ * UI par "connected hai ya nahi" dikhane ke liye ye MAT use karo —
+ * `getVisibleGmbConnection()` use karo, jo context-aware hai.
+ */
 export async function getGmbConnection(userId) {
   if (!userId) return null;
   await dbConnect();
-  const existing = await GmbConnection.findOne({ userId });
-  if (existing) return existing;
+  const self = await GmbConnection.findOne({ userId, connectedBy: "self" });
+  if (self) return self;
+  const adminConn = await GmbConnection.findOne({ userId, connectedBy: "admin_impersonation" });
+  if (adminConn) return adminConn;
+  return backfillFromGmbUser(userId);
+}
+
+/**
+ * Context-aware connection lookup — UI/status ke liye isi ko use karo.
+ *
+ * - Impersonated session (admin login-as-user): admin-connected slot dikhta
+ *   hai; agar wo maujood nahi to client ke apne slot par fallback (client ne
+ *   pehle se khud connect kar rakha ho sakta hai).
+ * - Real client login (impersonate NAHI): SIRF apna `"self"` slot dikhta hai
+ *   — admin ka connection kabhi nahi, chahe maujood ho.
+ */
+export async function getVisibleGmbConnection(userId, impersonated) {
+  if (!userId) return null;
+  await dbConnect();
+
+  if (impersonated) {
+    const adminConn = await GmbConnection.findOne({ userId, connectedBy: "admin_impersonation" });
+    if (adminConn) return adminConn;
+    const self = await GmbConnection.findOne({ userId, connectedBy: "self" });
+    if (self) return self;
+    return backfillFromGmbUser(userId);
+  }
+
+  const self = await GmbConnection.findOne({ userId, connectedBy: "self" });
+  if (self) return self;
   return backfillFromGmbUser(userId);
 }
 
@@ -447,10 +488,12 @@ export async function getGmbSession(request) {
     };
   }
 
-  const conn = await getGmbConnection(appUser.userId);
+  const conn = await getVisibleGmbConnection(appUser.userId, appUser.impersonated);
+
   if (!conn) {
-    // App me logged in hai par GMB connected nahi. Identity phir bhi do —
-    // taaki non-GMB routes (jaise user-settings GET) 401 na dein.
+    // App me logged in hai par GMB connected nahi (ya isi user ke liye
+    // chhupaya gaya hai). Identity phir bhi do — taaki non-GMB routes (jaise
+    // user-settings GET) 401 na dein.
     return {
       user: { email: appUser.email || null, id: appUser.userId },
       userId: appUser.userId,

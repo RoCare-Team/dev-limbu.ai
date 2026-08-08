@@ -5,9 +5,10 @@ import {
   GMB_SCOPE,
   gmbRedirectUri,
   GMB_BASE_URL,
-  getGmbConnection,
   getGmbConnectionByPhone,
 } from "@/lib/gmbSession";
+import dbConnect from "@/lib/dbConnect";
+import GmbConnection from "@/models/GmbConnection";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +63,22 @@ async function shouldForceConsent(request, identity) {
   if (consentParam === "0") return false;
 
   // Default: valid connection hai to consent skip, warna force.
+  //
+  // Identity ke SAME slot ka connection check karo (self ya
+  // admin_impersonation) — generic fallback (getGmbConnection) yahan nahi,
+  // warna doosre slot ka valid refresh token dekh kar consent skip ho jata,
+  // aur naya connect us doosre slot me hi likhega (galat data).
   try {
-    const conn = identity.userId
-      ? await getGmbConnection(identity.userId)
-      : await getGmbConnectionByPhone(identity.phone);
+    let conn = null;
+    if (identity.userId) {
+      await dbConnect();
+      conn = await GmbConnection.findOne({
+        userId: identity.userId,
+        connectedBy: identity.impersonated ? "admin_impersonation" : "self",
+      });
+    } else {
+      conn = await getGmbConnectionByPhone(identity.phone);
+    }
     const hasValid = !!conn?.refreshToken && !conn.invalid;
     return !hasValid;
   } catch {
@@ -97,7 +110,10 @@ async function resolve(request) {
 
   const appUser = getAppUser(request);
   if (appUser?.userId) {
-    const identity = { userId: appUser.userId };
+    // impersonated flag state ke saath travel karta hai taaki callback ko pata
+    // chale ye connect asli client ne khud kiya ya in-house team ne
+    // login-as-user (manager access) se. Dekho: gmb/callback route.
+    const identity = { userId: appUser.userId, impersonated: appUser.impersonated === true };
     const forceConsent = await shouldForceConsent(request, identity);
     return { url: buildAuthUrl(identity, callbackUrl, forceConsent) };
   }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAppUser, getGmbPhone } from "@/lib/appSession";
-import { getGmbConnection, getGmbConnectionByPhone } from "@/lib/gmbSession";
+import { getVisibleGmbConnection, getGmbConnectionByPhone } from "@/lib/gmbSession";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export async function GET(request) {
   }
 
   const conn = appUser?.userId
-    ? await getGmbConnection(appUser.userId)
+    ? await getVisibleGmbConnection(appUser.userId, appUser.impersonated)
     : await getGmbConnectionByPhone(phone);
 
   return NextResponse.json({

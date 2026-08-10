@@ -157,7 +157,7 @@ export async function GET() {
       slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
 
       try {
-      const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
+      const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName, imageConfig: plan.imageConfig || {} });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
         keyword,

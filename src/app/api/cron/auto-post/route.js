@@ -168,6 +168,7 @@ export async function GET(request) {
         keyword,
         businessName: plan.businessName || '',
         cityName,
+        imageConfig: plan.imageConfig || {},
       });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,

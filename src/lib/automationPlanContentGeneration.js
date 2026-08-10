@@ -48,6 +48,9 @@ async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
         ],
         temperature: 0.8,
         max_tokens: maxTokens,
+        // Guarantees valid JSON — no more silent fallback when GPT returns
+        // chatty / fenced output that JSON.parse can't handle.
+        response_format: { type: "json_object" },
       }),
     });
     const data = await res.json();
@@ -60,38 +63,161 @@ async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
   }
 }
 
-export async function generateImagePrompt({ keyword, businessName, cityName }) {
-  const fallback = `${keyword} — ${businessName}${cityName ? ", " + cityName : ""}`;
-  const cityLine = cityName ? `City / locality : "${cityName}", India` : "";
+/** Convert a stored asset (raw base64 / data URL / http URL) into an OpenAI image_url value. */
+function toOpenAiImageUrl(s) {
+  if (typeof s !== "string" || !s.trim()) return null;
+  const v = s.trim();
+  if (v.startsWith("data:image") || /^https?:\/\//i.test(v)) return v;
+  // raw base64 — sniff the mime from the first bytes
+  const mime = v.startsWith("iVBOR")
+    ? "image/png"
+    : v.startsWith("R0lGOD")
+      ? "image/gif"
+      : v.startsWith("UklGR")
+        ? "image/webp"
+        : "image/jpeg";
+  return `data:${mime};base64,${v}`;
+}
+
+/**
+ * Vision-analyse the plan's REAL assets (product / character / uniform /
+ * background / logo) with gpt-4o-mini in ONE cheap call (detail:"low"), so the
+ * image prompt is written AROUND what we actually have instead of GPT guessing
+ * blindly. Returns e.g. { product, character, uniform, background, logoColours }
+ * with one dense line each — or {} when there are no assets or analysis fails
+ * (never blocks the post; prompt generation simply proceeds without asset
+ * context, exactly like before).
+ */
+export async function analyzeAssets(imageConfig = {}) {
+  const cfg = applyIncludeInGeneration(imageConfig);
+  const slots = [
+    [
+      "product",
+      cfg.productImage,
+      "what EXACTLY it is, its use, shape, key colours, material / texture, premium cues",
+    ],
+    [
+      "character",
+      cfg.characterImage,
+      "apparent age range, gender presentation, attire, hairstyle, overall vibe",
+    ],
+    [
+      "uniform",
+      cfg.uniformImage,
+      "the profession it suggests, its colours and style details",
+    ],
+    [
+      "background",
+      cfg.backgroundImage,
+      "location type, key visible elements, colours, mood",
+    ],
+    [
+      "logoColours",
+      cfg.logoImage,
+      "dominant brand colours and logo style ONLY, two short phrases",
+    ],
+  ];
+  const present = slots
+    .map(([key, img, instr]) => [key, toOpenAiImageUrl(img), instr])
+    .filter(([, url]) => url);
+  if (!present.length) return {};
+
+  const content = [
+    {
+      type: "text",
+      text: `Analyse each labelled ad-asset image below. For every label write ONE dense line (15-30 words) covering exactly what its instruction asks. Return ONLY minified JSON with exactly these keys: {${present.map(([k]) => `"${k}":"..."`).join(",")}}`,
+    },
+  ];
+  for (const [key, url, instr] of present) {
+    content.push({ type: "text", text: `${key} — ${instr}:` });
+    content.push({ type: "image_url", image_url: { url, detail: "low" } });
+  }
+
+  const result = await callGpt(
+    "You are a precise visual analyst inside an ad-creative pipeline. You describe assets exactly as they are, in dense, art-director-useful detail. Return ONLY compact minified JSON, no markdown, no commentary.",
+    content,
+    400,
+  );
+  if (!result || typeof result !== "object") return {};
+  console.log("[automation-content] Asset analysis:", result);
+  return result;
+}
+
+// ASSET-AWARE + scroll-stopping. Real assets are vision-analysed first and the
+// prompt is built AROUND them: the exact product becomes the hero, the exact
+// character / uniform / background shape the scene, and the backdrop colour-pop
+// complements the logo's brand colours. Every image still carries exactly ONE
+// dramatic "wow" element + bold colour pop + dramatic lighting, in pure positive
+// wording (negations like "no text" often make models ADD text).
+export async function generateImagePrompt({
+  keyword,
+  businessName,
+  cityName,
+  imageConfig = {},
+}) {
+  const assets = await analyzeAssets(imageConfig);
+  const assetLines = [];
+  if (assets.product)
+    assetLines.push(
+      `- PRODUCT (real image, composited into the creative): ${assets.product} → this EXACT product IS the hero subject; describe it faithfully and stage the whole scene to flatter it.`,
+    );
+  if (assets.character)
+    assetLines.push(
+      `- CHARACTER (real person image): ${assets.character} → this EXACT person appears in the scene; match their look and attire, and give them the emotion from layer 4.`,
+    );
+  if (assets.uniform)
+    assetLines.push(
+      `- UNIFORM (real image): ${assets.uniform} → any person shown wears this uniform; the scene must fit this profession.`,
+    );
+  if (assets.background)
+    assetLines.push(
+      `- BACKGROUND (real image): ${assets.background} → set the scene INSIDE this exact environment and extend it naturally; the colour-pop must harmonise with it.`,
+    );
+  if (assets.logoColours)
+    assetLines.push(
+      `- BRAND COLOURS (from the logo): ${assets.logoColours} → choose the backdrop colour-pop and grade to complement these brand colours.`,
+    );
+  const assetBlock = assetLines.length
+    ? `
+REAL ASSETS PROVIDED (the ad engine will place these exact images into the final creative — build the scene around them so everything matches seamlessly):
+${assetLines.join("\n")}
+`
+    : "";
+
+  const fallback = `Cinematic hero advertising photograph of ${keyword} at ${businessName}${cityName ? " in " + cityName : ""}, India, the hero subject dominating the frame, dramatic golden rim light with glowing light rays and fine particles suspended in the air around it, a bold deep-teal complementary backdrop making the subject pop off the screen, shot on Sony A7R V with an 85mm f/1.4 lens at a slight low hero angle, shallow depth of field with creamy bokeh, vivid punchy colour grade with deep contrast, subject filling the lower two thirds of the vertical frame, the entire top third a clean softly glowing gradient reserved for branding overlay, award-winning scroll-stopping commercial advertising photography, hyper-realistic, tack-sharp focus on the subject, 8K detail`;
+  const cityLine = cityName ? `City / locality  : "${cityName}", India` : "";
   const result = await callGpt(
     [
-      "You are a senior commercial advertising photographer and art director.",
-      "You write single, production-ready prompts for a text-to-image model that generates premium 3:4 (portrait 1080x1350) social + Google Business ad creatives for local Indian businesses.",
-      "Your prompts consistently produce clean, photorealistic, brand-safe, high-converting visuals.",
+      "You are an elite, award-winning advertising photographer and art director whose campaign images go viral — people stop scrolling the instant they see them.",
+      "You write prompts for state-of-the-art text-to-image models that produce dramatic, cinematic, scroll-stopping ad photographs for premium Indian brands — bold and eye-catching, yet always looking like a REAL photograph, never CGI, never illustration, never 'AI-looking'.",
+      "You know thumb-stopping impact comes from: one larger-than-life hero subject, exactly ONE dramatic wow element (frozen motion, splash, floating elements, glow), a bold complementary colour pop, dramatic lighting, and hyper-real micro-textures.",
+      "You describe only what IS in the frame and never use negative phrasing.",
       "Return ONLY compact minified JSON, no markdown, no commentary.",
     ].join(" "),
-    `Business name  : "${businessName}"
-Offer / keyword: "${keyword}"
+    `Business         : "${businessName}"
+Offer / keyword  : "${keyword}"
 ${cityLine}
+${assetBlock}
+TASK: Write ONE high-impact, scroll-stopping prompt (100-140 words, a single flowing paragraph) for a premium vertical portrait (1080x1350) social + Google Business ad photo that makes people STOP scrolling and instantly desire "${keyword}".
 
-TASK: Write ONE vivid, camera-ready image prompt for a scroll-stopping ad that visually sells "${keyword}" for this business.
-
-Build the prompt to cover, in a single flowing paragraph (45-75 words):
-1. HERO SUBJECT — the exact product / service / person most relevant to "${keyword}" (be concrete and authentic to an Indian local business).
-2. SETTING & ACTION — a realistic, tidy, aspirational scene${cityName ? `, subtly relatable to ${cityName}, India` : ""}.
-3. CAMERA & LIGHT — lens & angle (e.g. 35mm, eye-level, slight low angle), soft natural or studio lighting, shallow depth of field, professional colour grade / mood.
-4. QUALITY CUES — "photorealistic, ultra-detailed, sharp focus, 4K, commercial advertising photography, premium".
-5. COMPOSITION — keep clean, uncluttered negative space, and ALWAYS keep the TOP RIGHT CORNER completely empty/clean (plain, low-detail area) reserved for the brand logo, plus space for text and phone number to be added later.
+Layer the paragraph in exactly this order:
+1. HERO SUBJECT — the single most relevant product / service / person for "${keyword}", filling the frame like a movie-poster hero. Add 2-3 hyper-real micro-details: glistening surface, rising steam, condensation droplets, fabric weave, natural skin with visible pores, sparkling reflections — whichever genuinely fits.
+2. WOW FACTOR — exactly ONE dramatic scroll-stopper that fits this business: a frozen-motion splash or pour, fresh ingredients or product elements suspended mid-air, a soft burst of steam or aromatic smoke, golden light rays cutting through fine floating particles, water droplets frozen by high-speed flash, warm sparks or glowing bokeh lights behind the subject, or a mirror-like dramatic reflection. Pick the one with maximum drama for "${keyword}".
+3. SCENE & COLOUR POP — a clean cinematic backdrop in ONE bold complementary colour that makes the subject explode off the screen (deep teal behind warm food, rich burgundy behind gold jewellery, charcoal behind glowing services, emerald behind warm skin tones)${cityName ? `, with a subtle ${cityName} touch where natural` : ""}, with gentle depth and atmosphere.
+4. EMOTION — if a person appears: genuine delight, excitement or confident pride, eyes engaging the camera; realistic modern Indian people, dignified, natural relaxed hands.
+5. CAMERA — a real camera + lens + aperture (e.g. "shot on Sony A7R V, 85mm f/1.4" or "Canon EOS R5, 50mm f/1.8"), slight low hero angle or dramatic close-up, shallow depth of field, creamy bokeh; add "high-speed flash freeze" whenever motion appears.
+6. LIGHT & GRADE — dramatic lighting: strong golden rim light, a glowing edge light, or a cinematic spotlight with soft fill; then ONE punchy grade: "vivid high-contrast commercial grade", "warm golden cinematic grade" or "bold saturated editorial grade".
+7. IMPACT TAGS — end the paragraph with: "award-winning scroll-stopping commercial advertising photography, cinematic hero shot, vivid punchy colours, dramatic lighting, hyper-realistic, natural imperfections, tack-sharp focus on the subject, 8K detail".
+8. COMPOSITION — the subject fills the lower two thirds of the vertical frame; the entire top third stays a clean, softly glowing, uncluttered gradient or plain area reserved for branding overlay.
 
 HARD RULES:
-- Absolutely NO text, letters, words, numbers, captions, watermarks, logos, badges, posters or UI anywhere in the image (all branding is composited later).
-- The brand logo is supplied separately and must be used EXACTLY as provided — never redraw, recolour, restyle, translate or reinterpret it; keep the original logo unchanged.
-- The logo always sits in the TOP RIGHT CORNER — never move it to any other corner or position.
-- No distorted anatomy, no extra fingers, no messy/cluttered background, no collage, no borders.
-- Brand-safe, modern, premium, realistic — never cartoonish unless the business clearly calls for it.
+- Pure positive description only. Never use the words "no", "not", "without", "avoid", "text", "logo", "watermark", "cartoon" or "3D" — keep every surface plain and unmarked by describing it that way.
+- Exactly ONE hero subject, ONE scene, ONE wow-factor element — bold and dramatic, never cluttered or chaotic.
+- Strictly photographic and believable: dramatic, yet something a real advertising photographer could actually shoot in a studio or on location.
+- When REAL ASSETS are listed above, describe those EXACT items — the exact product, person, uniform and environment shown — never invent a different product, person or setting in their place.
 
 Return ONLY: {"prompt":"..."}`,
-    380,
+    500,
   );
   const prompt = result?.prompt || fallback;
   console.log("[automation-content] Image prompt:", prompt);

@@ -21,7 +21,7 @@ const automationPlanSchema = new mongoose.Schema(
     automationEnabled: { type: Boolean, default: false },
     frequency: {
       type: String,
-      enum: ['daily', 'alternate', 'weekly', 'monthly', 'custom'],
+      enum: ['daily', 'alternate', 'twicedaily', 'weekly', 'monthly', 'custom'],
       default: 'daily',
     },
     keywords: [{ type: String }],

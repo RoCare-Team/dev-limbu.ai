@@ -1,5 +1,8 @@
 import { normalizeGenerateAdResponse } from "@/lib/normalizeGenerateAdResponse";
 
+// Allow up to 5 minutes for this route (image generation can be slow)
+export const maxDuration = 300;
+
 export async function POST(req) {
   try {
     const body = await req.json();
@@ -46,14 +49,23 @@ export async function POST(req) {
 
     // console.log("Sending payload to n8n:", payload);
 
-    const n8nResponse = await fetch(
-      "https://assets-image.limbutech.in/generate-ad",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
+
+    let n8nResponse;
+    try {
+      n8nResponse = await fetch(
+        "https://assets-image.limbutech.in/generate-ad",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        },
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     const responseText = await n8nResponse.text();
     let parsed;
@@ -96,11 +108,17 @@ export async function POST(req) {
 
   } catch (error) {
     console.error("Error:", error);
+    const isTimeout = error.name === "AbortError";
 
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({
+        success: false,
+        error: isTimeout
+          ? "Image generation timed out after 5 minutes"
+          : error.message,
+      }),
       {
-        status: 500,
+        status: isTimeout ? 504 : 500,
         headers: { "Content-Type": "application/json" },
       }
     );

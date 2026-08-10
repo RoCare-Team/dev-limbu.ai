@@ -555,7 +555,7 @@ export default function PostManagementPage() {
           return;
         }
 
-        updateUiState({ isGenerating: true, countdown: 59 });
+        updateUiState({ isGenerating: true, countdown: 300 });
         const timer = setInterval(() => {
           setUiState((prev) => {
             if (prev.countdown <= 1) {
@@ -657,7 +657,7 @@ export default function PostManagementPage() {
           return;
         }
 
-        updateUiState({ isGenerating: true, countdown: 120 });
+        updateUiState({ isGenerating: true, countdown: 300 });
         timer = setInterval(() => {
           setUiState((prev) => {
             if (prev.countdown <= 1) {

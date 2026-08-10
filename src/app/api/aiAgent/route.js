@@ -1,5 +1,8 @@
 import { uploadToS3 } from "@/utils/s3Config";
 
+// Allow up to 5 minutes for this route (image generation can be slow)
+export const maxDuration = 300;
+
 export async function POST(req) {
   let newPayload = {};
 
@@ -38,14 +41,23 @@ export async function POST(req) {
       instructions: typeof instructions === "string" ? instructions : "",
     };
 
-    const response = await fetch(
-      "https://n8n.srv968758.hstgr.cloud/webhook/f4b569d7-c402-4c76-993e-8bed20e1df95",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newPayload),
-      }
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
+
+    let response;
+    try {
+      response = await fetch(
+        "https://n8n.srv968758.hstgr.cloud/webhook/f4b569d7-c402-4c76-993e-8bed20e1df95",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newPayload),
+          signal: controller.signal,
+        }
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     // ✅ FIX: Sirf ek baar parse karo
     const responseText = await response.text();
@@ -78,9 +90,15 @@ export async function POST(req) {
 
   } catch (error) {
     console.error("Error in aiAgent API:", error);
+    const isTimeout = error.name === "AbortError";
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({
+        success: false,
+        error: isTimeout
+          ? "Image generation timed out after 5 minutes"
+          : error.message,
+      }),
+      { status: isTimeout ? 504 : 500, headers: { "Content-Type": "application/json" } }
     );
   }
 }

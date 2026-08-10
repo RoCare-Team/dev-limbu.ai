@@ -370,7 +370,12 @@ export async function GET(req) {
     log("📦 Mongo connected");
 
     const now = new Date();
-    const BATCH_SIZE = 25;
+    // Raised from 25 → 60: twicedaily (Premium) queues roughly double the slots
+    // of a daily plan, and any overdue backlog (missed/late cron run) needs to
+    // clear in one pass — a low cap here is what lets a post generated for
+    // "day 5" sit unpublished until the cron finally works through the queue on
+    // "day 10". Oldest-due posts are still processed first (sorted ascending).
+    const BATCH_SIZE = 60;
 
     // ?postId=… → sirf us EK post ko publish karo (automation-logs ke "Publish"
     // retry button ke liye). Failed / partial post ko wapas publish karne deta

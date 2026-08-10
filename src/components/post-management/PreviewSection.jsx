@@ -138,7 +138,8 @@ const PreviewSection = React.memo(({
           <p className="text-slate-900/70 mt-2 font-sans">Creating your stunning post</p>
           {countdown > 0 && (
             <p className="text-sm font-mono text-[#EAB308] mt-4 bg-[#EAB308]/10 border border-[#EAB308]/30 px-4 py-1.5 rounded-full inline-block">
-              {countdown}s remaining
+              {String(Math.floor(countdown / 60)).padStart(2, "0")}:
+              {String(countdown % 60).padStart(2, "0")} remaining
             </p>
           )}
         </div>

@@ -195,7 +195,7 @@ const userSchema = new mongoose.Schema(
       // Posting frequency for schedule generation
       frequency: {
         type: String,
-        enum: ['daily', 'alternate', 'weekly', 'custom'],
+        enum: ['daily', 'alternate', 'twicedaily', 'weekly', 'custom'],
         default: 'daily',
       },
       // Master keyword pool for this automation plan

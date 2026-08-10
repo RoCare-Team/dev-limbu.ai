@@ -55,60 +55,87 @@ export function getPostsPerMonth(planName) {
 }
 
 /**
- * Returns all frequency options, with `disabled` flag for any frequency
- * that would produce fewer posts per month than the plan requires.
- *
- * Example: Basic Plan monthly = 15 posts/month
- *   daily     (~30/month) → enabled
- *   alternate (~15/month) → enabled  ← recommended
- *   weekly    (~4/month)  → DISABLED (can't fit 15 posts in a month on weekly)
- *   custom                → always enabled
+ * Every plan has EXACTLY ONE correct posting cadence — the plan dictates it,
+ * the user does not choose it:
+ *   Basic Plan        → 15 posts/month  → alternate day (gap of 1 day)
+ *   Professional Plan → 30 posts/month  → daily (1 post/day)
+ *   Premium Plan       → 45 posts/month  → twicedaily (2 posts/day — morning + evening)
+ * Any plan we don't recognise falls back to 'daily'.
+ */
+export function getFixedFrequencyForPlan(planName) {
+  const normalized = (planName || '').toLowerCase();
+  if (normalized === 'basic plan') return 'alternate';
+  if (normalized === 'professional plan') return 'daily';
+  if (normalized === 'premium plan') return 'twicedaily';
+  return 'daily';
+}
+
+/**
+ * Returns all frequency options for display, but only the ONE cadence that
+ * matches the plan is enabled — everything else (including the previously
+ * "user pickable" daily/alternate/weekly/custom set) is disabled. This locks
+ * the frontend to the plan-correct cadence instead of letting the user choose
+ * a frequency that can't deliver the plan's post count.
  */
 export function getValidFrequencies(planName) {
-  const needed = getPostsPerMonth(planName);
+  const fixed = getFixedFrequencyForPlan(planName);
 
   const ALL = [
-    { v: 'daily',     l: 'Daily',          s: 'Every day',    approxPerMonth: 30 },
-    { v: 'alternate', l: 'Alternate days', s: 'Every 2 days', approxPerMonth: 15 },
-    { v: 'weekly',    l: 'Weekly',         s: 'Every 7 days', approxPerMonth: 4  },
-    { v: 'custom',    l: 'Custom dates',   s: 'You pick days', approxPerMonth: null },
+    { v: 'daily',      l: 'Daily',            s: 'Every day — 1 post/day' },
+    { v: 'alternate',  l: 'Alternate days',   s: 'Every 2 days — 1 post/alternate day' },
+    { v: 'twicedaily', l: 'Twice daily',      s: '2 posts/day — morning + evening' },
+    { v: 'weekly',     l: 'Weekly',           s: 'Every 7 days' },
+    { v: 'custom',     l: 'Custom dates',     s: 'You pick days' },
   ];
 
   return ALL.map(opt => ({
     ...opt,
-    disabled: opt.approxPerMonth !== null && opt.approxPerMonth < needed,
+    disabled: opt.v !== fixed,
   }));
 }
 
 /**
- * Returns the recommended frequency string for a plan.
- * alternate (every 2 days) fits exactly 15 posts/month.
+ * The recommended (and only allowed) frequency for a plan — same as
+ * getFixedFrequencyForPlan, kept as a separate export for call-site clarity.
  */
 export function getRecommendedFrequency(planName) {
-  const needed = getPostsPerMonth(planName);
-  if (needed > 20) return 'daily';
-  if (needed > 4)  return 'alternate';
-  return 'weekly';
+  return getFixedFrequencyForPlan(planName);
 }
 
 /**
- * Returns the number of days between posts for a given frequency key.
+ * Returns the number of days between posting days for a given frequency key.
+ * (For 'twicedaily' the calendar-day gap is still 1 — the 2nd post of the
+ * same day is handled by getPostsPerDay, not by the day step.)
  */
 export function getFrequencyStep(frequency) {
-  return { daily: 1, alternate: 2, weekly: 7, monthly: 30 }[frequency] ?? 1;
+  return { daily: 1, alternate: 2, twicedaily: 1, weekly: 7, monthly: 30 }[frequency] ?? 1;
 }
 
+/** Posts scheduled per calendar day for a given frequency (only twicedaily > 1). */
+export function getPostsPerDay(frequency) {
+  return frequency === 'twicedaily' ? 2 : 1;
+}
+
+/**
+ * Builds the list of calendar days that should carry a post. For 'twicedaily'
+ * this returns ONE entry per day (day-granularity — used for is-this-a-posting-day
+ * checks); callers that need actual per-slot publish timestamps (2/day) expand
+ * each day into a morning + evening instant themselves (see
+ * `src/utils/automationPlanSchedule.js` → `getTwiceDailyUtcMsForDateRef`).
+ */
 export function calculatePostingSchedule({ startDate, frequency, postsLimit, expiryDate, skippedDates = [] }) {
   if (!startDate || !postsLimit) return [];
   const dates   = [];
   const expiry  = expiryDate ? new Date(expiryDate) : null;
   let current   = new Date(startDate);
   current.setHours(0, 0, 0, 0);
-  const stepMap = { daily: 1, alternate: 2, weekly: 7, monthly: 30 };
-  const step    = stepMap[frequency] ?? 1;
+  const step        = getFrequencyStep(frequency);
+  const slotsPerDay  = getPostsPerDay(frequency);
+  // Number of calendar days needed to fit postsLimit posts at slotsPerDay/day.
+  const daysNeeded  = Math.ceil(postsLimit / slotsPerDay);
   const skipped = new Set(Array.isArray(skippedDates) ? skippedDates : []);
 
-  while (dates.length < postsLimit) {
+  while (dates.length < daysNeeded) {
     if (expiry && current > expiry) break;
     const key = current.toISOString().slice(0, 10);
     if (!skipped.has(key)) dates.push(new Date(current));

@@ -27,7 +27,12 @@ import { logGenerate, logAutomationLine } from '@/lib/automationFileLogger';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
-const BATCH = 15;                 // max posts GENERATED per run (expensive image gen)
+// Raised from 15 → 40: Premium plans now queue 2 slots/day (twicedaily), so the
+// backlog per run is roughly 2x what it used to be. A low cap here is the main
+// cause of "generated for day 5, actually posted day 10" drift — if the cron is
+// ever delayed or a run is skipped, a small BATCH means the backlog takes many
+// runs to clear, so slots publish later and later relative to their intended day.
+const BATCH = 40;                 // max posts GENERATED per run (expensive image gen)
 const MAX_SCAN = 500;             // candidates scanned per run (cheap lean docs)
 const DAY_MS = 86400000;
 const STALE_LOCK_MS = 10 * 60 * 1000; // reclaim a slot lock stuck for >10 min
@@ -87,7 +92,10 @@ export async function GET() {
     // Ab daily plan hamesha "aaj" tak pakad leta hai.
     let idx = plan.postIndex || 0;
     let generatedForThisPlan = 0;
-    const PER_PLAN_MAX = 5;
+    // Raised from 5 → 15 so a single plan that fell behind (cron miss, image-gen
+    // failure, twicedaily's 2x slot volume) can fully catch up to "today" in one
+    // run instead of trickling one slot per run and drifting further each day.
+    const PER_PLAN_MAX = 15;
 
     while (generatedForThisPlan < PER_PLAN_MAX && stats.filled < BATCH) {
       // Publish is anchored to the user's chosen posting time (postingHour:minute).

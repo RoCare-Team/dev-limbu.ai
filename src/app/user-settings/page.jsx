@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
-import { getValidFrequencies, getRecommendedFrequency } from "@/utils/userSettingsHelpers";
+import { getValidFrequencies, getRecommendedFrequency, getFixedFrequencyForPlan, getFrequencyStep, getPostsPerDay } from "@/utils/userSettingsHelpers";
 
 const ASSET_IMAGE_FIELDS = ["characterImage", "uniformImage", "productImage", "backgroundImage", "logoImage"];
 const USER_SETTINGS_PASSKEY = "Limbu007";
@@ -113,6 +113,17 @@ function toInputDate(d) {
   try { return new Date(d).toISOString().slice(0, 10); } catch { return ""; }
 }
 
+const FREQUENCY_LABELS = {
+  daily: "Daily (1 post/day)",
+  alternate: "Every 2 days",
+  twicedaily: "Twice daily (morning + evening)",
+  weekly: "Weekly",
+  custom: "Custom dates",
+};
+function frequencyLabel(freq) {
+  return FREQUENCY_LABELS[freq] || freq || "Daily";
+}
+
 function fmtDate(d) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -140,9 +151,11 @@ function calculatePostingSchedule({ startDate, frequency, postsLimit, expiryDate
   const dates = [];
   let current = new Date(startDate);
   const expiry = expiryDate ? new Date(expiryDate) : null;
-  const step = { daily: 1, alternate: 2, weekly: 7 }[frequency] ?? 1;
+  const step = getFrequencyStep(frequency);
+  const slotsPerDay = getPostsPerDay(frequency); // twicedaily (Premium) = 2 posts/day
+  const daysNeeded = Math.ceil(postsLimit / slotsPerDay);
   const skipped = new Set(skippedDates);
-  while (dates.length < postsLimit) {
+  while (dates.length < daysNeeded) {
     if (expiry && current > expiry) break;
     const key = toInputDate(current);
     if (!skipped.has(key)) dates.push(new Date(current));
@@ -519,7 +532,7 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
 
 // ─── Success Modal ────────────────────────────────────────────────────────────
 
-function SuccessModal({ summary, onClose }) {
+function SuccessModal({ summary, onClose, shortfall }) {
   if (!summary) return null;
   const { locations = [], keywords = [], schedule = [], frequency, startDate, endDate, businessName } = summary;
 
@@ -549,10 +562,17 @@ function SuccessModal({ summary, onClose }) {
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
 
+          {shortfall && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "12px 14px", fontSize: 13, color: "#b91c1c", fontWeight: 600 }}>
+              ⚠ Only {shortfall.achievableSlots} of your {shortfall.planLimit} plan posts could be scheduled —
+              {" "}{shortfall.reason} Reduce skip dates or contact support to extend your plan window.
+            </div>
+          )}
+
           {/* Schedule summary row */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
             {[
-              { label: "Frequency", value: frequency || "daily", icon: "🔄" },
+              { label: "Frequency", value: frequencyLabel(frequency), icon: "🔄" },
               { label: "Start Date", value: startDate ? new Date(startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—", icon: "📅" },
               { label: "Total Posts", value: schedule.length, icon: "📬" },
             ].map(({ label, value, icon }) => (
@@ -704,6 +724,9 @@ export default function AutomationSettings({ onNavigateBack }) {
   // Success modal
   const [showModal, setShowModal] = useState(false);
   const [savedSummary, setSavedSummary] = useState(null);
+  // Non-null when the server couldn't fit every paid-for post before the plan's
+  // real expiry (e.g. too many skip days) — shown as a warning banner.
+  const [scheduleShortfall, setScheduleShortfall] = useState(null);
   const [passkeyVerified, setPasskeyVerified] = useState(false);
   const [passkeyInput, setPasskeyInput] = useState("");
   const [passkeyError, setPasskeyError] = useState("");
@@ -962,6 +985,15 @@ export default function AutomationSettings({ onNavigateBack }) {
     }
   }, [gmbLocations]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Frequency is locked to the plan — Basic=alternate, Professional=daily,
+  // Premium=twicedaily. Keep the UI in sync even if a previously-saved plan
+  // had a stale/incorrect frequency stored.
+  useEffect(() => {
+    if (!userData?.paidPackage) return;
+    const fixed = getFixedFrequencyForPlan(userData.paidPackage);
+    setFrequency(prev => (prev === fixed ? prev : fixed));
+  }, [userData?.paidPackage]);
+
   // ── Plan matching ──────────────────────────────────────────────────────────
   const planDetail = useMemo(() =>
     matchPlanDetail(subPlans, userData?.paidPackage, userData?.planDuration),
@@ -1001,11 +1033,11 @@ export default function AutomationSettings({ onNavigateBack }) {
   // automatically compute end date so ALL remaining posts fit in the window.
   useEffect(() => {
     if (!startDate || !postsLeft || frequency === "custom") return;
-    const stepMap = { daily: 1, alternate: 2, weekly: 7, monthly: 30 };
-    const step = stepMap[frequency] ?? 1;
+    const step = getFrequencyStep(frequency);
+    const slotsPerDay = getPostsPerDay(frequency); // twicedaily (Premium) = 2 posts/day
+    const daysNeeded = Math.ceil(postsLeft / slotsPerDay);
     const end = new Date(startDate);
-    // postsLeft posts * step days each
-    end.setDate(end.getDate() + postsLeft * step);
+    end.setDate(end.getDate() + daysNeeded * step);
     // Never exceed package expiry
     if (pkgExpiry && new Date(end) > new Date(pkgExpiry)) {
       setEndDate(toInputDate(pkgExpiry));
@@ -1151,6 +1183,7 @@ export default function AutomationSettings({ onNavigateBack }) {
         endDate,
         businessName: data.businessName || selectedBusiness?.name || "",
       });
+      setScheduleShortfall(data.scheduleShortfall || null);
       setSaveStatus("success");
       setShowModal(true);
       setSavedKeywords(selectedKeywords);
@@ -1347,7 +1380,7 @@ export default function AutomationSettings({ onNavigateBack }) {
       )}
 
       {/* ── Success Modal ── */}
-      {showModal && <SuccessModal summary={savedSummary} onClose={() => setShowModal(false)} />}
+      {showModal && <SuccessModal summary={savedSummary} shortfall={scheduleShortfall} onClose={() => setShowModal(false)} />}
 
       {assetPreview && (
         <div
@@ -1611,7 +1644,7 @@ export default function AutomationSettings({ onNavigateBack }) {
               <div style={{ background: "#fff", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 14px" }}>
                 <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 600, marginBottom: 4 }}>🔄 FREQUENCY</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#374151", textTransform: "capitalize" }}>
-                  {autoStatus.frequency === "alternate" ? "Every 2 days" : autoStatus.frequency || "Daily"}
+                  {frequencyLabel(autoStatus.frequency)}
                 </div>
               </div>
 
@@ -2437,6 +2470,9 @@ export default function AutomationSettings({ onNavigateBack }) {
                 {/* Step 2: Frequency */}
                 <div>
                   <div style={S.label}>Step 2 — Posting Frequency</div>
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8 }}>
+                    🔒 Fixed by your plan — {userData?.paidPackage || "your package"} always posts on this cadence.
+                  </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {getValidFrequencies(userData?.paidPackage).map(o => {
                       const isSelected = frequency === o.v;
@@ -2444,7 +2480,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                       return (
                         <button key={o.v}
                           onClick={() => !o.disabled && setFrequency(o.v)}
-                          title={o.disabled ? `Not suitable for your plan (needs ≥ ${o.approxPerMonth || 0} posts/month but your plan requires more)` : ""}
+                          title={o.disabled ? "Locked — not the cadence for your plan" : ""}
                           style={{
                             display: "flex", flexDirection: "column", gap: 2,
                             border: isSelected ? "2px solid #f59e0b" : o.disabled ? "2px dashed #e5e7eb" : "2px solid #e5e7eb",
@@ -2460,7 +2496,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                           )}
                           <span style={{ fontSize: 14, fontWeight: 700, color: isSelected ? "#d97706" : o.disabled ? "#9ca3af" : "#374151" }}>{o.l}</span>
                           <span style={{ fontSize: 12, color: o.disabled ? "#d1d5db" : "#9ca3af" }}>
-                            {o.disabled ? "⚠ Not enough for your plan" : o.s}
+                            {o.disabled ? "🔒 Not your plan's cadence" : o.s}
                           </span>
                         </button>
                       );
@@ -2538,7 +2574,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                       onFocus={e => e.currentTarget.style.borderColor = "#3b82f6"}
                       onBlur={e => e.currentTarget.style.borderColor = "#bfdbfe"} />
                     <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                      Auto-set for {postsLeft} posts at {frequency === "alternate" ? "every 2 days" : frequency} pace. You can override manually.
+                      Auto-set for {postsLeft} posts at {frequencyLabel(frequency).toLowerCase()} pace (fixed by your plan).
                     </div>
                   </div>
                 </div>}

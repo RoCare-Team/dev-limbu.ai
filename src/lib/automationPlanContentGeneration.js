@@ -144,7 +144,10 @@ export async function generateImageAndText({
     // Logo is always composited unchanged in the top-right corner.
     logoPosition: "top-right",
     platform: requested.join(","),
-    mode: "ai",
+    // "manual" mode: the `topic` we send is already a complete, GPT-crafted image
+    // prompt (see generateImagePrompt) — "manual" tells the n8n workflow to use it
+    // as-is instead of re-expanding/rewriting it the way "ai" mode would.
+    mode: "manual",
   };
 
   console.log(

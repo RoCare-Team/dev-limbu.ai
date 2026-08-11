@@ -7,7 +7,7 @@
  *
  * Request body:
  * {
- *   action:     "health_score" | "magic_qr" | "website" | "insights",
+ *   action:     "health_score" | "magic_qr" | "website" | "insights" | "auto_review_reply",
  *   phone:      "919876543210",
  *   locationId: "locations/505165208589849995"
  * }
@@ -32,7 +32,7 @@ import {
 } from "@/lib/gmbSessionStore";
 import { processAction } from "@/lib/chatbotActionHandlers";
 
-const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights", "keyword_planner"];
+const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights", "keyword_planner", "auto_review_reply"];
 
 export async function POST(req) {
   // ── 1. Parse body ────────────────────────────────────────────────────────────

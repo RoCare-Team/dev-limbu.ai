@@ -23,7 +23,7 @@ import { normalizePhone } from "@/lib/gmbSessionStore";
 
 export const dynamic = "force-dynamic";
 
-const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights", "keyword_planner"];
+const VALID_ACTIONS = ["health_score", "magic_qr", "website", "insights", "keyword_planner", "auto_review_reply"];
 
 export async function GET(req) {
   try {

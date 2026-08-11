@@ -395,12 +395,25 @@ function DragKeywordList({ selectedKeywords, onChange }) {
   );
 }
 
+// Cycled per-chip colors so bulk-pasted keywords read as visually distinct tags.
+const BULK_CHIP_COLORS = [
+  { bg: "#fef3c7", border: "#fde68a", text: "#92400e" }, // amber
+  { bg: "#dbeafe", border: "#bfdbfe", text: "#1e40af" }, // blue
+  { bg: "#dcfce7", border: "#bbf7d0", text: "#15803d" }, // green
+  { bg: "#fce7f3", border: "#fbcfe8", text: "#9d174d" }, // pink
+  { bg: "#ede9fe", border: "#ddd6fe", text: "#5b21b6" }, // violet
+  { bg: "#ffedd5", border: "#fed7aa", text: "#9a3412" }, // orange
+  { bg: "#cffafe", border: "#a5f3fc", text: "#155e75" }, // cyan
+];
+
 // ─── Keyword Picker Panel ─────────────────────────────────────────────────────
 
 function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, planLimit }) {
   const [search, setSearch] = useState("");
   const [customKw, setCustomKw] = useState("");
   const [showCustom, setShowCustom] = useState(false);
+  const [bulkKw, setBulkKw] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
 
   const allKeywords = useMemo(() => keywords.map(k => k.keyword || k), [keywords]);
   const filtered = useMemo(() => allKeywords.filter(kw => kw.toLowerCase().includes(search.toLowerCase())), [allKeywords, search]);
@@ -414,6 +427,27 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
     if (kw && !selectedKeywords.includes(kw)) onChange([...selectedKeywords, kw]);
     setCustomKw(""); setShowCustom(false);
   };
+
+  // Bulk-add: comma separated ("kw1, kw2, kw3") — trims each, drops empties,
+  // dedupes against what's already selected AND within the pasted batch itself.
+  const addBulk = () => {
+    const parsed = bulkKw
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (!parsed.length) return;
+    const merged = [...selectedKeywords];
+    for (const kw of parsed) {
+      if (!merged.includes(kw)) merged.push(kw);
+    }
+    onChange(merged);
+    setBulkKw(""); setShowBulk(false);
+  };
+  const bulkPreview = useMemo(
+    () => bulkKw.split(",").map(s => s.trim()).filter(Boolean),
+    [bulkKw]
+  );
+  const bulkPreviewCount = bulkPreview.length;
 
   const hasEnough = planLimit > 0 ? selectedKeywords.length >= planLimit : true;
 
@@ -510,7 +544,7 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
       <DragKeywordList selectedKeywords={selectedKeywords} onChange={onChange} />
 
       {/* Add custom */}
-      <div style={{ borderTop: "1px solid #f3f4f6", padding: "12px 20px" }}>
+      <div style={{ borderTop: "1px solid #f3f4f6", padding: "12px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
         {showCustom ? (
           <div style={{ display: "flex", gap: 8 }}>
             <input autoFocus placeholder="Type a custom keyword…" value={customKw} onChange={e => setCustomKw(e.target.value)}
@@ -519,11 +553,57 @@ function KeywordPickerPanel({ keywords, selectedKeywords, onChange, loading, pla
             <button onClick={addCustom} style={{ fontSize: 12, padding: "7px 14px", borderRadius: 8, background: "#f59e0b", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }}>Add</button>
             <button onClick={() => { setShowCustom(false); setCustomKw(""); }} style={{ fontSize: 12, padding: "7px 12px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>✕</button>
           </div>
+        ) : showBulk ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <textarea
+              autoFocus
+              placeholder="Paste comma-separated keywords… e.g. RO service Ahmedabad, water purifier repair, RO AMC offer"
+              value={bulkKw}
+              onChange={e => setBulkKw(e.target.value)}
+              rows={3}
+              style={{ width: "100%", border: "1.5px solid #f59e0b", borderRadius: 8, padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+            />
+            {bulkPreview.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "2px 0" }}>
+                {bulkPreview.map((kw, i) => {
+                  const c = BULK_CHIP_COLORS[i % BULK_CHIP_COLORS.length];
+                  const dup = selectedKeywords.includes(kw);
+                  return (
+                    <span key={i} style={{
+                      fontSize: 12, fontWeight: 600, padding: "4px 10px", borderRadius: 20,
+                      background: c.bg, border: `1px solid ${c.border}`, color: c.text,
+                      opacity: dup ? 0.55 : 1,
+                    }}>
+                      {kw}{dup && <span style={{ marginLeft: 4, fontSize: 10, fontWeight: 700 }}>· already added</span>}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 11, color: "#9ca3af" }}>
+                {bulkPreviewCount > 0 ? `${bulkPreviewCount} keyword${bulkPreviewCount !== 1 ? "s" : ""} detected` : "Separate each keyword with a comma"}
+              </span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { setShowBulk(false); setBulkKw(""); }} style={{ fontSize: 12, padding: "7px 12px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", cursor: "pointer" }}>Cancel</button>
+                <button onClick={addBulk} disabled={!bulkPreviewCount}
+                  style={{ fontSize: 12, padding: "7px 14px", borderRadius: 8, background: bulkPreviewCount ? "#f59e0b" : "#e5e7eb", color: "#fff", border: "none", fontWeight: 700, cursor: bulkPreviewCount ? "pointer" : "not-allowed" }}>
+                  Add all{bulkPreviewCount ? ` (${bulkPreviewCount})` : ""}
+                </button>
+              </div>
+            </div>
+          </div>
         ) : (
-          <button onClick={() => setShowCustom(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d97706", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
-            Add custom keyword
-          </button>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
+            <button onClick={() => setShowCustom(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d97706", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14" /></svg>
+              Add custom keyword
+            </button>
+            <button onClick={() => setShowBulk(true)} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#d97706", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
+              Bulk add (comma separated)
+            </button>
+          </div>
         )}
       </div>
     </div>

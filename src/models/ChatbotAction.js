@@ -1,7 +1,8 @@
 import mongoose from "mongoose";
 
 /**
- * Tracks every chatbot-triggered action (health_score, magic_qr, website, insights).
+ * Tracks every chatbot-triggered action (health_score, magic_qr, website, insights,
+ * keyword_planner, auto_review_reply).
  *
  * Phone number is the SOLE external identifier — session_id is removed.
  *
@@ -20,7 +21,7 @@ const ChatbotActionSchema = new mongoose.Schema(
     },
     action: {
       type:     String,
-      enum:     ["health_score", "magic_qr", "website", "insights", "keyword_planner"],
+      enum:     ["health_score", "magic_qr", "website", "insights", "keyword_planner", "auto_review_reply"],
       required: true,
     },
     locationId: {

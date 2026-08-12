@@ -286,9 +286,9 @@ export async function POST(req) {
         }
       }
 
-      void runWelcomeBonusForUserId(user.userId).catch((err) =>
-        console.error("runWelcomeBonusForUserId", err),
-      );
+      // void runWelcomeBonusForUserId(user.userId).catch((err) =>
+      //   console.error("runWelcomeBonusForUserId", err),
+      // );
     }
 
     /* ======================================================

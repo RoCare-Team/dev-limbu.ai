@@ -400,7 +400,7 @@ async function handleHealthScore({ location, email, accessToken }) {
  */
 function buildReviewUrl(location, allLocations) {
   const getLocationIdentifier = (loc) => {
-    return (loc?.locationId || loc?.name || "").toString();
+    return (loc?.locationId || loc?.name || loc?.locationResourceName || "").toString();
   };
 
   const buildUniqueReviewSlug = (location, locations) => {

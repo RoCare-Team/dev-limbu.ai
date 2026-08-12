@@ -41,7 +41,7 @@ export function useMagicQR() {
   }, [selectedLocation]);
 
   const getLocationIdentifier = (location) => {
-    return (location?.locationId || location?.name || "").toString();
+    return (location?.locationId || location?.name || location?.locationResourceName || "").toString();
   };
 
   const buildUniqueReviewSlug = (location, locations) => {

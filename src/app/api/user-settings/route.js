@@ -3,8 +3,8 @@ import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { getGmbSession } from '@/lib/gmbSession';
-import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep } from '@/utils/userSettingsHelpers';
-import { getPublishUtcMsForDateRef } from '@/utils/automationPlanSchedule';
+import { getPlanPostLimit, calculatePostingSchedule, getFrequencyStep, getFixedFrequencyForPlan, getPostsPerDay } from '@/utils/userSettingsHelpers';
+import { getPublishUtcMsForDateRef, getTwiceDailyUtcMsForDateRef } from '@/utils/automationPlanSchedule';
 import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import { getEffectivePackageExpiry } from '@/utils/userPlanExpiry';
 import AutomationPlan from '@/models/AutomationPlan';
@@ -273,7 +273,9 @@ export async function POST(request) {
     const localStorageUserId = String(userId || user.userId || user._id.toString()).trim();
     console.log('[user-settings] AutomationPlan userId (from body / User):', localStorageUserId);
 
-    const safeFrequency    = frequency || 'daily';
+    // Frequency is LOCKED to the user's plan — never trust the client value.
+    // Basic → alternate (15/mo), Professional → daily (30/mo), Premium → twicedaily (45/mo).
+    const safeFrequency    = getFixedFrequencyForPlan(user.paidPackage) || frequency || 'daily';
     const safeKeywords     = Array.isArray(keywords) ? keywords.filter(Boolean) : [];
     const ALLOWED_PLATFORMS = new Set(['gmb', 'fb', 'ig']);
     let safePlatforms = Array.isArray(platforms)
@@ -466,6 +468,11 @@ export async function POST(request) {
       }
     }
 
+    // How many posts are actually achievable given the plan's TRUE deadline
+    // (effectivePkgExpiry) — used below to detect + report a shortfall instead
+    // of silently under-delivering the plan's paid-for post count.
+    let scheduleShortfall = null;
+
     if (automationEnabled) {
       if (safeFrequency === 'custom' && Array.isArray(customDates) && customDates.length > 0) {
         // Custom mode: user picks exact posting dates
@@ -473,18 +480,44 @@ export async function POST(request) {
           .map((d) => { try { return new Date(d); } catch { return null; } })
           .filter((d) => d && !Number.isNaN(d.getTime()));
       } else {
-        const effectiveExpiry =
-          scheduleEndDate && effectivePkgExpiry
-            ? new Date(Math.min(scheduleEndDate.getTime(), effectivePkgExpiry.getTime()))
-            : scheduleEndDate || effectivePkgExpiry || null;
-
+        // IMPORTANT: the client-supplied `endDate` is only a naive preview guess
+        // (it doesn't account for skippedDates or twicedaily's 2-slots/day need),
+        // so it must NEVER be used to cap how many calendar days the schedule is
+        // allowed to span — that silently truncated Premium's 45 posts down to
+        // ~36-40 whenever the user added skip days. The ONLY real ceiling is the
+        // subscription's true expiry (effectivePkgExpiry); the schedule is always
+        // built generously against that so it can absorb skips and still deliver
+        // the full plan quota (15/30/45).
         schedule = calculatePostingSchedule({
           startDate:   scheduleStartDate,
           frequency:   safeFrequency,
           postsLimit:  Math.max(planLimit, 1),
-          expiryDate:  effectiveExpiry,
+          expiryDate:  effectivePkgExpiry || scheduleEndDate || null,
           skippedDates: safeSkippedDates,
         });
+
+        // Re-derive endDate from what the schedule actually needed (self-consistent
+        // with what was really generated) instead of trusting the client's guess.
+        if (schedule.length > 0) {
+          scheduleEndDate = schedule[schedule.length - 1];
+        }
+
+        const slotsPerDay = getPostsPerDay(safeFrequency);
+        const achievableSlots = schedule.length * slotsPerDay;
+        if (achievableSlots < planLimit) {
+          scheduleShortfall = {
+            planLimit,
+            achievableSlots,
+            reason: 'Not enough calendar days before your plan expires to fit every post ' +
+              '(skip days and/or a short remaining subscription window reduced the available days).',
+          };
+          console.warn(
+            `[user-settings] ⚠ Schedule shortfall for userId=${localStorageUserId}: ` +
+            `plan entitles ${planLimit} posts but only ${achievableSlots} slots fit before expiry ` +
+            `(effectivePkgExpiry=${effectivePkgExpiry ? effectivePkgExpiry.toISOString() : 'none'}, ` +
+            `skippedDates=${safeSkippedDates.length}).`
+          );
+        }
       }
     }
 
@@ -773,10 +806,19 @@ export async function POST(request) {
       // postingHour:minute in the plan timezone, and only FUTURE slots are kept so
       // we never try to publish a date that has already passed. This honours custom
       // frequency (specific dates like 15/17/19) instead of a fixed step.
-      const publishSchedule = (Array.isArray(schedule) ? schedule : [])
-        .map((d) => getPublishUtcMsForDateRef(planForTime, new Date(d)))
+      //
+      // Premium plan (frequency = 'twicedaily') gets TWO slots per scheduled day —
+      // fixed morning + evening clock times — instead of the single postingHour.
+      const publishScheduleMs = safeFrequency === 'twicedaily'
+        ? (Array.isArray(schedule) ? schedule : [])
+            .flatMap((d) => getTwiceDailyUtcMsForDateRef(new Date(d), postingTz))
+        : (Array.isArray(schedule) ? schedule : [])
+            .map((d) => getPublishUtcMsForDateRef(planForTime, new Date(d)));
+
+      const publishSchedule = publishScheduleMs
         .filter((ms) => typeof ms === 'number' && !Number.isNaN(ms) && ms > SAVE_TS)
         .sort((a, b) => a - b)
+        .slice(0, Math.max(planLimit, 1)) // never queue more slots than the plan allows
         .map((ms) => new Date(ms));
 
       // ── create-on-generate: DO NOT pre-insert empty placeholder Posts ─────────
@@ -843,6 +885,10 @@ export async function POST(request) {
       plan:               plan.planDetails,
       businessName,
       automationTiming,
+      // Non-null only when the plan's true expiry (or too many skip days) means
+      // fewer posts can physically fit than the plan pays for — surface this to
+      // the UI instead of silently under-delivering.
+      scheduleShortfall,
     });
   } catch (error) {
     console.error('POST /api/user-settings error:', error);

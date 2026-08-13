@@ -9,6 +9,7 @@
  *   magic_qr      → QR code generation (qrcode) + S3 upload (same as /api/magic-qr/upload-s3)
  *   website       → AI website builder (same as /api/ai-genrated-website)
  *   insights      → GMB Business Profile Performance API + formatted text summary
+ *   auto_review_reply → AI auto-reply to all pending Google reviews (same service as /api/review-app/ai-reply)
  *
  * Future scalability: swap processAction() callers to a BullMQ/Redis worker
  * without changing this file — the function signature is queue-job-compatible.
@@ -399,7 +400,7 @@ async function handleHealthScore({ location, email, accessToken }) {
  */
 function buildReviewUrl(location, allLocations) {
   const getLocationIdentifier = (loc) => {
-    return (loc?.locationId || loc?.name || "").toString();
+    return (loc?.locationId || loc?.name || loc?.locationResourceName || "").toString();
   };
 
   const buildUniqueReviewSlug = (location, locations) => {
@@ -823,6 +824,173 @@ async function handleKeywordPlanner({ location }) {
   };
 }
 
+// ── ACTION: auto_review_reply ────────────────────────────────────────────────
+
+/** Same endpoints used by /api/cron/autoreply and reviewService.js on the dashboard. */
+const REVIEWS_BASE_URL       = "https://review.limbutech.in";
+const FETCH_REVIEWS_ENDPOINT = `${REVIEWS_BASE_URL}/fetch-reviews`;
+const REPLY_REVIEW_ENDPOINT  = `${REVIEWS_BASE_URL}/reply-review`;
+
+const REVIEW_STAR_RATING_MAP = { FIVE: 5, FOUR: 4, THREE: 3, TWO: 2, ONE: 1 };
+
+/** Paginated review fetch — mirrors fetchAllReviews() in cron/autoreply/route.js. */
+async function fetchAllReviewsForLocation(accId, locationId, accessToken) {
+  const allReviews = [];
+  let pageToken = null;
+  let pageCount = 0;
+  const maxPages = 10;
+
+  do {
+    pageCount++;
+    const res = await fetch(FETCH_REVIEWS_ENDPOINT, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        acc_id: accId,
+        locationIds: locationId,
+        access_token: accessToken,
+        ...(pageToken && { pageToken }),
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Fetch reviews failed with status ${res.status}`);
+
+    const rawText = await res.text();
+    const data = rawText?.trim() ? JSON.parse(rawText) : { reviews: [] };
+
+    if (Array.isArray(data.reviews)) {
+      allReviews.push(...data.reviews);
+      pageToken = data.nextPageToken || null;
+    } else {
+      pageToken = null;
+    }
+  } while (pageToken && pageCount < maxPages);
+
+  return allReviews;
+}
+
+/**
+ * Auto-reply (AI-generated) to every pending (unreplied) review for the business,
+ * reusing the exact same n8n-backed AI reply service as /api/review-app/ai-reply
+ * and the /api/cron/autoreply job.
+ *
+ * Returns:
+ * {
+ *   total:    number,   ← reviews fetched
+ *   pending:  number,   ← reviews without an existing reply
+ *   replied:  number,   ← AI replies sent successfully
+ *   skipped:  number,   ← could not reply (e.g. unclaimed location)
+ *   failed:   number,   ← hard errors
+ *   text:     string,   ← WhatsApp-ready summary
+ *   message:  string,
+ * }
+ */
+async function handleAutoReviewReply({ location, accessToken, locationId }) {
+  const businessName     = location.title || "Business";
+  const businessCategory =
+    location.categories?.primaryCategory?.displayName ||
+    (Array.isArray(location.categories) && location.categories[0]) ||
+    businessName;
+  const accId    = location.accountId || "";
+  const shortId  = toShortLocationId(locationId);
+
+  if (!accId) {
+    throw new Error("Missing Google account ID for this business — please reconnect.");
+  }
+
+  console.log(`[auto-review-reply] Fetching reviews acc=${accId} location=${shortId}`);
+
+  const reviews = await fetchAllReviewsForLocation(accId, shortId, accessToken);
+  console.log(`[auto-review-reply] Total reviews fetched=${reviews.length}`);
+
+  const pendingReviews = reviews.filter(
+    (r) => !r.reviewReply || !r.reviewReply.comment || !r.reviewReply.comment.trim()
+  );
+  console.log(`[auto-review-reply] Pending (unreplied) reviews=${pendingReviews.length}`);
+
+  let replied = 0;
+  let skipped = 0;
+  let failed  = 0;
+
+  if (pendingReviews.length > 0) {
+    const results = await Promise.allSettled(
+      pendingReviews.map(async (review) => {
+        const starRating = REVIEW_STAR_RATING_MAP[review.starRating] || 5;
+
+        const payload = {
+          acc_id: accId,
+          access_token: accessToken,
+          locationIds: shortId,
+          Review_ID: review.reviewId,
+          Reviewer_Name: review.reviewer?.displayName || "Customer",
+          Star_Rating: starRating,
+          Review_Content: review.comment || "No comment provided",
+          Business_Language: "English",
+          Business_Category: businessCategory,
+          Business_Name: businessName,
+        };
+
+        const res = await fetch(REPLY_REVIEW_ENDPOINT, {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(payload),
+        });
+
+        const rawText = await res.text();
+        const data = rawText?.trim() ? JSON.parse(rawText) : {};
+
+        const isUnclaimed =
+          data?.detail?.includes?.("unclaimed") ||
+          data?.error?.message?.includes?.("unclaimed") ||
+          (typeof data?.detail === "string" && data.detail.includes("FAILED_PRECONDITION"));
+
+        if (isUnclaimed) return "skipped";
+        if (!res.ok || data?.status !== true) throw new Error(data?.error?.message || `Reply failed for review ${review.reviewId}`);
+        return "replied";
+      })
+    );
+
+    results.forEach((r) => {
+      if (r.status === "fulfilled") {
+        if (r.value === "replied") replied++;
+        else skipped++;
+      } else {
+        failed++;
+        console.warn("[auto-review-reply] Reply error:", r.reason?.message);
+      }
+    });
+  }
+
+  console.log(
+    `[auto-review-reply] Done — total=${reviews.length} pending=${pendingReviews.length}` +
+    ` replied=${replied} skipped=${skipped} failed=${failed}`
+  );
+
+  const text = [
+    `🤖 *Auto Review Reply — ${businessName}*`,
+    ``,
+    `📝 Total Reviews: ${reviews.length}`,
+    `🕐 Pending (unreplied): ${pendingReviews.length}`,
+    `✅ AI Replies Sent: ${replied}`,
+    skipped ? `⚠️ Skipped: ${skipped}` : "",
+    failed ? `❌ Failed: ${failed}` : "",
+    ``,
+    pendingReviews.length
+      ? `All caught-up reviews now have an AI-generated reply.`
+      : `No pending reviews — you're all caught up!`,
+  ].filter(Boolean).join("\n");
+
+  return {
+    total:   reviews.length,
+    pending: pendingReviews.length,
+    replied,
+    skipped,
+    failed,
+    text,
+    message: `${replied} review${replied === 1 ? "" : "s"} auto-replied for ${businessName}`,
+  };
+}
+
 /** Pick a contextual tip based on the weakest metric. */
 function pickInsightTip(metrics) {
   if ((metrics.totalCalls ?? 0) < 5)
@@ -945,6 +1113,10 @@ export async function processAction(actionDoc, sessionDoc) {
 
       case "keyword_planner":
         result = await handleKeywordPlanner({ location });
+        break;
+
+      case "auto_review_reply":
+        result = await handleAutoReviewReply({ location, accessToken, locationId });
         break;
 
       default:

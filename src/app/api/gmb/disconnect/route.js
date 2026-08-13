@@ -5,6 +5,7 @@ import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import { getAppUser, getGmbPhone } from "@/lib/appSession";
 import { getGmbConnectionByPhone } from "@/lib/gmbSession";
+import { getAdminBusinessModel } from "@/lib/adminBusinessStore";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,15 @@ export async function POST(request) {
     }
 
     await dbConnect();
+    // Apna scoped slot hi hatao — impersonated session sirf admin_impersonation
+    // wala slot disconnect kare, real client login sirf apna "self" wala.
+    // Warna self-login user disconnect kare to admin ka manager-access
+    // connection bhi mit jata (ya ulta), jabki dono independent hone chahiye.
     const conn = appUser?.userId
-      ? await GmbConnection.findOne({ userId: appUser.userId })
+      ? await GmbConnection.findOne({
+          userId: appUser.userId,
+          connectedBy: appUser.impersonated ? "admin_impersonation" : "self",
+        })
       : await getGmbConnectionByPhone(phone);
 
     // Google ka `revoke` ek token nahi, POORA GRANT hatata hai — us Google
@@ -62,10 +70,11 @@ export async function POST(request) {
       }
     }
 
-    // Jo record actually mila usi ko hatao — phone flow me userId app ka
-    // userId bhi ho sakta hai aur `phone:<digits>` bhi.
-    if (conn?.userId) {
-      await GmbConnection.deleteOne({ userId: conn.userId });
+    // Jo record actually mila usi ko hatao — sirf uski `_id` se, kyunki ab
+    // ek `userId` ke do documents (self / admin_impersonation) ho sakte hain,
+    // aur `{userId: conn.userId}` dono me se koi bhi ek uthake mita deta.
+    if (conn?._id) {
+      await GmbConnection.deleteOne({ _id: conn._id });
     }
 
     // Legacy record se bhi wahi googleId nikaal do.
@@ -74,6 +83,20 @@ export async function POST(request) {
         { email: conn.email },
         { $pull: { projects: { googleId: conn.googleId } } },
       ).catch(() => {});
+    }
+
+    // Dashboard `useGMB` hook GMB live disconnect hote hi ye purani DB-cached
+    // listings (`AdminBusiness`, `/api/admin/saveBussiness`) wapas dikhata
+    // reh jata tha — kyunki wo cache GMB connection se independent hai aur
+    // disconnect isse chhuta nahi tha. Isliye dashboard refresh na karo tab
+    // tak purana data dikhta rehta ("disconnect ho gaya par dikh raha hai").
+    if (appUser?.email) {
+      try {
+        const AdminBusiness = await getAdminBusinessModel();
+        await AdminBusiness.deleteOne({ userEmail: appUser.email.toLowerCase() });
+      } catch (e) {
+        console.warn("[gmb/disconnect] AdminBusiness cache clear failed:", e.message);
+      }
     }
 
     return NextResponse.json({ success: true });

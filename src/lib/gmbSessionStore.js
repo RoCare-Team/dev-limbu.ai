@@ -40,6 +40,9 @@ const GMBConnectionSchema = new mongoose.Schema({
         accountId:            String,
         primaryPhone:         String,
         categories:           [String],
+        /** For building the public /reviews/<slug> Google-review redirect link */
+        placeId:              { type: String, default: "" },
+        newReviewUri:         { type: String, default: "" },
       },
     ],
     default: [],
@@ -118,6 +121,8 @@ export function buildLocationsData(listings) {
       accountId:            l?.accountId || "",
       primaryPhone:         l?.phoneNumbers?.primaryPhone || "",
       categories:           categoryLabels(l?.categories),
+      placeId:              l?.metadata?.placeId || "",
+      newReviewUri:         l?.metadata?.newReviewUri || "",
     };
   });
 }
@@ -194,6 +199,29 @@ export async function findGmbSessionByPhone(phone) {
   if (!digits) return null;
   const GMBConnection = await getGMBConnectionModel();
   return GMBConnection.findOne({ phone: digits }).lean();
+}
+
+/**
+ * All chatbot-connected locations, flattened for slug lookup — used by
+ * GET /api/review-page/[slug] as a fallback when a business isn't in the
+ * dashboard's AdminBusiness collection (e.g. connected only via chatbot).
+ *
+ * @returns {Promise<Array<{ phone: string, location: object }>>}
+ */
+export async function findAllSuccessfulGmbLocations() {
+  const GMBConnection = await getGMBConnectionModel();
+  const docs = await GMBConnection.find(
+    { status: "success", "locationsData.0": { $exists: true } },
+    { phone: 1, locationsData: 1 }
+  ).lean();
+
+  const flattened = [];
+  for (const doc of docs) {
+    for (const location of doc.locationsData || []) {
+      flattened.push({ phone: doc.phone, location });
+    }
+  }
+  return flattened;
 }
 
 /**

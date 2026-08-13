@@ -724,7 +724,7 @@ export async function GET(request) {
         log('Removed stale prefetch (missed publish day)');
       }
       try {
-        const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName });
+        const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName, imageConfig });
         log(`Image prompt: "${imagePrompt}"`);
         ({ imageUrl, postText, descriptions } = await generateImageAndText({ imagePrompt, keyword, businessName, cityName, imageConfig, platforms: platformsSafe }));
         if (imageUrl) slog.setMeta({ imageUrl });

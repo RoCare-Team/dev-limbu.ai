@@ -167,3 +167,17 @@ export function getTodayPublishUtcMsIfPostingDay(plan, now = new Date()) {
   if (!isPostingDayTodayZoned(plan, now)) return null;
   return getPublishUtcMsForDateRef(plan, now);
 }
+
+/**
+ * Premium plan cadence: 2 posts/day (morning + evening), fixed clock times
+ * regardless of the plan's single `postingHour` (which only applies to
+ * once-a-day plans). Returns [morningUtcMs, eveningUtcMs] for the given
+ * calendar day in the plan's timezone.
+ */
+export const TWICE_DAILY_HOURS = { morning: 9, evening: 18 };
+
+export function getTwiceDailyUtcMsForDateRef(dateRef, timeZone = 'Asia/Kolkata') {
+  const morningMs = getUtcInstantForZonedDateAndTime(dateRef, TWICE_DAILY_HOURS.morning, 0, timeZone);
+  const eveningMs = getUtcInstantForZonedDateAndTime(dateRef, TWICE_DAILY_HOURS.evening, 0, timeZone);
+  return [morningMs, eveningMs].filter((ms) => typeof ms === 'number' && !Number.isNaN(ms));
+}

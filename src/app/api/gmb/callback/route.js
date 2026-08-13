@@ -97,7 +97,12 @@ export async function GET(request) {
     const phone = payload.phone || null;
     const ownerId = payload.userId || (await resolveGmbOwnerId(phone));
 
-    const existing = await GmbConnection.findOne({ userId: ownerId });
+    // Impersonated (in-house login-as-user, manager-access Google account) se
+    // connect hua to alag slot — taaki client ke apne connection ko kabhi
+    // OVERWRITE na kare (aur ulta bhi nahi). Dekho: models/GmbConnection.js
+    const connectedBy = phone ? "self" : (payload.impersonated ? "admin_impersonation" : "self");
+
+    const existing = await GmbConnection.findOne({ userId: ownerId, connectedBy });
 
     // Google pehle se granted account par refresh_token nahi bhejta. Aise me
     // naya token mint karna (prompt=consent) sirf nuksan karta hai: ek Google
@@ -105,8 +110,8 @@ export async function GET(request) {
     // cross hote hi Google sabse purana chupchap revoke kar deta hai — wahi
     // "1-2 din baad token dead" wali dikkat thi.
     //
-    // Isliye order: naya token (agar mila) → is user ka purana → USI Google
-    // account ki doosri row ka zinda token.
+    // Isliye order: naya token (agar mila) → is slot ka purana → USI Google
+    // account ki doosri row (kisi bhi user/slot) ka zinda token.
     const refreshToken =
       tokens.refresh_token ||
       existing?.refreshToken ||
@@ -129,10 +134,11 @@ export async function GET(request) {
 
     const now = new Date();
     await GmbConnection.findOneAndUpdate(
-      { userId: ownerId },
+      { userId: ownerId, connectedBy },
       {
         $set: {
           userId: ownerId,
+          connectedBy,
           ...(phone ? { phone } : {}),
           googleId: profile.sub,
           email: profile.email,
@@ -176,7 +182,17 @@ export async function GET(request) {
     return response;
   } catch (error) {
     console.error("[gmb/callback]", error.response?.data || error.message);
-    return redirectBack(request, callbackUrl, { gmb_error: "token_exchange_failed" });
+    // `token_exchange_failed` sirf tab bolo jab galti sach me Google ke token
+    // exchange me hui ho — DB save (duplicate-key, validation, etc.) alag
+    // error code se dikhao, warna debugging me sab kuch "token exchange" lagta
+    // hai jabki asli wajah kuch aur hoti hai (jaise purana DB unique index).
+    const isTokenExchange = error.config?.url?.includes("oauth2.googleapis.com/token");
+    const code = isTokenExchange
+      ? "token_exchange_failed"
+      : error.code === 11000
+        ? "duplicate_connection"
+        : "callback_failed";
+    return redirectBack(request, callbackUrl, { gmb_error: code });
   }
 }
 

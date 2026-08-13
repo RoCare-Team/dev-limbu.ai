@@ -85,10 +85,12 @@ Build the prompt to cover, in a single flowing paragraph (45-75 words):
 
 HARD RULES:
 - Absolutely NO text, letters, words, numbers, captions, watermarks, logos, badges, posters or UI anywhere in the image (all branding is composited later).
-- The brand logo is supplied separately and must be used EXACTLY as provided — never redraw, recolour, restyle, translate or reinterpret it; keep the original logo unchanged.
-- The logo always sits in the TOP RIGHT CORNER — never move it to any other corner or position.
+- The brand logo is supplied separately and is composited AFTER generation — it must be used EXACTLY as provided: never redraw, recolour, restyle, resize unusually, translate, distort or reinterpret it; the original logo pixels stay unchanged.
+- The logo ALWAYS sits in the TOP RIGHT CORNER, at a consistent scale — never move, rotate, mirror or place it in any other corner/position, and never overlap it with other elements.
+- Keep the top-right corner plain, low-contrast and uncluttered (no busy texture, no bright highlight, no subject overlapping it) so the logo stays clearly legible once composited.
 - No distorted anatomy, no extra fingers, no messy/cluttered background, no collage, no borders.
 - Brand-safe, modern, premium, realistic — never cartoonish unless the business clearly calls for it.
+- Prioritise sharp focus, correct proportions and clean commercial-grade composition over busy/experimental styling — consistency and quality over novelty.
 
 Return ONLY: {"prompt":"..."}`,
     380,
@@ -141,8 +143,6 @@ export async function generateImageAndText({
     productImage: cleanB64(cfg.productImage),
     backgroundImage: cleanB64(cfg.backgroundImage),
     logoImage: cleanB64(cfg.logoImage),
-    // Logo is always composited unchanged in the top-right corner.
-    logoPosition: "top-right",
     platform: requested.join(","),
     mode: "ai",
   };

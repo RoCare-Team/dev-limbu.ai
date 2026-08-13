@@ -103,9 +103,11 @@ async function resolve(request) {
 
   const appUser = getAppUser(request);
   if (appUser?.userId) {
-    return {
-      url: buildAuthUrl({ userId: appUser.userId }, callbackUrl, forceConsent, retried),
-    };
+    // impersonated flag state ke saath travel karta hai taaki callback ko pata
+    // chale ye connect asli client ne khud kiya ya in-house team ne
+    // login-as-user (manager access) se. Dekho: gmb/callback route.
+    const identity = { userId: appUser.userId, impersonated: appUser.impersonated === true };
+    return { url: buildAuthUrl(identity, callbackUrl, forceConsent, retried) };
   }
 
   return { error: true };

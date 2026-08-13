@@ -1,5 +1,6 @@
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
+import AiContentReport from "@/models/AiContentReport";
 
 // Helper to return JSON response
 const json = (body, status = 200) =>
@@ -177,8 +178,47 @@ const mergeWhenPosted = (existingWhenPosted, incomingWhenPosted) => {
 };
 
 /**
+ * Attach the latest AI content report (if any) to each post as `aiContentReport`.
+ * Posts with no report get `aiContentReport: null`.
+ */
+const attachAiContentReports = async (posts) => {
+  const list = Array.isArray(posts) ? posts : [posts];
+  const ids = list.map((p) => String(p?._id || "")).filter(Boolean);
+  if (ids.length === 0) return posts;
+
+  const reports = await AiContentReport.find({ postId: { $in: ids } })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Sorted newest first -> first hit per postId is the latest report.
+  const latestByPost = new Map();
+  reports.forEach((r) => {
+    if (!latestByPost.has(r.postId)) latestByPost.set(r.postId, r);
+  });
+
+  list.forEach((post) => {
+    const report = latestByPost.get(String(post._id));
+    post.aiContentReport = report
+      ? {
+          reportId: String(report._id),
+          reason: report.reason || "",
+          details: report.details || "",
+          mediaType: report.mediaType || "",
+          mediaUrl: report.mediaUrl || "",
+          source: report.source || "",
+          status: report.status || "pending",
+          reportedAt: report.reportedAt || report.createdAt || null,
+        }
+      : null;
+  });
+
+  return posts;
+};
+
+/**
  * GET -> Fetch posts by userId (e.g., MB-02) and optional status
  * Query: ?userId=MB-02&status=pending&id=123&page=1&limit=10
+ * Each post carries `aiContentReport` (latest report) or null.
  */
 export async function GET(req) {
   try {
@@ -249,6 +289,7 @@ export async function GET(req) {
         .lean();
 
       if (!post) return json({ success: false, error: "Post not found" }, 404);
+      await attachAiContentReports(post);
       return json({ success: true, data: post });
     }
 
@@ -265,6 +306,8 @@ export async function GET(req) {
     const posts = await queryBuilder
       .select("-accessToken -refreshToken") // Exclude sensitive fields
       .lean();
+
+    await attachAiContentReports(posts);
 
     return json({
       success: true,

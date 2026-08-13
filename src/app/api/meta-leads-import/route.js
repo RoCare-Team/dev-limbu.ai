@@ -616,7 +616,8 @@ export async function GET(req) {
       }
     }
 
-    const activeAgents = await Admin.find({ role: "agent", isActive: true }).sort({ createdAt: 1, _id: 1 });
+    // leadsEnabled:false wale agent ko naya lead nahi jaana chahiye
+    const activeAgents = await Admin.find({ role: "agent", isActive: true, leadsEnabled: { $ne: false } }).sort({ createdAt: 1, _id: 1 });
     console.log(`[MetaSync] Active agents for round-robin: ${activeAgents.length}`);
 
     const franchiseAdmins = await Admin.find({ role: "franchiseAdmin", isActive: true }).sort({ createdAt: 1, _id: 1 });

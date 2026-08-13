@@ -109,6 +109,14 @@ const AdminSchema = new mongoose.Schema(
     },
 
     isActive: { type: Boolean, default: true },
+
+    /**
+     * Agent ko naye leads milne chahiye ya nahi (auto-assignment ke liye).
+     * false → round-robin/least-loaded pool se agent bahar ho jaata hai,
+     * lekin login/panel sab normal chalta rehta hai (isActive se alag).
+     * Admin RBAC page se aur agent khud apne dashboard se toggle kar sakta hai.
+     */
+    leadsEnabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

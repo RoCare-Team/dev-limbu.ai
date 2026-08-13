@@ -46,8 +46,18 @@ async function bumpTieBreaker() {
   return value;
 }
 
+/**
+ * Sirf wahi agents jinhe naya lead milna chahiye.
+ * `leadsEnabled: false` wale agent ko admin (ya khud agent) ne lead lena band
+ * kiya hai — wo pool se bahar rehta hai. Purane docs me field hai hi nahi,
+ * isliye `$ne: false` (default = enabled).
+ */
 export async function getActiveAgents() {
-  return Admin.find({ role: "agent", isActive: true })
+  return Admin.find({
+    role: "agent",
+    isActive: true,
+    leadsEnabled: { $ne: false },
+  })
     .sort({ createdAt: 1, _id: 1 })
     .lean();
 }

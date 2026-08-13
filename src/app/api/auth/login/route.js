@@ -205,6 +205,7 @@ export async function POST(req) {
           const activeAgents = await Admin.find({
             role: "agent",
             isActive: true,
+            leadsEnabled: { $ne: false }, // lead lena band kiya hua agent skip
           })
             .sort({ createdAt: 1, _id: 1 })
             .lean();

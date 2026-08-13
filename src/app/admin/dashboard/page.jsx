@@ -22,6 +22,7 @@ import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
 import UserStats from "../../../app/admin/dashboard/UserStats";
+import LeadToggleCard from "./LeadToggleCard";
 import useUserManagement from "../user-management/hooks/useUserManagement";
 
 export default function AdminDashboard() {
@@ -702,6 +703,9 @@ export default function AdminDashboard() {
       <h1 className="text-xl md:text-3xl font-bold text-gray-800 mb-6">
         Dashboard Overview
       </h1>
+
+      {/* Agent khud apne leads on/off kar sake */}
+      {role === "agent" && <LeadToggleCard />}
 
       {/* Global Date Filter */}
       <div className="mb-6 flex flex-wrap items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">

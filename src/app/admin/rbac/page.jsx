@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Power, Trash2 } from "lucide-react";
+import { Copy, Power, Trash2, UserCheck, UserX } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
@@ -16,7 +16,7 @@ const PERMISSION_LABELS = {
   seeAnalytics: "Settings / Analytics",
 };
 
-export default function UsersPage() {9
+export default function UsersPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState("list");
@@ -113,6 +113,48 @@ const toggleStatus = async (id, currentStatus) => {
   }
 };
 
+/* ----------------------------
+   LEAD ASSIGNMENT ON / OFF (sirf agents ke liye)
+   OFF karne par is agent ko koi naya lead auto-assign nahi hoga.
+---------------------------- */
+const toggleLeads = async (id, currentlyEnabled) => {
+  const token = localStorage.getItem("token");
+  const nextValue = !currentlyEnabled;
+
+  if (
+    !confirm(
+      nextValue
+        ? "Is agent ko dobara naye leads milne lagenge. Continue?"
+        : "Is agent ko naye leads milna band ho jayega. Continue?"
+    )
+  )
+    return;
+
+  try {
+    const res = await fetch("/api/users/lead-status", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ agentId: id, leadsEnabled: nextValue }),
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      setUsers(prev =>
+        prev.map(u => (u._id === id ? { ...u, leadsEnabled: nextValue } : u))
+      );
+    } else {
+      alert(data.message || "Could not update lead status");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Server error");
+  }
+};
+
   const copyToClipboard = (text) => {
     if (text) {
       navigator.clipboard.writeText(text);
@@ -194,6 +236,8 @@ const toggleStatus = async (id, currentStatus) => {
                     <th className="border px-4 py-2 text-left">Password</th>
                     <th className="border px-4 py-2 text-left">Role</th>
                     <th className="border px-4 py-2 text-left">Status</th>
+                    <th className="border px-4 py-2 text-left">Leads</th>
+                    <th className="border px-4 py-2 text-left">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -217,6 +261,37 @@ const toggleStatus = async (id, currentStatus) => {
                           <span className="text-red-600 font-medium">Inactive</span>
                         )}
                       </td>
+                      {/* LEAD ASSIGNMENT — sirf agents par lagu */}
+                      <td className="border px-4 py-2">
+                        {u.role === "agent" ? (
+                          <button
+                            onClick={() => toggleLeads(u._id, u.leadsEnabled !== false)}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                              u.leadsEnabled !== false
+                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                : "bg-red-100 text-red-700 hover:bg-red-200"
+                            }`}
+                            title={
+                              u.leadsEnabled !== false
+                                ? "Leads ON — click to stop new leads"
+                                : "Leads OFF — click to resume new leads"
+                            }
+                          >
+                            {u.leadsEnabled !== false ? (
+                              <>
+                                <UserCheck size={14} /> Leads ON
+                              </>
+                            ) : (
+                              <>
+                                <UserX size={14} /> Leads OFF
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+
                       <td className="border px-4 py-2">
   <div className="flex items-center gap-3">
 

@@ -26,6 +26,26 @@ export const GMB_BUSINESS_INFORMATION_READ_MASK = [
 ].join(',');
 
 /**
+ * Google's own structuredServiceItem entries (predefined per-category service types,
+ * e.g. ones Google auto-adds/suggests) carry no displayName — only a raw serviceTypeId
+ * like "job_type_id:banners" or "photo_printing". Without this, that raw id leaked
+ * straight into the UI as the service title. Turn it into a readable label instead,
+ * e.g. "job_type_id:photo_printing" -> "Photo Printing".
+ */
+export function prettifyServiceTypeId(serviceTypeId) {
+  const raw = String(serviceTypeId || '').trim();
+  if (!raw) return '';
+  const tail = raw.includes(':') ? raw.split(':').pop() : raw;
+  return tail
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
  * Parse a Google ServiceItem `price` (Money) back into the UI's { priceType, price }.
  * Zero amount → Free; a positive amount → Fixed; missing → No price. (The public API
  * has no "From" flag, so a From price reads back as Fixed.)
@@ -147,7 +167,7 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
       ? loc.services.trim()
       : Array.isArray(loc.serviceItems)
         ? loc.serviceItems
-            .map((it) => it?.freeFormServiceItem?.label?.displayName || it?.structuredServiceItem?.serviceTypeId || '')
+            .map((it) => it?.freeFormServiceItem?.label?.displayName || prettifyServiceTypeId(it?.structuredServiceItem?.serviceTypeId) || '')
             .map((s) => String(s).trim())
             .filter(Boolean)
             .join(', ')
@@ -170,7 +190,9 @@ export function normalizeGmbLocationRecord(loc, accountId = '') {
       ? loc.serviceItems
           .map((it) => {
             const label = it?.freeFormServiceItem?.label;
-            const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+            const title = String(
+              label?.displayName || prettifyServiceTypeId(it?.structuredServiceItem?.serviceTypeId) || ''
+            ).trim();
             const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
             const { priceType, price } = parseServiceMoney(it?.price);
             const category = normGcid(

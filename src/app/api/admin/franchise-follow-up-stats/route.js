@@ -4,11 +4,6 @@ import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
 import Lead from "@/models/MetaLeadFranchises";
 
-const FU_TEXT_OR = [
-  { "latest.text": { $regex: "^Call Not Picked", $options: "i" } },
-  { "latest.text": { $regex: "^Call Back Later", $options: "i" } },
-];
-
 /** Day boundaries in Asia/Kolkata as UTC Date values (India has no DST). */
 function getISTCalendarRanges() {
   const tz = "Asia/Kolkata";
@@ -151,9 +146,12 @@ export async function GET(req) {
         },
       },
       {
+        // Any remark type (Call Not Picked, Call Back Later, Interested, a custom
+        // typed remark, etc.) counts as a follow-up as long as a date was set on it
+        // — this was previously hard-restricted to just two remark texts, which
+        // silently dropped every other remark type from the follow-up list.
         $match: {
           "latest.followUpDate": { $exists: true, $ne: null },
-          $or: FU_TEXT_OR,
         },
       },
     ];

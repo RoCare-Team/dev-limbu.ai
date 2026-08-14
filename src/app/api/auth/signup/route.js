@@ -84,9 +84,13 @@ export async function POST(req) {
 
     await newUser.save(); // Database mein save kar diya.
 
-    void runWelcomeBonusForUserId(newUser.userId).catch((err) =>
-      console.error("runWelcomeBonusForUserId", err),
-    );
+    // 500-coin welcome WhatsApp template yahan intentionally comment out hai —
+    // is signup flow me wallet: 0 milta hai (line ~80), 500 coin nahi. Wo
+    // template sirf login/route.js phone-OTP signup me bhejna chahiye jaha
+    // actually wallet: 500 diya jata hai.
+    // void runWelcomeBonusForUserId(newUser.userId).catch((err) =>
+    //   console.error("runWelcomeBonusForUserId", err),
+    // );
 
     void runNewUserOnboarding(newUser.userId).catch((err) =>
       console.error("runNewUserOnboarding", err),

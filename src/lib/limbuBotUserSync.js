@@ -566,9 +566,9 @@ export async function ensureChatbotRowsSaved(botRows = []) {
       );
       inserted++;
 
-      void runWelcomeBonusForUserId(created.userId).catch((err) =>
-        console.error("[chatbot-ensure] welcomeBonus error:", err),
-      );
+      // void runWelcomeBonusForUserId(created.userId).catch((err) =>
+      //   console.error("[chatbot-ensure] welcomeBonus error:", err),
+      // );
     } catch (err) {
       if (err.code === 11000) {
         linked++;
@@ -1560,9 +1560,9 @@ export async function syncChatbotUsersToApp(options = {}) {
       ); // 👈
       inserted++;
 
-      void runWelcomeBonusForUserId(created.userId).catch((err) =>
-        console.error("[chatbot-sync] welcomeBonus error:", err),
-      );
+      // void runWelcomeBonusForUserId(created.userId).catch((err) =>
+      //   console.error("[chatbot-sync] welcomeBonus error:", err),
+      // );
     } catch (err) {
       if (err.code === 11000) {
         linked++;
@@ -1797,9 +1797,9 @@ export async function recordChatbotMessage(payload = {}) {
       customerPhone: created.phone,
     });
 
-    void runWelcomeBonusForUserId(created.userId).catch((err) =>
-      console.error("[recordChatbotMessage] welcomeBonus:", err),
-    );
+    // void runWelcomeBonusForUserId(created.userId).catch((err) =>
+    //   console.error("[recordChatbotMessage] welcomeBonus:", err),
+    // );
 
     invalidateLimbuBotCache();
     return {

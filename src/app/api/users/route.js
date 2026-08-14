@@ -469,9 +469,9 @@ export async function POST(req) {
     createPayload.leadTags = mergeMetaLeadsTag(src, createPayload.leadTags);
     const user = await User.create(createPayload);
 
-    void runWelcomeBonusForUserId(user.userId).catch((err) =>
-      console.error("runWelcomeBonusForUserId", err),
-    );
+    // void runWelcomeBonusForUserId(user.userId).catch((err) =>
+    //   console.error("runWelcomeBonusForUserId", err),
+    // );
 
     return NextResponse.json({
       success: true,

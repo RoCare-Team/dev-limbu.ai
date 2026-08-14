@@ -159,7 +159,12 @@ const QUICK_REMARKS = [
 ];
 
 /** Same as user-management: these make the follow-up date mandatory */
-const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later"];
+const FOLLOW_UP_REMARKS = [
+  "Call Not Picked",
+  "Call Back Later",
+  "Switch Off",
+  "Not Interested",
+];
 
 /** Preset reasons per quick remark — one tap instead of typing the usual ones.
  *  Saved on the remark's own `reason` field, so `text` stays filterable. */
@@ -628,17 +633,19 @@ export default function FranchiseLeadsPage() {
 
   const franchisePendingByRemark = useMemo(() => {
     const src = franchisePendingFollowUpsInView;
+    const is = (re, l) => re.test(l.remark || "");
+    const reCnp = /^Call Not Picked/i;
+    const reCbl = /^Call Back Later/i;
+    const reSo = /^Switch Off/i;
+    const reNi = /^Not Interested/i;
     return {
-      call_not_picked: src.filter((l) =>
-        /^Call Not Picked/i.test(l.remark || ""),
-      ),
-      call_back_later: src.filter((l) =>
-        /^Call Back Later/i.test(l.remark || ""),
-      ),
+      call_not_picked: src.filter((l) => is(reCnp, l)),
+      call_back_later: src.filter((l) => is(reCbl, l)),
+      switch_off: src.filter((l) => is(reSo, l)),
+      not_interested: src.filter((l) => is(reNi, l)),
       other: src.filter(
         (l) =>
-          !/^Call Not Picked/i.test(l.remark || "") &&
-          !/^Call Back Later/i.test(l.remark || ""),
+          !is(reCnp, l) && !is(reCbl, l) && !is(reSo, l) && !is(reNi, l),
       ),
     };
   }, [franchisePendingFollowUpsInView]);
@@ -2160,7 +2167,7 @@ export default function FranchiseLeadsPage() {
     if (isFuFranchise && role === "franchiseAdmin") {
       if (!followUpDateFranchise || !effectiveFollowUpIso) {
         toast.error(
-          "Select follow-up date and time for Call Not Picked / Call Back Later",
+          "Select follow-up date and time for " + FOLLOW_UP_REMARKS.join(" / "),
         );
         return;
       }
@@ -3123,6 +3130,33 @@ export default function FranchiseLeadsPage() {
                           idleClass:
                             "bg-white text-teal-800 border-teal-200 hover:bg-teal-50",
                         },
+                        ...(franchisePendingByRemark.switch_off.length > 0
+                          ? [
+                              {
+                                id: "switch_off",
+                                label: "Switch Off",
+                                count: franchisePendingByRemark.switch_off.length,
+                                activeClass:
+                                  "bg-purple-600 text-white shadow-md ring-2 ring-purple-300",
+                                idleClass:
+                                  "bg-white text-purple-800 border-purple-200 hover:bg-purple-50",
+                              },
+                            ]
+                          : []),
+                        ...(franchisePendingByRemark.not_interested.length > 0
+                          ? [
+                              {
+                                id: "not_interested",
+                                label: "Not Interested",
+                                count:
+                                  franchisePendingByRemark.not_interested.length,
+                                activeClass:
+                                  "bg-rose-600 text-white shadow-md ring-2 ring-rose-300",
+                                idleClass:
+                                  "bg-white text-rose-800 border-rose-200 hover:bg-rose-50",
+                              },
+                            ]
+                          : []),
                         ...(franchisePendingByRemark.other.length > 0
                           ? [
                               {
@@ -3163,31 +3197,50 @@ export default function FranchiseLeadsPage() {
                     </div>
 
                     {(() => {
+                      const tabLeadsByTab = {
+                        call_not_picked: franchisePendingByRemark.call_not_picked,
+                        call_back_later: franchisePendingByRemark.call_back_later,
+                        switch_off: franchisePendingByRemark.switch_off,
+                        not_interested: franchisePendingByRemark.not_interested,
+                        other: franchisePendingByRemark.other,
+                      };
                       const tabLeads =
-                        franchisePendingRemarkTab === "call_not_picked"
-                          ? franchisePendingByRemark.call_not_picked
-                          : franchisePendingRemarkTab === "call_back_later"
-                            ? franchisePendingByRemark.call_back_later
-                            : franchisePendingByRemark.other;
+                        tabLeadsByTab[franchisePendingRemarkTab] ||
+                        franchisePendingByRemark.other;
                       const isCnp =
                         franchisePendingRemarkTab === "call_not_picked";
                       const isCbl =
                         franchisePendingRemarkTab === "call_back_later";
+                      const isSo = franchisePendingRemarkTab === "switch_off";
+                      const isNi =
+                        franchisePendingRemarkTab === "not_interested";
                       const cardBorder = isCnp
                         ? "border-orange-200 hover:border-orange-400 hover:bg-orange-50/50"
                         : isCbl
                           ? "border-teal-200 hover:border-teal-400 hover:bg-teal-50/50"
-                          : "border-slate-200 hover:border-slate-400 hover:bg-slate-50";
+                          : isSo
+                            ? "border-purple-200 hover:border-purple-400 hover:bg-purple-50/50"
+                            : isNi
+                              ? "border-rose-200 hover:border-rose-400 hover:bg-rose-50/50"
+                              : "border-slate-200 hover:border-slate-400 hover:bg-slate-50";
                       const badgeBg = isCnp
                         ? "bg-orange-500"
                         : isCbl
                           ? "bg-teal-600"
-                          : "bg-slate-500";
+                          : isSo
+                            ? "bg-purple-600"
+                            : isNi
+                              ? "bg-rose-600"
+                              : "bg-slate-500";
                       const dateCls = isCnp
                         ? "text-orange-800"
                         : isCbl
                           ? "text-teal-800"
-                          : "text-slate-700";
+                          : isSo
+                            ? "text-purple-800"
+                            : isNi
+                              ? "text-rose-800"
+                              : "text-slate-700";
 
                       if (tabLeads.length === 0) {
                         return (

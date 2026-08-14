@@ -4,12 +4,6 @@ import User from "@/models/User";
 import Admin from "@/models/Admin";
 import mongoose from "mongoose";
 
-/** Only these latest remarks count as an active scheduled follow-up */
-const FU_TEXT_OR = [
-  { "latest.text": { $regex: "^Call Not Picked", $options: "i" } },
-  { "latest.text": { $regex: "^Call Back Later", $options: "i" } },
-];
-
 export async function GET(req) {
   try {
     await dbConnect();
@@ -128,9 +122,11 @@ export async function GET(req) {
         },
       },
       {
+        // Any remark type counts as a follow-up as long as a date was set on it —
+        // previously hard-restricted to only two remark texts, which silently
+        // dropped every other (including custom) remark type from the list.
         $match: {
           "latest.followUpDate": { $exists: true, $ne: null },
-          $or: FU_TEXT_OR,
         },
       },
     ];

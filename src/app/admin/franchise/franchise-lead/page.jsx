@@ -159,12 +159,7 @@ const QUICK_REMARKS = [
 ];
 
 /** Same as user-management: these make the follow-up date mandatory */
-const FOLLOW_UP_REMARKS = [
-  "Call Not Picked",
-  "Call Back Later",
-  "Switch Off",
-  "Not Interested",
-];
+const FOLLOW_UP_REMARKS = ["Call Not Picked", "Call Back Later", "Switch Off"];
 
 /** Preset reasons per quick remark — one tap instead of typing the usual ones.
  *  Saved on the remark's own `reason` field, so `text` stays filterable. */

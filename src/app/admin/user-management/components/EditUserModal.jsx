@@ -1,8 +1,8 @@
 "use client";
 
-import { User2Icon, Mail, X } from "lucide-react";
+import { User2Icon, Mail, Phone, FileText, X } from "lucide-react";
 
-// Edit User Modal — update a lead's name and email (admin & agent).
+// Edit User Modal — update a lead's name, email and phone number (admin & agent).
 export default function EditUserModal({
   editUserModal,
   setEditUserModal,
@@ -66,6 +66,50 @@ export default function EditUserModal({
                   }))
                 }
                 placeholder="Enter email"
+                className="flex-1 outline-none text-sm text-gray-800 bg-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              Phone Number
+            </label>
+            <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl focus-within:border-indigo-400">
+              <Phone size={16} className="text-gray-400" />
+              <input
+                type="tel"
+                value={editUserData.phone}
+                onChange={(e) =>
+                  setEditUserData((prev) => ({
+                    ...prev,
+                    phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  }))
+                }
+                placeholder="Enter 10-digit phone number"
+                className="flex-1 outline-none text-sm text-gray-800 bg-transparent"
+              />
+            </div>
+          </div>
+
+          {/* GST Number */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              GST Number
+            </label>
+            <div className="flex items-center gap-2 px-3 py-2.5 border border-gray-200 rounded-xl focus-within:border-indigo-400">
+              <FileText size={16} className="text-gray-400" />
+              <input
+                type="text"
+                value={editUserData.gstNumber}
+                onChange={(e) =>
+                  setEditUserData((prev) => ({
+                    ...prev,
+                    gstNumber: e.target.value.toUpperCase(),
+                  }))
+                }
+                placeholder="Enter GST number"
                 className="flex-1 outline-none text-sm text-gray-800 bg-transparent"
               />
             </div>

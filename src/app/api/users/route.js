@@ -1443,6 +1443,38 @@ export async function PUT(req) {
       };
     }
 
+    if (body.gstNumber !== undefined) {
+      updateData.$set = {
+        ...updateData.$set,
+        GstNumber: String(body.gstNumber).trim(),
+      };
+    }
+
+    if (body.phone !== undefined) {
+      const phone = String(body.phone).replace(/\D/g, "");
+      if (phone) {
+        const existingPhoneUser = await User.findOne({
+          $or: [{ phone }, { mobileNumber: phone }],
+          userId: { $ne: userId },
+        });
+        if (existingPhoneUser) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Phone number already exists. Please enter a unique number.",
+            },
+            { status: 400 },
+          );
+        }
+      }
+      updateData.$set = {
+        ...updateData.$set,
+        phone,
+        mobileNumber: phone,
+      };
+    }
+
     /* -------- ACQUISITION SOURCE (admin) -------- */
     if (
       body.source !== undefined &&

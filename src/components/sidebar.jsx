@@ -26,6 +26,7 @@ import {
   MapPin,
   Inbox,
   Settings,
+  Clapperboard,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 import {
@@ -130,6 +131,11 @@ export default function Sidebar({ children }) {
         text: "Assets Management",
         icon: <LucideImage size={18} />,
         path: "/assets-management",
+      },
+      {
+        text: "AI Video Generator",
+        icon: <Clapperboard size={18} />,
+        path: "/video-generation",
       },
       {
         text: "Keyword Planner",

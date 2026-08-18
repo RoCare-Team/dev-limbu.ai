@@ -29,7 +29,7 @@ const APP_ROUTE_SEGMENTS = new Set([
   "review-management", "reviews", "salon-marketing-software", "serpResults",
   "services", "signup", "sitemaps", "subscription", "terms-and-conditions",
   "thank-you", "tour-travel-marketing-software", "user-activity",
-  "user-settings", "video-management", "wallet", "webinar-demo", "work-with-us",
+  "user-settings", "video-generation", "video-management", "wallet", "webinar-demo", "work-with-us",
   "yoga-wellness-marketing-software",
 ]);
 

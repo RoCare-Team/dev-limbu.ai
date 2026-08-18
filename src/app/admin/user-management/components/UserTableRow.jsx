@@ -527,6 +527,33 @@ export default function UserTableRow({
               >
                 <option value="">-- Unassigned --</option>
 
+                {/*
+                  Dropdown me sirf ACTIVE agents aate hain. Lekin agar ye lead
+                  abhi kisi deactivate ho chuke agent ke paas hai to uska option
+                  bhi rakhna padta hai, warna row galti se "Unassigned" dikhne
+                  lagti hai.
+                */}
+                {(() => {
+                  const currentId =
+                    user.assignedAgentId?._id ||
+                    (typeof user.assignedAgentId === "string"
+                      ? user.assignedAgentId
+                      : "");
+
+                  if (
+                    !currentId ||
+                    agents.some((a) => String(a._id) === String(currentId))
+                  )
+                    return null;
+
+                  return (
+                    <option value={currentId}>
+                      {user.assignedAgentId?.fullName || "Assigned agent"}{" "}
+                      (inactive)
+                    </option>
+                  );
+                })()}
+
                 {agents.map((agent) => (
                   <option key={agent._id} value={agent._id}>
                     {agent.fullName}
@@ -559,6 +586,35 @@ export default function UserTableRow({
             >
               {getAgentName(user.assignedAgentId)}
             </span>
+          )}
+
+          {/* Transfer tag — ye lead pehle kiske paas thi */}
+          {user.previousAgentName && (
+            <div
+              className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 shadow-sm"
+              title={`Ye lead pehle ${user.previousAgentName} ke paas thi${
+                user.agentTransferredAt
+                  ? ` — transfer ${new Date(
+                      user.agentTransferredAt,
+                    ).toLocaleString("en-IN")}`
+                  : ""
+              }`}
+            >
+              <MoveRight size={11} className="text-amber-500" />
+              <span className="uppercase tracking-wide text-amber-500">
+                From
+              </span>
+              <span>{user.previousAgentName}</span>
+              {user.agentTransferredAt && (
+                <span className="font-semibold text-amber-600">
+                  ·{" "}
+                  {new Date(user.agentTransferredAt).toLocaleDateString(
+                    "en-IN",
+                    { day: "2-digit", month: "short" },
+                  )}
+                </span>
+              )}
+            </div>
           )}
         </td>
 

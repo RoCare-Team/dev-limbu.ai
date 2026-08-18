@@ -83,6 +83,19 @@ const userSchema = new mongoose.Schema(
       ref: "Admin",
     },
 
+    /**
+     * Lead transfer tag — pehle ye lead kiske paas thi.
+     * Bulk reassign (/api/admin/lead-reassign-round-robin) aur manual assign
+     * dono isse set karte hain, taaki table me "Prev: <agent>" dikh sake.
+     */
+    previousAgentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+    previousAgentName: { type: String, default: null },
+    agentTransferredAt: { type: Date, default: null },
+
     // Call Tracking Fields
     callCount: { type: Number, default: 0 },
     callHistory: [

@@ -510,9 +510,32 @@ export async function PATCH(req) {
       );
     }
 
+    // Naya agent set karne se pehle purana agent nikaal lo taaki lead par
+    // "pehle kiske paas thi" ka tag lag sake (leads table me Prev: <naam>).
+    const existing = await User.findOne({ userId })
+      .select("assignedAgentId")
+      .populate("assignedAgentId", "fullName email")
+      .lean();
+
+    const prevAgent = existing?.assignedAgentId || null;
+    const prevAgentId = prevAgent?._id || null;
+    const isSameAgent =
+      prevAgentId && String(prevAgentId) === String(assignedAgentId || "");
+
+    const update = { assignedAgentId: assignedAgentId || null };
+
+    // Same agent dobara select kiya to tag ko chhedna nahi.
+    if (!isSameAgent) {
+      update.previousAgentId = prevAgentId;
+      update.previousAgentName = prevAgent
+        ? prevAgent.fullName || prevAgent.email || null
+        : null;
+      update.agentTransferredAt = prevAgentId ? new Date() : null;
+    }
+
     const updatedUser = await User.findOneAndUpdate(
       { userId },
-      { $set: { assignedAgentId: assignedAgentId || null } },
+      { $set: update },
       { new: true },
     ).populate("assignedAgentId", "fullName email role mobileNumber");
 

@@ -4,12 +4,31 @@ import Admin from "@/models/Admin";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+/**
+ * GET /api/admin/user-agent
+ *
+ * Agent dropdowns (filter + lead assign) ke liye list.
+ * Default me sirf ACTIVE agents aate hain — deactivate kiye gaye agent ki id
+ * dropdown me nahi dikhni chahiye.
+ *
+ * ?includeInactive=1  → purani behaviour (sab agents, inactive bhi)
+ */
+export async function GET(req) {
   try {
     await dbConnect();
-    // Fetch only admins with role 'franchiseAdmin'
-    const admins = await Admin.find({ role: "agent" })
-      .select("fullName email _id mobile role")
+
+    const { searchParams } = new URL(req.url);
+    const includeInactive = searchParams.get("includeInactive") === "1";
+
+    const query = { role: "agent" };
+    if (!includeInactive) {
+      // Purane docs me isActive field nahi hai → unhe active hi maano.
+      query.isActive = { $ne: false };
+    }
+
+    const admins = await Admin.find(query)
+      .select("fullName email _id mobile role isActive leadsEnabled")
+      .sort({ fullName: 1 })
       .lean();
 
     return NextResponse.json({ success: true, data: admins });

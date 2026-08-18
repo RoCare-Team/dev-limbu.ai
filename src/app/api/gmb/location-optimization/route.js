@@ -4,7 +4,7 @@ import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
 import GmbUser from '@/models/GmbUser';
 import { GMB_BUSINESS_INFORMATION_V1_BASE } from '@/lib/gmbLocationApiActions';
-import { parseServiceMoney } from '@/lib/gmbLocationDataset';
+import { parseServiceMoney, prettifyServiceTypeId } from '@/lib/gmbLocationDataset';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +31,7 @@ const LOCATION_READ_MASK = [
 function serviceItemsToText(items) {
   if (!Array.isArray(items)) return '';
   return items
-    .map((it) => it?.freeFormServiceItem?.label?.displayName || it?.structuredServiceItem?.serviceTypeId || '')
+    .map((it) => it?.freeFormServiceItem?.label?.displayName || prettifyServiceTypeId(it?.structuredServiceItem?.serviceTypeId) || '')
     .map((s) => String(s).trim())
     .filter(Boolean)
     .join(', ');
@@ -43,7 +43,9 @@ function serviceItemsToList(items) {
   return items
     .map((it) => {
       const label = it?.freeFormServiceItem?.label;
-      const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+      const title = String(
+        label?.displayName || prettifyServiceTypeId(it?.structuredServiceItem?.serviceTypeId) || ''
+      ).trim();
       const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
       const { priceType, price } = parseServiceMoney(it?.price);
       // Preserve which category each service is filed under so the round-trip keeps the

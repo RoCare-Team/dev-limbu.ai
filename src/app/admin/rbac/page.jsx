@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Power, Trash2, UserCheck, UserX } from "lucide-react";
+import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
@@ -22,6 +22,13 @@ export default function UsersPage() {
   const [activeTab, setActiveTab] = useState("list");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  /** Per-admin assigned-lead counts (normal leads + franchise leads), keyed by admin _id. */
+  const [agentStatsById, setAgentStatsById] = useState({});
+  const [agentStatsTotals, setAgentStatsTotals] = useState({
+    leads: 0,
+    franchiseLeads: 0,
+    total: 0,
+  });
 
   const [form, setForm] = useState({
     fullName: "",
@@ -55,6 +62,31 @@ export default function UsersPage() {
         if (data.success) setUsers(data.users || []);
         setLoading(false);
       });
+  };
+
+  /* ----------------------------
+     FETCH PER-AGENT ASSIGNED-LEAD STATS
+  ---------------------------- */
+  const fetchAgentStats = () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    fetch("/api/admin/agent-lead-stats", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.success) return;
+        const byId = {};
+        (data.perAgent || []).forEach((a) => {
+          byId[a._id] = a;
+        });
+        setAgentStatsById(byId);
+        setAgentStatsTotals(
+          data.totals || { leads: 0, franchiseLeads: 0, total: 0 },
+        );
+      })
+      .catch(() => {});
   };
 
   const handleDelete = async (id) => {
@@ -155,16 +187,34 @@ const toggleLeads = async (id, currentlyEnabled) => {
   }
 };
 
-  const copyToClipboard = (text) => {
-    if (text) {
-      navigator.clipboard.writeText(text);
-      alert("Copied: " + text);
-    }
-  };
-
   useEffect(() => {
     fetchUsers();
+    fetchAgentStats();
   }, []);
+
+  /* ----------------------------
+     DASHBOARD SUMMARY CARDS
+  ---------------------------- */
+  const dashboardStats = useMemo(() => {
+    const total = users.length;
+    const active = users.filter((u) => u.isActive).length;
+    const inactive = total - active;
+    const agents = users.filter((u) => u.role === "agent").length;
+    return [
+      { label: "Total Users", value: total, icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
+      { label: "Active", value: active, icon: UserCheck, color: "text-green-600", bg: "bg-green-50" },
+      { label: "Inactive", value: inactive, icon: UserX, color: "text-red-600", bg: "bg-red-50" },
+      { label: "Agents", value: agents, icon: UserCog, color: "text-indigo-600", bg: "bg-indigo-50" },
+      {
+        label: "Leads Assigned",
+        value: agentStatsTotals.total,
+        icon: Layers,
+        color: "text-amber-600",
+        bg: "bg-amber-50",
+        subtitle: `${agentStatsTotals.leads} leads · ${agentStatsTotals.franchiseLeads} franchise`,
+      },
+    ];
+  }, [users, agentStatsTotals]);
 
   /* ----------------------------
      SUBMIT USER
@@ -188,28 +238,32 @@ const toggleLeads = async (id, currentlyEnabled) => {
     <div className="min-h-screen bg-gray-100 px-4 py-8">
 
       {/* TABS */}
-      <div className="max-w-5xl mx-auto mb-6 flex gap-4">
-        <button
-          onClick={() => setActiveTab("list")}
-          className={`px-5 py-2 rounded-lg font-medium ${
-            activeTab === "list"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          Users List
-        </button>
+      <div className="max-w-5xl mx-auto mb-6">
+        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-white border border-gray-200 shadow-sm">
+          <button
+            onClick={() => setActiveTab("list")}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "list"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+            }`}
+          >
+            <List size={16} />
+            Users List
+          </button>
 
-        <button
-          onClick={() => setActiveTab("add")}
-          className={`px-5 py-2 rounded-lg font-medium ${
-            activeTab === "add"
-              ? "bg-blue-600 text-white"
-              : "bg-white border"
-          }`}
-        >
-          Add User
-        </button>
+          <button
+            onClick={() => setActiveTab("add")}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === "add"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+            }`}
+          >
+            <UserPlus size={16} />
+            Add User
+          </button>
+        </div>
       </div>
 
       {/* USERS LIST TAB */}
@@ -219,6 +273,31 @@ const toggleLeads = async (id, currentlyEnabled) => {
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Users List
           </h2>
+
+          {/* DASHBOARD SUMMARY CARDS */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+            {dashboardStats.map((s) => (
+              <div
+                key={s.label}
+                className="rounded-xl border border-gray-200 p-4 flex items-start gap-3"
+              >
+                <div className={`p-2 rounded-lg ${s.bg}`}>
+                  <s.icon size={18} className={s.color} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 font-medium truncate">
+                    {s.label}
+                  </p>
+                  <p className="text-xl font-bold text-gray-800">{s.value}</p>
+                  {s.subtitle && (
+                    <p className="text-[11px] text-gray-400 truncate">
+                      {s.subtitle}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -233,10 +312,10 @@ const toggleLeads = async (id, currentlyEnabled) => {
                   <tr>
                     <th className="border px-4 py-2 text-left">Name</th>
                     <th className="border px-4 py-2 text-left">Email</th>
-                    <th className="border px-4 py-2 text-left">Password</th>
                     <th className="border px-4 py-2 text-left">Role</th>
                     <th className="border px-4 py-2 text-left">Status</th>
                     <th className="border px-4 py-2 text-left">Leads</th>
+                    <th className="border px-4 py-2 text-left">Assigned</th>
                     <th className="border px-4 py-2 text-left">Action</th>
                   </tr>
                 </thead>
@@ -245,14 +324,6 @@ const toggleLeads = async (id, currentlyEnabled) => {
                     <tr key={u._id} className="hover:bg-gray-50">
                       <td className="border px-4 py-2">{u.fullName}</td>
                       <td className="border px-4 py-2">{u.email}</td>
-                      <td className="border px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-600">{u.password}</span>
-                          <button onClick={() => copyToClipboard(u.password)} className="text-gray-400 hover:text-blue-600" title="Copy Password">
-                            <Copy size={14} />
-                          </button>
-                        </div>
-                      </td>
                       <td className="border px-4 py-2 capitalize">{u.role}</td>
                       <td className="border px-4 py-2">
                         {u.isActive ? (
@@ -290,6 +361,24 @@ const toggleLeads = async (id, currentlyEnabled) => {
                         ) : (
                           <span className="text-gray-400">—</span>
                         )}
+                      </td>
+
+                      {/* ASSIGNED — how many leads / franchise leads this admin currently holds */}
+                      <td className="border px-4 py-2">
+                        {(() => {
+                          const s = agentStatsById[String(u._id)];
+                          if (!s || s.total === 0) {
+                            return <span className="text-gray-400">—</span>;
+                          }
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"
+                              title={`${s.leads} leads · ${s.franchiseLeads} franchise leads`}
+                            >
+                              {s.total}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       <td className="border px-4 py-2">

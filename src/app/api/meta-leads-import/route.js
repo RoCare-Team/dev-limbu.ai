@@ -526,9 +526,9 @@ async function syncMetaFormLeads({
         });
       }
 
-      void runWelcomeBonusForUserId(createdLead.userId).catch((err) =>
-        console.error("[MetaSync] runWelcomeBonusForUserId error:", err),
-      );
+      // void runWelcomeBonusForUserId(createdLead.userId).catch((err) =>
+      //   console.error("[MetaSync] runWelcomeBonusForUserId error:", err),
+      // );
 
       void runNewUserOnboarding(createdLead.userId).catch((err) =>
         console.error("[MetaSync] runNewUserOnboarding error:", err),

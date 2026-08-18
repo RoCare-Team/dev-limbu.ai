@@ -179,9 +179,9 @@ export async function applyCheckoutToUser(body) {
       throw e
     }
     created = true
-    void runWelcomeBonusForUserId(user.userId).catch((err) =>
-      console.error("runWelcomeBonusForUserId checkout", err),
-    )
+    // void runWelcomeBonusForUserId(user.userId).catch((err) =>
+    //   console.error("runWelcomeBonusForUserId checkout", err),
+    // )
     void runNewUserOnboarding(user.userId).catch((err) =>
       console.error("runNewUserOnboarding checkout", err),
     )

@@ -36,6 +36,22 @@ function parseServiceMoney(money) {
   return { priceType: 'none', price: '' };
 }
 
+// Google's own structuredServiceItem entries carry no displayName — only a raw
+// serviceTypeId like "job_type_id:banners". Turn it into a readable label instead of
+// leaking the raw id into the UI, e.g. "job_type_id:photo_printing" -> "Photo Printing".
+function prettifyServiceTypeId(serviceTypeId) {
+  const raw = String(serviceTypeId || '').trim();
+  if (!raw) return '';
+  const tail = raw.includes(':') ? raw.split(':').pop() : raw;
+  return tail
+    .replace(/[_-]+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
 // Parse raw GMB serviceItems[] → [{ title, description, priceType, price, category }],
 // preserving each service's sub-category so the editor keeps the right grouping.
 function parseServiceItemsList(items) {
@@ -43,7 +59,9 @@ function parseServiceItemsList(items) {
   return items
     .map((it) => {
       const label = it?.freeFormServiceItem?.label;
-      const title = String(label?.displayName || it?.structuredServiceItem?.serviceTypeId || '').trim();
+      const title = String(
+        label?.displayName || prettifyServiceTypeId(it?.structuredServiceItem?.serviceTypeId) || ''
+      ).trim();
       const description = String(label?.description || it?.structuredServiceItem?.description || '').trim();
       const { priceType, price } = parseServiceMoney(it?.price);
       const category = String(

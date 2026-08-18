@@ -178,7 +178,12 @@ export default function useUserManagementLogic() {
   const [deleteUserModal, setDeleteUserModal] = useState(null);
   const [editUserModal, setEditUserModal] = useState(null);
   const [reportModalUser, setReportModalUser] = useState(null);
-  const [editUserData, setEditUserData] = useState({ fullName: "", email: "" });
+  const [editUserData, setEditUserData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    gstNumber: "",
+  });
   const [savingEditUser, setSavingEditUser] = useState(false);
   const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -1875,6 +1880,8 @@ export default function useUserManagementLogic() {
     setEditUserData({
       fullName: user.fullName || "",
       email: user.email || "",
+      phone: user.phone || user.mobileNumber || "",
+      gstNumber: user.GstNumber || "",
     });
   };
 
@@ -1883,6 +1890,8 @@ export default function useUserManagementLogic() {
 
     const fullName = String(editUserData.fullName || "").trim();
     const email = String(editUserData.email || "").trim();
+    const phone = String(editUserData.phone || "").trim();
+    const gstNumber = String(editUserData.gstNumber || "").trim();
 
     if (!fullName) {
       showToast("Name cannot be empty", "error");
@@ -1892,6 +1901,10 @@ export default function useUserManagementLogic() {
       showToast("Please enter a valid email", "error");
       return;
     }
+    if (phone && !/^\d{10}$/.test(phone.replace(/\D/g, ""))) {
+      showToast("Please enter a valid 10-digit phone number", "error");
+      return;
+    }
 
     const userId = editUserModal.userId;
     setSavingEditUser(true);
@@ -1899,13 +1912,19 @@ export default function useUserManagementLogic() {
       const res = await fetch("/api/users", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, fullName, email }),
+        body: JSON.stringify({ userId, fullName, email, phone, gstNumber }),
       });
       const data = await res.json();
 
       if (data.success) {
         showToast("User updated successfully", "success");
-        const patch = { fullName, email };
+        const patch = {
+          fullName,
+          email,
+          phone,
+          mobileNumber: phone,
+          GstNumber: gstNumber,
+        };
         setUsers((prevUsers) =>
           prevUsers.map((user) =>
             user.userId === userId ? { ...user, ...patch } : user,

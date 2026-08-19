@@ -1,44 +1,5 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
-
-function getRequiredEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} not defined in environment`);
-  return value;
-}
-
-const AdminBusinessSchema = new mongoose.Schema({
-  userEmail: { type: String, required: true, unique: true },
-  listings: { type: Array, required: true },
-  timestamp: { type: Date, default: Date.now },
-});
-
-// Sorted pagination needs an index, otherwise deep skips blow the 32MB in-memory sort limit
-AdminBusinessSchema.index({ timestamp: -1, _id: -1 });
-
-/** Dedicated connection */
-let dashboardConn = null;
-
-async function getDashboardConnection() {
-  if (dashboardConn && dashboardConn.readyState === 1) {
-    return dashboardConn;
-  }
-
-  const mongoUri = getRequiredEnv("MONGODB_URI");
-
-  dashboardConn = mongoose.createConnection(mongoUri);
-
-  await dashboardConn.asPromise();
-  return dashboardConn;
-}
-
-async function getAdminBusinessModel() {
-  const conn = await getDashboardConnection();
-  return (
-    conn.models.AdminBusiness ||
-    conn.model("AdminBusiness", AdminBusinessSchema)
-  );
-}
+import { getAdminBusinessModel } from "@/lib/adminBusinessStore";
 
 //
 // ✅ POST API (SAVE / UPDATE)
@@ -48,11 +9,13 @@ export async function POST(req) {
     const AdminBusiness = await getAdminBusinessModel();
 
     const body = await req.json();
-    const { userEmail, listings } = body;
+    const { userId, userEmail, listings } = body;
 
-    if (!userEmail) {
+    // `userId` ab asli key hai — GmbConnection jaisi hi identity.
+    // `userEmail` sirf display/backward-compat ke liye chahiye.
+    if (!userId && !userEmail) {
       return NextResponse.json(
-        { error: "userEmail is required" },
+        { error: "userId (or userEmail) is required" },
         { status: 400 }
       );
     }
@@ -65,9 +28,14 @@ export async function POST(req) {
     }
 
     const updatedBusiness = await AdminBusiness.findOneAndUpdate(
-      { userEmail: userEmail.toLowerCase() },
+      // userId maujood ho to USI se match karo — do alag userId same email
+      // share kar sakte hain, tab email-match galat user ka document
+      // overwrite kar deta. Sirf userId na hone par (purana caller) email
+      // par fallback.
+      userId ? { userId } : { userEmail: userEmail.toLowerCase() },
       {
-        userEmail: userEmail.toLowerCase(),
+        ...(userId ? { userId } : {}),
+        ...(userEmail ? { userEmail: userEmail.toLowerCase() } : {}),
         listings,
         timestamp: new Date(),
       },
@@ -95,12 +63,16 @@ export async function GET(req) {
     const AdminBusiness = await getAdminBusinessModel();
 
     const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+    // Sirf backward-compat / display ke liye — asli lookup ab userId se hoti
+    // hai, kyunki do alag userId same email share kar sakte the aur email
+    // se query karne par ek user ka data doosre ke dashboard par dikh jata.
     const userEmail = searchParams.get("userEmail") || searchParams.get("email");
     const page = parseInt(searchParams.get("page")) || 1;
     const limit = parseInt(searchParams.get("limit")) || 20;
 
-    // If no email is provided, return all businesses (paginated for Admin Dashboard)
-    if (!userEmail) {
+    // If neither identifier is provided, return all businesses (paginated for Admin Dashboard)
+    if (!userId && !userEmail) {
       const total = await AdminBusiness.countDocuments();
       
       // Calculate global stats using aggregation for performance
@@ -192,10 +164,11 @@ export async function GET(req) {
       });
     }
 
-    // If email is provided, return only that user's listings
-    const business = await AdminBusiness.findOne({
-      userEmail: userEmail.toLowerCase(),
-    });
+    // userId maujood ho to USI se dhoondo — email sirf tab jab caller ke
+    // paas userId hi nahi hai (purana/legacy call site).
+    const business = await AdminBusiness.findOne(
+      userId ? { userId } : { userEmail: userEmail.toLowerCase() },
+    );
 
     if (!business) {
       return NextResponse.json(

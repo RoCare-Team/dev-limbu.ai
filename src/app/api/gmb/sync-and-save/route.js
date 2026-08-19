@@ -86,8 +86,8 @@ export async function POST(request) {
 
     // ── Mirror dashboard GMB sync → adminbusinesses (same as POST /api/admin/saveBussiness) ──
     try {
-      if (session.user.email) {
-        await saveUserBusinessListings(session.user.email, allListings);
+      if (session.user.email || session.userId) {
+        await saveUserBusinessListings(session.userId, session.user.email, allListings);
       }
     } catch (adminErr) {
       console.error("[sync-and-save] adminbusinesses mirror error:", adminErr);

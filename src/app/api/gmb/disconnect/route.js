@@ -100,10 +100,16 @@ export async function POST(request) {
     // reh jata tha — kyunki wo cache GMB connection se independent hai aur
     // disconnect isse chhuta nahi tha. Isliye dashboard refresh na karo tab
     // tak purana data dikhta rehta ("disconnect ho gaya par dikh raha hai").
-    if (appUser?.email) {
+    if (appUser?.userId || appUser?.email) {
       try {
         const AdminBusiness = await getAdminBusinessModel();
-        await AdminBusiness.deleteOne({ userEmail: appUser.email.toLowerCase() });
+        // userId se clear karo — email do alag userId ke beech shared ho
+        // sakta hai, tab email-match doosre user ka cache bhi mita deta.
+        await AdminBusiness.deleteOne(
+          appUser.userId
+            ? { userId: appUser.userId }
+            : { userEmail: appUser.email.toLowerCase() },
+        );
       } catch (e) {
         console.warn("[gmb/disconnect] AdminBusiness cache clear failed:", e.message);
       }

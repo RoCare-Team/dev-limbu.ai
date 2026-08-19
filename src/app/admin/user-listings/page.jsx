@@ -23,21 +23,18 @@ function UserListingsComponent() {
 
     const fetchAllData = async () => {
       try {
-        // Step 1: Fetch user details to get their email
+        // Step 1: Fetch user details (for display — email, name, etc.)
         const userRes = await fetch(`/api/auth/signup?userId=${userId}`);
         if (!userRes.ok) {
           throw new Error("User not found.");
         }
         const userData = await userRes.json();
         setUser(userData);
-        const userEmail = userData.email;
 
-        if (!userEmail) {
-          throw new Error("User email is not available.");
-        }
-
-        // Step 2: Fetch business listings using the user's email
-        const listingsRes = await fetch(`/api/admin/saveBussiness?email=${userEmail}`);
+        // Step 2: Fetch business listings by userId — email pehle use hota
+        // tha, lekin do alag userId same email share kar sakte hain, isliye
+        // wo kabhi-kabhi galat user ki listings dikha deta tha.
+        const listingsRes = await fetch(`/api/admin/saveBussiness?userId=${userId}`);
         const listingsData = await listingsRes.json();
 
         if (listingsData.success && listingsData.listings.length > 0) {

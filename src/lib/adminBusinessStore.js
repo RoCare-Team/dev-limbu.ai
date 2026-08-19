@@ -7,10 +7,25 @@ function getRequiredEnv(name) {
 }
 
 const AdminBusinessSchema = new mongoose.Schema({
-  userEmail: { type: String, required: true, unique: true },
+  // Asli key — ab `userEmail` PAR unique nahi, `userId` par. Email badal
+  // sakta hai aur, zyada zaroori, do ALAG app userId's ka email kabhi same
+  // ho sakta hai (ya ek hi email admin/impersonation flows me bar-bar
+  // reuse ho) — tab email-keyed lookup ek user ka GMB data doosre ke
+  // dashboard par dikha deta tha. `userId` GmbConnection ki tarah hi asli
+  // identity hai.
+  //
+  // `sparse: true` taaki purane records (jo abhi tak sirf userEmail se
+  // likhe gaye) is index ko `userId: null` duplicate maan kar reject na
+  // karein — wo naturally naye writes ke saath userId paate rehte hain.
+  userId: { type: String, index: true, sparse: true, unique: true },
+  // Display / legacy-lookup ke liye — ab UNIQUE nahi hai.
+  userEmail: { type: String, required: true },
   listings: { type: Array, required: true },
   timestamp: { type: Date, default: Date.now },
 });
+
+// Sorted pagination needs an index, otherwise deep skips blow the 32MB in-memory sort limit
+AdminBusinessSchema.index({ timestamp: -1, _id: -1 });
 
 /** Maps Limbu chat `user_id` (localStorage) → last GMB connect snapshot (chatbot APIs read this) */
 const LimbuChatBusinessLinkSchema = new mongoose.Schema({
@@ -136,10 +151,13 @@ export async function findLimbuChatBusinessLinkByUserChatId(userChatId) {
 /**
  * Persist GMB listings for a user (same behavior as POST /api/admin/saveBussiness).
  * Use this from server code instead of HTTP-fetching your own API (avoids "fetch failed").
+ *
+ * `userId` ab asli key hai — pass karo jab bhi maloom ho (app-login flow me
+ * hamesha hota hai). `userEmail` display/legacy fallback hai.
  */
-export async function saveUserBusinessListings(userEmail, listings) {
-  if (!userEmail) {
-    throw new Error("userEmail is required");
+export async function saveUserBusinessListings(userId, userEmail, listings) {
+  if (!userId && !userEmail) {
+    throw new Error("userId (or userEmail) is required");
   }
   if (!Array.isArray(listings)) {
     throw new Error("Listings must be an array");
@@ -147,9 +165,10 @@ export async function saveUserBusinessListings(userEmail, listings) {
 
   const AdminBusiness = await getAdminBusinessModel();
   const updatedBusiness = await AdminBusiness.findOneAndUpdate(
-    { userEmail: userEmail.toLowerCase() },
+    userId ? { userId } : { userEmail: userEmail.toLowerCase() },
     {
-      userEmail: userEmail.toLowerCase(),
+      ...(userId ? { userId } : {}),
+      ...(userEmail ? { userEmail: userEmail.toLowerCase() } : {}),
       listings,
       timestamp: new Date(),
     },

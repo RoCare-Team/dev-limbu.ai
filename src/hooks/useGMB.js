@@ -11,12 +11,15 @@ const CACHE_EXPIRY_MS = 10 * 60 * 1000;
 // karke har account ka cache alag rehta hai.
 const getCacheKey = (email, userId) => `gmb_data_${userId || "anon"}_${email || "unknown"}`;
 
-async function storeUserListingsForAdmin(userEmail, listings) {
+async function storeUserListingsForAdmin(userId, userEmail, listings) {
   try {
     await fetch('/api/admin/saveBussiness', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userEmail, listings }),
+      // `userId` asli key hai — do alag userId same email share kar sakte
+      // hain, tab sirf email se ek user ka data doosre par overwrite/leak
+      // ho jata tha. `userEmail` sirf display ke liye saath bhejte hain.
+      body: JSON.stringify({ userId, userEmail, listings }),
     });
   } catch (error) { console.error('Error storing listings:', error); }
 }
@@ -74,13 +77,16 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
 
     // Same Logic as old dashboard.js
     const token = isImpersonating ? getLocalStorage("userToken") : getLocalStorage("adminToken");
-    const email = isImpersonating ? getLocalStorage("impersonatedEmail") : getAppEmail();
+    // `userId` se query karte hain, email se nahi — email do alag app
+    // accounts ke beech shared/reused ho sakta hai, tab email-based lookup
+    // ek user ka saved GMB data doosre user ke dashboard par dikha deta.
+    const userId = getActiveUserId();
 
-    if (!token || !email) return;
+    if (!token || !userId) return;
 
     try {
       const res = await fetch(
-        `/api/admin/saveBussiness?userEmail=${encodeURIComponent(email)}`,
+        `/api/admin/saveBussiness?userId=${encodeURIComponent(userId)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -180,8 +186,9 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
       }));
 
       // Sync to Admin Database
-      if (allListings.length > 0 && userEmail) {
-        await storeUserListingsForAdmin(userEmail, allListings);
+      const activeUserId = getActiveUserId();
+      if (allListings.length > 0 && (activeUserId || userEmail)) {
+        await storeUserListingsForAdmin(activeUserId, userEmail, allListings);
       }
 
     } catch (error) {

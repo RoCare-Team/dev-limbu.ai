@@ -117,6 +117,8 @@ export default function SubscriptionSection({
               `${plan.basePosts * multiplier} GMB Posts`,
               `${plan.baseCitations * multiplier} Citations`,
               ...plan.staticFeatures,
+              // Social Media Management is an annual-only perk — unlocked only on the Yearly cycle, for all 3 plans
+              ...(billingCycle === "yearly" ? ["Social Media Management"] : []),
             ];
 
             const savings =

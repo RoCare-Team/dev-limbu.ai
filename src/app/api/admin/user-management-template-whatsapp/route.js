@@ -23,6 +23,37 @@ const normalizeNumber = (num) => {
   return n.length === 12 ? n : null;
 };
 
+/** Webinar join link — env se override kar sakte hain. */
+const WEBINAR_JOIN_LINK =
+  process.env.WEBINAR_JOIN_LINK ||
+  "https://us06web.zoom.us/j/85769394728?pwd=rLLbOCayy4hh7dRJhjb7aHRRSb2nXD.1";
+
+const MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+/**
+ * Admin datetime-local input ("2026-08-20T16:00") ko padhne laayak
+ * label me badalta hai → "20 Aug 2026, 04:00 PM".
+ * String ko as-is IST wall-clock maana jaata hai (koi timezone shift nahi).
+ */
+const formatWebinarDateTime = (value) => {
+  const m = String(value || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/,
+  );
+  if (!m) return String(value || "").trim();
+
+  const [, year, month, day, hourStr, minute] = m;
+  const hour24 = parseInt(hourStr, 10);
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return `${day} ${MONTHS[parseInt(month, 10) - 1]} ${year}, ${String(
+    hour12,
+  ).padStart(2, "0")}:${minute} ${suffix}`;
+};
+
 const CAMPAIGN_CONFIG = {
 
   google_business_profile_management: {
@@ -54,6 +85,28 @@ const CAMPAIGN_CONFIG = {
     campaignName: "review_reply_automation_new",
     source: "user-management review-reply",
   },
+
+  /**
+   * Webinar invite — 3 params:
+   *   {{1}} customer name
+   *   {{2}} webinar date & time (admin har send se pehle choose karta hai)
+   *   {{3}} webinar join link
+   */
+  webinar_invite: {
+    campaignName: "limbu_webinar_new",
+    source: "user-management webinar",
+    requiresWebinarDateTime: true,
+    buildParams: ({ firstName, webinarDateTime }) => ({
+      templateParams: [
+        firstName,
+        formatWebinarDateTime(webinarDateTime),
+        WEBINAR_JOIN_LINK,
+      ],
+      paramsFallbackValue: {
+        FirstName: firstName,
+      },
+    }),
+  },
 };
 
 export async function POST(req) {
@@ -61,7 +114,7 @@ export async function POST(req) {
     await dbConnect();
 
     const body = await req.json();
-    const { adminEmail, users, templateId } = body;
+    const { adminEmail, users, templateId, webinarDateTime } = body;
 
     if (!adminEmail || typeof adminEmail !== "string") {
       return NextResponse.json(
@@ -82,6 +135,21 @@ export async function POST(req) {
     }
 
     const config = CAMPAIGN_CONFIG[templateId];
+
+    if (!config) {
+      return NextResponse.json(
+        { success: false, message: `Unknown templateId: ${templateId}` },
+        { status: 400 },
+      );
+    }
+
+    // Webinar template bina date & time ke send nahi hona chahiye.
+    if (config.requiresWebinarDateTime && !String(webinarDateTime || "").trim()) {
+      return NextResponse.json(
+        { success: false, message: "Webinar date & time is required" },
+        { status: 400 },
+      );
+    }
 
 if (templateId === "google_business_profile_management") {
  
@@ -125,21 +193,28 @@ if (templateId === "google_business_profile_management") {
         continue;
       }
 
+      // Default (purane templates): sirf {{1}} = customer name.
+      // Jis template ko zyada params chahiye wo buildParams deta hai.
+      const { templateParams, paramsFallbackValue } = config.buildParams
+        ? config.buildParams({ firstName, webinarDateTime, user })
+        : {
+            templateParams: ["$FirstName"],
+            paramsFallbackValue: { FirstName: firstName },
+          };
+
       const payload = {
         apiKey,
         campaignName: config.campaignName,
         destination,
         userName: "Limbu AI",
-        templateParams: ["$FirstName"],
+        templateParams,
         source: "api",
         media: {},
         buttons: [],
         carouselCards: [],
         location: {},
         attributes: {},
-        paramsFallbackValue: {
-          FirstName: firstName,
-        },
+        paramsFallbackValue,
       };
 
       try {

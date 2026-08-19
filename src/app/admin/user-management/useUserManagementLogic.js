@@ -2525,7 +2525,11 @@ export default function useUserManagementLogic() {
         };
       })
       .filter(Boolean);
-  const sendTemplateWhatsApp = async (template) => {
+  /**
+   * @param template  modal se chuna gaya template
+   * @param extras    template-specific data, jaise { webinarDateTime }
+   */
+  const sendTemplateWhatsApp = async (template, extras = {}) => {
     if (role !== "superAdmin") return;
 
     console.log("SELECTED IDS COUNT", bulkWaSelectedUserIds.length);
@@ -2564,6 +2568,10 @@ export default function useUserManagementLogic() {
             adminEmail,
             users: usersPayload,
             templateId: template.id,
+            // Webinar template ke liye admin ka chuna hua date & time
+            ...(extras.webinarDateTime
+              ? { webinarDateTime: extras.webinarDateTime }
+              : {}),
           }),
         },
       );

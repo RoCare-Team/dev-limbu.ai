@@ -13,6 +13,7 @@ import {
   BarChart2,
   Zap,
   MessageSquare,
+  Video,
 } from "lucide-react";
 
 const TEMPLATE_GROUPS = [
@@ -85,6 +86,16 @@ const TEMPLATE_GROUPS = [
     bg: "bg-rose-50",
     iconBg: "bg-rose-100",
     iconColor: "text-rose-600",
+  },
+  {
+    id: "webinar",
+    title: "Webinar Invite",
+    subtitle: "Send webinar invite with date, time & join link",
+    icon: Video,
+    border: "border-teal-200",
+    bg: "bg-teal-50",
+    iconBg: "bg-teal-100",
+    iconColor: "text-teal-600",
   },
   {
     id: "bulk_whatsapp",
@@ -209,6 +220,22 @@ const REVIEW_REPLY_TEMPLATES = [
   },
 ];
 
+const WEBINAR_TEMPLATES = [
+  {
+    id: "webinar_invite",
+    title: "Webinar Invite",
+    subtitle: "Date & time choose karke selected leads ko invite bhejein",
+    preview: [
+      "Hi {{1}},",
+      "You are invited to our Limbu AI business growth webinar.",
+      "🗓️ Date & Time: {{2}}",
+      "🔗 Join Link: {{3}}",
+      "See you there!",
+    ],
+    buttons: ["Join Webinar"],
+  },
+];
+
 const BULK_WHATSAPP_TEMPLATES = [
   {
     id: "bulk_custom_whatsapp",
@@ -232,6 +259,7 @@ const getTemplatesForGroup = (groupId) => {
   if (groupId === "keyword_plan") return KEYWORD_PLAN_TEMPLATES;
   if (groupId === "gmb_insights") return GMB_INSIGHTS_TEMPLATES;
   if (groupId === "review_reply") return REVIEW_REPLY_TEMPLATES;
+  if (groupId === "webinar") return WEBINAR_TEMPLATES;
   if (groupId === "bulk_whatsapp") return BULK_WHATSAPP_TEMPLATES;
 
   return [];
@@ -249,6 +277,8 @@ export default function WhatsappModal({
   bulkWaSending,
 }) {
   const [selectedGroup, setSelectedGroup] = useState(null);
+  // Webinar template har baar naye date & time ke saath jaata hai.
+  const [webinarDateTime, setWebinarDateTime] = useState("");
 
   if (!isOpen) return null;
 
@@ -258,6 +288,7 @@ export default function WhatsappModal({
   const closeModal = () => {
     if (sendingTemplateId) return;
     setSelectedGroup(null);
+    setWebinarDateTime("");
     setIsOpen(false);
   };
 
@@ -380,12 +411,41 @@ export default function WhatsappModal({
                         />
                       </div>
                     )}
+
+                    {selectedGroup === "webinar" && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Webinar Date &amp; Time{" "}
+                          <span className="text-red-500">*</span>
+                        </label>
+
+                        <input
+                          type="datetime-local"
+                          value={webinarDateTime}
+                          onChange={(e) => setWebinarDateTime(e.target.value)}
+                          className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        />
+
+                        <p className="mt-2 text-xs text-gray-500">
+                          Ye date &amp; time message ke {"{{2}}"} me jayega.
+                          Join link automatic lagta hai.
+                        </p>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      disabled={template.disabled || !!sendingTemplateId}
+                      disabled={
+                        template.disabled ||
+                        !!sendingTemplateId ||
+                        (selectedGroup === "webinar" && !webinarDateTime)
+                      }
                       onClick={() => {
                         if (selectedGroup === "bulk_whatsapp") {
                           onBulkSend?.();
+                        } else if (selectedGroup === "webinar") {
+                          if (!webinarDateTime) return;
+                          onSendTemplate?.(template, { webinarDateTime });
                         } else {
                           onSendTemplate?.(template);
                         }

@@ -11,7 +11,7 @@ import { getLocalStorage, getSessionStorage } from "@/utils/storage";
  * bhi expired samajh liya jata tha aur `clearStaleLogin()` poora localStorage
  * saaf kar deta tha — user turant "logged out" dikhta tha.
  */
-function decodeJwtPayload(token) {
+export function decodeJwtPayload(token) {
   const part = token.split(".")[1];
   if (!part) return null;
   const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
@@ -20,7 +20,7 @@ function decodeJwtPayload(token) {
 }
 
 /** JWT abhi zinda hai? (60s skew — clock thoda aage-peeche ho sakta hai) */
-function isTokenAlive(token) {
+export function isTokenAlive(token) {
   if (!token) return false;
   try {
     const { exp } = decodeJwtPayload(token);
@@ -103,6 +103,27 @@ export function clearImpersonation() {
         window.sessionStorage?.removeItem(k);
       },
     );
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/**
+ * Mar chuka admin login (7-din wala JWT) hata do.
+ *
+ * `/admin` pehle sirf `token` ki MAUJOODGI dekhta tha, expiry nahi — isliye
+ * 7 din baad bhi dashboard "logged in" render ho jata tha, par uski har API
+ * call 401 deti (token expired), jo "ajeeb behavior" jaisa dikhta tha: kabhi
+ * data load hota, kabhi nahi, aur `/adminLogin` khud manually jao to `role`
+ * abhi bhi localStorage me hone ki wajah se seedha wapas dashboard par bounce
+ * kar deta — matlab dobara login karna hi possible nahi tha jab tak koi
+ * dusra tab me localStorage clear na karta.
+ */
+export function clearStaleAdminLogin() {
+  try {
+    ["token", "role", "permissions", "adminName", "adminEmail", "adminId"].forEach((k) => {
+      window.localStorage?.removeItem(k);
+    });
   } catch {
     /* storage blocked */
   }

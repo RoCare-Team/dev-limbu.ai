@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
+import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
@@ -45,7 +46,11 @@ export default function AdminLayout({ children }) {
     ---------------------------- */
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (!token) {
+    // Pehle sirf `token` ki maujoodgi check hoti thi, expiry nahi — 7 din
+    // (admin JWT ki umr) baad bhi dashboard render ho jata, bas har API call
+    // 401 deti rehti, jo "login hua par ajeeb behave kare" jaisa dikhta tha.
+    if (!token || !isTokenAlive(token)) {
+      clearStaleAdminLogin();
       router.push("/adminLogin");
       return;
     }

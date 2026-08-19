@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List } from "lucide-react";
+import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
@@ -22,6 +22,9 @@ export default function UsersPage() {
   const [activeTab, setActiveTab] = useState("list");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  /** List filters — status (active/inactive) aur role. */
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
   /** Per-admin assigned-lead counts (normal leads + franchise leads), keyed by admin _id. */
   const [agentStatsById, setAgentStatsById] = useState({});
   const [agentStatsTotals, setAgentStatsTotals] = useState({
@@ -217,6 +220,26 @@ const toggleLeads = async (id, currentlyEnabled) => {
   }, [users, agentStatsTotals]);
 
   /* ----------------------------
+     ROLE OPTIONS — jo bhi roles data me actually maujood hain
+  ---------------------------- */
+  const roleOptions = useMemo(
+    () => Array.from(new Set(users.map((u) => u.role).filter(Boolean))).sort(),
+    [users],
+  );
+
+  /* ----------------------------
+     FILTERED LIST — status + role
+  ---------------------------- */
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      if (statusFilter === "active" && !u.isActive) return false;
+      if (statusFilter === "inactive" && u.isActive) return false;
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
+      return true;
+    });
+  }, [users, statusFilter, roleFilter]);
+
+  /* ----------------------------
      SUBMIT USER
   ---------------------------- */
   const submit = async () => {
@@ -299,6 +322,53 @@ const toggleLeads = async (id, currentlyEnabled) => {
             ))}
           </div>
 
+          {/* FILTERS — status + role */}
+          <div className="flex flex-wrap items-center gap-3 mb-4 p-3 rounded-xl border border-gray-200 bg-gray-50">
+            <div className="flex items-center gap-1.5 text-gray-500 text-xs font-semibold uppercase tracking-wide">
+              <Filter size={14} />
+              Filters
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border rounded-lg bg-white capitalize focus:ring-2 focus:ring-blue-500 outline-none"
+            >
+              <option value="all">All Roles</option>
+              {roleOptions.map((role) => (
+                <option key={role} value={role} className="capitalize">
+                  {role}
+                </option>
+              ))}
+            </select>
+
+            {(statusFilter !== "all" || roleFilter !== "all") && (
+              <button
+                onClick={() => {
+                  setStatusFilter("all");
+                  setRoleFilter("all");
+                }}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+              >
+                Clear filters
+              </button>
+            )}
+
+            <span className="ml-auto text-xs text-gray-500">
+              Showing {filteredUsers.length} of {users.length}
+            </span>
+          </div>
+
           {loading ? (
             <div className="flex justify-center items-center h-64">
               <div className="w-24 h-24">
@@ -320,7 +390,14 @@ const toggleLeads = async (id, currentlyEnabled) => {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map(u => (
+                  {filteredUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="border px-4 py-8 text-center text-gray-400">
+                        No users match the selected filters.
+                      </td>
+                    </tr>
+                  )}
+                  {filteredUsers.map(u => (
                     <tr key={u._id} className="hover:bg-gray-50">
                       <td className="border px-4 py-2">{u.fullName}</td>
                       <td className="border px-4 py-2">{u.email}</td>

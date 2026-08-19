@@ -34,17 +34,18 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
+    const impersonated = decoded.impersonated === true;
     const res = NextResponse.json({
       success: true,
       userId: decoded.userId,
-      impersonated: decoded.impersonated === true,
+      impersonated,
     });
     res.cookies.set({
-      ...appSessionCookieOptions(),
+      ...appSessionCookieOptions({ impersonated }),
       value: createAppSessionToken({
         userId: decoded.userId,
         email: decoded.email,
-        impersonated: decoded.impersonated,
+        impersonated,
       }),
     });
     return res;

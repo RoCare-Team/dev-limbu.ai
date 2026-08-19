@@ -2,10 +2,14 @@ import { getLocalStorage, getSessionStorage, removeSessionStorage, setSessionSto
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { useGmbConnection } from "@/hooks/useGmbConnection";
-import { ensureAppSessionCookie, getAppLoginToken } from "@/lib/clientSession";
+import { ensureAppSessionCookie, getAppLoginToken, appAuthHeaders } from "@/lib/clientSession";
 
 const CACHE_EXPIRY_MS = 10 * 60 * 1000;
-const getCacheKey = (email) => `gmb_data_${email}`;
+// Sirf email se cache key banane par do alag app users ek hi Google/GMB
+// account se connected ho to (jo ye codebase explicitly support karta hai)
+// ek dusre ka cached data dikha dete the. App `userId` bhi key me shaamil
+// karke har account ka cache alag rehta hai.
+const getCacheKey = (email, userId) => `gmb_data_${userId || "anon"}_${email || "unknown"}`;
 
 async function storeUserListingsForAdmin(userEmail, listings) {
   try {
@@ -15,6 +19,16 @@ async function storeUserListingsForAdmin(userEmail, listings) {
       body: JSON.stringify({ userEmail, listings }),
     });
   } catch (error) { console.error('Error storing listings:', error); }
+}
+
+/** App ka apna userId — cache key isolation ke liye (useFacebook.js jaisa hi pattern). */
+function getActiveUserId() {
+  const isImpersonating =
+    getLocalStorage("isImpersonating") === "true" ||
+    getSessionStorage("isImpersonating") === "true";
+  return isImpersonating
+    ? getSessionStorage("impersonatedUser") || getLocalStorage("impersonatedUser")
+    : getLocalStorage("userId");
 }
 
 /** App ka apna email — NextAuth session ki jagah. */
@@ -89,7 +103,7 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
     if (!gmbConnected) return;
 
     const userEmail = gmbEmail;
-    const cacheKey = getCacheKey(userEmail || "unknown");
+    const cacheKey = getCacheKey(userEmail, getActiveUserId());
 
     // Cache check.
     // Khaali result kabhi cache se serve nahi karte — warna ek purani failed/
@@ -117,7 +131,13 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
       // SECURE CALL: We now ask our own backend to fetch Google data.
       // Backend GmbConnection se fresh token nikaalta hai (refresh sameth).
       await ensureAppSessionCookie();
-      let res = await fetch("/api/gmb/dashboard-live", { cache: "no-store" });
+      // Header se identity bhejte hain — sirf browser-wide cookie par
+      // bharosa karne se doosri tab/user ki cookie is tab ka status dikha
+      // deti thi (waisa hi jaisa useGmbConnection.js karta hai).
+      let res = await fetch("/api/gmb/dashboard-live", {
+        cache: "no-store",
+        headers: appAuthHeaders(),
+      });
 
       // 401 = app session cookie missing/expire. Ye GMB ka issue NAHI hai —
       // cookie dobara set karke ek retry karo. Pehle ise bhi "session expired"
@@ -130,7 +150,10 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token }),
           });
-          res = await fetch("/api/gmb/dashboard-live", { cache: "no-store" });
+          res = await fetch("/api/gmb/dashboard-live", {
+            cache: "no-store",
+            headers: appAuthHeaders(),
+          });
         }
       }
 
@@ -234,7 +257,7 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
       await fetchAdminListings();
     }
 
-    if (gmbEmail) removeSessionStorage(getCacheKey(gmbEmail));
+    removeSessionStorage(getCacheKey(gmbEmail, getActiveUserId()));
     if (gmbConnected) await fetchInitialData(true);
   }, [gmbConnected, gmbEmail, fetchAdminListings, fetchInitialData]);
 
@@ -242,7 +265,7 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
   const handleDisconnectGMB = useCallback(async () => {
     const ok = await disconnectGmb();
     if (ok) {
-      if (gmbEmail) removeSessionStorage(getCacheKey(gmbEmail));
+      removeSessionStorage(getCacheKey(gmbEmail, getActiveUserId()));
       setAccounts([]);
       setListings([]);
       setInitialFetchDone(false);

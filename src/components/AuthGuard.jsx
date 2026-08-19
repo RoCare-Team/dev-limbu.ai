@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
 
 /**
  * Every real top-level segment under src/app. Anything else with a single
@@ -137,7 +138,16 @@ export default function AuthGuard({ children }) {
 
     const userId = localStorage.getItem("userId");
     const role = localStorage.getItem("role"); // admin | franchiseAdmin
-    const isAdmin = ALLOWED_ADMIN_ROLES.includes(role);
+    const adminToken = localStorage.getItem("token");
+    // Sirf role hone se admin nahi maante — token expire ho chuka ho to
+    // stale nishaan turant saaf karo, warna neeche wala redirect
+    // (`isAdmin && pathname === "/adminLogin"`) expired session ko wapas
+    // dashboard par bounce karta rehta, jahan har API call 401 deti.
+    const isAdmin =
+      ALLOWED_ADMIN_ROLES.includes(role) && isTokenAlive(adminToken);
+    if (ALLOWED_ADMIN_ROLES.includes(role) && !isAdmin) {
+      clearStaleAdminLogin();
+    }
 
     // Already-signed-in users should not sit on a login screen. These routes are
     // public, so the redirect runs without ever hiding the rendered page.

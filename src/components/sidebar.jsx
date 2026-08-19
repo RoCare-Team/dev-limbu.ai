@@ -33,6 +33,7 @@ import {
   clearImpersonation,
   isImpersonatingNow,
 } from "@/lib/clientSession";
+import { clearGmbSessionCookie, clearGmbDataCache } from "@/lib/gmbClientCache";
 
 import { useSidebar } from "@/hooks/useSidebar";
 import SidebarNavItem from "./sidebar/SidebarNavItem";
@@ -86,15 +87,25 @@ export default function Sidebar({ children }) {
           /* storage blocked */
         }
       });
-      toast.success("Exited user view");
-      window.close(); // impersonation apni tab me khulta hai
-      router.push("/login");
+      clearGmbDataCache();
+      // httpOnly cookie hai, client se seedha delete nahi ho sakti — server
+      // se clear karwao. Isके bina ye impersonated user ki identity dekar
+      // GMB APIs ko authenticate karti rehti thi, "Exited user view" ke
+      // baad bhi.
+      clearGmbSessionCookie().finally(() => {
+        toast.success("Exited user view");
+        window.close(); // impersonation apni tab me khulta hai
+        router.push("/login");
+      });
       return;
     }
 
+    clearGmbDataCache();
     localStorage.clear();
-    toast.success("Logged out successfully!");
-    router.push("/login");
+    clearGmbSessionCookie().finally(() => {
+      toast.success("Logged out successfully!");
+      router.push("/login");
+    });
   }, [router]);
 
   const menuItems = useMemo(

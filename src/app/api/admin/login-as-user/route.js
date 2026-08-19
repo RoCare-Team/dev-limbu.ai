@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "@/models/User";
 import GmbUser from "@/models/GmbUser";
+import Admin from "@/models/Admin";
 import connectDB from "@/lib/dbConnect";
 import { APP_JWT_SECRET } from "@/lib/appSession";
 
@@ -16,10 +17,13 @@ export async function POST(req) {
     }
 
     // 1️⃣ ADMIN TOKEN CHECK
+    //
+    // Client `/api/admin/login` ka apna JWT bhejta hai ({id, role,
+    // permissions}, JWT_SECRET se signed) — koi static ADMIN_MASTER_TOKEN
+    // nahi. Pehle isi wajah se ye check hamesha fail hota aur COMMENTED OUT
+    // pada tha — matlab koi bhi bina kisi valid admin session ke, sirf
+    // userId jaan kar, kisi bhi user ko impersonate kar sakta tha.
     const authHeader = req.headers.get("Authorization");
-
-    console.log("🔍 Incoming Authorization:", authHeader);
-    console.log("🔍 Server ADMIN_MASTER_TOKEN:", process.env.ADMIN_MASTER_TOKEN);
 
     if (!authHeader) {
       return Response.json({ error: "Admin token missing" }, { status: 401 });
@@ -27,16 +31,21 @@ export async function POST(req) {
 
     const adminToken = authHeader.replace("Bearer ", "").trim();
 
-    if (!process.env.ADMIN_MASTER_TOKEN) {
-      return Response.json(
-        { error: "ADMIN_MASTER_TOKEN not found in server env" },
-        { status: 500 }
-      );
+    let decodedAdmin;
+    try {
+      decodedAdmin = jwt.verify(adminToken, APP_JWT_SECRET);
+    } catch {
+      return Response.json({ error: "Invalid admin token" }, { status: 401 });
     }
 
-    // if (adminToken !== process.env.ADMIN_MASTER_TOKEN) {
-    //   return Response.json({ error: "Invalid admin token" }, { status: 401 });
-    // }
+    if (!decodedAdmin?.id) {
+      return Response.json({ error: "Invalid admin token" }, { status: 401 });
+    }
+
+    const admin = await Admin.findById(decodedAdmin.id).select("isActive").lean();
+    if (!admin || admin.isActive === false) {
+      return Response.json({ error: "Admin account not found or inactive" }, { status: 401 });
+    }
 
     // 2️⃣ OTP USER
     const otpUser = await User.findOne({ userId }).lean();

@@ -4,7 +4,7 @@ import dbConnect from "@/lib/dbConnect";
 import GmbConnection from "@/models/GmbConnection";
 import GmbUser from "@/models/GmbUser";
 import { getAppUser, getGmbPhone } from "@/lib/appSession";
-import { getGmbConnectionByPhone } from "@/lib/gmbSession";
+import { getGmbConnectionByPhone, getVisibleGmbConnection } from "@/lib/gmbSession";
 import { getAdminBusinessModel } from "@/lib/adminBusinessStore";
 
 export const dynamic = "force-dynamic";
@@ -26,15 +26,18 @@ export async function POST(request) {
     }
 
     await dbConnect();
-    // Apna scoped slot hi hatao — impersonated session sirf admin_impersonation
-    // wala slot disconnect kare, real client login sirf apna "self" wala.
-    // Warna self-login user disconnect kare to admin ka manager-access
-    // connection bhi mit jata (ya ulta), jabki dono independent hone chahiye.
+    // Jo bhi connection UI ko "connected" dikha raha hai wahi hatao —
+    // `getVisibleGmbConnection()` ki resolution order EXACTLY match karta hai
+    // (impersonated: admin_impersonation pehle, phir self fallback; normal
+    // login: sirf self). Pehle ye sirf hardcoded scope (`admin_impersonation`
+    // impersonated ke liye) dhoondta tha — agar us scope me kuch nahi tha
+    // (jaise yahan: user ne khud "self" connect kiya tha, admin ne nahi), to
+    // `conn` null aata, kuch delete NAHI hota, phir bhi route `success: true`
+    // laut deta. UI "disconnected" maan leta par agli hi refresh par wahi
+    // "self" connection dobara "connected" dikha deta — Disconnect button
+    // kaam hi nahi karta jaisa lagta.
     const conn = appUser?.userId
-      ? await GmbConnection.findOne({
-          userId: appUser.userId,
-          connectedBy: appUser.impersonated ? "admin_impersonation" : "self",
-        })
+      ? await getVisibleGmbConnection(appUser.userId, appUser.impersonated)
       : await getGmbConnectionByPhone(phone);
 
     // Google ka `revoke` ek token nahi, POORA GRANT hatata hai — us Google
@@ -77,11 +80,18 @@ export async function POST(request) {
       await GmbConnection.deleteOne({ _id: conn._id });
     }
 
-    // Legacy record se bhi wahi googleId nikaal do.
-    if (conn?.email && conn?.googleId) {
+    // Legacy `GmbUser.projects[]` poora saaf karo — sirf matched googleId
+    // nikaalna kaafi nahi tha. `getVisibleGmbConnection()` GmbConnection row
+    // na milne par `backfillFromGmbUser()` se ye legacy array padhta hai aur
+    // ANY leftover project (refreshToken wala) se GmbConnection row wapas
+    // bana deta ("upsert") deta hai — matlab disconnect ke turant baad, ya
+    // admin ke seedhe DB se GmbConnection delete karne ke baad bhi, agli hi
+    // request par GMB "connected" dikhne lagta tha. Is email ke saare
+    // projects clear karke ye resurrection permanently rokte hain.
+    if (conn?.email) {
       await GmbUser.updateOne(
         { email: conn.email },
-        { $pull: { projects: { googleId: conn.googleId } } },
+        { $set: { projects: [] } },
       ).catch(() => {});
     }
 
@@ -90,10 +100,16 @@ export async function POST(request) {
     // reh jata tha — kyunki wo cache GMB connection se independent hai aur
     // disconnect isse chhuta nahi tha. Isliye dashboard refresh na karo tab
     // tak purana data dikhta rehta ("disconnect ho gaya par dikh raha hai").
-    if (appUser?.email) {
+    if (appUser?.userId || appUser?.email) {
       try {
         const AdminBusiness = await getAdminBusinessModel();
-        await AdminBusiness.deleteOne({ userEmail: appUser.email.toLowerCase() });
+        // userId se clear karo — email do alag userId ke beech shared ho
+        // sakta hai, tab email-match doosre user ka cache bhi mita deta.
+        await AdminBusiness.deleteOne(
+          appUser.userId
+            ? { userId: appUser.userId }
+            : { userEmail: appUser.email.toLowerCase() },
+        );
       } catch (e) {
         console.warn("[gmb/disconnect] AdminBusiness cache clear failed:", e.message);
       }

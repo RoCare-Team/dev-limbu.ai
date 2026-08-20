@@ -50,23 +50,37 @@ function verifyAppToken(token) {
   }
 }
 
+/**
+ * Impersonation session sirf 6h ki honi chahiye — bilkul localStorage wale
+ * `userToken` jitni (dekho: admin/login-as-user route.js). Pehle ye bhi
+ * 30-din wali cookie ban jati thi, isliye "Exited user view" / logout ke
+ * baad bhi ye cookie zinda rehti thi aur GMB APIs impersonated user ban ke
+ * hi authenticate hote rehte the.
+ */
+const IMPERSONATED_SESSION_HOURS = 6;
+const IMPERSONATED_SESSION_MAX_AGE = IMPERSONATED_SESSION_HOURS * 60 * 60;
+
 /** Cookie ke liye chhota session token banata hai. */
 export function createAppSessionToken({ userId, email, impersonated }) {
   return jwt.sign(
     { userId, email: email || null, impersonated: impersonated === true },
     JWT_SECRET,
-    { expiresIn: `${APP_SESSION_DAYS}d` },
+    {
+      expiresIn: impersonated === true
+        ? `${IMPERSONATED_SESSION_HOURS}h`
+        : `${APP_SESSION_DAYS}d`,
+    },
   );
 }
 
-export function appSessionCookieOptions() {
+export function appSessionCookieOptions({ impersonated } = {}) {
   return {
     name: APP_SESSION_COOKIE,
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: APP_SESSION_MAX_AGE,
+    maxAge: impersonated === true ? IMPERSONATED_SESSION_MAX_AGE : APP_SESSION_MAX_AGE,
   };
 }
 

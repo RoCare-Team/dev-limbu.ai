@@ -83,8 +83,15 @@ const NavLinks = memo(({ isAuthenticated, onGmbInsightsClick }) => {
             {/* Desktop par saare cards ek hi line me (8 columns), sabki height barabar */}
             <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-8 lg:gap-2.5">
                 {navItems.map((item, index) => {
+                    // GMB connect na ho tab bhi seedha page par jaana chahiye — is
+                    // page ko khud apna keyword + location input chahiye, GMB
+                    // account se koi lena-dena nahi. Pehle ye bhi `gmbConnected`
+                    // (isAuthenticated) ke peeche gated tha, isliye click karte hi
+                    // seedha Google GMB consent screen khul jata tha.
                     const isPublic =
-                        item.href === "/post-management" || item.href === "/wallet";
+                        item.href === "/post-management" ||
+                        item.href === "/wallet" ||
+                        item.href === "/competitor-analysis";
 
                     const isEnabled = isAuthenticated || isPublic;
                     const isKeywordPlanner = item.label === "Keyword Planner";

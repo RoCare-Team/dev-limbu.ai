@@ -8,7 +8,7 @@ import {
   InfoWindow,
 } from "@react-google-maps/api";
 import Link from "next/link";
-import { Toaster } from "react-hot-toast";
+import { Toaster, toast } from "react-hot-toast";
 import { useRankTracker } from "@/hooks/useRankTracker";
 import { useKeywordPlanner } from "@/hooks/useKeywordPlanner";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -39,6 +39,7 @@ import {
   Star,
   Download,
   Plus,
+  MessageCircle,
 } from "lucide-react";
 
 const MAP_CONTAINER_STYLE = {
@@ -519,6 +520,9 @@ export default function RankTrackerPage() {
   }, [showBizSuggestions]);
 
   const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [whatsAppNumber, setWhatsAppNumber] = useState("");
 
   const mapCenter = useMemo(() => {
     if (centerPoint) return { lat: centerPoint.lat, lng: centerPoint.lng };
@@ -543,7 +547,9 @@ export default function RankTrackerPage() {
   };
 
   // Poori audit ki details ka PDF — saare keywords ka data, ek file me.
-  const handleDownloadPdf = async () => {
+  // returnDoc: true => build the jsPDF doc and hand it back instead of saving
+  // (used by the "Send via WhatsApp" flow, which needs the raw PDF bytes).
+  const handleDownloadPdf = async ({ returnDoc = false } = {}) => {
     // Multi-keyword results, ya fallback single active.
     const sections =
       keywordResults.length > 0
@@ -551,9 +557,9 @@ export default function RankTrackerPage() {
         : gridPoints.length
           ? [{ keyword, gridPoints, averagePosition, topCompetitors }]
           : [];
-    if (sections.length === 0) return;
+    if (sections.length === 0) return null;
 
-    setIsPdfDownloading(true);
+    if (!returnDoc) setIsPdfDownloading(true);
     try {
       const { default: jsPDF } = await import("jspdf");
       const doc = new jsPDF({ unit: "pt", format: "a4" });
@@ -924,11 +930,56 @@ export default function RankTrackerPage() {
       const fileName = `rank-audit-${(businessName || "business")
         .replace(/[^a-z0-9]+/gi, "-")
         .toLowerCase()}.pdf`;
+
+      if (returnDoc) {
+        return { doc, fileName };
+      }
+
       doc.save(fileName);
+      return null;
     } catch (err) {
       console.error("PDF generation failed:", err);
+      if (returnDoc) throw err;
+      return null;
     } finally {
-      setIsPdfDownloading(false);
+      if (!returnDoc) setIsPdfDownloading(false);
+    }
+  };
+
+  const handleSendWhatsAppReport = async (phone) => {
+    setIsSendingWhatsApp(true);
+    try {
+      const built = await handleDownloadPdf({ returnDoc: true });
+      if (!built) {
+        toast.error("Generate a report first");
+        return;
+      }
+      const { doc, fileName } = built;
+      const blob = doc.output("blob");
+
+      const formData = new FormData();
+      formData.append("file", blob, fileName);
+      formData.append("phone", phone);
+      formData.append("firstName", businessName || "there");
+      formData.append("businessName", businessName || "business");
+
+      const res = await fetch("/api/competitor-analysis/send-whatsapp", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to send report on WhatsApp");
+      }
+
+      toast.success("Report sent on WhatsApp!");
+      setShowWhatsAppModal(false);
+    } catch (err) {
+      console.error("Send WhatsApp report failed:", err);
+      toast.error(err.message || "Failed to send report on WhatsApp");
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -1587,6 +1638,13 @@ const runAudit = async (chosenPlaceId, keywordString) => {
                 <Download size={18} strokeWidth={2.5} />
               )}
               Download PDF
+            </button>
+            <button
+              onClick={() => setShowWhatsAppModal(true)}
+              className="h-[48px] px-6 rounded-2xl bg-[#25D366] text-sm font-bold text-white hover:bg-[#1fbd5a] active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-100"
+            >
+              <MessageCircle size={18} strokeWidth={2.5} />
+              Send via WhatsApp
             </button>
             {savedResults.length > 0 && (
               <button
@@ -2767,6 +2825,63 @@ const runAudit = async (chosenPlaceId, keywordString) => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {showWhatsAppModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm p-6 relative">
+            <button
+              onClick={() => !isSendingWhatsApp && setShowWhatsAppModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="bg-[#25D366]/10 text-[#25D366] p-2.5 rounded-2xl">
+                <MessageCircle size={20} />
+              </div>
+              <h3 className="text-lg font-black text-slate-900">
+                Send Report on WhatsApp
+              </h3>
+            </div>
+            <p className="text-xs font-medium text-slate-500 mb-5">
+              We&apos;ll send the Competitor Analysis PDF to this WhatsApp number.
+            </p>
+
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block">
+              WhatsApp Number
+            </label>
+            <div className="flex items-center gap-2 mb-5">
+              <span className="h-[48px] px-3 rounded-2xl bg-slate-100 text-sm font-bold text-slate-600 flex items-center justify-center">
+                +91
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                value={whatsAppNumber}
+                onChange={(e) =>
+                  setWhatsAppNumber(e.target.value.replace(/\D/g, "").slice(0, 10))
+                }
+                placeholder="98765 43210"
+                className="flex-1 h-[48px] px-4 rounded-2xl border border-slate-200 text-sm font-bold text-slate-800 focus:outline-none focus:border-[#25D366] transition-all"
+              />
+            </div>
+
+            <button
+              onClick={() => handleSendWhatsAppReport(whatsAppNumber)}
+              disabled={whatsAppNumber.length !== 10 || isSendingWhatsApp}
+              className="w-full h-[48px] rounded-2xl bg-[#25D366] text-sm font-black text-white hover:bg-[#1fbd5a] active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            >
+              {isSendingWhatsApp ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <MessageCircle size={18} strokeWidth={2.5} />
+              )}
+              {isSendingWhatsApp ? "Sending..." : "Send Report"}
+            </button>
           </div>
         </div>
       )}

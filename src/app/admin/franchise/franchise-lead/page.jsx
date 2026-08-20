@@ -238,6 +238,32 @@ const OFFER_SAVINGS_AMOUNT = Math.round(
 /** {{3}} = fixed validity text — reads as "Offer valid till the offer expires". */
 const OFFER_VALIDITY_TEXT = "the offer expires";
 
+/**
+ * Webinar preview ke liye datetime-local ("2026-08-20T16:00") ko
+ * "20 Aug 2026, 04:00 PM" banata hai — server par bhi bilkul yahi format
+ * jaata hai (src/lib/webinarInvite.js).
+ */
+const WEBINAR_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+const formatWebinarPreview = (value) => {
+  const m = String(value || "").match(
+    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/,
+  );
+  if (!m) return String(value || "").trim();
+
+  const [, year, month, day, hourStr, minute] = m;
+  const hour24 = parseInt(hourStr, 10);
+  const suffix = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return `${day} ${WEBINAR_MONTHS[parseInt(month, 10) - 1]} ${year}, ${String(
+    hour12,
+  ).padStart(2, "0")}:${minute} ${suffix}`;
+};
+
 /** IVR interest timestamp from API (ISO string) → readable India locale. */
 function formatIvrInterestedAtDisplay(iso) {
   if (!iso) return null;
@@ -375,6 +401,15 @@ export default function FranchiseLeadsPage() {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
   const [totalLeads, setTotalLeads] = useState(0);
+
+  /**
+   * "Select all filtered leads (all pages)" ka data.
+   * Server-side pagination ki wajah se `leads` me sirf current page hota hai,
+   * isliye baaki pages ke leads (minimum fields) yahan rakhte hain — taaki
+   * bulk WhatsApp / email / assign sab pages par chal sake.
+   */
+  const [allFilteredPool, setAllFilteredPool] = useState([]);
+  const [selectingAllFiltered, setSelectingAllFiltered] = useState(false);
   const [dbStats, setDbStats] = useState({
     total: 0,
     active: 0,
@@ -497,6 +532,12 @@ export default function FranchiseLeadsPage() {
   const [isOfferTemplateModalOpen, setIsOfferTemplateModalOpen] =
     useState(false);
   const [sendingOfferMsg, setSendingOfferMsg] = useState(false);
+
+  /** Webinar invite template — {{1}} naam, {{2}} date & time, {{3}} zoom link */
+  const [isWebinarTemplateModalOpen, setIsWebinarTemplateModalOpen] =
+    useState(false);
+  const [webinarDateTime, setWebinarDateTime] = useState("");
+  const [sendingWebinarMsg, setSendingWebinarMsg] = useState(false);
 
   /** Franchise email campaigns via mail.limbutech.in */
   const [isEmailTemplateModalOpen, setIsEmailTemplateModalOpen] =
@@ -732,6 +773,8 @@ export default function FranchiseLeadsPage() {
   const fetchLeads = async () => {
     setLoading(true);
     setError(null);
+    // Filters badle → purana select-all pool stale ho gaya
+    setAllFilteredPool([]);
 
     const userEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
 
@@ -1508,10 +1551,108 @@ export default function FranchiseLeadsPage() {
     });
   };
 
+  /**
+   * Selected ids → poore lead objects.
+   * Pehle current page (`leads`) me dekhta hai, warna select-all wale pool me —
+   * isse doosre pages ke selected leads bhi bulk actions me aa jaate hain.
+   */
+  const resolveSelectedLeads = () => {
+    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
+    const byId = new Map();
+
+    leads.forEach((l) => {
+      const key = franchiseLeadIdKey(l.id);
+      if (idSet.has(key)) byId.set(key, l);
+    });
+
+    allFilteredPool.forEach((l) => {
+      const key = franchiseLeadIdKey(l.id);
+      if (idSet.has(key) && !byId.has(key)) byId.set(key, l);
+    });
+
+    return [...byId.values()];
+  };
+
   /** One-click: all leads matching current filters (all pages), not only this page. */
-  const handleSelectAllFiltered = () => {
-    const ids = filteredLeads.map((l) => franchiseLeadIdKey(l.id));
-    setSelectedLeads([...new Set(ids)]);
+  const handleSelectAllFiltered = async () => {
+    setSelectingAllFiltered(true);
+
+    const userEmail =
+      localStorage.getItem("adminEmail") || localStorage.getItem("email");
+
+    // fetchLeads jaisa hi date logic — taaki custom range wahi rahe.
+    let startDateParam = "";
+    let endDateParam = "";
+    const now = new Date();
+
+    if (dateRange === "today") {
+      startDateParam = new Date(now.toDateString()).toISOString();
+    } else if (dateRange === "week") {
+      const d = new Date();
+      d.setDate(d.getDate() - 7);
+      startDateParam = new Date(d.toDateString()).toISOString();
+    } else if (dateRange === "month") {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      startDateParam = new Date(d.toDateString()).toISOString();
+    } else if (dateRange === "custom" && customStartDate && customEndDate) {
+      startDateParam = customStartDate;
+      endDateParam = customEndDate;
+    }
+
+    try {
+      const queryParams = new URLSearchParams({
+        idsOnly: "1",
+        formId: formId,
+        email: userEmail || "",
+        status: statusFilter,
+        assigneeId: assigneeFilter,
+        lead_quality: qualityFilter,
+        remarkFilter: remarkFilter,
+        remarkCountFilter: remarkCountFilter,
+        search: search,
+        startDate: startDateParam,
+        endDate: endDateParam,
+      });
+
+      const res = await fetch(`/api/franchise-leads?${queryParams.toString()}`);
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        toast.error(data.message || "Could not select all leads");
+        return;
+      }
+
+      const pool = dedupeLeadsByPhone(data.leads || []);
+
+      // IVR tab par sirf wahi leads jo screen par bhi dikhti hain.
+      const visible =
+        ivrLeadTab === "ivr"
+          ? pool.filter((l) =>
+              filteredLeads.some(
+                (f) => franchiseLeadIdKey(f.id) === franchiseLeadIdKey(l.id),
+              ),
+            )
+          : pool;
+
+      setAllFilteredPool(visible);
+      setSelectedLeads([
+        ...new Set(visible.map((l) => franchiseLeadIdKey(l.id))),
+      ]);
+
+      if (data.truncated) {
+        toast.success(
+          `Selected ${visible.length} leads (max limit — ${data.total} total match the filter)`,
+        );
+      } else {
+        toast.success(`Selected ${visible.length} leads across all pages`);
+      }
+    } catch (err) {
+      console.error("Select all filtered error:", err);
+      toast.error("Could not select all leads");
+    } finally {
+      setSelectingAllFiltered(false);
+    }
   };
 
   const handleBulkAssign = async () => {
@@ -1547,8 +1688,7 @@ export default function FranchiseLeadsPage() {
   const handleBulkSendFranchiseMsg = async () => {
     if (selectedLeads.length === 0) return;
 
-    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
-    const picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+    const picked = resolveSelectedLeads();
     if (picked.length === 0) {
       toast.error("Could not resolve selected leads");
       return;
@@ -1639,8 +1779,7 @@ export default function FranchiseLeadsPage() {
   const handleSendFranchiseEmail = async (template) => {
     if (selectedLeads.length === 0) return;
 
-    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
-    const picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+    const picked = resolveSelectedLeads();
 
     const recipients = picked
       .map((lead) => {
@@ -2424,8 +2563,7 @@ export default function FranchiseLeadsPage() {
 
   /** Offer template: {{1}} name, {{2}} savings amount, {{3}} validity text */
   const handleSendOfferTemplate = async () => {
-    const idSet = new Set(selectedLeads.map(franchiseLeadIdKey));
-    let picked = leads.filter((l) => idSet.has(franchiseLeadIdKey(l.id)));
+    let picked = resolveSelectedLeads();
     if (picked.length === 0 && selectedLead) picked = [selectedLead];
 
     if (picked.length === 0) {
@@ -2485,6 +2623,72 @@ export default function FranchiseLeadsPage() {
       toast.error("Failed to send offer template");
     } finally {
       setSendingOfferMsg(false);
+    }
+  };
+
+  /* ---------------- WEBINAR INVITE TEMPLATE ---------------- */
+  const handleSendWebinarTemplate = async () => {
+    if (!webinarDateTime) {
+      toast.error("Please select webinar date & time");
+      return;
+    }
+
+    let picked = resolveSelectedLeads();
+    if (picked.length === 0 && selectedLead) picked = [selectedLead];
+
+    if (picked.length === 0) {
+      toast.error("Please select at least one lead");
+      return;
+    }
+
+    const recipients = [];
+    for (const lead of picked) {
+      let phone = lead.phone_number;
+      if (phone) {
+        phone = String(phone).replace(/\D/g, "");
+        if (phone.length === 10) phone = "91" + phone;
+      }
+      if (!phone || phone.length !== 12 || !phone.startsWith("91")) continue;
+      recipients.push({
+        phone,
+        firstName: (lead.full_name || lead.fullName || "").split(" ")[0] || "",
+      });
+    }
+
+    if (recipients.length === 0) {
+      toast.error("No valid Indian mobile numbers in selection");
+      return;
+    }
+
+    setSendingWebinarMsg(true);
+    try {
+      const res = await fetch("/api/franchise-leads/send-webinar-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipients, webinarDateTime }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.message || "Request failed");
+        return;
+      }
+
+      if (data.failed === 0) {
+        toast.success(
+          `Webinar invite sent to ${data.sent} recipient(s) — ${data.dateTime}`,
+        );
+        setIsWebinarTemplateModalOpen(false);
+        setWebinarDateTime("");
+        setSelectedLeads([]);
+      } else {
+        toast.error(`Sent ${data.sent}, failed ${data.failed}.`);
+      }
+    } catch (error) {
+      console.error("Webinar template send error:", error);
+      toast.error("Failed to send webinar template");
+    } finally {
+      setSendingWebinarMsg(false);
     }
   };
 
@@ -3928,11 +4132,17 @@ export default function FranchiseLeadsPage() {
             <button
               type="button"
               onClick={handleSelectAllFiltered}
-              disabled={loading}
-              className="text-sm font-medium text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline disabled:opacity-50"
+              disabled={loading || selectingAllFiltered}
+              className="text-sm font-medium text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline disabled:opacity-50 inline-flex items-center gap-2"
             >
-              Select all {filteredLeads.length} filtered lead
-              {filteredLeads.length === 1 ? "" : "s"} (all pages)
+              {selectingAllFiltered && (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              )}
+              {selectingAllFiltered
+                ? "Selecting..."
+                : `Select all ${totalLeads || filteredLeads.length} filtered lead${
+                    (totalLeads || filteredLeads.length) === 1 ? "" : "s"
+                  } (all pages)`}
             </button>
           </div>
         )}
@@ -3945,7 +4155,10 @@ export default function FranchiseLeadsPage() {
                 {selectedLeads.length} leads selected
               </span>
               <button
-                onClick={() => setSelectedLeads([])}
+                onClick={() => {
+                  setSelectedLeads([]);
+                  setAllFilteredPool([]);
+                }}
                 className="text-xs text-blue-600 hover:text-blue-800 underline"
               >
                 Clear Selection
@@ -4008,6 +4221,16 @@ export default function FranchiseLeadsPage() {
               >
                 <Send className="w-4 h-4" />
                 Offer Template ({OFFER_DISCOUNT_PERCENT}% Off)
+              </button>
+
+              {/* Webinar Invite Template Button */}
+              <button
+                type="button"
+                onClick={() => setIsWebinarTemplateModalOpen(true)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium inline-flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Webinar Template
               </button>
 
               {/* Franchise Email Template Button */}
@@ -5869,6 +6092,124 @@ export default function FranchiseLeadsPage() {
                     <Send className="w-5 h-5" />
                   )}
                   {sendingOfferMsg ? "Sending..." : "Send Offer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Webinar Invite Template Modal */}
+      {isWebinarTemplateModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4">
+          <div className="h-full flex items-center justify-center">
+            <div className="w-full max-w-[430px] max-h-[90vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
+              {/* Header */}
+              <div className="bg-[#0b6e5e] px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm font-bold">
+                    W
+                  </div>
+                  <h2 className="text-white font-semibold text-lg">
+                    Webinar Invite Preview
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setIsWebinarTemplateModalOpen(false)}
+                  className="text-white/90 hover:text-white text-3xl leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto bg-[#f3efea] p-4 space-y-4">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="p-5 text-[14px] text-gray-700 leading-8">
+                    <p className="mb-4">
+                      Hi{" "}
+                      <span className="font-semibold">
+                        {(() => {
+                          const idSet = new Set(
+                            selectedLeads.map(franchiseLeadIdKey),
+                          );
+                          const first =
+                            leads.find((l) =>
+                              idSet.has(franchiseLeadIdKey(l.id)),
+                            ) || selectedLead;
+                          return (
+                            (first?.full_name || "").split(" ")[0] || "{{1}}"
+                          );
+                        })()}
+                      </span>{" "}
+                      👋,
+                    </p>
+
+                    <p className="mb-4">
+                      You are invited to our Limbu AI business growth webinar.
+                    </p>
+
+                    <p className="mb-2">
+                      🗓️ <b>Date &amp; Time:</b>{" "}
+                      {webinarDateTime ? (
+                        <b className="text-teal-700">
+                          {formatWebinarPreview(webinarDateTime)}
+                        </b>
+                      ) : (
+                        <span className="text-gray-400">{"{{2}}"}</span>
+                      )}
+                    </p>
+
+                    <p className="mb-4 break-all">
+                      🔗 <b>Join Link:</b>{" "}
+                      <span className="text-blue-600">{"{{3}}"}</span>
+                    </p>
+
+                    <p className="mb-4">See you there!</p>
+
+                    <div className="text-[12px] text-gray-400 text-right">
+                      12:00 PM ✓✓
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Webinar Date &amp; Time{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={webinarDateTime}
+                    onChange={(e) => setWebinarDateTime(e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Ye date &amp; time message ke {"{{2}}"} me jayega. Join link
+                    automatic lagta hai.
+                  </p>
+
+                  <div className="flex justify-between py-1 mt-3 text-sm text-gray-600">
+                    <span>Recipients</span>
+                    <b>{selectedLeads.length || (selectedLead ? 1 : 0)}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleSendWebinarTemplate}
+                  disabled={sendingWebinarMsg || !webinarDateTime}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white py-4 rounded-xl font-semibold text-xl flex items-center justify-center gap-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sendingWebinarMsg ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                  {sendingWebinarMsg ? "Sending..." : "Send Webinar Invite"}
                 </button>
               </div>
             </div>

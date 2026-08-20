@@ -86,6 +86,12 @@ export async function GET(req) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
+    /**
+     * idsOnly=1 → "Select all filtered leads (all pages)" ke liye.
+     * Sirf bulk actions ke minimum fields, bina pagination ke (MAX_IDS_ONLY tak).
+     */
+    const idsOnly = searchParams.get("idsOnly") === "1";
+
     // Pagination parameters
     let page = parseInt(searchParams.get("page") || "1", 10);
     let limit = parseInt(searchParams.get("limit") || "50", 10);
@@ -242,6 +248,33 @@ export async function GET(req) {
 
     // Counts matching exact filters with current page context (for pagination UI calculations)
     const filteredTotalCount = await Lead.countDocuments(finalLeadsQuery);
+
+    // ========== SELECT-ALL MODE: sirf ids + bulk ke zaroori fields ==========
+    if (idsOnly) {
+      const MAX_IDS_ONLY = 5000;
+
+      const idLeads = await Lead.find(finalLeadsQuery)
+        .select("leadId fullName phone email status createdTime")
+        .sort({ createdTime: -1 })
+        .limit(MAX_IDS_ONLY)
+        .lean();
+
+      return NextResponse.json({
+        success: true,
+        message: "Lead ids fetched successfully",
+        total: filteredTotalCount,
+        returned: idLeads.length,
+        truncated: filteredTotalCount > idLeads.length,
+        leads: idLeads.map((l) => ({
+          id: l.leadId,
+          full_name: l.fullName || "",
+          phone_number: l.phone || "",
+          email: l.email || "",
+          status: l.status || "Active",
+          created_time: l.createdTime,
+        })),
+      });
+    }
 
     // Fetch paginated chunk of leads
     const dbLeads = await Lead.find(finalLeadsQuery)

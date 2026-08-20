@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
+import {
+  WEBINAR_JOIN_LINK,
+  formatWebinarDateTime,
+} from "@/lib/webinarInvite";
 
 const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
@@ -21,37 +25,6 @@ const normalizeNumber = (num) => {
   if (n.length === 10) n = `91${n}`;
 
   return n.length === 12 ? n : null;
-};
-
-/** Webinar join link — env se override kar sakte hain. */
-const WEBINAR_JOIN_LINK =
-  process.env.WEBINAR_JOIN_LINK ||
-  "https://us06web.zoom.us/j/85769394728?pwd=rLLbOCayy4hh7dRJhjb7aHRRSb2nXD.1";
-
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-/**
- * Admin datetime-local input ("2026-08-20T16:00") ko padhne laayak
- * label me badalta hai → "20 Aug 2026, 04:00 PM".
- * String ko as-is IST wall-clock maana jaata hai (koi timezone shift nahi).
- */
-const formatWebinarDateTime = (value) => {
-  const m = String(value || "").match(
-    /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/,
-  );
-  if (!m) return String(value || "").trim();
-
-  const [, year, month, day, hourStr, minute] = m;
-  const hour24 = parseInt(hourStr, 10);
-  const suffix = hour24 >= 12 ? "PM" : "AM";
-  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
-
-  return `${day} ${MONTHS[parseInt(month, 10) - 1]} ${year}, ${String(
-    hour12,
-  ).padStart(2, "0")}:${minute} ${suffix}`;
 };
 
 const CAMPAIGN_CONFIG = {

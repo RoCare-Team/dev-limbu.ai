@@ -15,6 +15,7 @@ import {
   Layers,
   PieChart,
   Radio,
+  RefreshCw,
   Wallet,
   X,
 } from "lucide-react";
@@ -25,9 +26,26 @@ import {
 } from "@/lib/franchiseAuth";
 import { sourceBadgeClass, sourceLabel } from "@/lib/sourceBadge";
 import ImagePreviewModal from "@/components/ImagePreviewModal";
+import RenewPlanModal from "@/app/admin/dashboard/revenue-users/components/RenewPlanModal";
+import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 
 /** Franchise keeps 50%, Limbu Ai keeps 50%. */
 const SHARE_RATE = 0.5;
+
+/** Renew modal ke plan options — admin revenue-users page se same. */
+const REVENUE_PLANS = [
+  { name: "Basic Plan", monthly: 3500 },
+  { name: "Professional Plan", monthly: 5500 },
+  { name: "Premium Plan", monthly: 7500 },
+];
+
+/** YYYY-MM-DD (timezone shift ke bina). */
+const toDateInput = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 const EMPTY_DRILL = { type: "", plan: "", source: "", month: "" };
 
@@ -103,8 +121,20 @@ export default function RevenueShare() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [downloadingId, setDownloadingId] = useState("");
 
-  useEffect(() => {
-    const fetchRevenue = async () => {
+  /* ---------------- RENEW PLAN ---------------- */
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewUser, setRenewUser] = useState(null);
+  const [renewPlan, setRenewPlan] = useState("");
+  const [renewAmount, setRenewAmount] = useState("");
+  const [renewDuration, setRenewDuration] = useState("monthly");
+  const [renewStartDate, setRenewStartDate] = useState("");
+  const [renewExpiryDate, setRenewExpiryDate] = useState("");
+  const [renewScreenshot, setRenewScreenshot] = useState(null);
+  const [renewRemarks, setRenewRemarks] = useState("");
+  const [renewGstNumber, setRenewGstNumber] = useState("");
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  const fetchRevenue = async () => {
       try {
         const franchiseUser = getFranchiseUserFromStorage();
         const token = localStorage.getItem("franchise_token");
@@ -164,10 +194,160 @@ export default function RevenueShare() {
       } finally {
         setLoading(false);
       }
-    };
+  };
 
+  useEffect(() => {
     fetchRevenue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  /* ---------------- RENEW PLAN ---------------- */
+
+  /**
+   * Renew modal khole — start date purani expiry ke agle din se,
+   * aur agar plan already expire ho chuka hai to aaj se.
+   */
+  const openRenewModal = (row) => {
+    setRenewUser(row);
+    setRenewPlan(row.plan || "");
+    setRenewAmount(row.amount || "");
+    setRenewGstNumber(row.gstNumber || "");
+    setRenewRemarks("");
+    setRenewScreenshot(null);
+    setRenewDuration("monthly");
+
+    const oldExpiry = row.packageExpiryDate;
+
+    if (oldExpiry) {
+      const expiryDate = new Date(oldExpiry);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      expiryDate.setHours(0, 0, 0, 0);
+
+      const startDate =
+        expiryDate < today
+          ? new Date(today)
+          : new Date(expiryDate.getTime() + 24 * 60 * 60 * 1000);
+
+      const expiry = new Date(startDate);
+      expiry.setMonth(expiry.getMonth() + 1);
+
+      setRenewStartDate(toDateInput(startDate));
+      setRenewExpiryDate(toDateInput(expiry));
+    } else {
+      setRenewStartDate("");
+      setRenewExpiryDate("");
+    }
+
+    setShowRenewModal(true);
+  };
+
+  const handleRenewPlan = async () => {
+    if (!renewPlan) return alert("Select a plan");
+    if (!renewAmount) return alert("Enter amount");
+    if (!renewStartDate) return alert("Select start date");
+    if (!renewExpiryDate) return alert("Select expiry date");
+
+    try {
+      setSavingPlan(true);
+
+      let screenshotUrl = "";
+      if (renewScreenshot) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", renewScreenshot);
+        const uploadResult = await uploadToS3Action(uploadFormData);
+        if (uploadResult?.success) screenshotUrl = uploadResult.url;
+      }
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getFranchiseAuthHeaders(),
+        },
+        body: JSON.stringify({
+          leadId: renewUser?.leadId,
+          leadName: renewUser?.leadName,
+          email: renewUser?.email || "",
+          phone: renewUser?.phone || "",
+          franchiseId: renewUser?.franchiseId || null,
+          franchiseName: renewUser?.franchiseName || null,
+          onboardedBy: renewUser?.onboardedBy || null,
+          onboardedByName: renewUser?.onboardedByName || "",
+          onboardedByRole: renewUser?.onboardedByRole || "",
+          plan: renewPlan,
+          amount: Number(renewAmount),
+          packageStartDate: renewStartDate,
+          packageExpiryDate: renewExpiryDate,
+          paymentScreenshot: screenshotUrl,
+          screenshot: screenshotUrl,
+          planRemarks: renewRemarks,
+          notes: `Plan renewed from ${renewUser?.plan || "Old Plan"} to ${renewPlan} (franchise panel)`,
+          type: "plan",
+          status: "active",
+          bookingSource: "manual-upload",
+          gstNumber: renewGstNumber,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        alert(data.message || "Failed to renew plan");
+        return;
+      }
+
+      // Customer ko WhatsApp — fail ho to renewal fir bhi safal hai.
+      try {
+        await fetch("/api/admin/revenue-plan-template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone: renewUser?.phone || "",
+            firstName: renewUser?.leadName || "Customer",
+            planName: renewPlan,
+            amount: renewAmount,
+            startDate: renewStartDate,
+            expiryDate: renewExpiryDate,
+            invoiceUrl: data.revenue?.invoiceUrl,
+          }),
+        });
+      } catch (err) {
+        console.error("Renew WhatsApp template failed:", err);
+      }
+
+      // Invoice email
+      try {
+        const newRevenueId = data?.revenue?._id;
+        if (newRevenueId) {
+          await fetch("/api/admin/send-invoice-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ revenueId: newRevenueId }),
+          });
+        }
+      } catch (err) {
+        console.error("Renew invoice email failed:", err);
+      }
+
+      alert("Plan Renewed Successfully");
+      setShowRenewModal(false);
+      setRenewUser(null);
+      setRenewPlan("");
+      setRenewAmount("");
+      setRenewStartDate("");
+      setRenewExpiryDate("");
+      setRenewGstNumber("");
+      setRenewRemarks("");
+      setRenewScreenshot(null);
+      fetchRevenue();
+    } catch (err) {
+      console.error("RENEW PLAN ERROR =>", err);
+      alert("Something went wrong");
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   const handleDownloadInvoice = async (row) => {
     setDownloadingId(row._id);
@@ -609,6 +789,19 @@ export default function RevenueShare() {
                             )}
                             {downloadingId === row._id ? "..." : "Invoice"}
                           </button>
+
+                          {/* Renew — sirf package/plan rows par */}
+                          {typeKeyOf(row) === "package" && (
+                            <button
+                              type="button"
+                              onClick={() => openRenewModal(row)}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              title="Renew this plan"
+                            >
+                              <RefreshCw size={14} />
+                              Renew
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -737,6 +930,31 @@ export default function RevenueShare() {
           </table>
         </div>
       </div>
+
+      <RenewPlanModal
+        showRenewModal={showRenewModal}
+        setShowRenewModal={setShowRenewModal}
+        renewPlan={renewPlan}
+        setRenewPlan={setRenewPlan}
+        renewAmount={renewAmount}
+        setRenewAmount={setRenewAmount}
+        renewStartDate={renewStartDate}
+        setRenewStartDate={setRenewStartDate}
+        renewExpiryDate={renewExpiryDate}
+        setRenewExpiryDate={setRenewExpiryDate}
+        renewScreenshot={renewScreenshot}
+        setRenewScreenshot={setRenewScreenshot}
+        renewRemarks={renewRemarks}
+        setRenewRemarks={setRenewRemarks}
+        renewGstNumber={renewGstNumber}
+        setRenewGstNumber={setRenewGstNumber}
+        renewDuration={renewDuration}
+        setRenewDuration={setRenewDuration}
+        handleRenewPlan={handleRenewPlan}
+        savingPlan={savingPlan}
+        revenuePlans={REVENUE_PLANS}
+      />
+
 
       <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>

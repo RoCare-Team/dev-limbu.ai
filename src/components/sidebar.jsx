@@ -144,9 +144,12 @@ export default function Sidebar({ children }) {
         path: "/assets-management",
       },
       {
-        text: "AI Video Generator",
+        text: "AI Video",
         icon: <Clapperboard size={18} />,
-        path: "/video-generation",
+        children: [
+          { text: "Text To Video", path: "/video-generation" },
+          { text: "AI Avatar Video", path: "/video-generation/ai-avatar-video" },
+        ],
       },
       {
         text: "Keyword Planner",

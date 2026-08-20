@@ -847,18 +847,27 @@ export default function VideoGenerationPage() {
   /* ---------------------------- DOWNLOAD / SHARE ---------------------------- */
   const handleDownload = async (url) => {
     try {
-      const res = await fetch(url);
+      const filename = `limbu-ai-video-${Date.now()}.mp4`;
+      // Fetch through our own backend, not the S3 URL directly — S3 doesn't allow
+      // cross-origin blob reads from the browser, which silently killed the download before.
+      const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Download failed (${res.status}).`);
+      }
       const blob = await res.blob();
       const objUrl = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = objUrl;
-      a.download = `limbu-ai-video-${Date.now()}.mp4`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => window.URL.revokeObjectURL(objUrl), 200);
-    } catch {
-      showToast("Download failed.", "error");
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || "Download failed.", "error");
     }
   };
 
@@ -1027,7 +1036,7 @@ export default function VideoGenerationPage() {
           </div>
           <div>
             <h1 className="text-base font-black text-slate-900 uppercase tracking-wide">
-              AI <span className="text-[#EAB308]">Video Generator</span>
+              Text To <span className="text-[#EAB308]">Video</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">
               Turn an offer or script into a ready-to-post video

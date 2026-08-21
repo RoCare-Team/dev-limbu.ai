@@ -42,33 +42,6 @@ import InstagramShareModal from "@/components/post-management/InstagramShareModa
 const GENERATION_COST = 300;
 const GENERATE_TIMEOUT_MS = 14.5 * 60 * 1000; // 14.5 minutes — server allows up to 15
 
-const LANGUAGE_GROUPS = [
-  {
-    title: "Most Used",
-    languages: ["Hindi", "English", "Hinglish"],
-  },
-  {
-    title: "Major Regional",
-    languages: [
-      "Marathi", "Gujarati", "Tamil", "Telugu", "Kannada", "Bengali",
-      "Punjabi", "Malayalam", "Urdu", "Odia", "Assamese", "Konkani",
-      "Nepali", "Sindhi", "Kashmiri", "Dogri", "Manipuri",
-    ],
-  },
-  {
-    title: "Regional Dialects",
-    languages: [
-      "Haryanvi", "Bhojpuri", "Rajasthani", "Marwari", "Awadhi",
-      "Chhattisgarhi", "Maithili", "Magahi", "Bundeli", "Bagheli",
-      "Garhwali", "Kumaoni", "Tulu", "Santali",
-    ],
-  },
-  {
-    title: "International",
-    languages: ["Spanish", "French", "Arabic"],
-  },
-];
-
 const UPLOAD_FIELDS = [
   { key: "logo", label: "Logo", icon: ImageIcon },
   { key: "character", label: "Character", icon: UserIcon },
@@ -172,10 +145,10 @@ function UploadTile({ field, file, onChange, onRemove, disabled, showToast }) {
 /* ----------------------------------------------------
    LANGUAGE PICKER
 ---------------------------------------------------- */
-function LanguagePicker({ value, onChange, disabled }) {
+function LanguagePicker({ value, onChange, disabled, groups }) {
   return (
     <div className="space-y-4">
-      {LANGUAGE_GROUPS.map((group) => (
+      {groups.map((group) => (
         <div key={group.title} className="space-y-2">
           <p className="text-[9px] font-black uppercase tracking-widest text-slate-900/40">
             {group.title}
@@ -610,6 +583,7 @@ export default function VideoGenerationPage() {
   const [businessName, setBusinessName] = useState("");
   const [keywords, setKeywords] = useState("");
   const [language, setLanguage] = useState("Hinglish");
+  const [languageGroups, setLanguageGroups] = useState([]);
   const [inputMode, setInputMode] = useState("text"); // "text" | "script" — mutually exclusive
   const [text, setText] = useState("");
   const [script, setScript] = useState("");
@@ -649,6 +623,17 @@ export default function VideoGenerationPage() {
       .catch(() => setIgAccounts([]));
 
     fetchHistory(uid);
+
+    // Language options now come from a dynamic API instead of being hardcoded.
+    fetch("/api/video-generation/languages")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) {
+          setLanguageGroups(d.data.groups || []);
+          if (d.data.default) setLanguage(d.data.default);
+        }
+      })
+      .catch(() => setLanguageGroups([]));
   }, []);
 
   const fetchHistory = async (uid) => {
@@ -1164,7 +1149,16 @@ export default function VideoGenerationPage() {
                   </span>
                 </div>
                 <div className="max-h-56 overflow-y-auto pr-1 border border-slate-100 rounded-lg p-3 bg-slate-50/50">
-                  <LanguagePicker value={language} onChange={setLanguage} disabled={isGenerating} />
+                  {languageGroups.length > 0 ? (
+                    <LanguagePicker
+                      value={language}
+                      onChange={setLanguage}
+                      disabled={isGenerating}
+                      groups={languageGroups}
+                    />
+                  ) : (
+                    <p className="text-xs text-slate-900/40 text-center py-4">Loading languages…</p>
+                  )}
                 </div>
               </div>
             )}

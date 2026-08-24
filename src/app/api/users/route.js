@@ -737,7 +737,16 @@ export async function GET(req) {
           $group: {
             _id: {
               agent: "$assignedAgentId",
-              stage: { $ifNull: ["$leadStage", "Active"] },
+              // "" (empty string) aur null/missing dono ko "Active" treat karo,
+              // taaki yeh totalActiveUsers wali definition se match kare
+              // (see: leadStage: { $in: ["Active", "", null] } above).
+              stage: {
+                $cond: [
+                  { $in: ["$leadStage", [null, ""]] },
+                  "Active",
+                  "$leadStage",
+                ],
+              },
               leadStatus: { $ifNull: ["$leadStatus", "Cold"] },
             },
             count: { $sum: 1 },

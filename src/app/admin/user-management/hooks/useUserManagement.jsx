@@ -91,10 +91,13 @@ export default function useUserManagement(props = {}) {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
+        const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
+        if (!email) return;
+
         let dateParams = "";
         if (propDateFilter && propDateFilter !== "all") {
           if (propDateFilter === "custom" && propStartDate && propEndDate) {
-             dateParams = `?dateFilter=custom&startDate=${propStartDate}&endDate=${propEndDate}`;
+             dateParams = `&dateFilter=custom&startDate=${propStartDate}&endDate=${propEndDate}`;
           } else if (propDateFilter !== "custom") {
              const end = new Date();
              const start = new Date();
@@ -107,11 +110,13 @@ export default function useUserManagement(props = {}) {
              } else if (propDateFilter === "6months") {
                 start.setMonth(start.getMonth() - 6);
              }
-             dateParams = `?dateFilter=${propDateFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
+             dateParams = `&dateFilter=${propDateFilter}&startDate=${start.toISOString()}&endDate=${end.toISOString()}`;
           }
         }
 
-        const res = await fetch(`/api/post-status${dateParams}`);
+        const res = await fetch(
+          `/api/post-status?email=${encodeURIComponent(email)}&countOnly=true${dateParams}`,
+        );
         const data = await res.json();
         if (data.success) {
           setTotalPostsCount(data.count || 0);

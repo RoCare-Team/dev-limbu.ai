@@ -1,6 +1,8 @@
 import dbConnect from "@/lib/dbConnect";
 import Post from "@/models/PostStatus";
 import AiContentReport from "@/models/AiContentReport";
+import User from "@/models/User";
+import Admin from "@/models/Admin";
 
 // Helper to return JSON response
 const json = (body, status = 200) =>
@@ -228,6 +230,7 @@ export async function GET(req) {
     const id = searchParams.get("id");
     const status = searchParams.get("status");
     const userId = searchParams.get("userId");
+    const email = searchParams.get("email");
 
     // Pagination parameters
     const page = parseInt(searchParams.get("page")) || 1;
@@ -242,6 +245,28 @@ export async function GET(req) {
     const query = {};
     if (userId) {
       query.userId = userId;
+    }
+
+    // Scope posts to the logged-in admin/agent/manager's own users
+    // (mirrors the role-based scoping used in /api/users)
+    if (!id && email) {
+      const admin = await Admin.findOne({ email });
+      if (!admin) {
+        return json({ success: false, error: "Admin not found" }, 404);
+      }
+
+      if (admin.role === "agent" || admin.role === "manager") {
+        const ownerField =
+          admin.role === "agent" ? "assignedAgentId" : "accountManager";
+        const scopedUsers = await User.find({ [ownerField]: admin._id })
+          .select("userId")
+          .lean();
+        const scopedUserIds = scopedUsers.map((u) => u.userId).filter(Boolean);
+
+        query.userId = scopedUserIds.length
+          ? { $in: scopedUserIds }
+          : "__none__"; // no users assigned -> no posts should match
+      }
     }
 
     if (status === "videos") {
@@ -296,6 +321,21 @@ export async function GET(req) {
     // Total count for frontend pagination UI
     const totalCount = await Post.countDocuments(query);
 
+    // Count-only mode (e.g. dashboard "Total Posts" card) — skip fetching full docs
+    if (searchParams.get("countOnly") === "true") {
+      return json({
+        success: true,
+        data: [],
+        count: totalCount,
+        pagination: {
+          totalItems: totalCount,
+          totalPages: 1,
+          currentPage: 1,
+          limit: 0,
+        },
+      });
+    }
+
     // Multiple posts (paginated)
     let queryBuilder = Post.find(query).sort({ createdAt: -1 });
 
@@ -312,7 +352,7 @@ export async function GET(req) {
     return json({
       success: true,
       data: posts,
-      count: posts.length,
+      count: totalCount,
       pagination: {
         totalItems: totalCount,
         totalPages: limit > 0 ? Math.ceil(totalCount / limit) : 1,

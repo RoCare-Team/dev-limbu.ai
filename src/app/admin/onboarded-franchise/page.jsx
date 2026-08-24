@@ -31,8 +31,10 @@ import {
   Ban,
   Building2,
   CalendarDays,
+  Check,
   CheckCircle2,
   Copy,
+  ExternalLink,
   Eye,
   EyeOff,
   KeyRound,
@@ -47,6 +49,9 @@ import {
 } from "lucide-react";
 
 const ADMIN_PASSWORD = "Manoj@321#";
+
+/** Franchise panel ka public login page — franchise owners ko yahi share karna hai. */
+const FRANCHISE_LOGIN_URL = "https://www.limbu.ai/franchise-panel/login";
 
 /* ----------------------------
    DATE HELPERS
@@ -129,6 +134,7 @@ export default function OnboardedFranchisePage() {
   const [revealedPasswords, setRevealedPasswords] = useState({});
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [copiedId, setCopiedId] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Kis franchise ka impersonation chal raha hai (button spinner ke liye)
   const [impersonatingId, setImpersonatingId] = useState(null);
@@ -548,6 +554,16 @@ export default function OnboardedFranchisePage() {
     }
   };
 
+  const copyLoginLink = async () => {
+    try {
+      await navigator.clipboard.writeText(FRANCHISE_LOGIN_URL);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 1500);
+    } catch {
+      /* clipboard blocked — ignore */
+    }
+  };
+
   const copyPassword = async (id) => {
     try {
       await navigator.clipboard.writeText(revealedPasswords[id]);
@@ -591,20 +607,49 @@ export default function OnboardedFranchisePage() {
           </Box>
         </Box>
 
-        <Button
-          onClick={fetchFranchises}
-          disabled={loading}
-          variant="outlined"
-          startIcon={
-            <RefreshCw
-              size={16}
-              className={loading ? "animate-spin" : undefined}
-            />
-          }
-          sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
-        >
-          {loading ? "Loading..." : "Refresh"}
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Tooltip title={FRANCHISE_LOGIN_URL}>
+            <Button
+              component="a"
+              href={FRANCHISE_LOGIN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="outlined"
+              startIcon={<ExternalLink size={16} />}
+              sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+            >
+              Franchise Login
+            </Button>
+          </Tooltip>
+
+          <Tooltip title={copiedLink ? "Link copied!" : "Copy login link"}>
+            <IconButton
+              onClick={copyLoginLink}
+              sx={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 2,
+                color: copiedLink ? "#16a34a" : "#475569",
+              }}
+            >
+              {copiedLink ? <Check size={16} /> : <Copy size={16} />}
+            </IconButton>
+          </Tooltip>
+
+          <Button
+            onClick={fetchFranchises}
+            disabled={loading}
+            variant="outlined"
+            startIcon={
+              <RefreshCw
+                size={16}
+                className={loading ? "animate-spin" : undefined}
+              />
+            }
+            sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+          >
+            {loading ? "Loading..." : "Refresh"}
+          </Button>
+        </Stack>
       </Stack>
 
       {error ? (

@@ -263,6 +263,16 @@ export default function AdminLayout({ children }) {
               href: "/admin/create-franchise",
               icon: <LucideHeadset size={16} />,
             },
+            {
+              name: "OnBoarded Franchise",
+              href: "/admin/onboarded-franchise",
+              icon: <Building2 size={16} />,
+            },
+            {
+              name: "Franchise Payouts",
+              href: "/admin/franchise-payout",
+              icon: <Wallet size={16} />,
+            },
           ],
         },
 
@@ -282,18 +292,6 @@ export default function AdminLayout({ children }) {
           title: "Integrations",
           groupIcon: <Link2 size={16} />,
           items: [
-            {
-              name: "OnBoarded Franchise",
-              href: "/admin/onboarded-franchise",
-              icon: <Building2 size={16} />,
-            },
-
-            {
-              name: "Franchise Payouts",
-              href: "/admin/franchise-payout",
-              icon: <Wallet size={16} />,
-            },
-
             {
               name: "Business Connected Nodes",
               href: "/admin/connected-node",

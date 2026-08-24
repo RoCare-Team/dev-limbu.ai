@@ -31,10 +31,14 @@ export async function GET(req) {
     ---------------------------- */
     let users;
 
+    // Passwords never go out with the list — the hash is useless to the UI and
+    // the plaintext copy is only served by the passkey-guarded /api/users/password.
+    const HIDE_PASSWORDS = "-password -plainPassword";
+
     if (user.role === "superAdmin" || user.role === "admin") {
       // Full access
-      users = await Admin.find();
-    } 
+      users = await Admin.find().select(HIDE_PASSWORDS);
+    }
     else if (user.role === "franchiseAdmin") {
       // Franchise ke sab users
       users = await Admin.find({
@@ -42,8 +46,8 @@ export async function GET(req) {
           { franchiseId: user.franchiseId },
           { managerId: user.id },        // LPO created users
         ],
-      });
-    } 
+      }).select(HIDE_PASSWORDS);
+    }
     else if (user.role === "manager" || user.role === "subadmin") {
       // Team + franchise users
       users = await Admin.find({
@@ -51,8 +55,8 @@ export async function GET(req) {
           { managerId: user.id },
           { franchiseId: user.franchiseId },
         ],
-      });
-    } 
+      }).select(HIDE_PASSWORDS);
+    }
     else {
       return NextResponse.json(
         { message: "No permission to view users" },

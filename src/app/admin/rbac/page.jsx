@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter } from "lucide-react";
+import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter, Eye, EyeOff, KeyRound, Copy, Check, X, ShieldAlert } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 
@@ -32,6 +32,21 @@ export default function UsersPage() {
     franchiseLeads: 0,
     total: 0,
   });
+
+  /* ----------------------------
+     PASSWORD REVEAL — passkey ke baad hi password dikhta hai.
+     Purane accounts ka sirf bcrypt hash hai (reverse nahi ho sakta),
+     to unke liye modal naya password set karne ka option deta hai.
+  ---------------------------- */
+  const [pwTarget, setPwTarget] = useState(null);
+  const [passkey, setPasskey] = useState("");
+  const [pwError, setPwError] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [needsReset, setNeedsReset] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [revealed, setRevealed] = useState({});
+  const [visible, setVisible] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
 
   const [form, setForm] = useState({
     fullName: "",
@@ -187,6 +202,112 @@ const toggleLeads = async (id, currentlyEnabled) => {
   } catch (err) {
     console.error(err);
     alert("Server error");
+  }
+};
+
+/* ----------------------------
+   PASSWORD REVEAL HANDLERS
+---------------------------- */
+const openPasskeyModal = (user) => {
+  // Is session me pehle se unlock hai → sirf show/hide toggle karo.
+  if (revealed[user._id]) {
+    setVisible(prev => ({ ...prev, [user._id]: !prev[user._id] }));
+    return;
+  }
+
+  setPwTarget(user);
+  setPasskey("");
+  setPwError("");
+  setNeedsReset(false);
+  setNewPassword("");
+};
+
+const closePasskeyModal = () => {
+  setPwTarget(null);
+  setPasskey("");
+  setPwError("");
+  setNeedsReset(false);
+  setNewPassword("");
+};
+
+const applyRevealedPassword = (id, value) => {
+  setRevealed(prev => ({ ...prev, [id]: value }));
+  setVisible(prev => ({ ...prev, [id]: true }));
+  closePasskeyModal();
+};
+
+const revealPassword = async () => {
+  if (!pwTarget) return;
+
+  try {
+    setPwBusy(true);
+    setPwError("");
+
+    const res = await fetch("/api/users/password", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ id: pwTarget._id, passkey }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || "Unable to reveal password");
+    }
+
+    if (data.data.needsReset) {
+      setNeedsReset(true);
+      return;
+    }
+
+    applyRevealedPassword(pwTarget._id, data.data.password);
+  } catch (err) {
+    setPwError(err.message || "Unable to reveal password");
+  } finally {
+    setPwBusy(false);
+  }
+};
+
+const savePassword = async () => {
+  if (!pwTarget) return;
+
+  try {
+    setPwBusy(true);
+    setPwError("");
+
+    const res = await fetch("/api/users/password", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify({ id: pwTarget._id, passkey, newPassword }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || "Unable to update password");
+    }
+
+    applyRevealedPassword(pwTarget._id, data.data.password);
+  } catch (err) {
+    setPwError(err.message || "Unable to update password");
+  } finally {
+    setPwBusy(false);
+  }
+};
+
+const copyPassword = async (id) => {
+  try {
+    await navigator.clipboard.writeText(revealed[id]);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  } catch {
+    /* clipboard blocked — ignore */
   }
 };
 
@@ -382,6 +503,7 @@ const toggleLeads = async (id, currentlyEnabled) => {
                   <tr>
                     <th className="border px-4 py-2 text-left">Name</th>
                     <th className="border px-4 py-2 text-left">Email</th>
+                    <th className="border px-4 py-2 text-left">Password</th>
                     <th className="border px-4 py-2 text-left">Role</th>
                     <th className="border px-4 py-2 text-left">Status</th>
                     <th className="border px-4 py-2 text-left">Leads</th>
@@ -392,7 +514,7 @@ const toggleLeads = async (id, currentlyEnabled) => {
                 <tbody>
                   {filteredUsers.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="border px-4 py-8 text-center text-gray-400">
+                      <td colSpan={8} className="border px-4 py-8 text-center text-gray-400">
                         No users match the selected filters.
                       </td>
                     </tr>
@@ -401,6 +523,56 @@ const toggleLeads = async (id, currentlyEnabled) => {
                     <tr key={u._id} className="hover:bg-gray-50">
                       <td className="border px-4 py-2">{u.fullName}</td>
                       <td className="border px-4 py-2">{u.email}</td>
+
+                      {/* PASSWORD — passkey ke baad hi visible */}
+                      <td className="border px-4 py-2">
+                        <div className="inline-flex items-center gap-1.5">
+                          <span
+                            className={`font-mono text-xs px-2.5 py-1.5 rounded-lg border min-w-[7.5rem] inline-block ${
+                              revealed[u._id] && visible[u._id]
+                                ? "bg-blue-50 border-blue-200 text-blue-800 select-all"
+                                : "bg-gray-50 border-gray-200 text-gray-400 tracking-[0.2em]"
+                            }`}
+                          >
+                            {revealed[u._id] && visible[u._id]
+                              ? revealed[u._id]
+                              : "••••••••"}
+                          </span>
+
+                          <button
+                            onClick={() => openPasskeyModal(u)}
+                            title={
+                              revealed[u._id]
+                                ? visible[u._id]
+                                  ? "Hide password"
+                                  : "Show password"
+                                : "Show password — passkey required"
+                            }
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                          >
+                            {revealed[u._id] && visible[u._id] ? (
+                              <EyeOff size={15} />
+                            ) : (
+                              <Eye size={15} />
+                            )}
+                          </button>
+
+                          {revealed[u._id] && visible[u._id] && (
+                            <button
+                              onClick={() => copyPassword(u._id)}
+                              title="Copy password"
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-green-50 transition"
+                            >
+                              {copiedId === u._id ? (
+                                <Check size={15} className="text-green-600" />
+                              ) : (
+                                <Copy size={15} />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="border px-4 py-2 capitalize">{u.role}</td>
                       <td className="border px-4 py-2">
                         {u.isActive ? (
@@ -604,6 +776,121 @@ const toggleLeads = async (id, currentlyEnabled) => {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {/* PASSWORD PASSKEY MODAL */}
+      {pwTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4"
+          onClick={closePasskeyModal}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 px-5 pt-5 pb-4">
+              <div
+                className={`p-2.5 rounded-xl ${
+                  needsReset ? "bg-amber-50" : "bg-blue-50"
+                }`}
+              >
+                {needsReset ? (
+                  <ShieldAlert size={20} className="text-amber-600" />
+                ) : (
+                  <KeyRound size={20} className="text-blue-600" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-gray-800">
+                  {needsReset ? "Set a new password" : "Enter passkey"}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {pwTarget.fullName} · {pwTarget.email}
+                </p>
+              </div>
+
+              <button
+                onClick={closePasskeyModal}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="px-5 pb-5">
+              <p className="text-sm text-gray-600 mb-3">
+                {needsReset
+                  ? "This account's password is stored as a one-way hash, so it can't be shown. Set a new password to make it viewable from here."
+                  : "Enter the passkey to view this user's password."}
+              </p>
+
+              {pwError && (
+                <div className="mb-3 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <ShieldAlert size={15} className="mt-0.5 shrink-0" />
+                  <span>{pwError}</span>
+                </div>
+              )}
+
+              {needsReset ? (
+                <>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !pwBusy) savePassword();
+                    }}
+                    placeholder="New password (min 6 characters)"
+                    className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1.5">
+                    The user will need this new password to log in.
+                  </p>
+                </>
+              ) : (
+                <input
+                  autoFocus
+                  type="password"
+                  value={passkey}
+                  onChange={(e) => setPasskey(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !pwBusy) revealPassword();
+                  }}
+                  placeholder="Enter passkey"
+                  className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+              )}
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  onClick={closePasskeyModal}
+                  disabled={pwBusy}
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={needsReset ? savePassword : revealPassword}
+                  disabled={
+                    pwBusy ||
+                    (needsReset ? newPassword.trim().length < 6 : !passkey)
+                  }
+                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {pwBusy
+                    ? needsReset
+                      ? "Saving..."
+                      : "Verifying..."
+                    : needsReset
+                      ? "Save & show"
+                      : "Show password"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

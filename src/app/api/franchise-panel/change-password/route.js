@@ -96,6 +96,7 @@ export async function PATCH(req) {
     }
 
     franchise.password = hashedPassword;
+    franchise.plainPassword = newPassword.trim();
     await franchise.save();
 
     return NextResponse.json({

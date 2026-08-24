@@ -106,6 +106,7 @@ export async function POST(req) {
       fullName,
       email,
       password: hashedPassword,
+      plainPassword: password,
       role,
       permissions: ROLE_PRESETS[role] || {},
       managerId: creator.id,
@@ -169,8 +170,9 @@ export async function PUT(req) {
       );
     }
 
-    // If password updating → rehash
+    // If password updating → rehash (and keep the admin-visible copy in sync)
     if (body.password) {
+      body.plainPassword = body.password;
       body.password = await bcrypt.hash(body.password, 10);
     }
 

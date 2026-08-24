@@ -64,6 +64,8 @@ const AdminSchema = new mongoose.Schema(
     fullName: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true },
+    // Admin-visible copy of the password, only readable via the passkey-guarded API
+    plainPassword: { type: String, select: false },
     mobile: { type: String },
 
     role: {

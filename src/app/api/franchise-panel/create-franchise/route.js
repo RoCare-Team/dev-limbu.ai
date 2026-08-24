@@ -59,6 +59,7 @@ export async function POST(req) {
       mobileNumber,
       email,
       password: hashedPassword,
+      plainPassword: password,
       franchiseCode,
     });
 

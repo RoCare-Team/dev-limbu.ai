@@ -53,6 +53,7 @@ import {
   getFranchiseEmailTemplatesForGroup,
 } from "@/lib/franchiseEmailTemplates";
 import useUserManagementLogic from "../../user-management/useUserManagementLogic";
+import { META_FRANCHISE_FORM_ID } from "@/lib/metaFormLeadsConfig";
 
 /* ---------------- CONFIG ---------------- */
 const PAGE_SIZE = 50;
@@ -444,6 +445,23 @@ export default function FranchiseLeadsPage() {
   const [remarkHistory, setRemarkHistory] = useState({});
   const [franchiseAdmins, setFranchiseAdmins] = useState([]);
   const [role, setRole] = useState("");
+
+  /* ----------------------------
+     META LEADS SYNC
+     Refresh button aur har 30 min ek background sync chalta hai —
+     page reload nahi hota, sirf data dobara fetch hota hai.
+  ---------------------------- */
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [syncError, setSyncError] = useState("");
+  /** Do sync ek saath na chalein (manual + auto overlap). */
+  const syncInFlightRef = useRef(false);
+  /**
+   * `fetchLeads` har render par naya closure hai (current filters/page ke saath).
+   * syncMetaLeads stable rehna chahiye, isliye latest version ref se uthate hain —
+   * warna auto-sync purane filters ke saath refetch kar deta.
+   */
+  const fetchLeadsRef = useRef(null);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [bulkAssignee, setBulkAssignee] = useState("");
   const [sendingFranchiseMsg, setSendingFranchiseMsg] = useState(false);
@@ -868,6 +886,71 @@ export default function FranchiseLeadsPage() {
     setFilterLoading(false);
   };
 
+  // Har render par latest closure ref me — syncMetaLeads isi ko call karta hai.
+  fetchLeadsRef.current = fetchLeads;
+
+  /* ----------------------------
+     META LEADS SYNC
+     Meta se naye franchise leads DB me import karta hai, phir list refresh.
+     `silent` = auto (30 min) run — koi success toast nahi.
+  ---------------------------- */
+  const syncMetaLeads = useCallback(
+    async ({ silent = false } = {}) => {
+      if (syncInFlightRef.current) return;
+
+      const email =
+        localStorage.getItem("adminEmail") || localStorage.getItem("email");
+      const userRole = localStorage.getItem("role");
+
+      // Import API sirf superAdmin/admin ko allow karta hai — baaki roles ke
+      // liye sirf list refresh kar dete hain (403 toast se bachne ke liye).
+      if (!email || !["superAdmin", "admin"].includes(userRole || "")) {
+        await fetchLeadsRef.current?.();
+        return;
+      }
+
+      syncInFlightRef.current = true;
+      setSyncing(true);
+      setSyncError("");
+
+      try {
+        const res = await fetch(
+          `/api/meta-leads-import?formIds=${META_FRANCHISE_FORM_ID}&email=${encodeURIComponent(
+            email,
+          )}`,
+          { cache: "no-store" },
+        );
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || data.message || "Meta sync failed");
+        }
+
+        setLastSyncedAt(new Date());
+
+        if (!silent) {
+          const inserted = data.stats?.todayInsertedCount;
+          toast.success(
+            typeof inserted === "number"
+              ? `Meta sync done — ${inserted} new lead${inserted === 1 ? "" : "s"} today`
+              : "Meta sync done",
+          );
+        }
+      } catch (err) {
+        console.error("Meta leads sync failed", err);
+        setSyncError(err.message || "Meta sync failed");
+        if (!silent) toast.error(err.message || "Meta sync failed");
+      } finally {
+        syncInFlightRef.current = false;
+        setSyncing(false);
+        // Sync fail ho ya pass — list to hamesha fresh karni hai.
+        await fetchLeadsRef.current?.();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const openFranchiseRemarkForLeadId = useCallback(
     async (leadId) => {
       const idStr = String(leadId);
@@ -961,6 +1044,23 @@ export default function FranchiseLeadsPage() {
     setRole(userRole);
     fetchFranchiseAdmins();
   }, []);
+
+  /* ----------------------------
+     AUTO META SYNC — har 30 minute
+     Page reload nahi hota; background me import chalta hai aur
+     list chupchaap refresh ho jaati hai.
+  ---------------------------- */
+  useEffect(() => {
+    const THIRTY_MINUTES = 30 * 60 * 1000;
+
+    const id = setInterval(() => {
+      // Tab background me hai to skip — wapas aane par agla tick chal jayega.
+      if (typeof document !== "undefined" && document.hidden) return;
+      syncMetaLeads({ silent: true });
+    }, THIRTY_MINUTES);
+
+    return () => clearInterval(id);
+  }, [syncMetaLeads]);
 
   useEffect(() => {
     if (
@@ -2779,16 +2879,47 @@ export default function FranchiseLeadsPage() {
               )}
 
               <button
-                onClick={fetchLeads}
-                disabled={loading}
+                onClick={() => syncMetaLeads()}
+                disabled={loading || syncing}
+                title="Meta se naye leads import karke list refresh karta hai"
                 className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all shadow-sm disabled:opacity-50"
               >
                 <RefreshCw
-                  className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 ${loading || syncing ? "animate-spin" : ""}`}
                 />
-                Refresh
+                {syncing ? "Syncing..." : "Refresh"}
               </button>
             </div>
+          </div>
+
+          {/* SYNC STATUS — auto sync har 30 min */}
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  syncing
+                    ? "bg-blue-500 animate-pulse"
+                    : syncError
+                      ? "bg-red-500"
+                      : "bg-green-500"
+                }`}
+              />
+              Auto-sync every 30 min
+            </span>
+
+            {lastSyncedAt && (
+              <span>
+                Last synced{" "}
+                {lastSyncedAt.toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+
+            {syncError && (
+              <span className="text-red-600">Sync failed: {syncError}</span>
+            )}
           </div>
 
           {/* FILTERS */}

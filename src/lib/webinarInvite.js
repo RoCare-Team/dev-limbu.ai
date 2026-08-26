@@ -14,7 +14,7 @@
 /** Zoom join link (user-management leads) — env se override kar sakte hain. */
 export const WEBINAR_JOIN_LINK =
   process.env.WEBINAR_JOIN_LINK ||
-  "https://us06web.zoom.us/j/85769394728?pwd=rLLbOCayy4hh7dRJhjb7aHRRSb2nXD.1";
+  "https://us06web.zoom.us/webinar/register/WN_z2RZGh7IStGrj7vVUWvsnQ";
 
 /** Franchise leads ka apna alag webinar registration link. */
 export const FRANCHISE_WEBINAR_JOIN_LINK =

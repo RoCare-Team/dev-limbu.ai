@@ -28,10 +28,10 @@ const clientLogos = [
 
 export default function HeroSection() {
   return (
-    <section className="relative w-full min-h-[calc(100vh-80px)] flex flex-col bg-white overflow-hidden text-slate-900 pt-20 lg:pt-28">
+    <section className="relative w-full min-h-[calc(100vh-80px)] flex flex-col bg-white overflow-hidden text-slate-900 pt-2 lg:pt-4">
 
       {/* Demo CTA */}
-      <div className="absolute top-22 md:top-24 right-2 md:right-10 lg:right-16 z-30 scale-90 sm:scale-100 origin-top-right">
+      <div className="absolute top-2 md:top-4 right-2 md:right-10 lg:right-16 z-30 scale-90 sm:scale-100 origin-top-right">
         <Link
           href="/webinar-demo"
           className="flex items-center gap-2 px-3 py-2 rounded-xl group bg-white border border-slate-200 shadow-md hover:shadow-lg transition-all"

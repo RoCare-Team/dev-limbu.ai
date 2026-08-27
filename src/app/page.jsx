@@ -1,4 +1,5 @@
 import HeaderSection from "@/components/sections/HeaderSection";
+import FestivalBannerSection from "@/components/sections/FestivalBannerSection";
 import HeroSection from "@/components/sections/HeroSection";
 import StatsSection from "@/components/sections/StatsSection";
 import BusinessTypesSection from "@/components/sections/BusinessTypesSection";
@@ -22,6 +23,9 @@ export default function HomePage() {
 
       {/* SSR */}
       <HeaderSection />
+
+      {/* Festival creative — apni date window ke bahar khud hide ho jata hai */}
+      <FestivalBannerSection />
 
       {/* SSR */}
       <HeroSection />

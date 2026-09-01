@@ -9,7 +9,12 @@ import { deductFromWalletAction } from "@/app/actions/postActions";
 import { graphApiFormEncode } from "@/utils/postHelpers";
 import { getBaseUrl } from "@/utils/urlHelper";
 import { resolveGmbAccessToken } from "@/lib/gmbSession";
-import { warmImageUrl, isGalleryOnlyFailure, sleep } from "@/lib/gmbMedia";
+import {
+  warmImageUrl,
+  isGalleryOnlyFailure,
+  isRetryableGmbFailure,
+  sleep,
+} from "@/lib/gmbMedia";
 import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePhone } from "@/lib/gmbPostSanitize";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
@@ -383,6 +388,38 @@ export async function GET(req) {
     const retryPostId = new URL(req.url).searchParams.get("postId")?.trim();
     const RETRYABLE = ["scheduled", "failed", "partial_failed", "processing"];
 
+    // ── Self-healing pickup rules ────────────────────────────────────────────
+    // Pehle candidate query sirf `status: "scheduled"` thi. Do silent-miss holes
+    // isi wajah se the (dono production me confirmed):
+    //
+    //  1. STUCK "processing" — cron post ko "processing" mark karta hai aur agar
+    //     wo run beech me mar jaye (PM2 max_memory restart, nginx/curl timeout,
+    //     deploy) to post hamesha "processing" me pada rehta hai. Koi query use
+    //     dobara nahi uthati → us profile ka post kabhi nahi jata. Ab
+    //     `processingSince` purana hone par claim wapas le li jaati hai.
+    //
+    //  2. FAILED / PARTIAL_FAILED kabhi apne aap retry nahi hote the — sirf
+    //     dashboard ke manual "Publish now" button se. Ek transient GMB error
+    //     (photo gallery, 5xx, "service currently unavailable") = us profile ka
+    //     us din ka post gaya. Ab bounded auto-retry: MAX_PUBLISH_ATTEMPTS tak,
+    //     exponential backoff ke saath. Per-location loop already `isPosted`
+    //     locations ko skip karta hai, isliye retry se duplicate post nahi hota.
+    const STALE_PROCESSING_MS =
+      Math.max(5, Number(process.env.PUBLISH_STALE_PROCESSING_MIN) || 20) * 60 * 1000;
+    const MAX_PUBLISH_ATTEMPTS = Math.max(
+      1,
+      Number(process.env.PUBLISH_MAX_ATTEMPTS) || 4,
+    );
+    const staleBefore = new Date(now.getTime() - STALE_PROCESSING_MS);
+
+    // Reclaim / retry sirf HAAL ke posts ke liye. Iske bina ye change purane
+    // stuck aur failed posts (mahine bhar purane) ko ek saath live publish kar
+    // deta — client ke GMB par 2 hafte purana content chala jata. Sirf itni hi
+    // window jitni me post abhi bhi relevant hai.
+    const RETRY_WINDOW_MS =
+      Math.max(1, Number(process.env.PUBLISH_RETRY_WINDOW_HOURS) || 36) * 3600 * 1000;
+    const retryAfterDate = new Date(now.getTime() - RETRY_WINDOW_MS);
+
     let candidates;
     if (retryPostId) {
       const one = await Post.findById(retryPostId).select("_id status").lean();
@@ -398,16 +435,35 @@ export async function GET(req) {
           { status: 409 },
         );
       }
-      candidates = [{ _id: one._id }];
+      candidates = [{ _id: one._id, status: one.status }];
       log(`🔁 Manual retry for single post ${retryPostId} (status=${one.status})`);
     } else {
       candidates = await Post.find({
-        status: "scheduled",
-        scheduledDate: { $lte: now },
+        $or: [
+          // Normal path — publish time aa gaya.
+          { status: "scheduled", scheduledDate: { $lte: now } },
+          // Reclaim: pichla run is post par marr gaya tha.
+          {
+            status: "processing",
+            scheduledDate: { $gte: retryAfterDate, $lte: now },
+            $or: [
+              { processingSince: { $lte: staleBefore } },
+              // Purane documents jinme `processingSince` field hi nahi thi.
+              { processingSince: { $in: [null, undefined] }, updatedAt: { $lte: staleBefore } },
+            ],
+          },
+          // Bounded auto-retry for a failed / partially failed publish.
+          {
+            status: { $in: ["failed", "partial_failed"] },
+            scheduledDate: { $gte: retryAfterDate, $lte: now },
+            publishAttempts: { $lt: MAX_PUBLISH_ATTEMPTS },
+            $or: [{ nextRetryAt: { $lte: now } }, { nextRetryAt: { $in: [null, undefined] } }],
+          },
+        ],
       })
         .sort({ scheduledDate: 1 })
         .limit(BATCH_SIZE)
-        .select("_id")
+        .select("_id status processingSince")
         .lean();
     }
 
@@ -434,14 +490,25 @@ export async function GET(req) {
     const run = createRunLogger({ phase: "publish-scheduled", trigger: "cron" });
 
     for (const candidate of candidates) {
-      // Manual retry: kisi bhi retryable status se claim karo. Normal cron:
-      // sirf "scheduled" (taaki do runs ek hi post double na karein).
+      // Claim atomic hai: filter me WAHI status hai jis wajah se ye post
+      // candidate bana tha. Do overlapping cron runs me pehla hi jeetega —
+      // doosre ka filter match nahi karega (status ab "processing" ho chuka)
+      // aur wo post skip kar dega. Isliye double-publish possible nahi.
+      //
+      // "processing" ko bhi claim kiya jaa sakta hai, par sirf tab jab wo stale
+      // ho — us case me `processingSince` naya set hota hai, to teesra run usi
+      // post ko dobara reclaim nahi kar payega.
       const claimFilter = retryPostId
         ? { _id: candidate._id, status: { $in: RETRYABLE } }
-        : { _id: candidate._id, status: "scheduled" };
+        : candidate.status === "processing"
+          ? { _id: candidate._id, status: "processing", processingSince: candidate.processingSince ?? null }
+          : { _id: candidate._id, status: candidate.status };
       const post = await Post.findOneAndUpdate(
         claimFilter,
-        { status: "processing" },
+        {
+          $set: { status: "processing", processingSince: new Date(), nextRetryAt: null },
+          $inc: { publishAttempts: 1 },
+        },
         { new: true },
       );
 
@@ -502,9 +569,21 @@ export async function GET(req) {
       }
 
       let failed = false;
-      let successCount = 0;
+      // Retry run me pehle se posted targets ko success ginna zaroori hai.
+      // Warna: 125 me se 120 locations pichli baar chale gaye, retry me sirf 5
+      // bache — agar wo 5 bhi na chale to successCount=0 aata aur post "failed"
+      // mark hota, jabki 120 locations par post LIVE hai. Ab wo "partial_failed"
+      // rehta hai aur baaki 5 agli attempt me pick hote hain.
+      const alreadyPostedTargets =
+        (Array.isArray(post.locations) ? post.locations.filter((l) => l.isPosted).length : 0) +
+        (Array.isArray(post.fbPages) ? post.fbPages.filter((p) => p.isPosted).length : 0) +
+        (Array.isArray(post.igPages) ? post.igPages.filter((a) => a.isPosted).length : 0);
+      let successCount = alreadyPostedTargets;
       let failedCount = 0;
       const platformsPosted = new Set();
+      if (alreadyPostedTargets > 0) {
+        log(`↻ Retry attempt ${post.publishAttempts} — ${alreadyPostedTargets} target(s) already posted, sirf baaki targets try honge`);
+      }
 
       // ── FACEBOOK ────────────────────────────────────────
       if (hasFb) {
@@ -824,12 +903,14 @@ export async function GET(req) {
                 // failed" aata hai (yahi is post ke fail hone ki wajah thi).
                 if (!isVideoSelection) await warmImageUrl(mediaUrl, log);
 
-                const callPublish = () =>
+                const callPublish = (overrides) =>
                   fetchWithTimeout(
                     fetch(`${baseUri}/api/gmb/publish`, {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(payload),
+                      body: JSON.stringify(
+                        overrides ? { ...payload, ...overrides } : payload,
+                      ),
                     }).then(async (res) => {
                       const text = await res.text();
                       const data = text ? JSON.parse(text) : {};
@@ -843,37 +924,79 @@ export async function GET(req) {
                     120000,
                   );
 
-                // Gallery-only failure me GMB par kuch bhi publish nahi hota,
-                // isliye retry safe hai (duplicate post ka risk nahi).
-                const MAX_GALLERY_ATTEMPTS = 3;
+                // ── Per-location retry ────────────────────────────────────────
+                // Pehle sirf "Photo gallery upload failed" retry hota tha aur
+                // sirf 3 baar. 60-din ke production data me ye SABSE BADI wajah
+                // nikli ki "kuch locations par post nahi jata": 1492 locations
+                // gallery step par, 26 "Internal error encountered.", 2
+                // "service currently unavailable", 1 timeout. Baaki errors ko ek
+                // hi koshish milti thi.
+                //
+                // Ab: har RETRYABLE transient error par backoff ke saath retry,
+                // aur aakhri koshish me gallery step chhod kar sirf POST — taaki
+                // ek flaky photo-upload us location ka post hi na kha jaye.
+                // (Gallery fail hone par upstream kuch bhi publish nahi karta,
+                // isliye ye retry duplicate post nahi banate.)
+                const MAX_LOC_ATTEMPTS = Math.max(
+                  2,
+                  Number(process.env.GMB_LOCATION_RETRIES) || 4,
+                );
                 let result;
                 let gmbSucceeded = 0;
                 let gmbFailed = [];
+                let galleryFallback = false;
 
-                for (let attempt = 1; attempt <= MAX_GALLERY_ATTEMPTS; attempt++) {
-                  result = await callPublish();
+                for (let attempt = 1; attempt <= MAX_LOC_ATTEMPTS; attempt++) {
+                  result = await callPublish(
+                    galleryFallback ? { checkmark: "post" } : undefined,
+                  );
                   gmbSucceeded =
                     result?.data?.succeeded ?? result?.data?.success?.length ?? 0;
                   gmbFailed = result?.data?.fail ?? [];
 
-                  const galleryRetryable =
-                    (!result?.ok || gmbSucceeded === 0) &&
-                    isGalleryOnlyFailure(gmbFailed);
+                  if (result?.ok && gmbSucceeded > 0) {
+                    if (galleryFallback) {
+                      log(
+                        `⚠ ${loc.locationId}: post LIVE hai, par photo gallery upload skip karna pada (Google baar-baar fail kar raha tha)`,
+                      );
+                    }
+                    break;
+                  }
 
-                  if (!galleryRetryable) break;
-
-                  if (attempt === MAX_GALLERY_ATTEMPTS) {
+                  if (!isRetryableGmbFailure(gmbFailed)) {
                     log(
-                      `⚠ GMB gallery upload still failing after ${attempt} attempts — giving up`,
+                      `⛔ ${loc.locationId}: permanent error — retry nahi (${String(gmbFailed?.[0]?.error || "").slice(0, 120)})`,
                     );
                     break;
                   }
 
-                  const waitMs = 4000 * attempt; // 4s, phir 8s — media settle hone do
+                  if (attempt === MAX_LOC_ATTEMPTS) {
+                    log(
+                      `⚠ ${loc.locationId}: ${attempt} koshish ke baad bhi fail — post-level auto-retry par chhoda ja raha hai`,
+                    );
+                    break;
+                  }
+
+                  // Aakhri koshish se pehle: agar problem sirf gallery step ki
+                  // hai to bina gallery ke publish karo — post to chala jaye.
+                  if (
+                    !galleryFallback &&
+                    attempt === MAX_LOC_ATTEMPTS - 1 &&
+                    !isVideoSelection &&
+                    payload.checkmark === "both" &&
+                    isGalleryOnlyFailure(gmbFailed)
+                  ) {
+                    galleryFallback = true;
+                    log(
+                      `↻ ${loc.locationId}: gallery step baar-baar fail — aakhri koshish checkmark="post" ke saath (photo gallery skip)`,
+                    );
+                  }
+
+                  const waitMs = 4000 * attempt; // 4s, 8s, 12s — media settle hone do
                   log(
-                    `↻ "Photo gallery upload failed" — image re-warm karke ${waitMs / 1000}s me retry (attempt ${attempt + 1}/${MAX_GALLERY_ATTEMPTS})`,
+                    `↻ ${loc.locationId}: retry ${attempt + 1}/${MAX_LOC_ATTEMPTS} ${waitMs / 1000}s me — "${String(gmbFailed?.[0]?.error || "unknown").slice(0, 80)}"`,
                   );
-                  await warmImageUrl(mediaUrl, log);
+                  if (!isVideoSelection) await warmImageUrl(mediaUrl, log);
                   await sleep(waitMs);
                 }
 
@@ -891,6 +1014,9 @@ export async function GET(req) {
                     l.isPosted = true;
                     l.postedAt = new Date();
                     l.apiResponse = result;
+                    // Pichli koshish ka error hata do — warna retry me post ho
+                    // chuki location bhi "error" ke saath dikhti rehti hai.
+                    l.error = "";
                   }
                 });
 
@@ -914,6 +1040,33 @@ export async function GET(req) {
                 post.markModified("mediaStatus");
                 processedLocIds.add(loc.locationId);
                 successCount++;
+
+                // ✅ STEP 1b: Progress TURANT DB me likho.
+                //
+                // Pehle 125 locations ka `isPosted` sirf memory me rehta tha aur
+                // `post.save()` sabse aakhir me hota tha. Agar run beech me mar
+                // jaye (PM2 restart, timeout, deploy) to publish ho chuke 80
+                // locations ka record hi nahi bachta — aur retry unhe DOBARA
+                // post kar deta (duplicate). Ab har location ke baad likhte hain,
+                // isliye reclaim/retry hamesha wahin se uthata hai jahan chhoda
+                // tha. `processingSince` heartbeat ka bhi kaam karta hai taaki ek
+                // lamba (100+ location) run galti se "stale" na maana jaye.
+                try {
+                  await Post.updateOne(
+                    { _id: post._id },
+                    {
+                      $set: {
+                        "locations.$[el].isPosted": true,
+                        "locations.$[el].postedAt": new Date(),
+                        "locations.$[el].error": "",
+                        processingSince: new Date(),
+                      },
+                    },
+                    { arrayFilters: [{ "el.locationId": loc.locationId }] },
+                  );
+                } catch (persistErr) {
+                  log(`⚠️ Could not persist location progress: ${persistErr.message}`);
+                }
 
                 // ✅ STEP 2: Wallet alag try-catch mein
                 try {
@@ -954,15 +1107,29 @@ export async function GET(req) {
                 post.markModified("whenPosted");
                 failed = true;
                 failedCount++;
+                // Heartbeat: 100+ locations wala run 20 min se lamba ho sakta
+                // hai. Iske bina doosra cron run ise "stale processing" samajh
+                // kar parallel me claim kar leta.
+                try {
+                  await Post.updateOne(
+                    { _id: post._id },
+                    { $set: { processingSince: new Date() } },
+                  );
+                } catch { /* heartbeat best-effort */ }
               }
             }
             post.markModified("locations");
             const gmbOk = post.locations.filter((l) => l.isPosted).length;
-            const gmbErr = post.locations.find((l) => l.error)?.error;
-            if (gmbOk > 0 && !gmbErr)
+            const gmbFailedLocs = post.locations.filter((l) => !l.isPosted).length;
+            const gmbErr = post.locations.find((l) => !l.isPosted && l.error)?.error;
+            if (gmbFailedLocs === 0)
               slog.pass("publish:gmb", `posted to ${gmbOk}/${post.locations.length} location(s)`);
             else
-              slog.fail("publish:gmb", `posted ${gmbOk}/${post.locations.length} location(s)`, gmbErr);
+              slog.fail(
+                "publish:gmb",
+                `posted ${gmbOk}/${post.locations.length} location(s) — ${gmbFailedLocs} baaki (auto-retry hoga)`,
+                gmbErr,
+              );
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
 
@@ -989,6 +1156,8 @@ export async function GET(req) {
       if (!failed && successCount > 0) {
         post.status = "posted";
         post.error = null;
+        post.processingSince = null;
+        post.nextRetryAt = null;
         stats.posted++;
         slog.success("done", `posted to [${Array.from(platformsPosted).join(", ")}]`);
 
@@ -1047,17 +1216,46 @@ export async function GET(req) {
         slog.fail("done:failed", `all targets failed (${failedCount} failed)`);
       }
 
+      // Fail hone par agla auto-retry schedule karo (exponential backoff:
+      // ~10m, 30m, 90m). Attempts khatam → post wahin rukta hai aur sirf
+      // dashboard ka manual "Publish now" use hota hai.
+      if (post.status !== "posted") {
+        post.processingSince = null;
+        if (post.publishAttempts < MAX_PUBLISH_ATTEMPTS) {
+          const backoffMin = 10 * Math.pow(3, Math.max(0, post.publishAttempts - 1));
+          post.nextRetryAt = new Date(now.getTime() + backoffMin * 60 * 1000);
+          log(
+            `↻ Auto-retry #${post.publishAttempts + 1}/${MAX_PUBLISH_ATTEMPTS} scheduled in ~${backoffMin}m (${post.nextRetryAt.toISOString()})`,
+          );
+        } else {
+          post.nextRetryAt = null;
+          log(`⛔ Auto-retry exhausted after ${post.publishAttempts} attempts — manual publish needed`);
+          slog.fail(
+            "retry:exhausted",
+            `auto-retry ${post.publishAttempts}/${MAX_PUBLISH_ATTEMPTS} attempts exhausted — dashboard se manual publish karein`,
+          );
+        }
+      }
+
       await post.save();
 
-      // Advance the automation plan's counters so the dashboard reflects progress:
-      // postIndex drives the used/pending keyword badges, postsUsed the PUBLISHED
-      // count + remaining. Only for automation-queued posts that actually posted.
+      // Advance the automation plan's counters so the dashboard reflects progress.
+      //
+      // ⚠ postIndex yahan JAAN-BOOJHKAR nahi badhta. Slot cursor ka MAALIK
+      // /api/cron/automation-fill-queue hai — wahan post banate waqt hi
+      // `$inc: { postIndex: 1 }` hota hai. Yahan dobara badhane se har publish
+      // ho chuke post par cursor 2 slot aage kood jata tha, matlab
+      // `queueTiming.publishSchedule` ka har DUSRA din kabhi generate hi nahi
+      // hota (production me confirmed: publish hone wale plans ka
+      // postIndex/postsCreated ≈ 2.0). Yahi "kuch profiles ka post miss ho jata
+      // hai" aur "plan aadhe time me khatam ho gaya" dono ki jad thi.
+      // postsUsed (published count) aur lastPostDate yahan sahi jagah par hain.
       if (post.status === "posted" && post.automationQueued && post.automationPlanId) {
         try {
           await AutomationPlan.updateOne(
             { _id: post.automationPlanId },
             {
-              $inc: { postIndex: 1, "planDetails.postsUsed": 1 },
+              $inc: { "planDetails.postsUsed": 1 },
               $set: { lastPostDate: new Date() },
             },
           );

@@ -8,6 +8,39 @@ import {
 
 const AISENSY_URL = "https://whatsapp.limbu.ai/api/campaigns/send";
 
+/**
+ * Batch endpoint — campaign ka naam URL me jaata hai aur ek hi request me
+ * saare numbers `messages[]` array ke through bhejte hain.
+ */
+const aisensyBatchUrl = (campaignName) =>
+  `https://whatsapp.limbu.ai/api/campaigns/${encodeURIComponent(
+    campaignName,
+  )}/send`;
+
+/**
+ * Business Growth Workshop template ka video header — env se override ho sakta hai.
+ *
+ * Note: WhatsApp ke liye video H.264 Baseline + faststart (moov atom aage) honi
+ * chahiye, warna "something is wrong with the video file" aata hai. Naya video
+ * lagane se pehle:
+ *   ffmpeg -i in.mp4 -vf scale=720:1280 -c:v libx264 -profile:v baseline \
+ *     -level 3.1 -pix_fmt yuv420p -c:a aac -b:a 128k -ar 44100 \
+ *     -movflags +faststart out.mp4
+ */
+const BUSINESS_WORKSHOP_VIDEO_URL =
+  process.env.BUSINESS_WORKSHOP_VIDEO_URL ||
+  "https://limbuai.s3.ap-south-1.amazonaws.com/workshop-whatsapp.mp4";
+
+/** "Ramesh Kumar Sharma" → { firstName: "Ramesh", lastName: "Kumar Sharma" } */
+const splitName = (fullName) => {
+  const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return { firstName: "User", lastName: "" };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(" "),
+  };
+};
+
 const normalizeNumber = (num) => {
   if (!num) return null;
 
@@ -57,6 +90,42 @@ const CAMPAIGN_CONFIG = {
   review_reply_automation_new: {
     campaignName: "review_reply_automation_new",
     source: "user-management review-reply",
+  },
+
+  /**
+   * Hindi subscription reminder — 2 params:
+   *   {{1}} user ka naam
+   *   {{2}} webinar registration link
+   * Ye campaign batch endpoint use karta hai (ek request, saare numbers).
+   */
+  subscription_reminder_hindi: {
+    campaignName: "new_reminder_sub_hindi",
+    source: "user-management subscription-reminder-hindi",
+    batch: true,
+    buildParams: ({ firstName }) => ({
+      // Batch endpoint par "$FirstName" placeholder resolve nahi hota (message
+      // me literal "$FirstName" chala jaata tha), isliye asli naam bhejte hain.
+      templateParams: [firstName, WEBINAR_JOIN_LINK],
+      paramsFallbackValue: { FirstName: firstName },
+    }),
+  },
+
+  /**
+   * Business Growth Workshop — video header + 1 param:
+   *   {{1}} webinar join link
+   * Batch endpoint se jaata hai.
+   */
+  business_growth_workshop: {
+    campaignName: "business_growth_workshop_camp",
+    source: "user-management business-growth-workshop",
+    batch: true,
+    buildParams: () => ({
+      templateParams: [WEBINAR_JOIN_LINK],
+      media: {
+        url: BUSINESS_WORKSHOP_VIDEO_URL,
+        filename: "business-growth-workshop.mp4",
+      },
+    }),
   },
 
   /**
@@ -146,6 +215,105 @@ if (templateId === "google_business_profile_management") {
 
     let sent = 0;
     const results = [];
+
+    /* ----------------------------
+       BATCH CAMPAIGNS — ek hi request me saare numbers
+    ---------------------------- */
+    if (config.batch) {
+      const messages = [];
+
+      for (const user of users) {
+        const destination = normalizeNumber(
+          user.customer_no_with_prefix || user.phone || user.mobileNumber,
+        );
+
+        if (!destination) {
+          results.push({
+            userId: user.userId || null,
+            number:
+              user.customer_no_with_prefix || user.phone || user.mobileNumber,
+            status: "Invalid number",
+          });
+          continue;
+        }
+
+        const { firstName } = splitName(user.name || user.fullName || "User");
+
+        // Batch endpoint "$FirstName" jaise placeholders resolve nahi karta,
+        // isliye yahan hamesha asli value bhejte hain.
+        const built = config.buildParams
+          ? config.buildParams({ firstName, user })
+          : {
+              templateParams: [firstName],
+              paramsFallbackValue: { FirstName: firstName },
+            };
+
+        const message = {
+          destination,
+          templateParams: built.templateParams || [],
+        };
+
+        // Optional — sirf tab bhejte hain jab template me hain, warna API ko
+        // khaali objects bhejne ki zarurat nahi.
+        if (built.paramsFallbackValue) {
+          message.paramsFallbackValue = built.paramsFallbackValue;
+        }
+        if (built.media) {
+          message.media = built.media;
+        }
+
+        messages.push(message);
+      }
+
+      if (!messages.length) {
+        return NextResponse.json(
+          { success: false, message: "No valid phone numbers", sent: 0, results },
+          { status: 400 },
+        );
+      }
+
+      try {
+        const response = await fetch(aisensyBatchUrl(config.campaignName), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, messages }),
+        });
+
+        const json = await response.json().catch(() => ({}));
+        const ok = response.ok && json?.success !== false;
+
+        if (!ok) {
+          console.error("Batch campaign failed:", config.campaignName, json);
+          return NextResponse.json(
+            {
+              success: false,
+              message: json?.message || "Campaign send failed",
+              sent: 0,
+              results,
+            },
+            { status: 502 },
+          );
+        }
+
+        sent = messages.length;
+        messages.forEach((m) =>
+          results.push({ number: m.destination, status: "Sent" }),
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: `Campaign sent to ${sent} number${sent === 1 ? "" : "s"}`,
+          sent,
+          results,
+        });
+      } catch (error) {
+        console.error("Batch campaign error:", error);
+        return NextResponse.json(
+          { success: false, message: "Could not reach WhatsApp service", sent: 0 },
+          { status: 502 },
+        );
+      }
+    }
 
     for (const user of users) {
       const destination = normalizeNumber(

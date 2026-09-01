@@ -11,6 +11,7 @@ import {
   resolveGmbOwnerId,
   findRefreshTokenByGoogleId,
   convergeGoogleAccountToken,
+  hasBusinessManageScope,
 } from "@/lib/gmbSession";
 import { createGmbPhoneToken, gmbPhoneCookieOptions } from "@/lib/appSession";
 
@@ -102,6 +103,31 @@ export async function GET(request) {
     // OVERWRITE na kare (aur ulta bhi nahi). Dekho: models/GmbConnection.js
     const connectedBy = phone ? "self" : (payload.impersonated ? "admin_impersonation" : "self");
 
+    // ── SCOPE GATE ──────────────────────────────────────────────────────────
+    // Google ke consent screen par har scope ka apna checkbox hota hai. User
+    // "…your Google Business Profile" wala box untick kar de to login to ho
+    // jata hai, par token me `business.manage` nahi aata — aur har GBP call
+    // 403 "ACCESS_TOKEN_SCOPE_INSUFFICIENT" deti hai, jabki dashboard "connected"
+    // dikhata hai. Production me 269 me se 51 connections aise hi bane the.
+    //
+    // Isliye aisa grant SAVE hi nahi karte: ek baar `prompt=consent` ke saath
+    // wapas bhejte hain taaki user permission tick kar sake, aur phir bhi na ho
+    // to saaf error dikhate hain.
+    if (!hasBusinessManageScope(tokens.scope)) {
+      console.warn(
+        `[gmb/callback] granted scope me business.manage nahi — owner=${ownerId} scope="${tokens.scope}"`,
+      );
+      if (!payload.retried) {
+        const retryUrl = new URL("/api/gmb/connect", GMB_BASE_URL);
+        retryUrl.searchParams.set("consent", "1");
+        retryUrl.searchParams.set("retried", "1");
+        retryUrl.searchParams.set("callbackUrl", callbackUrl);
+        if (payload.phone) retryUrl.searchParams.set("phone", payload.phone);
+        return NextResponse.redirect(retryUrl);
+      }
+      return redirectBack(request, callbackUrl, { gmb_error: "scope_missing" });
+    }
+
     const existing = await GmbConnection.findOne({ userId: ownerId, connectedBy });
 
     // Google pehle se granted account par refresh_token nahi bhejta. Aise me
@@ -112,9 +138,17 @@ export async function GET(request) {
     //
     // Isliye order: naya token (agar mila) → is slot ka purana → USI Google
     // account ki doosri row (kisi bhi user/slot) ka zinda token.
+    //
+    // Purana token TABHI reuse hota hai jab uske grant me bhi business.manage
+    // tha. Warna ek login-only token adopt ho jata tha aur user "connected"
+    // dikhne ke bawajood har GBP call par 403 khaata tha.
+    const reusableExisting =
+      existing?.refreshToken && hasBusinessManageScope(existing.scope ?? tokens.scope)
+        ? existing.refreshToken
+        : null;
     const refreshToken =
       tokens.refresh_token ||
-      existing?.refreshToken ||
+      reusableExisting ||
       (await findRefreshTokenByGoogleId(profile.sub, { excludeUserId: ownerId })) ||
       null;
 
@@ -160,8 +194,10 @@ export async function GET(request) {
     // Naya token mila to usi Google account ke baaki connections ko bhi ispar
     // shift kar do — warna wo purane token pakde rehte hain jo Google kabhi bhi
     // prune kar sakta hai.
+    // Scope pass karte hain taaki ek login-only token galti se poore Google
+    // account ke saare connections par na phail jaye.
     if (tokens.refresh_token) {
-      await convergeGoogleAccountToken(profile.sub, refreshToken);
+      await convergeGoogleAccountToken(profile.sub, refreshToken, tokens.scope);
     }
 
     // Legacy mirror: purane code paths (admin panel, login-as-user) abhi bhi

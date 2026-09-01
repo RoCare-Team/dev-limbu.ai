@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getAppUser } from "@/lib/appSession";
-import { GMB_SCOPE, gmbRedirectUri, GMB_BASE_URL } from "@/lib/gmbSession";
+import {
+  GMB_SCOPE,
+  gmbRedirectUri,
+  GMB_BASE_URL,
+  hasBusinessManageScope,
+} from "@/lib/gmbSession";
+import dbConnect from "@/lib/dbConnect";
+import GmbConnection from "@/models/GmbConnection";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +69,29 @@ async function shouldForceConsent(request) {
   const consentParam = new URL(request.url).searchParams.get("consent");
   if (consentParam === "1") return true;
   if (consentParam === "0") return false;
+
+  // Ek case me consent FORCE karna hi padta hai: pichla grant `business.manage`
+  // ke bina bana tha (user ne consent screen par Business Profile ka checkbox
+  // untick kiya tha). `prompt=select_account` par Google consent screen dobara
+  // dikhata hi nahi — wahi adhoora grant lauta deta hai aur user infinite
+  // "insufficient scopes" me phans jata hai. Consent screen hi wo jagah hai
+  // jahan wo checkbox tick kar sakta hai.
+  try {
+    const appUser = getAppUser(request);
+    const phone = String(new URL(request.url).searchParams.get("phone") || "").replace(/\D/g, "");
+    const key = appUser?.userId ? { userId: appUser.userId } : phone ? { phone } : null;
+    if (key) {
+      await dbConnect();
+      const rows = await GmbConnection.find(key).select("scope invalidReason").lean();
+      const anyGoodScope = rows.some((r) => hasBusinessManageScope(r.scope));
+      const anyScopeProblem = rows.some(
+        (r) => r.invalidReason === "insufficient_scope" || (r.scope && !hasBusinessManageScope(r.scope)),
+      );
+      if (anyScopeProblem && !anyGoodScope) return true;
+    }
+  } catch {
+    // Best-effort — check fail ho to normal flow chalne do.
+  }
 
   // Default: consent NAHI.
   //

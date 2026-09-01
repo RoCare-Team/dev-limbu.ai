@@ -46,3 +46,33 @@ export function isGalleryOnlyFailure(failList) {
     /photo gallery|gallery upload/i.test(String(f?.error || f?.message || "")),
   );
 }
+
+const failText = (failList) =>
+  (Array.isArray(failList) ? failList : [])
+    .map((f) => String(f?.error || f?.message || ""))
+    .join(" | ");
+
+/**
+ * Kya ye failure DOBARA koshish karne layak hai?
+ *
+ * Pehle sirf "Photo gallery upload failed" retry hota tha. Google ke baaki
+ * transient errors — "Internal error encountered.", "The service is currently
+ * unavailable.", timeout — ko ek hi koshish milti thi, aur wo location us din
+ * ke liye chhoot jaati thi. 60-din ke production data me yahi silent misses
+ * dikhe (1492x gallery, 26x internal error, 2x unavailable, 1x timeout).
+ *
+ * PERMANENT errors (jaise "Request contains an invalid argument." — galat CTA /
+ * phone / URL) jaan-boojhkar retry nahi hote: wahi payload dobara bhejne se
+ * wahi error aayega, sirf waqt aur quota barbaad hoga.
+ */
+export function isRetryableGmbFailure(failList) {
+  const text = failText(failList);
+  // Fail list khaali hai (network / parse error) — ek aur koshish banti hai.
+  if (!text.trim()) return true;
+  if (/invalid argument|invalid_argument|permission|not authorized|forbidden|not found/i.test(text)) {
+    return false;
+  }
+  return /photo gallery|gallery upload|internal error|currently unavailable|unavailable|timed out|timeout|deadline|backend error|try again|temporarily|rate limit|quota|too many requests|\b(500|502|503|504)\b/i.test(
+    text,
+  );
+}

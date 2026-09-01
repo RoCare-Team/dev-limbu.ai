@@ -14,6 +14,8 @@ import {
   Zap,
   MessageSquare,
   Video,
+  BellRing,
+  Presentation,
 } from "lucide-react";
 
 const TEMPLATE_GROUPS = [
@@ -96,6 +98,26 @@ const TEMPLATE_GROUPS = [
     bg: "bg-teal-50",
     iconBg: "bg-teal-100",
     iconColor: "text-teal-600",
+  },
+  {
+    id: "subscription_reminder",
+    title: "Subscription Reminder (Hindi)",
+    subtitle: "Hindi me subscription renewal reminder bhejein",
+    icon: BellRing,
+    border: "border-orange-200",
+    bg: "bg-orange-50",
+    iconBg: "bg-orange-100",
+    iconColor: "text-orange-600",
+  },
+  {
+    id: "business_workshop",
+    title: "Business Growth Workshop",
+    subtitle: "Workshop invite video ke saath bhejein",
+    icon: Presentation,
+    border: "border-violet-200",
+    bg: "bg-violet-50",
+    iconBg: "bg-violet-100",
+    iconColor: "text-violet-600",
   },
   {
     id: "bulk_whatsapp",
@@ -236,6 +258,38 @@ const WEBINAR_TEMPLATES = [
   },
 ];
 
+const SUBSCRIPTION_REMINDER_TEMPLATES = [
+  {
+    id: "subscription_reminder_hindi",
+    title: "Subscription Reminder (Hindi)",
+    subtitle: "Ek hi request me saare selected users ko jaata hai",
+    preview: [
+      "नमस्ते {{1}},",
+      "Limbu AI के फ्री वेबिनार में आपका स्वागत है।",
+      "अपनी सीट रजिस्टर करने के लिए नीचे दिए लिंक पर क्लिक करें:",
+      "🔗 {{2}}",
+      "किसी भी सहायता के लिए नीचे चैट करें।",
+    ],
+    buttons: ["Chat Now", "Need Support"],
+  },
+];
+
+const BUSINESS_WORKSHOP_TEMPLATES = [
+  {
+    id: "business_growth_workshop",
+    title: "Business Growth Workshop",
+    subtitle: "Video header ke saath, ek hi request me saare users ko",
+    preview: [
+      "🎥 (Video: Business Growth Workshop)",
+      "🔴 LIVE Workshop — Aaj 6 PM",
+      "👉 https://us06web.zoom.us/webinar/register/WN_z2RZGh7IStGrj7vVUWvsnQ",
+      "🆔 Webinar ID: 840 8877 0671",
+      "🔐 Passcode: 109187",
+    ],
+    buttons: ["Chat Now", "Need Support"],
+  },
+];
+
 const BULK_WHATSAPP_TEMPLATES = [
   {
     id: "bulk_custom_whatsapp",
@@ -260,6 +314,9 @@ const getTemplatesForGroup = (groupId) => {
   if (groupId === "gmb_insights") return GMB_INSIGHTS_TEMPLATES;
   if (groupId === "review_reply") return REVIEW_REPLY_TEMPLATES;
   if (groupId === "webinar") return WEBINAR_TEMPLATES;
+  if (groupId === "subscription_reminder")
+    return SUBSCRIPTION_REMINDER_TEMPLATES;
+  if (groupId === "business_workshop") return BUSINESS_WORKSHOP_TEMPLATES;
   if (groupId === "bulk_whatsapp") return BULK_WHATSAPP_TEMPLATES;
 
   return [];

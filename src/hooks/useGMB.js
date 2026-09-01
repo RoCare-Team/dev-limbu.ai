@@ -207,7 +207,16 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
           toast.error("Couldn't refresh your login session. Please reload the page.");
         }
       } else if (!isBackground) {
-        toast.error(`Couldn't load GMB listings: ${error.message}`);
+        // Google ke error bodies poora JSON hote hain — pehle wo jaisa ka waisa
+        // toast me chala jata tha (screen bhar ka `{"error":{"code":403,…}}`).
+        // User ke kaam ki ek line hi kaafi hai; poora body console me hai.
+        const raw = String(error.message || "Unknown error");
+        const readable = raw.trim().startsWith("{")
+          ? "Google ne abhi data dene se mana kar diya. Thodi der baad try karein."
+          : raw.length > 160
+            ? `${raw.slice(0, 160)}…`
+            : raw;
+        toast.error(`Couldn't load GMB listings: ${readable}`);
       }
     } finally {
       setInitialFetchDone(true);

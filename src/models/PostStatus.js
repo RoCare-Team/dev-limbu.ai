@@ -81,6 +81,20 @@ const PostSchema = new mongoose.Schema(
       ref: "AutomationPlan",
       default: null,
     },
+
+    // ── Publish reliability (publish-scheduled cron) ─────────────────────────
+    // Pehle `processing` ek TARAF ka darwaza tha: cron post ko "processing"
+    // mark karta tha, aur agar wo run beech me mar jaye (server restart, PM2
+    // memory restart, nginx timeout) to post hamesha ke liye wahin atak jata —
+    // kyunki cron sirf `status: "scheduled"` dhoondta hai. Un profiles ka post
+    // chup-chaap kabhi nahi jata. `processingSince` se stale claim reclaim hoti
+    // hai. `publishAttempts` + `nextRetryAt` se failed / partial_failed post
+    // bounded backoff ke saath khud retry hota hai (pehle sirf manual retry
+    // button se hota tha, isliye ek transient GMB error = us din ka post gaya).
+    processingSince: { type: Date, default: null },
+    publishAttempts: { type: Number, default: 0 },
+    nextRetryAt: { type: Date, default: null },
+
     rejectReason: { type: String, default: "" },
     error: { type: String, default: "" },
     facebookPostId: { type: String, default: "" },
@@ -116,7 +130,14 @@ const PostSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-if (mongoose.models.Post && !mongoose.models.Post.schema.path("gmbPostMeta")) {
+// Hot-reload / stale-model guard: agar cached model me naye field nahi hain to
+// use girao, warna dev me purana schema chipka reh jata hai aur naye field
+// silently drop ho jaate hain.
+if (
+  mongoose.models.Post &&
+  (!mongoose.models.Post.schema.path("gmbPostMeta") ||
+    !mongoose.models.Post.schema.path("processingSince"))
+) {
   delete mongoose.models.Post;
 }
 

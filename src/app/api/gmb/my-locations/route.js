@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getGmbSession } from '@/lib/gmbSession';
+import { getGmbSession, markConnectionScopeInsufficient } from '@/lib/gmbSession';
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,15 @@ export async function GET(request) {
     try {
       allListings = await fetchAllUserGmbListings(session.accessToken);
     } catch (e) {
+      // business.manage scope missing → reconnect hi rasta hai (dekho
+      // gmbUserListingsServer / GmbScopeInsufficientError).
+      if (e?.code === "GMB_RECONNECT_REQUIRED") {
+        await markConnectionScopeInsufficient(session.user?.id || session.userId);
+        return NextResponse.json(
+          { error: e.message, code: e.code, reason: e.reason },
+          { status: 409 },
+        );
+      }
       return NextResponse.json(
         { error: e?.message || "Failed to load Google Business data" },
         { status: 502 }

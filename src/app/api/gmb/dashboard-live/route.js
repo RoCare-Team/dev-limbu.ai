@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireGmbSession } from '@/lib/gmbSession';
+import { requireGmbSession, markConnectionScopeInsufficient } from '@/lib/gmbSession';
 import { fetchAllUserGmbListings } from "@/lib/gmbUserListingsServer";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,17 @@ export async function GET(request) {
     try {
       allListings = await fetchAllUserGmbListings(session.accessToken);
     } catch (e) {
+      // Token zinda hai par usme business.manage scope nahi (user ne consent
+      // screen par Business Profile ka checkbox tick nahi kiya). Pehle ye 502
+      // ke saath poora Google JSON toast me chala jata tha aur user kuch kar
+      // nahi sakta tha. Ab reconnect flow trigger hota hai.
+      if (e?.code === "GMB_RECONNECT_REQUIRED") {
+        await markConnectionScopeInsufficient(session.user?.id || session.userId);
+        return NextResponse.json(
+          { error: e.message, code: e.code, reason: e.reason },
+          { status: 409 },
+        );
+      }
       return NextResponse.json(
         { error: e?.message || "Failed to load Google Business data" },
         { status: 502 }

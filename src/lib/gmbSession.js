@@ -165,6 +165,36 @@ async function refreshAccessToken(conn) {
  * jeetne wala token sab par likh diya jata hai (converge) — taaki account ke
  * liye practically ek hi token zinda rahe.
  */
+/**
+ * Kya is grant me GBP ka asli scope (`business.manage`) hai?
+ *
+ * Google ke consent screen par har scope ka apna checkbox hota hai. User
+ * "See, edit, create and delete your Google Business Profile" wala box UNTICK
+ * kar de to login to ho jata hai, par access token me `business.manage` nahi
+ * aata. Aisa token har GBP API call par 403 deta hai:
+ *     ACCESS_TOKEN_SCOPE_INSUFFICIENT / "Request had insufficient authentication scopes."
+ *
+ * Production me 269 me se 51 connections aise hi login-only tokens the (27 ka
+ * scope to sirf openid+email+profile tha). Isliye ab token kahin bhi
+ * reuse/adopt karne se pehle scope verify hota hai.
+ */
+export function hasBusinessManageScope(scope) {
+  return /business\.manage/.test(String(scope || ""));
+}
+
+/**
+ * Mongo filter: aisi rows chhodo jinka scope PAKKA business.manage ke bina hai.
+ * Jinka scope record hi nahi hai (purane documents) unhe fallback ke taur par
+ * rehne dete hain — warna wo users bina wajah reconnect maangne lagenge.
+ */
+const SCOPE_OK_FILTER = {
+  $or: [
+    { scope: /business\.manage/ },
+    { scope: { $in: [null, ""] } },
+    { scope: { $exists: false } },
+  ],
+};
+
 async function siblingRefreshTokens(conn) {
   if (!conn?.googleId) return [];
   try {
@@ -172,12 +202,19 @@ async function siblingRefreshTokens(conn) {
       googleId: conn.googleId,
       userId: { $ne: conn.userId },
       refreshToken: { $nin: [null, ""] },
+      // Login-only token adopt karna = har GBP call par 403. Kabhi mat lo.
+      ...SCOPE_OK_FILTER,
     })
-      .select("refreshToken updatedAt")
+      .select("refreshToken scope updatedAt")
       .sort({ updatedAt: -1 })
       .limit(10)
       .lean();
-    return siblings.map((s) => s.refreshToken).filter(Boolean);
+    // Jinka scope verified hai wo pehle — unknown-scope sirf fallback.
+    return siblings
+      .slice()
+      .sort((a, b) => Number(hasBusinessManageScope(b.scope)) - Number(hasBusinessManageScope(a.scope)))
+      .map((s) => s.refreshToken)
+      .filter(Boolean);
   } catch {
     return [];
   }
@@ -192,19 +229,53 @@ async function siblingRefreshTokens(conn) {
 export async function findRefreshTokenByGoogleId(googleId, { excludeUserId } = {}) {
   if (!googleId) return null;
   await dbConnect();
-  const query = { googleId, refreshToken: { $nin: [null, ""] }, invalid: { $ne: true } };
+  const query = {
+    googleId,
+    refreshToken: { $nin: [null, ""] },
+    invalid: { $ne: true },
+    // GBP scope ke bina token adopt karne se hi wo 51 "connected par 403" wale
+    // connections bane the. Aise token yahan se kabhi nahi milega.
+    ...SCOPE_OK_FILTER,
+  };
   if (excludeUserId) query.userId = { $ne: excludeUserId };
-  const row = await GmbConnection.findOne(query).sort({ updatedAt: -1 }).select("refreshToken").lean();
-  return row?.refreshToken || null;
+  // business.manage wali row pehle; scope-less row sirf tab jab aur kuch na ho.
+  const rows = await GmbConnection.find(query)
+    .sort({ updatedAt: -1 })
+    .limit(10)
+    .select("refreshToken scope")
+    .lean();
+  const best =
+    rows.find((r) => hasBusinessManageScope(r.scope)) || rows[0] || null;
+  return best?.refreshToken || null;
 }
 
-/** Ek account ke saare connections ko ek hi (working) refresh token par le aao. */
-export async function convergeGoogleAccountToken(googleId, refreshToken) {
+/**
+ * Ek account ke saare connections ko ek hi (working) refresh token par le aao.
+ *
+ * Sirf tab jab source token ka scope verified ho — warna ek login-only token
+ * poore Google account ke saare connections par phail jata aur sab par GBP
+ * calls 403 dene lagti.
+ */
+export async function convergeGoogleAccountToken(googleId, refreshToken, scope) {
   if (!googleId || !refreshToken) return 0;
+  if (scope !== undefined && !hasBusinessManageScope(scope)) {
+    console.warn(
+      `[gmbSession] converge skipped for ${googleId} — source token me business.manage scope nahi hai`,
+    );
+    return 0;
+  }
   try {
     const res = await GmbConnection.updateMany(
       { googleId, refreshToken: { $ne: refreshToken } },
-      { $set: { refreshToken, invalid: false, invalidReason: null, updatedAt: new Date() } },
+      {
+        $set: {
+          refreshToken,
+          invalid: false,
+          invalidReason: null,
+          updatedAt: new Date(),
+          ...(scope ? { scope } : {}),
+        },
+      },
     );
     return res.modifiedCount || 0;
   } catch {
@@ -225,6 +296,54 @@ export class GmbTokenUnavailableError extends Error {
     super(message);
     this.name = "GmbTokenUnavailableError";
     this.code = "GMB_TEMPORARILY_UNAVAILABLE";
+  }
+}
+
+/**
+ * Token zinda hai, par usme `business.manage` scope nahi — Google har GBP call
+ * par 403 `ACCESS_TOKEN_SCOPE_INSUFFICIENT` deta hai. Ye reconnect se hi theek
+ * hota hai (user ko consent screen par Business Profile ka checkbox tick karna
+ * padega), isliye UI ke liye ise RECONNECT hi treat karte hain — warna user ko
+ * raw Google JSON toast dikhta tha aur wo kuch kar hi nahi sakta tha.
+ */
+export class GmbScopeInsufficientError extends Error {
+  constructor(
+    message = "Google Business Profile permission missing — please reconnect and allow Business Profile access",
+  ) {
+    super(message);
+    this.name = "GmbScopeInsufficientError";
+    this.code = "GMB_RECONNECT_REQUIRED";
+    this.reason = "insufficient_scope";
+    this.status = 409;
+  }
+}
+
+/** Google ke 403 body me scope-insufficient marker hai? */
+export function isScopeInsufficientResponse(status, body) {
+  if (status !== 403) return false;
+  return /ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficient authentication scopes/i.test(
+    typeof body === "string" ? body : JSON.stringify(body || ""),
+  );
+}
+
+/**
+ * Connection ko "scope missing" mark kar do taaki dashboard Reconnect maange
+ * aur cron bekaar me retry na karta rahe.
+ */
+export async function markConnectionScopeInsufficient(userId) {
+  if (!userId) return;
+  try {
+    await dbConnect();
+    // Sirf wahi rows mark karo jinke paas scope PROVABLY nahi hai. Ek hi userId
+    // par do slot ho sakte hain (self + admin_impersonation); agar unme se kisi
+    // ke grant me business.manage hai to use invalid karna galat hoga — wo
+    // connection theek kaam kar raha hai.
+    await GmbConnection.updateMany(
+      { userId, scope: { $not: /business\.manage/ } },
+      { $set: { invalid: true, invalidReason: "insufficient_scope", updatedAt: new Date() } },
+    );
+  } catch (err) {
+    console.error("[gmbSession] could not mark insufficient_scope:", err.message);
   }
 }
 

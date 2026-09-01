@@ -1,6 +1,10 @@
 /**
  * Server-only: fetch all GBP locations for a Google access token (same shape as dashboard).
  */
+import {
+  GmbScopeInsufficientError,
+  isScopeInsufficientResponse,
+} from "@/lib/gmbSession";
 
 async function fetchGMBAccounts(accessToken) {
   const res = await fetch(
@@ -9,6 +13,12 @@ async function fetchGMBAccounts(accessToken) {
   );
   if (!res.ok) {
     const errText = await res.text();
+    // Token zinda hai par usme business.manage scope nahi. Ye sirf reconnect se
+    // theek hota hai — user ko raw Google JSON dikhane ka koi matlab nahi,
+    // isliye typed error taaki UI seedha "Reconnect" flow dikhaye.
+    if (isScopeInsufficientResponse(res.status, errText)) {
+      throw new GmbScopeInsufficientError();
+    }
     throw new Error(`accounts ${res.status}: ${errText}`);
   }
   const data = await res.json();

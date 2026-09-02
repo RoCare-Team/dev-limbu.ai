@@ -6,6 +6,51 @@ import { useSession } from "@/hooks/useAppSession";
 import toast, { Toaster } from "react-hot-toast";
 import BusinessInformationPanel from "@/components/user-settings/BusinessInformationModal";
 
+/**
+ * /api/gmb/patch-location ke failure response ko padhne layak line me badalta hai.
+ *
+ * Pehle yahan sirf `data.error` dikhta tha — yaani hamesha wahi generic
+ * "One or more Google API calls failed", jisse user ko kabhi pata hi nahi
+ * chalta tha ki KAUNSA field aur KYUN fail hua (isliye same error baar-baar
+ * aata rehta tha, kyunki theek karne layak jaankari hi nahi milti thi).
+ *
+ * Do bugs the:
+ *   1. `data.detail` server par STRING hai, par client `data.detail?.error?.message`
+ *      padh raha tha — hamesha undefined.
+ *   2. `data.error || detailMsg` — generic message pehle aata tha, isliye detail
+ *      kabhi use hi nahi hota tha.
+ *
+ * Server pehle se `failures[]` (field + Google ka message) aur `savedFields[]`
+ * bhejta hai; ab wahi dikhate hain.
+ */
+function formatPatchLocationError(data, fallback) {
+  const failures = Array.isArray(data?.failures) ? data.failures : [];
+
+  if (failures.length) {
+    const shown = failures
+      .slice(0, 3)
+      .map((f) => {
+        const why = f?.message || f?.code || (f?.status ? `HTTP ${f.status}` : "unknown error");
+        return `${f?.field || "field"} — ${why}`;
+      })
+      .join(" | ");
+    const more = failures.length > 3 ? ` (+${failures.length - 3} more)` : "";
+    // Partial save me user ko ye pata hona chahiye ki kya BACH gaya, warna wo
+    // sab kuch dobara bharta hai.
+    const saved =
+      Array.isArray(data?.savedFields) && data.savedFields.length
+        ? `Saved: ${data.savedFields.join(", ")}. `
+        : "";
+    return `${saved}Failed: ${shown}${more}`;
+  }
+
+  return (
+    (typeof data?.detail === "string" && data.detail.trim()) ||
+    data?.error ||
+    fallback
+  );
+}
+
 function BackRow({ onClick }) {
   return (
     <button
@@ -199,10 +244,8 @@ export default function OptimizationPage() {
         });
         const gData = await gRes.json().catch(() => ({}));
         if (!gRes.ok) {
-          const detailMsg =
-            gData.detail?.error?.message ||
-            (Array.isArray(gData.results) && gData.results.find((r) => !r.ok)?.data?.error?.message);
-          throw new Error(gData.error || detailMsg || "Google update failed");
+          console.error("[optimization] patch-location failed:", gData);
+          throw new Error(formatPatchLocationError(gData, "Google update failed"));
         }
 
         const refreshed = await refreshGmbLocations();
@@ -299,11 +342,20 @@ export default function OptimizationPage() {
           }),
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const detailMsg =
-            data.detail?.error?.message ||
-            (Array.isArray(data.results) && data.results.find((r) => !r.ok)?.data?.error?.message);
-          throw new Error(data.error || detailMsg || "Google sync failed");
+        // Sirf TOTAL failure throw karta hai. Partial save (kuch fields Google par
+        // chale gaye, kuch nahi) pehle poora failure mana jata tha — user ko lagta
+        // tha kuch bhi save nahi hua, wo sab dobara bharta aur phir wahi ek field
+        // dobara fail hota. Yahi "baar-baar aa raha hai" wala loop tha. Ab jo
+        // bacha hai wo refresh hokar dikhta hai, aur sirf bache hue fields ka
+        // warning aata hai.
+        const partialSave = !res.ok && data?.partial === true;
+        if (!res.ok && !partialSave) {
+          console.error("[optimization] patch-location sync failed:", data);
+          throw new Error(formatPatchLocationError(data, "Google sync failed"));
+        }
+        if (partialSave) {
+          console.warn("[optimization] patch-location partial save:", data);
+          setError(formatPatchLocationError(data, "Some fields could not be saved"));
         }
         const n = Array.isArray(data.results) ? data.results.length : 0;
         const refreshed = await refreshGmbLocations();
@@ -311,11 +363,18 @@ export default function OptimizationPage() {
         if (loc && typeof loc.profileDescription === "string") {
           setProfileDescription(loc.profileDescription.trim());
         }
-        toast.success(
-          n > 0
-            ? `Synced ${n} field${n === 1 ? "" : "s"} to Google. Data reloaded from Google.`
-            : "Synced to Google. Data reloaded from Google."
-        );
+        if (partialSave) {
+          toast(formatPatchLocationError(data, "Some fields could not be saved"), {
+            icon: "⚠️",
+            duration: 8000,
+          });
+        } else {
+          toast.success(
+            n > 0
+              ? `Synced ${n} field${n === 1 ? "" : "s"} to Google. Data reloaded from Google.`
+              : "Synced to Google. Data reloaded from Google."
+          );
+        }
         if (Array.isArray(data.serviceAreaUnresolved) && data.serviceAreaUnresolved.length) {
           toast(
             `Couldn't match ${data.serviceAreaUnresolved.length} area(s) to a Google place: ${data.serviceAreaUnresolved
@@ -325,9 +384,13 @@ export default function OptimizationPage() {
           );
         }
       } catch (e) {
+        // Yahan toast JAAN-BOOJHKAR nahi. Ye error caller (BusinessInformationPanel
+        // ka handleSave / handleSaveServiceItems) ko rethrow hota hai aur wahan
+        // pehle se `toast.error` hota hai — dono jagah dikhane se user ko EK HI
+        // error do baar dikhta tha (screenshot me wahi do "One or more Google API
+        // calls failed" toasts). Page sirf inline error text dikhata hai.
         const msg = e.message || "Google sync failed";
         setError(msg);
-        toast.error(msg);
         throw e;
       } finally {
         setSyncToGmbPending(false);

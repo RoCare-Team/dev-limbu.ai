@@ -797,13 +797,26 @@ export async function POST(request) {
 
       // Partial success: some fields saved, some didn't (e.g. a transient 503).
       const partial = succeeded.length > 0;
+
+      // Generic "One or more Google API calls failed" se user kuch nahi kar
+      // sakta tha — na ye pata chalta tha ki kaunsa field toota, na kyun. Isliye
+      // yahi wo error tha jo baar-baar aata rehta tha. Ab pehle failure ka field
+      // aur Google ka apna message message me hi aa jaata hai (poori list
+      // `failures[]` me hai).
+      const firstWithMessage = summary.find((s) => s.message) || summary[0];
+      const firstDetail = firstWithMessage
+        ? `${firstWithMessage.field} — ${firstWithMessage.message || firstWithMessage.code || `HTTP ${firstWithMessage.status}`}`
+        : '';
+
       return NextResponse.json(
         {
           success: false,
           partial,
           error: partial
-            ? `Saved ${succeeded.length} of ${results.length} fields. ${failed.length} failed — please retry.`
-            : 'One or more Google API calls failed',
+            ? `Saved ${succeeded.length} of ${results.length} fields. ${failed.length} failed${firstDetail ? ` — ${firstDetail}` : ' — please retry.'}`
+            : firstDetail
+              ? `Google rejected the update — ${firstDetail}`
+              : 'One or more Google API calls failed',
           detail: summary.find((s) => s.message)?.message || null,
           savedFields: succeeded.map((s) => s.field),
           failures: summary,

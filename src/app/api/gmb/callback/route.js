@@ -17,6 +17,7 @@ import { createGmbPhoneToken, gmbPhoneCookieOptions } from "@/lib/appSession";
 
 export const dynamic = "force-dynamic";
 
+
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 /**

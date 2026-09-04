@@ -46,6 +46,9 @@ export function createRunLogger({ phase = "", trigger = "", source = "automation
       platforms: [],
       outcome: "unknown",
       error: "",
+      gmbTotal: 0,
+      gmbPosted: 0,
+      pendingLocations: [],
       steps: [],
     };
     docs.push(doc);
@@ -84,6 +87,29 @@ export function createRunLogger({ phase = "", trigger = "", source = "automation
         if (meta.keyword != null) doc.keyword = clip(meta.keyword, 200);
         if (meta.imageUrl != null) doc.imageUrl = clip(meta.imageUrl, 1000);
         if (Array.isArray(meta.platforms)) doc.platforms = meta.platforms;
+      },
+      /**
+       * Post ki locations[] daalo — log me "kis profile par gaya, kis par nahi"
+       * saaf record ho jata hai. Sirf PENDING locations store hoti hain (jo bach
+       * gayi wahi actionable hai); posted ka count `gmbPosted` me hai.
+       */
+      setLocations: (locations = []) => {
+        const list = Array.isArray(locations) ? locations : [];
+        doc.gmbTotal = list.length;
+        doc.gmbPosted = list.filter((l) => l?.isPosted).length;
+        doc.pendingLocations = list
+          .filter((l) => !l?.isPosted)
+          // Log doc bahut bada na ho — 125 me se pehli 50 pending kaafi hain.
+          .slice(0, 50)
+          .map((l) => ({
+            locationId: clip(l?.locationId, 200),
+            name: clip(l?.name || l?.title, 200),
+            locality: clip(l?.locality || l?.city, 120),
+            isPosted: false,
+            attempts: Number(l?.attempts) || 0,
+            error: clip(l?.error, 500),
+            postedAt: l?.postedAt || null,
+          }));
       },
       info: (name, message) => add(name, "info", message),
       pass: (name, message) => add(name, "pass", message),

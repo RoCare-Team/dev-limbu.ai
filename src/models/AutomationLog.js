@@ -30,6 +30,27 @@ const stepSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * Ek GMB location ka nateeja, is run me.
+ *
+ * Pehle log sirf "posted 124/125 location(s)" bolta tha aur ek hi error message
+ * dikhata tha — 125 locations wale post me ye pata hi nahi chalta tha ki KAUNSI
+ * location baaki reh gayi aur kyun. Ab har location apne naam, status, koshishon
+ * ki ginti aur apne error ke saath record hoti hai.
+ */
+const locationResultSchema = new mongoose.Schema(
+  {
+    locationId: { type: String, default: "" },
+    name: { type: String, default: "" },
+    locality: { type: String, default: "" },
+    isPosted: { type: Boolean, default: false },
+    attempts: { type: Number, default: 0 },
+    error: { type: String, default: "" },
+    postedAt: { type: Date, default: null },
+  },
+  { _id: false }
+);
+
 const automationLogSchema = new mongoose.Schema(
   {
     runId: { type: String, index: true },   // groups all plans of one cron invocation
@@ -61,6 +82,14 @@ const automationLogSchema = new mongoose.Schema(
       index: true,
     },
     error: { type: String, default: "" },   // top-level reason when outcome=failed
+
+    // Per-location nateeja — "kis profile par post gaya, kis par nahi".
+    gmbTotal:  { type: Number, default: 0 },
+    gmbPosted: { type: Number, default: 0 },
+    // Sirf un locations ki list jo abhi tak POST NAHI hui (pending/failed).
+    // Poori 125 ki list har run me store karna log ko bhaari kar deta; jo bach
+    // gayi wahi actionable hai. Posted ka count upar `gmbPosted` me hai.
+    pendingLocations: { type: [locationResultSchema], default: [] },
 
     steps: { type: [stepSchema], default: [] },
   },

@@ -18,6 +18,7 @@ import {
 import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePhone } from "@/lib/gmbPostSanitize";
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
+import { reportGmbAuthFailure } from "@/lib/gmbReconnectAlert";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -1017,6 +1018,8 @@ export async function GET(req) {
                     // Pichli koshish ka error hata do — warna retry me post ho
                     // chuki location bhi "error" ke saath dikhti rehti hai.
                     l.error = "";
+                    l.lastAttemptAt = new Date();
+                    l.attempts = (l.attempts || 0) + 1;
                   }
                 });
 
@@ -1059,8 +1062,10 @@ export async function GET(req) {
                         "locations.$[el].isPosted": true,
                         "locations.$[el].postedAt": new Date(),
                         "locations.$[el].error": "",
+                        "locations.$[el].lastAttemptAt": new Date(),
                         processingSince: new Date(),
                       },
+                      $inc: { "locations.$[el].attempts": 1 },
                     },
                     { arrayFilters: [{ "el.locationId": loc.locationId }] },
                   );
@@ -1097,41 +1102,81 @@ export async function GET(req) {
                   `❌ Error posting to location ${loc.locationId}:`,
                   err.message || "Unknown error",
                 );
-                loc.error = err.message || "Unknown error";
+                const locErr = err.message || "Unknown error";
+                loc.error = locErr;
                 loc.isPosted = false;
-                post.whenPosted = markWhenFailed(
-                  post.whenPosted,
-                  "gmb",
-                  err.message || "Unknown error",
-                );
+                loc.lastAttemptAt = new Date();
+                loc.attempts = (loc.attempts || 0) + 1;
+                post.whenPosted = markWhenFailed(post.whenPosted, "gmb", locErr);
                 post.markModified("whenPosted");
                 failed = true;
                 failedCount++;
-                // Heartbeat: 100+ locations wala run 20 min se lamba ho sakta
-                // hai. Iske bina doosra cron run ise "stale processing" samajh
-                // kar parallel me claim kar leta.
+
+                // Failure bhi TURANT likho (sirf heartbeat nahi).
+                //
+                // Success wale side par ye pehle se hota hai. Failure side par
+                // pehle sirf memory me rehta tha aur final `post.save()` ka
+                // intezaar karta tha — server wahin crash ho jaye to us location
+                // ka error kahin record hi nahi hota, aur baad me dekh kar ye
+                // bata hi nahi sakte the ki "is location par post kyun nahi
+                // gaya". Ab har location ka status (posted / kitni koshish /
+                // aakhri error / kab) DB me live rehta hai.
+                //
+                // `processingSince` heartbeat ka bhi kaam karta hai: 100+
+                // location wala run 20 min se lamba ho sakta hai, warna doosra
+                // cron run ise "stale" samajh kar parallel claim kar leta.
                 try {
                   await Post.updateOne(
                     { _id: post._id },
-                    { $set: { processingSince: new Date() } },
+                    {
+                      $set: {
+                        "locations.$[el].isPosted": false,
+                        "locations.$[el].error": String(locErr).slice(0, 500),
+                        "locations.$[el].lastAttemptAt": new Date(),
+                        processingSince: new Date(),
+                      },
+                      $inc: { "locations.$[el].attempts": 1 },
+                    },
+                    { arrayFilters: [{ "el.locationId": loc.locationId }] },
                   );
-                } catch { /* heartbeat best-effort */ }
+                } catch (persistErr) {
+                  log(`⚠️ Could not persist location failure: ${persistErr.message}`);
+                }
               }
             }
             post.markModified("locations");
+            // Har location ka nateeja log par record — "kis profile par post
+            // gaya, kis par nahi", naam + error + koshishon ke saath.
+            slog.setLocations(post.locations);
             const gmbOk = post.locations.filter((l) => l.isPosted).length;
-            const gmbFailedLocs = post.locations.filter((l) => !l.isPosted).length;
-            const gmbErr = post.locations.find((l) => !l.isPosted && l.error)?.error;
-            if (gmbFailedLocs === 0)
+            const pending = post.locations.filter((l) => !l.isPosted);
+            const gmbErr = pending.find((l) => l.error)?.error;
+            if (pending.length === 0)
               slog.pass("publish:gmb", `posted to ${gmbOk}/${post.locations.length} location(s)`);
-            else
+            else {
+              // Pehle sirf ginti dikhti thi. Ab pending locations ke NAAM bhi —
+              // taaki bina DB kholE pata chale ki kis profile par post nahi gaya.
+              const names = pending
+                .slice(0, 8)
+                // Multi-location business me har location ka naam ek hi hota
+                // hai ("RO Care India" x127) — city ke bina pata hi nahi chalta
+                // ki kaunsi branch chhooti.
+                .map((l) => [l.name, l.locality].filter(Boolean).join(" · ") || l.locationId)
+                .join(", ");
+              const more = pending.length > 8 ? ` +${pending.length - 8} more` : "";
               slog.fail(
                 "publish:gmb",
-                `posted ${gmbOk}/${post.locations.length} location(s) — ${gmbFailedLocs} baaki (auto-retry hoga)`,
+                `posted ${gmbOk}/${post.locations.length} — pending: ${names}${more} (auto-retry hoga)`,
                 gmbErr,
               );
+            }
           } catch (err) {
             log("❌ GMB Critical Error:", err.message);
+
+            // Token hi resolve nahi hua → ek bhi location try nahi hui. Roster
+            // yahan bhi record karo, warna log me sirf "critical error" dikhta
+            // hai aur ye pata nahi chalta ki poori 125 locations pending hain.
+            slog.setLocations(post.locations);
 
             // Reconnect sirf tab, jab resolveGmbAccessToken ne SAARE stored
             // tokens try karke haar maani ho (wahi connection ko `invalid` bhi
@@ -1148,6 +1193,23 @@ export async function GET(req) {
             post.markModified("whenPosted");
             failed = true;
             failedCount++;
+
+            // Token toota hai → team ko batao. Ye wahi jagah hai jahan pehle
+            // automation chup-chaap ruk jati thi: RO Care par 13 din tak roz
+            // 125 locations fail hote rahe aur kisi ko pata nahi chala.
+            // Helper khud dedupe + threshold sambhalta hai, isliye har 5-min
+            // cron run par email nahi jayega.
+            if (needsReconnect) {
+              const alert = await reportGmbAuthFailure({
+                userId: post.userId,
+                reason: err.reason || "invalid_grant",
+                businessName: loc0?.name || post.businessName || "",
+                locationCount: post.locations?.length || 0,
+                detail: err.message,
+                log,
+              });
+              if (alert.alerted) slog.info("alert:reconnect", "reconnect alert email bheja gaya");
+            }
           }
         }
       }

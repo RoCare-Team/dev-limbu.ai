@@ -240,7 +240,6 @@ const updatePostAfterPublish = async ({ payload, data, responseOk }) => {
 
   const postedDate = new Date();
 
-  post.status = "posted";
   post.postedPlatform = mergePostedPlatform(post.postedPlatform);
   post.whenPosted = mergeWhenPosted(
     post.whenPosted,
@@ -261,6 +260,32 @@ const updatePostAfterPublish = async ({ payload, data, responseOk }) => {
     });
     post.markModified("locations");
   }
+
+  // Status is call ki locations ke ASLI haal se decide hota hai — "koi ek
+  // location chali gayi" se nahi.
+  //
+  // Pehle yahan seedha `post.status = "posted"` tha, chahe fail list me
+  // locations padi hon. 2-location wale post me 1 chali jaye to post "posted"
+  // dikhta tha aur doosri location hamesha ke liye chhoot jati thi — kyunki
+  // har retry sirf failed/partial_failed posts uthata hai, "posted" ko haath
+  // nahi lagata. (Production me confirmed: status=posted, 1/2 posted.)
+  //
+  // Ginti SIRF un locations ki hoti hai jo IS call me bheji gayi thi:
+  // post-management se user jaan-boojhkar kuch hi locations select kar sakta
+  // hai, aur baaki (na chuni gayi) locations ko "pending" maan kar post ko
+  // partial_failed karna galat hoga.
+  const targetedIds = new Set(
+    payloadLocations.map((l) => normalizeLocationId(getLocationId(l))).filter(Boolean),
+  );
+  const targeted = (post.locations || []).filter((l) =>
+    targetedIds.has(normalizeLocationId(getLocationId(l))),
+  );
+  const stillPending = targeted.filter((l) => !l.isPosted);
+
+  post.status = stillPending.length ? "partial_failed" : "posted";
+  post.error = stillPending.length
+    ? `${stillPending.length} of ${targeted.length} targeted location(s) not posted`
+    : null;
 
   const mediaKey = payload.video_url ? "video" : "image";
   post.mediaStatus = {

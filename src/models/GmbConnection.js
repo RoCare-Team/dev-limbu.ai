@@ -56,6 +56,20 @@ const GmbConnectionSchema = new mongoose.Schema(
     invalid: { type: Boolean, default: false },
     invalidReason: String,
 
+    // ── Reconnect alerting ───────────────────────────────────────────────────
+    // Token marne par automation chup-chaap band ho jati thi. RO Care India ka
+    // case: 19 Aug se 13 din tak roz 125 locations fail hote rahe aur kisi ko
+    // pata hi nahi chala — kyunki kahin koi alert nahi jata tha.
+    //
+    // `reconnectAlertedAt` sirf DEDUPE ke liye hai: cron har 5 min chalta hai,
+    // to bina iske ek toota connection roz 288 email bhej deta. Reconnect
+    // hone par callback ise clear kar deta hai, taaki agli baar (agar kabhi
+    // dobara toote) alert phir se jaye.
+    reconnectAlertedAt: { type: Date, default: null },
+    // Lagatar kitne publish is connection ki wajah se fail hue — ek transient
+    // hiccup par alert na jaye, isliye threshold ke baad hi bhejte hain.
+    consecutiveAuthFailures: { type: Number, default: 0 },
+
     // Kisne connect kiya — client ne khud, ya in-house team ne admin
     // "login-as-user" (impersonation) se manager-access Google account se.
     // Default "self" rakha hai taaki purane/existing records ka behaviour

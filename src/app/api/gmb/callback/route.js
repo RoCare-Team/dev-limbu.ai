@@ -14,6 +14,7 @@ import {
   hasBusinessManageScope,
 } from "@/lib/gmbSession";
 import { createGmbPhoneToken, gmbPhoneCookieOptions } from "@/lib/appSession";
+import { clearGmbReconnectAlert } from "@/lib/gmbReconnectAlert";
 
 export const dynamic = "force-dynamic";
 
@@ -200,6 +201,10 @@ export async function GET(request) {
     if (tokens.refresh_token) {
       await convergeGoogleAccountToken(profile.sub, refreshToken, tokens.scope);
     }
+
+    // Reconnect ho gaya — alert counters saaf karo, warna cooldown ki wajah se
+    // agli baar (agar dobara toote) alert ruk jata.
+    await clearGmbReconnectAlert(ownerId);
 
     // Legacy mirror: purane code paths (admin panel, login-as-user) abhi bhi
     // GmbUser.projects[] padhte hain, isliye dono jagah likhte hain.

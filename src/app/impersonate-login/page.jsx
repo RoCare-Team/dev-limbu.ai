@@ -44,7 +44,16 @@ function ImpersonateLoginInner() {
 
       // Drop the token from the URL/history before landing on the dashboard.
       window.history.replaceState(null, "", "/impersonate-login");
-      router.replace("/dashboard");
+
+      // `next` se caller bata sakta hai ki impersonation ke baad kahan jaana
+      // hai — jaise automation-logs ka "Reconnect GMB" button, jo seedha
+      // /reconnect-gmb par bhejta hai. Sirf same-origin PATH allow hai
+      // ("/..." se shuru, "//" nahi) — warna ye ek open-redirect ban jata
+      // jisme impersonation token bahar ja sakta tha.
+      const next = typeof parsed.next === "string" ? parsed.next : "";
+      const safeNext =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+      router.replace(safeNext);
     } catch (err) {
       console.error("Impersonation handoff failed:", err);
       setError("Could not start the session. Please try again.");

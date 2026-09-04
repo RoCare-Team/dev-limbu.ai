@@ -20,8 +20,10 @@
  *   /api/automation-logs?runId=2026-06-30T11:00:00.000Z-ab12cd
  */
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import AutomationLog from "@/models/AutomationLog";
+import Post from "@/models/PostStatus";
 import User from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,18 @@ function toText(docs) {
       lines.push(line);
     }
     if (d.error) lines.push(`   ▶ reason: ${d.error}`);
+    // Multi-location post me sabse zaroori sawaal — "kaunsi location baaki hai".
+    // Ye live Post document se aata hai (GET handler me attach hota hai).
+    if (Number(d.gmbTotal) > 0) {
+      const posted = Number(d.gmbPosted) || 0;
+      const total = Number(d.gmbTotal);
+      lines.push(`   ▶ locations: ${posted}/${total} posted${posted < total ? ` — ${total - posted} PENDING` : " — all done"}`);
+      for (const l of d.pendingLocations || []) {
+        const att = l.attempts > 0 ? ` [${l.attempts}x]` : "";
+        const label = [l.name, l.locality].filter(Boolean).join(" · ") || l.locationId;
+        lines.push(`       ✗ ${label}${att} — ${l.error || "not attempted"}`);
+      }
+    }
     lines.push("");
   }
   return lines.join("\n");
@@ -80,6 +94,52 @@ export async function GET(request) {
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
+
+    // ── Live per-location status ────────────────────────────────────────────
+    // "Kis location par post gaya, kis par nahi" ka JAWAB Post document me hai
+    // (publish-scheduled har location ke baad wahin likhta hai), log me nahi.
+    //
+    // Log ka apna snapshot do wajah se kaafi nahi:
+    //   1. Purane logs me `pendingLocations` hai hi nahi (field naya hai) —
+    //      yaani puraani history par kuch dikhta hi nahi.
+    //   2. Snapshot us run ke waqt ka hai. Baad me auto-retry ne bache hue
+    //      locations post kar diye ho to log purana sach dikhata rahega.
+    //
+    // Isliye yahan har log ke `postId` se LIVE Post padh kar breakdown attach
+    // karte hain — ek hi batched query me, sab logs ke liye.
+    const postIds = [...new Set(docs.map((d) => d.postId).filter(Boolean))];
+    if (postIds.length) {
+      const validIds = postIds.filter((id) => mongoose.isValidObjectId(id));
+      const livePosts = validIds.length
+        ? await Post.find({ _id: { $in: validIds } })
+            .select("_id status locations publishAttempts")
+            .lean()
+        : [];
+      const byPostId = new Map(livePosts.map((p) => [String(p._id), p]));
+
+      for (const d of docs) {
+        const p = byPostId.get(String(d.postId || ""));
+        const locs = Array.isArray(p?.locations) ? p.locations : null;
+        if (!locs || !locs.length) continue;
+
+        d.gmbTotal = locs.length;
+        d.gmbPosted = locs.filter((l) => l.isPosted).length;
+        d.postStatus = p.status || "";
+        d.publishAttempts = p.publishAttempts || 0;
+        d.pendingLocations = locs
+          .filter((l) => !l.isPosted)
+          .slice(0, 50)
+          .map((l) => ({
+            locationId: l.locationId || "",
+            name: l.name || "",
+            locality: l.locality || l.city || "",
+            isPosted: false,
+            attempts: l.attempts || 0,
+            error: l.error || "",
+            postedAt: null,
+          }));
+      }
+    }
 
     // Attach the assigned account manager for each log's user, so the UI can
     // group logs manager-wise (log itself only stores userId).

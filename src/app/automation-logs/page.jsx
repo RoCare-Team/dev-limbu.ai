@@ -22,6 +22,7 @@ import {
   Layers,
   ListFilter,
   Loader2,
+  MapPin,
   MinusCircle,
   RefreshCw,
   RotateCw,
@@ -212,6 +213,19 @@ function buildTrail(log) {
     if (s.error) L.push(`   ERROR: ${s.error}`);
   });
   if (log.error) { L.push(""); L.push(`Reason: ${log.error}`); }
+
+  // Per-location nateeja — multi-location post me "kaunsi profile chhoot gayi"
+  // trail copy karte hi saaf dikhe (pehle sirf ginti hoti thi).
+  if (Number(log.gmbTotal) > 0) {
+    const posted = Number(log.gmbPosted) || 0;
+    const total = Number(log.gmbTotal);
+    L.push("");
+    L.push(`Locations: ${posted}/${total} posted${posted < total ? ` — ${total - posted} pending` : ""}`);
+    (log.pendingLocations || []).forEach((l) => {
+      const attempts = l.attempts > 0 ? ` [${l.attempts} attempt${l.attempts === 1 ? "" : "s"}]` : "";
+      L.push(`   ✗ ${locLabel(l)}${attempts} — ${l.error || "not attempted"}`);
+    });
+  }
   return L.join("\n");
 }
 
@@ -357,6 +371,105 @@ function RepublishButton({ postId, onDone }) {
   );
 }
 
+/**
+ * Kya ye failure RECONNECT se hi theek hoga?
+ *
+ * Token revoke ya scope missing par "Publish now" bekaar hai — wo phir se wahi
+ * error dega. Aise logs par publish ki jagah Reconnect dikhana chahiye, warna
+ * team baar-baar retry dabati rehti hai aur kuch hota nahi.
+ */
+const RECONNECT_RE = /reconnect|invalid_grant|insufficient_scope|revoked|insufficient authentication scopes/i;
+function needsReconnect(log) {
+  if (RECONNECT_RE.test(log.error || "")) return true;
+  return (log.steps || []).some(
+    (s) => s.status === "fail" && RECONNECT_RE.test(`${s.message || ""} ${s.error || ""}`),
+  );
+}
+
+/**
+ * Client ki taraf se GMB reconnect shuru karta hai — automation-logs se hi,
+ * ek click me.
+ *
+ * Flow: admin token → /api/admin/login-as-user → /impersonate-login (jo storage
+ * bharta hai) → /reconnect-gmb (jo startGmbConnect chalata hai) → Google.
+ *
+ * Naya tab isliye kholte hain ki impersonation is admin ke apne session ko na
+ * ude — logs ka tab waisa ka waisa khula rehta hai.
+ */
+function ReconnectButton({ userId, businessName }) {
+  const [state, setState] = useState("idle"); // idle | busy | err
+  const [msg, setMsg] = useState("");
+  if (!userId) return null;
+
+  const run = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (state === "busy") return;
+    setState("busy");
+    setMsg("");
+    try {
+      const adminToken =
+        typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!adminToken) throw new Error("Admin login chahiye — admin panel se login karein");
+
+      const res = await fetch("/api/admin/login-as-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.token) throw new Error(data?.error || "Impersonation failed");
+
+      const payload = encodeURIComponent(
+        JSON.stringify({
+          token: data.token,
+          userId: data.user.userId,
+          impersonatedUser: userId,
+          impersonatedEmail: data.user.email || "",
+          impersonatedName: data.user.fullName || data.user.name || businessName || "",
+          // Dashboard ki jagah seedha reconnect flow par.
+          next: "/reconnect-gmb?callbackUrl=/automation-logs",
+        }),
+      );
+      window.open(`/impersonate-login?data=${payload}`, "_blank", "noopener");
+      setState("idle");
+      setMsg("Naye tab me khula hai →");
+    } catch (err) {
+      setState("err");
+      setMsg(err.message || "Reconnect shuru nahi ho paya");
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={run}
+        disabled={state === "busy"}
+        title="Client ki taraf se Google Business Profile dobara connect karo"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-amber-600 bg-amber-600 px-3 py-1.5 text-[11.5px] font-extrabold leading-none text-white shadow-sm shadow-amber-600/20 transition hover:bg-amber-700 active:scale-[0.98] disabled:cursor-wait"
+      >
+        {state === "busy" ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <KeyRound className="h-3.5 w-3.5" />
+        )}
+        Reconnect GMB
+      </button>
+      {msg && (
+        <span className={`text-[11px] font-bold ${state === "err" ? "text-rose-700" : "text-slate-500"}`}>
+          {msg}
+        </span>
+      )}
+      {state === "idle" && !msg && (
+        <span className="text-[11px] text-slate-400">
+          Token toota hai — retry se theek nahi hoga
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── small components ───────────────────────────────────────────────────────
 function StatCard({ label, value, Icon, tone, active, onClick }) {
   return (
@@ -427,6 +540,91 @@ function StepRow({ s }) {
   );
 }
 
+/**
+ * "Kis profile par post gaya, kis par nahi" — ek nazar me.
+ *
+ * Pehle multi-location post ka log sirf "posted 124/125 location(s)" bolta tha,
+ * aur us EK bachi hui location ka naam kahin nahi hota tha. 125-location wale
+ * plan me ye practically bekaar tha — pata hi nahi chalta tha kis business par
+ * post nahi gaya. Ab publish-scheduled har location ka nateeja log par likhta
+ * hai (`gmbPosted` / `gmbTotal` + `pendingLocations[]`), aur wahi yahan dikhta
+ * hai: naam, kitni koshish hui, aur Google ka apna error.
+ */
+/**
+ * Location ka padhne-layak naam.
+ *
+ * Multi-location business me har location ka `name` EK HI hota hai ("RO Care
+ * India" x127) — sirf naam dikhane se ye pata hi nahi chalta ki kaunsi branch
+ * fail hui. City hi asli pehchan hai, isliye "Naam · City" dikhate hain, aur
+ * dono na ho to locationId (jisse Google par dhoondha ja sake).
+ */
+function locLabel(l) {
+  const name = (l?.name || "").trim();
+  const city = (l?.locality || l?.city || "").trim();
+  if (name && city) return `${name} · ${city}`;
+  return name || city || l?.locationId || "Unknown location";
+}
+
+function LocationBreakdown({ log }) {
+  const total = Number(log.gmbTotal) || 0;
+  if (!total) return null;
+
+  const posted = Number(log.gmbPosted) || 0;
+  const pending = Array.isArray(log.pendingLocations) ? log.pendingLocations : [];
+  const pendingCount = total - posted;
+  const allDone = pendingCount <= 0;
+  const pct = total > 0 ? Math.round((posted / total) * 100) : 0;
+
+  return (
+    <div className={`mt-2.5 rounded-xl border px-3 py-2 ${allDone ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+        <span className={`text-[10.5px] font-extrabold uppercase tracking-wide ${allDone ? "text-emerald-700" : "text-amber-700"}`}>
+          Locations · {posted}/{total} posted{allDone ? "" : ` · ${pendingCount} pending`}
+        </span>
+        {pending.length > 0 && (
+          <CopyBtn
+            value={pending.map((l) => `${locLabel(l)} — ${l.error || "not attempted"}`).join("\n")}
+            label="Copy pending list"
+            tone="text-amber-700"
+          />
+        )}
+      </div>
+
+      <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/70">
+        <div
+          className={`h-full rounded-full ${allDone ? "bg-emerald-500" : "bg-amber-500"}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {pending.length > 0 && (
+        <div className="space-y-1">
+          {pending.map((l, i) => (
+            <div key={l.locationId || i} className="flex flex-wrap items-baseline gap-x-2 text-[12px] leading-relaxed">
+              <span className="font-bold text-amber-900">
+                {locLabel(l)}
+              </span>
+              {l.attempts > 0 && (
+                <span className="text-[10.5px] font-semibold text-amber-600">
+                  {l.attempts} attempt{l.attempts === 1 ? "" : "s"}
+                </span>
+              )}
+              <span className="break-words text-amber-800">
+                {l.error || "not attempted (run stopped before this location)"}
+              </span>
+            </div>
+          ))}
+          {pendingCount > pending.length && (
+            <div className="text-[11px] font-semibold text-amber-600">
+              +{pendingCount - pending.length} aur pending (list capped)
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Failed publish (GMB/FB/IG) jise dobara publish kiya ja sakta hai.
 const PUBLISH_PHASES = ["publish", "publish-scheduled"];
 function canRepublish(log) {
@@ -471,7 +669,7 @@ function LogCard({ log, expanded, onToggle, onDone }) {
         </div>
 
         {/* Business + keyword — turant pata chale kaunsa post fail hua */}
-        {(log.businessName || log.keyword || (log.platforms || []).length > 0) && (
+        {(log.businessName || log.keyword || (log.platforms || []).length > 0 || Number(log.gmbTotal) > 0) && (
           <div className="flex flex-wrap items-center gap-2">
             {log.businessName && (
               <span className="inline-flex items-center gap-1.5 text-[12.5px]">
@@ -489,6 +687,22 @@ function LogCard({ log, expanded, onToggle, onDone }) {
             {(log.platforms || []).map((p) => (
               <Chip key={p} className="bg-blue-50 text-blue-700 ring-blue-200">{p.toUpperCase()}</Chip>
             ))}
+            {/* Locations ka haal card khole BINA — 125-location wale post me
+                "kitni gayi, kitni baaki" sabse pehla sawaal hota hai. */}
+            {Number(log.gmbTotal) > 0 && (
+              <Chip
+                className={
+                  (Number(log.gmbPosted) || 0) >= Number(log.gmbTotal)
+                    ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                    : "bg-amber-50 text-amber-800 ring-amber-300"
+                }
+              >
+                <MapPin className="h-3 w-3" />
+                {Number(log.gmbPosted) || 0}/{log.gmbTotal} posted
+                {(Number(log.gmbPosted) || 0) < Number(log.gmbTotal) &&
+                  ` · ${Number(log.gmbTotal) - (Number(log.gmbPosted) || 0)} pending`}
+              </Chip>
+            )}
           </div>
         )}
 
@@ -559,6 +773,8 @@ function LogCard({ log, expanded, onToggle, onDone }) {
 
           {(log.steps || []).map((s, i) => <StepRow key={i} s={s} />)}
 
+          <LocationBreakdown log={log} />
+
           {log.error && (
             <div className="mt-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2">
               <div className="mb-1 flex items-center justify-between gap-2">
@@ -572,12 +788,18 @@ function LogCard({ log, expanded, onToggle, onDone }) {
             </div>
           )}
 
-          {/* Failed publish → ek click me dobara publish karo. Already-posted
-              locations skip hote hain, sirf failed target retry hota hai. */}
-          {canRepublish(log) && (
+          {/* Token toota ho to Republish bekaar hai — wo phir wahi error dega.
+              Aise case me Reconnect dikhate hain; baaki failures par Publish. */}
+          {needsReconnect(log) ? (
             <div className="mt-3">
-              <RepublishButton postId={log.postId} onDone={onDone} />
+              <ReconnectButton userId={log.userId} businessName={log.businessName} />
             </div>
+          ) : (
+            canRepublish(log) && (
+              <div className="mt-3">
+                <RepublishButton postId={log.postId} onDone={onDone} />
+              </div>
+            )
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">

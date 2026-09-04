@@ -124,6 +124,12 @@ const PostSchema = new mongoose.Schema(
         error: String,
         postedAt: Date,
         apiResponse: Object,
+        // Per-location audit trail. `isPosted` batata hai ki post gaya ya nahi,
+        // par "kitni baar koshish hui aur aakhri baar kab / kyun failed" pehle
+        // kahin record nahi hota tha — isliye 125-location wale post me ye
+        // batana mushkil tha ki kaunsi location abhi bhi baaki hai aur kyun.
+        attempts: { type: Number, default: 0 },
+        lastAttemptAt: { type: Date, default: null },
       },
     ],
   },

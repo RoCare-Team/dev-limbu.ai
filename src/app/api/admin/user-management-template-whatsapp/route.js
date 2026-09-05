@@ -113,10 +113,21 @@ const CAMPAIGN_CONFIG = {
   /**
    * Business Growth Workshop — video header + 1 param:
    *   {{1}} webinar join link
-   * Batch endpoint se jaata hai.
+   * Batch endpoint se jaata hai (ek request, saare numbers).
+   *
+   * Campaign `workshop-video_webinar` par shift kiya gaya hai. Purana
+   * `business_growth_workshop_camp` template me link ka VARIABLE hi nahi tha,
+   * isliye hum jo join link bhejte the wo message me kabhi dikhta hi nahi tha —
+   * user ko sirf static text milta tha. Naye template me {{1}} link ke liye hai.
+   *
+   * Video jaan-boojhkar wahi purani hai (BUSINESS_WORKSHOP_VIDEO_URL) — sirf
+   * campaign badla hai, creative nahi. `media` optional override hai; ise bhejte
+   * rahenge taaki video hamesha hamare control me rahe, campaign ki apni default
+   * setting par depend na kare.
    */
   business_growth_workshop: {
-    campaignName: "business_growth_workshop_camp",
+    campaignName:
+      process.env.BUSINESS_WORKSHOP_CAMPAIGN || "workshop-video_webinar",
     source: "user-management business-growth-workshop",
     batch: true,
     buildParams: () => ({
@@ -284,10 +295,26 @@ if (templateId === "google_business_profile_management") {
 
         if (!ok) {
           console.error("Batch campaign failed:", config.campaignName, json);
+          // Provider ka asli error surface karo. Sabse aam failure yahan
+          // "template params ki ginti match nahi hui" hoti hai (template me 2
+          // variable, humne 1 bheja — ya ulta). Sirf "Campaign send failed"
+          // dikhane se admin ko pata hi nahi chalta ki kya theek karna hai.
+          const providerError =
+            json?.message ||
+            json?.error?.message ||
+            json?.error ||
+            (Array.isArray(json?.errors) && json.errors[0]?.message) ||
+            "";
           return NextResponse.json(
             {
               success: false,
-              message: json?.message || "Campaign send failed",
+              message: providerError
+                ? `${config.campaignName}: ${providerError}`
+                : `Campaign "${config.campaignName}" send failed (HTTP ${response.status})`,
+              campaignName: config.campaignName,
+              // Ek sample message — param count/order debug karne ke liye.
+              sampleMessage: messages[0],
+              providerResponse: json,
               sent: 0,
               results,
             },

@@ -279,10 +279,12 @@ const BUSINESS_WORKSHOP_TEMPLATES = [
     id: "business_growth_workshop",
     title: "Business Growth Workshop",
     subtitle: "Video header ke saath, ek hi request me saare users ko",
+    // Link ab {{1}} VARIABLE hai — purane template me wo static text tha, isliye
+    // bheja hua join link message me kabhi dikhta hi nahi tha.
     preview: [
       "🎥 (Video: Business Growth Workshop)",
       "🔴 LIVE Workshop — Aaj 6 PM",
-      "👉 https://us06web.zoom.us/webinar/register/WN_z2RZGh7IStGrj7vVUWvsnQ",
+      "👉 {{1}}  ← join link (server se jaata hai)",
       "🆔 Webinar ID: 840 8877 0671",
       "🔐 Passcode: 109187",
     ],

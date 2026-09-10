@@ -115,10 +115,11 @@ const CAMPAIGN_CONFIG = {
    *   {{1}} webinar join link
    * Batch endpoint se jaata hai (ek request, saare numbers).
    *
-   * Campaign `workshop-video_webinar` par shift kiya gaya hai. Purana
-   * `business_growth_workshop_camp` template me link ka VARIABLE hi nahi tha,
-   * isliye hum jo join link bhejte the wo message me kabhi dikhta hi nahi tha —
-   * user ko sirf static text milta tha. Naye template me {{1}} link ke liye hai.
+   * Campaign ab `business_growth_workshop_limbu_sub__new` hai (template:
+   * copy_of_business_growth_workshop). Purana `business_growth_workshop_camp`
+   * template me link ka VARIABLE hi nahi tha, isliye hum jo join link bhejte the
+   * wo message me kabhi dikhta hi nahi tha — user ko sirf static text milta tha.
+   * Naye template me {{1}} link ke liye hai.
    *
    * Video jaan-boojhkar wahi purani hai (BUSINESS_WORKSHOP_VIDEO_URL) — sirf
    * campaign badla hai, creative nahi. `media` optional override hai; ise bhejte
@@ -127,7 +128,8 @@ const CAMPAIGN_CONFIG = {
    */
   business_growth_workshop: {
     campaignName:
-      process.env.BUSINESS_WORKSHOP_CAMPAIGN || "workshop-video_webinar",
+      process.env.BUSINESS_WORKSHOP_CAMPAIGN ||
+      "business_growth_workshop_limbu_sub__new",
     source: "user-management business-growth-workshop",
     batch: true,
     buildParams: () => ({
@@ -144,11 +146,17 @@ const CAMPAIGN_CONFIG = {
    *   {{1}} customer name
    *   {{2}} webinar date & time (admin har send se pehle choose karta hai)
    *   {{3}} webinar join link
+   *
+   * Webinar ID aur passcode template ke body me static text hain (params nahi),
+   * isliye yahan sirf 3 hi params jaate hain.
+   *
+   * Ye campaign batch endpoint use karta hai — ek request me saare numbers.
    */
   webinar_invite: {
     campaignName: "limbu_webinar_new",
     source: "user-management webinar",
     requiresWebinarDateTime: true,
+    batch: true,
     buildParams: ({ firstName, webinarDateTime }) => ({
       templateParams: [
         firstName,
@@ -253,7 +261,7 @@ if (templateId === "google_business_profile_management") {
         // Batch endpoint "$FirstName" jaise placeholders resolve nahi karta,
         // isliye yahan hamesha asli value bhejte hain.
         const built = config.buildParams
-          ? config.buildParams({ firstName, user })
+          ? config.buildParams({ firstName, webinarDateTime, user })
           : {
               templateParams: [firstName],
               paramsFallbackValue: { FirstName: firstName },

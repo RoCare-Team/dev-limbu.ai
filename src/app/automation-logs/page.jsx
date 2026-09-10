@@ -397,7 +397,7 @@ function needsReconnect(log) {
  * ude — logs ka tab waisa ka waisa khula rehta hai.
  */
 function ReconnectButton({ userId, businessName }) {
-  const [state, setState] = useState("idle"); // idle | busy | err
+  const [state, setState] = useState("idle"); // idle | busy | err | needsLogin
   const [msg, setMsg] = useState("");
   if (!userId) return null;
 
@@ -408,9 +408,21 @@ function ReconnectButton({ userId, businessName }) {
     setState("busy");
     setMsg("");
     try {
+      // Reconnect client ki identity se hona chahiye, isliye pehle admin ko
+      // impersonate karna padta hai — aur uske liye admin ka apna login token
+      // chahiye (`/adminLogin` use `localStorage.token` me rakhta hai).
+      //
+      // automation-logs khud admin-login ke peeche nahi hai, isliye ye page
+      // bina admin login bhi khul jaata hai — aur tab ye button kaam nahi kar
+      // sakta. Us case me sirf text likhne se pata nahi chalta ki jaana kahan
+      // hai, isliye `needsLogin` state se seedha login ka link dikhate hain.
       const adminToken =
         typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      if (!adminToken) throw new Error("Admin login chahiye — admin panel se login karein");
+      if (!adminToken) {
+        setState("needsLogin");
+        setMsg("");
+        return;
+      }
 
       const res = await fetch("/api/admin/login-as-user", {
         method: "POST",
@@ -456,6 +468,19 @@ function ReconnectButton({ userId, businessName }) {
         )}
         Reconnect GMB
       </button>
+      {/* Admin login hi nahi hai — sirf batane se kaam nahi chalta, link do.
+          `returnTo` se login ke baad seedha wapas isi page par aa jayenge. */}
+      {state === "needsLogin" && (
+        <a
+          href={`/adminLogin?returnTo=${encodeURIComponent("/automation-logs")}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center gap-1 text-[11px] font-extrabold text-rose-700 underline decoration-rose-300 underline-offset-2 hover:text-rose-800"
+        >
+          Pehle admin login karein <ArrowUpRight className="h-3 w-3" />
+        </a>
+      )}
       {msg && (
         <span className={`text-[11px] font-bold ${state === "err" ? "text-rose-700" : "text-slate-500"}`}>
           {msg}

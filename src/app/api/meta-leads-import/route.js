@@ -16,6 +16,11 @@ import {
   META_FRANCHISE_FORM_ID,
 } from "@/lib/metaFormLeadsConfig";
 import { pickAgentIdForLead } from "@/lib/leadAgentAssign";
+import {
+  isMetaTokenDead,
+  metaTokenFixMessage,
+  alertMetaTokenDead,
+} from "@/lib/metaTokenHealth";
 
 export const dynamic = "force-dynamic";
 
@@ -248,9 +253,18 @@ async function syncFranchiseFormLeads({ formId, franchiseAdmins }) {
         json?.error?.error_user_msg ||
         `Graph API error (${res.status})`;
       console.error("[MetaSync-Franchise] Graph API Error:", msg, json?.error);
+      // Token mar chuka ho to Facebook ka raw jumla dikhane ka koi fayda nahi —
+      // usse ye pata hi nahi chalta ki karna kya hai. Saaf, actionable message
+      // dete hain aur team ko ek baar email bhejte hain (cron har 10 min chalta
+      // hai, isliye alert me dedupe hai).
+      const tokenDead = isMetaTokenDead(json?.error);
+      if (tokenDead) {
+        alertMetaTokenDead(json.error, { context: "MetaSync-Franchise formId=" + formId });
+      }
       return {
         ok: false,
-        error: msg,
+        error: tokenDead ? metaTokenFixMessage(json.error) : msg,
+        tokenDead,
         graphError: json?.error || null,
         status: 502,
       };
@@ -402,9 +416,18 @@ async function syncMetaFormLeads({
         json?.error?.error_user_msg ||
         `Graph API error (${res.status})`;
       console.error("[MetaSync] Graph API Error:", msg, json?.error);
+      // Token mar chuka ho to Facebook ka raw jumla dikhane ka koi fayda nahi —
+      // usse ye pata hi nahi chalta ki karna kya hai. Saaf, actionable message
+      // dete hain aur team ko ek baar email bhejte hain (cron har 10 min chalta
+      // hai, isliye alert me dedupe hai).
+      const tokenDead = isMetaTokenDead(json?.error);
+      if (tokenDead) {
+        alertMetaTokenDead(json.error, { context: "MetaSync formId=" + formId });
+      }
       return {
         ok: false,
-        error: msg,
+        error: tokenDead ? metaTokenFixMessage(json.error) : msg,
+        tokenDead,
         graphError: json?.error || null,
         status: 502,
       };
@@ -668,6 +691,7 @@ export async function GET(req) {
         formErrors.push({
           formId,
           error: result.error,
+          tokenDead: !!result.tokenDead,
           graphError: result.graphError || null,
         });
         continue;
@@ -676,11 +700,15 @@ export async function GET(req) {
     }
 
     if (!formResults.length) {
-      const first = formErrors[0] || {};
+      // Token dead wale error ko sabse upar rakho — baaki form errors usi ek
+      // wajah se hain, aur dashboard par wahi ek line dikhni chahiye jispe
+      // action liya ja sake.
+      const first = formErrors.find((e) => e.tokenDead) || formErrors[0] || {};
       return NextResponse.json(
         {
           success: false,
           error: first.error || "All form syncs failed",
+          tokenDead: !!first.tokenDead,
           graphError: first.graphError || null,
           formId: first.formId || null,
           formErrors,

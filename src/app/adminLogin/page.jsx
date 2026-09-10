@@ -54,7 +54,27 @@ export default function Login() {
       localStorage.setItem("adminId", data.adminId || "");
 
       // 🔥 REDIRECT
-      if (["superFranchiseAdmin", "franchiseAdmin"].includes(data.role)) {
+      //
+      // `?returnTo=/kuch/path` ho to login ke baad wahin bhejo. Ye un pages ke
+      // liye hai jo khud admin-login ke peeche nahi hain par admin token maangte
+      // hain — jaise /automation-logs ka "Reconnect GMB" button. Uske bina banda
+      // login karke dashboard par pahunch jaata tha aur use khud wapas jaana
+      // padta tha.
+      //
+      // Sirf same-origin PATH allow hai ("/..." se shuru, "//" nahi) — warna ye
+      // ek open-redirect ban jaata (login ke baad kisi bahar ki site par bhej
+      // dena).
+      // `useSearchParams()` jaan-boojhkar nahi — App Router me wo Suspense
+      // boundary maangta hai. Ye code click handler ke andar hai, yaani hamesha
+      // browser me chalta hai, isliye window se padhna hi kaafi aur safe hai.
+      const rawReturnTo =
+        new URLSearchParams(window.location.search).get("returnTo") || "";
+      const returnTo =
+        rawReturnTo.startsWith("/") && !rawReturnTo.startsWith("//") ? rawReturnTo : "";
+
+      if (returnTo) {
+        router.push(returnTo);
+      } else if (["superFranchiseAdmin", "franchiseAdmin"].includes(data.role)) {
         router.push("/admin/franchise/franchise-lead");
       } else {
         router.push("/admin/dashboard");

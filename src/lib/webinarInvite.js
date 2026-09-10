@@ -11,10 +11,18 @@
  *   {{3}} → webinar join link
  */
 
-/** Zoom join link (user-management leads) — env se override kar sakte hain. */
+/**
+ * Zoom join link (user-management leads) — env se override kar sakte hain.
+ *
+ * Ye TEENO user-management templates me jaata hai: Business Growth Workshop,
+ * Subscription Reminder (Hindi), aur Webinar Invite. Naya webinar hone par sirf
+ * yahi ek jagah badalni hoti hai.
+ *
+ * Franchise leads ka apna alag link hai (neeche) — wo isse nahi badalta.
+ */
 export const WEBINAR_JOIN_LINK =
   process.env.WEBINAR_JOIN_LINK ||
-  "https://us06web.zoom.us/webinar/register/WN_z2RZGh7IStGrj7vVUWvsnQ";
+  "https://us06web.zoom.us/webinar/register/WN_25C3HlkaSq2GBhwyxvW73w";
 
 /** Franchise leads ka apna alag webinar registration link. */
 export const FRANCHISE_WEBINAR_JOIN_LINK =

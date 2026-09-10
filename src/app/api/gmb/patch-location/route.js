@@ -639,19 +639,35 @@ export async function POST(request) {
       );
       results.push({ field: 'serviceArea', ...r });
     } else if (serviceAreaNames.length) {
-      // Names were requested but none could be resolved to a Google place — surface it.
-      const detail = serviceAreaApiError
-        ? ` (${serviceAreaApiError})`
-        : '';
+      // Names were requested but none could be resolved to a Google place.
+      //
+      // Yahan do BILKUL ALAG wajah ho sakti hain, aur inka ilaaj bhi alag hai:
+      //
+      //   1. SERVER ki dikkat — Geocoding API ne hi mana kar diya (billing off,
+      //      API disabled, key restricted, quota khatam). Is case me area ke
+      //      naam bilkul theek ho sakte hain.
+      //   2. NAAM ki dikkat — API chali, par Google in naamo ko service area ke
+      //      layak region nahi maanta (mohalla-level: sublocality_level_2,
+      //      neighborhood, POI…).
+      //
+      // Pehle dono par ek hi message jaata tha — "Use clearer area names".
+      // Billing band hone par ye ULTA rasta dikhata tha: banda ghanton naam
+      // badalta rehta jabki galti server config ki thi (production me exactly
+      // yahi hua — key ke project par billing enabled hi nahi thi).
+      const apiBlocked = !!serviceAreaApiError;
+      const message = apiBlocked
+        ? `Service areas save nahi ho paye — Google Geocoding API ne request block ki: ${serviceAreaApiError}. ` +
+          `Ye server config ki dikkat hai, aapke area names ki nahi. ` +
+          `Admin ko: GOOGLE_MAPS_API_KEY_1 wali key ke Google Cloud project par Billing + Geocoding API enable karayein.`
+        : `Could not match your service areas to Google places. ` +
+          `Google sirf city / sub-locality level ke area leta hai — mohalla, market ya landmark nahi. ` +
+          `Thode bade naam likhein, jaise "Andheri West, Mumbai" ya "Koregaon Park, Pune".`;
+
       results.push({
         field: 'serviceArea',
         ok: false,
-        status: 400,
-        data: {
-          error: {
-            message: `Could not match your service areas to Google places${detail}. Use clearer area names like "Andheri West, Mumbai" or "Koregaon Park, Pune".`,
-          },
-        },
+        status: apiBlocked ? 502 : 400,
+        data: { error: { message } },
       });
     }
 

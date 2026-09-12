@@ -40,6 +40,8 @@ import InstagramShareModal from "@/components/post-management/InstagramShareModa
    CONSTANTS
 ---------------------------------------------------- */
 const GENERATION_COST = 300;
+// Video lengths offered to the user — kept in sync with the API route's allow-list.
+const DURATION_OPTIONS = [10, 20];
 const GENERATE_TIMEOUT_MS = 14.5 * 60 * 1000; // 14.5 minutes — server allows up to 15
 
 const UPLOAD_FIELDS = [
@@ -588,6 +590,7 @@ export default function VideoGenerationPage() {
   const [text, setText] = useState("");
   const [script, setScript] = useState("");
   const [presenterGender, setPresenterGender] = useState("male");
+  const [duration, setDuration] = useState(DURATION_OPTIONS[0]);
   const [files, setFiles] = useState({ logo: null, character: null, background: null, product: null });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -720,6 +723,7 @@ export default function VideoGenerationPage() {
       if (inputMode === "text") form.append("language", language);
       form.append("wait", "true");
       form.append("presenter_gender", presenterGender);
+      form.append("duration", String(duration));
       if (keywords.trim()) form.append("keywords", keywords.trim());
       Object.entries(files).forEach(([key, file]) => {
         if (file) form.append(key, file);
@@ -760,6 +764,7 @@ export default function VideoGenerationPage() {
           language: inputMode === "text" ? language : null,
           keywords: keywords.trim(),
           presenterGender,
+          durationSeconds: duration,
           taskId,
           finalScript,
           captions,
@@ -778,6 +783,7 @@ export default function VideoGenerationPage() {
             content: activeContent.trim(),
             language: inputMode === "text" ? language : null,
             presenterGender,
+            durationSeconds: duration,
             taskId,
             finalScript,
             captions,
@@ -1191,6 +1197,28 @@ export default function VideoGenerationPage() {
                 >
                   <UserIcon className="w-4 h-4" /> Female
                 </button>
+              </div>
+            </div>
+
+            {/* Video duration */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-900/90">Duration</label>
+              <div className="flex p-1 bg-slate-50 rounded-lg border border-slate-100 max-w-xs">
+                {DURATION_OPTIONS.map((sec) => (
+                  <button
+                    key={sec}
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => setDuration(sec)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-md transition-all disabled:cursor-not-allowed ${
+                      duration === sec
+                        ? "bg-[#EAB308] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]"
+                        : "text-slate-900/50 hover:text-slate-900/80"
+                    }`}
+                  >
+                    {sec} sec
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -24,6 +24,7 @@ const DEFAULT_TIMEOUT_MS = 890 * 1000; // keep just under the route's 900s maxDu
  * @param {string} [params.language]  - only applied when using `text`
  * @param {string} [params.keywords]
  * @param {string} [params.presenterGender] - "male" | "female"
+ * @param {number} [params.duration] - target video length in seconds (10 | 20)
  * @param {boolean} [params.wait=true]
  * @param {Record<string, File|Blob>} [params.files] - logo/character/background/product
  * @param {number} [params.timeoutMs]
@@ -36,6 +37,7 @@ export async function generateVideo({
   language,
   keywords,
   presenterGender,
+  duration,
   wait = true,
   files = {},
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -57,6 +59,7 @@ export async function generateVideo({
   form.append("wait", wait ? "true" : "false");
   if (keywords) form.append("keywords", keywords);
   if (presenterGender) form.append("presenter_gender", presenterGender);
+  if (duration) form.append("duration", String(duration));
 
   for (const [field, file] of Object.entries(files)) {
     if (file && typeof file === "object" && file.size > 0) {

@@ -17,15 +17,7 @@ import { redirect, notFound } from "next/navigation";
 import WebsiteFooter from "@/components/WebsiteFooter";
 import WebsiteLeadForm from "@/components/WebsiteLeadForm";
 import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
-
-/* ================================
-   Helper: WhatsApp link
-================================ */
-function getWhatsAppLink(phone) {
-  if (!phone) return "#";
-  const clean = phone.replace(/\D/g, "");
-  return `https://wa.me/${clean}`;
-}
+import { getWhatsAppLink } from "@/utils/whatsappLink";
 
 /* ================================
    Fetch site data

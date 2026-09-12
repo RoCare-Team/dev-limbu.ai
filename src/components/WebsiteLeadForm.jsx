@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { appendWhatsAppText } from "@/utils/whatsappLink";
 
 /**
  * Contact / inquiry form for the live generated website.
@@ -56,14 +57,13 @@ export default function WebsiteLeadForm({
       // Also forward the enquiry to WhatsApp if a number is available
       if (whatsappUrl && whatsappUrl !== "#") {
         const msg =
-          `Hi! I'm interested in your services.%0A%0A` +
-          `Name: ${payload.name}%0A` +
-          `Phone: ${payload.phone}%0A` +
-          `Email: ${payload.email || ""}%0A` +
-          `Service: ${payload.service || ""}%0A` +
+          `Hi! I'm interested in your services.\n\n` +
+          `Name: ${payload.name}\n` +
+          `Phone: ${payload.phone}\n` +
+          `Email: ${payload.email || ""}\n` +
+          `Service: ${payload.service || ""}\n` +
           `Message: ${payload.message || ""}`;
-        const sep = whatsappUrl.includes("?") ? "&" : "?";
-        window.open(`${whatsappUrl}${sep}text=${msg}`, "_blank");
+        window.open(appendWhatsAppText(whatsappUrl, msg), "_blank");
       }
     } catch (err) {
       console.error("Lead submit error:", err);

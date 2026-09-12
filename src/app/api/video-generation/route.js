@@ -5,6 +5,10 @@ import TextToVideo from "@/models/TextToVideo";
 
 export const maxDuration = 900; // seconds — generation can take up to ~15 min
 
+// Only these lengths are offered in the UI; anything else falls back to the default.
+const ALLOWED_VIDEO_DURATIONS = [10, 20];
+const DEFAULT_VIDEO_DURATION = 10;
+
 export async function POST(req) {
   try {
     const incomingForm = await req.formData();
@@ -32,6 +36,11 @@ export async function POST(req) {
     const keywords = incomingForm.get("keywords") || undefined;
     const presenterGender = incomingForm.get("presenter_gender") || undefined;
 
+    const requestedDuration = Number(incomingForm.get("duration"));
+    const duration = ALLOWED_VIDEO_DURATIONS.includes(requestedDuration)
+      ? requestedDuration
+      : DEFAULT_VIDEO_DURATION;
+
     const { ok, status, data } = await generateVideo({
       businessName: business_name,
       text: script ? undefined : text,
@@ -40,6 +49,7 @@ export async function POST(req) {
       language,
       keywords,
       presenterGender,
+      duration,
       wait: (incomingForm.get("wait") || "true") === "true",
       files,
     });
@@ -72,6 +82,7 @@ export async function POST(req) {
             language: language || null,
             keywords: keywords || "",
             presenterGender: presenterGender === "female" ? "female" : "male",
+            durationSeconds: duration,
             videoUrl,
             taskId: data?.task_id || null,
             finalScript: data?.final_script || null,

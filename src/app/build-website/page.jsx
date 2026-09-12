@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useSession } from "@/hooks/useAppSession";
 import { resolveSiteUserId, isChatbotSiteOwnerId } from "@/lib/resolveSiteUserId";
 import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
+import { getWhatsAppLink } from "@/utils/whatsappLink";
 import GoLiveButton from "@/components/GoLiveButton";
 import {
   Edit,
@@ -555,13 +556,6 @@ export default function BuildWebsitePage() {
     validMediaImages[0] ||
     "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1600&q=80";
   const galleryImages = validMediaImages.slice(0, 10);
-
-  // ✅ Format phone number for WhatsApp
-  const getWhatsAppLink = (phone) => {
-    if (!phone) return "#";
-    const cleanPhone = phone.replace(/\D/g, "");
-    return `https://wa.me/${cleanPhone}`;
-  };
 
   // ✅ Reusable Loading Overlay
   const LoadingOverlay = () => (
@@ -1718,10 +1712,11 @@ export default function BuildWebsitePage() {
             console.error("Lead save error:", leadErr);
           }
 
-          const whatsappMessage = `Hi! I'm interested in your services.%0A%0AName: ${name}%0APhone: ${phone}%0AEmail: ${email}%0AService: ${service}%0AMessage: ${message}`;
-          const whatsappUrl = `${getWhatsAppLink(
-            business.phoneNumbers?.primaryPhone
-          )}&text=${whatsappMessage}`;
+          const whatsappMessage = `Hi! I'm interested in your services.\n\nName: ${name}\nPhone: ${phone}\nEmail: ${email}\nService: ${service}\nMessage: ${message}`;
+          const whatsappUrl = getWhatsAppLink(
+            business.phoneNumbers?.primaryPhone,
+            { text: whatsappMessage }
+          );
 
           window.open(whatsappUrl, "_blank");
           formEl.reset();

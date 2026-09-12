@@ -1,5 +1,7 @@
 "use client";
 
+import { appendWhatsAppText } from "@/utils/whatsappLink";
+
 /* ─────────────────────────────────────────────
    SafeImage
    Wraps <img> so onError (client event) works.
@@ -38,13 +40,13 @@ export function ContactForm({ whatsappUrl, services, primaryHex, secondaryHex })
     e.preventDefault();
     const fd = new FormData(e.target);
     const msg =
-      `Hi! I'm interested in your services.%0A%0A` +
-      `Name: ${fd.get("name")}%0A` +
-      `Phone: ${fd.get("phone")}%0A` +
-      `Email: ${fd.get("email")}%0A` +
-      `Service: ${fd.get("service")}%0A` +
+      `Hi! I'm interested in your services.\n\n` +
+      `Name: ${fd.get("name")}\n` +
+      `Phone: ${fd.get("phone")}\n` +
+      `Email: ${fd.get("email")}\n` +
+      `Service: ${fd.get("service")}\n` +
       `Message: ${fd.get("message")}`;
-    window.open(`${whatsappUrl}&text=${msg}`, "_blank");
+    window.open(appendWhatsAppText(whatsappUrl, msg), "_blank");
   };
 
   return (

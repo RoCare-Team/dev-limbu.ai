@@ -19,7 +19,9 @@ const UPSTREAM_TIMEOUT_MS = 290000;
 
 /** Coins charged after a successful image→video render (saved via Post + Transaction). */
 const IMAGE_TO_VIDEO_COINS = 200;
+// Fallback only — the caller's `duration` wins when it is one of the allowed lengths.
 const IMAGE_TO_VIDEO_DURATION = 12;
+const ALLOWED_IMAGE_TO_VIDEO_DURATIONS = [4, 6, 8, 10, 12, 15];
 const IMAGE_TO_VIDEO_QUALITY = "720p";
 const IMAGE_TO_VIDEO_RATIO = "9:16";
 
@@ -181,6 +183,7 @@ export async function POST(req) {
       userId: bodyUserId,
       postId,
       video_prompt,
+      duration: requestedDuration,
     } = body;
 
     const allowedPlatforms = ["instagram", "facebook", "both"];
@@ -256,9 +259,16 @@ export async function POST(req) {
     const upstreamUrl =
       process.env.IMAGE_TO_VIDEO_API_URL || DEFAULT_IMAGE_TO_VIDEO_URL;
 
+    // The client used to send `duration` and it was silently dropped here — honour
+    // it now, but only for lengths the UI actually offers.
+    const durationNumber = Number(requestedDuration);
+    const duration = ALLOWED_IMAGE_TO_VIDEO_DURATIONS.includes(durationNumber)
+      ? durationNumber
+      : IMAGE_TO_VIDEO_DURATION;
+
     const payload = {
       image_url: finalImageUrl,
-      duration: IMAGE_TO_VIDEO_DURATION,
+      duration,
       quality: IMAGE_TO_VIDEO_QUALITY,
       ratio: IMAGE_TO_VIDEO_RATIO,
     };

@@ -22,6 +22,7 @@ const TextToVideoSchema = new mongoose.Schema(
     language: { type: String, default: null }, // null when generated from a script
     keywords: { type: String, default: "" },
     presenterGender: { type: String, enum: ["male", "female"], default: "male" },
+    durationSeconds: { type: Number, default: null }, // requested video length (10 | 20)
 
     videoUrl: { type: String, required: true },
     taskId: { type: String, default: null },

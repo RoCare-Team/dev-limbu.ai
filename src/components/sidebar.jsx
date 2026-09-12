@@ -147,8 +147,10 @@ export default function Sidebar({ children }) {
         text: "AI Video",
         icon: <Clapperboard size={18} />,
         children: [
+          { text: "Image To Video", path: "/video-generation/image-to-video" },
           { text: "Text To Video", path: "/video-generation" },
           { text: "AI Avatar Video", path: "/video-generation/ai-avatar-video" },
+          { text: "CGI Video", path: "/video-generation/cgi-video" },
         ],
       },
       {

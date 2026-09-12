@@ -1,5 +1,6 @@
 import React from 'react';
 import { MapPin, Phone, Mail, Globe, CheckCircle2, Instagram, Facebook, Linkedin, Youtube, Twitter } from 'lucide-react';
+import { getWhatsAppLink } from '@/utils/whatsappLink';
 
 const SOCIAL_ICONS = {
   instagram: Instagram,
@@ -57,7 +58,7 @@ const WebsiteFooter = ({ data }) => {
           <div className="flex flex-wrap gap-3">
              {/* WhatsApp Quick Link */}
              <a
-               href={`https://wa.me/${primaryPhone?.replace(/\D/g, "")}`}
+               href={getWhatsAppLink(primaryPhone)}
                target="_blank"
                rel="noopener noreferrer"
                className="w-10 h-10 rounded-xl flex items-center justify-center hover:brightness-125 transition-all border"

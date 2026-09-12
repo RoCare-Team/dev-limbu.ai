@@ -24,6 +24,7 @@ import {
   Workflow,
   Wand2,
   FileSpreadsheet,
+  Globe,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
@@ -245,6 +246,11 @@ export default function AdminLayout({ children }) {
               name: "City Services",
               href: "/admin/citys",
               icon: <Map size={16} />,
+            },
+            {
+              name: "Website Builder",
+              href: "/admin/website-builder",
+              icon: <Globe size={16} />,
             },
           ],
         },

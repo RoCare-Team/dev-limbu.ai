@@ -18,7 +18,8 @@
  * The calling page must sit under a <Suspense> boundary (useYouTube reads search params).
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   updatePostStatusAction,
@@ -53,6 +54,17 @@ const VIDEO_GENERATION_COINS = 200;
 const INHOUSE_PINTEREST_EMAIL = "rocare7@gmail.com";
 const POSTING_MESSAGES = ["Please wait...", "Posting...", "Uploading...", "Finalizing..."];
 const MESSAGE_INTERVAL = 1500;
+
+/** Rendered inside the modal tree — tells the hook the page actually mounted `modals`. */
+function ModalsMountedFlag({ flagRef }) {
+  useEffect(() => {
+    flagRef.current = true;
+    return () => {
+      flagRef.current = false;
+    };
+  }, [flagRef]);
+  return null;
+}
 
 const buildWhenPostedUpdate = (platform, postId = "") => ({
   [platform]: {
@@ -178,6 +190,28 @@ export function useVideoPostingFlow({ userId, posts, setPosts, fetchPosts, showT
     setIsSuccess,
     setPostingPlatform,
   });
+
+  /* -------------------- Modal mounting -------------------- */
+  // Modals are portaled to <body> so no page wrapper (overflow, transform, stacking
+  // context) can clip or hide them. `document` only exists after mount.
+  const [portalTarget, setPortalTarget] = useState(null);
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
+  // A page that forgets to render `modals` gets buttons that silently do nothing —
+  // this already happened once, so say it loudly in development.
+  const modalsMountedRef = useRef(false);
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const anyOpen = showGmbExpiredModal || Object.values(uiState).some(Boolean);
+    if (anyOpen && !modalsMountedRef.current) {
+      console.error(
+        "[useVideoPostingFlow] A posting modal was opened but `modals` is not rendered on this page. " +
+          "Add {modals} (or {posting.modals}) to the page JSX."
+      );
+    }
+  }, [uiState, showGmbExpiredModal]);
 
   /* -------------------- Init: locations + cached wallet -------------------- */
   useEffect(() => {
@@ -937,8 +971,9 @@ export function useVideoPostingFlow({ userId, posts, setPosts, fetchPosts, showT
   };
 
   /* ---------------------------- Modals ---------------------------- */
-  const modals = (
+  const modalTree = (
     <>
+      <ModalsMountedFlag flagRef={modalsMountedRef} />
       {uiState.showLocationModal && (
         <LocationSelectionModal
           locations={availableLocations}
@@ -1187,6 +1222,8 @@ export function useVideoPostingFlow({ userId, posts, setPosts, fetchPosts, showT
       />
     </>
   );
+
+  const modals = portalTarget ? createPortal(modalTree, portalTarget) : null;
 
   return { cardProps, modals };
 }

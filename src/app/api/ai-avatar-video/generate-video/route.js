@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchLongRunning } from "@/lib/longRunningFetch";
 
 const AVATAR_API_URL = "https://ai-avatar.limbutech.in";
 const AVATAR_API_KEY =
@@ -97,7 +98,9 @@ export async function POST(req) {
 
     let externalRes;
     try {
-      externalRes = await fetch(`${AVATAR_API_URL}/generate-video`, {
+      // Plain fetch() gives up after 300s with a bare "fetch failed" — renders longer
+      // than 5 min always died there. The AbortController above is the real timeout.
+      externalRes = await fetchLongRunning(`${AVATAR_API_URL}/generate-video`, {
         method: "POST",
         headers: { "X-API-Key": AVATAR_API_KEY },
         body: forwardForm,
@@ -124,11 +127,21 @@ export async function POST(req) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    console.error("AI AVATAR GENERATE-VIDEO ERROR:", error);
+    console.error("AI AVATAR GENERATE-VIDEO ERROR:", error, error?.cause);
     if (error.name === "AbortError") {
       return NextResponse.json(
         { success: false, error: "Video generation timed out. Please try again." },
         { status: 504 }
+      );
+    }
+    // Network-level failure reaching the avatar API — name the cause instead of a bare "fetch failed".
+    if (error.message === "fetch failed") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Could not reach the AI avatar service (${error.cause?.code || "network error"}). Please try again.`,
+        },
+        { status: 502 }
       );
     }
     return NextResponse.json(

@@ -70,6 +70,7 @@
     "sharp": "^0.34.5",
     "styled-components": "^6.1.19",
     "twilio": "^5.13.0",
+    "undici": "^6.28.1",
     "uuid": "^13.0.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.12"

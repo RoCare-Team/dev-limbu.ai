@@ -261,15 +261,34 @@ export default function PostManagementPage() {
   const [msgIndex, setMsgIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
 
+  // Tab filter race: pehle har response seedha list me lag jata tha, chahe wo us
+  // tab ka ho jise user chhod chuka hai. ALL → PENDING jaldi dabane par ALL ka der
+  // se aaya reply PENDING tab ke neeche ALL ke posts dikha deta tha. Ab har page-1
+  // load ek nayi "generation" hai; purani generation ya purane tab ka reply drop.
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const loadGenerationRef = useRef(0);
+
   const fetchPosts = useCallback(
     async (pageNum = 1, isBackground = false) => {
       if (!userId) return;
+
+      const requestTab = activeTab;
+      const generation =
+        pageNum === 1 ? ++loadGenerationRef.current : loadGenerationRef.current;
+      const isStale = () =>
+        requestTab !== activeTabRef.current ||
+        generation !== loadGenerationRef.current;
+
       if (pageNum === 1 && !isBackground)
         updateUiState({ isLoadingPosts: true });
       if (pageNum > 1) updateUiState({ isLoadingMore: true });
 
       try {
         const res = await fetchAllPostsAction(userId, pageNum, 12, activeTab);
+
+        // User ne beech me tab badal diya ya naya load shuru ho gaya — ye reply purana hai.
+        if (isStale()) return;
 
         if (res.success) {
           const fetchedPosts = res.data || [];
@@ -302,9 +321,12 @@ export default function PostManagementPage() {
           }
         }
       } catch (err) {
-        showToast("Error loading posts", "error");
+        if (!isStale()) showToast("Error loading posts", "error");
       } finally {
-        updateUiState({ isLoadingPosts: false, isLoadingMore: false });
+        // Purana reply naye (abhi chal rahe) load ka spinner band na kare.
+        if (!isStale()) {
+          updateUiState({ isLoadingPosts: false, isLoadingMore: false });
+        }
       }
     },
     [activeTab, showToast, updateCounts, updateUiState, userId],
@@ -336,11 +358,19 @@ export default function PostManagementPage() {
     };
   }, [hasMore, uiState.isLoadingMore, uiState.isLoadingPosts]);
 
+  // "Load more" sirf asli page change par. Pehle `fetchPosts` bhi dependency tha,
+  // isliye har tab switch par ye purane page number (jaise 3) ke saath chal jata aur
+  // naye tab ka page 3 page 1 ke baad jod deta — beech ke posts gayab.
+  const fetchPostsRef = useRef(fetchPosts);
+  useEffect(() => {
+    fetchPostsRef.current = fetchPosts;
+  }, [fetchPosts]);
+
   useEffect(() => {
     if (page > 1) {
-      fetchPosts(page, true);
+      fetchPostsRef.current(page, true);
     }
-  }, [page, fetchPosts]);
+  }, [page]);
 
   const handleFetchBackground = useCallback(
     () => fetchPosts(1, true),

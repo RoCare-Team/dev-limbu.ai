@@ -543,6 +543,8 @@ function CgiVideoContent() {
   return (
     <div className="font-inter">
       {toast && <Toast message={toast.message} type={toast.type} />}
+      {/* Post to GMB / FB / Instagram / Pinterest / LinkedIn / Schedule modals */}
+      {posting.modals}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">

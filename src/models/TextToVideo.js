@@ -25,6 +25,9 @@ const TextToVideoSchema = new mongoose.Schema(
     durationSeconds: { type: Number, default: null }, // requested video length (10 | 20)
 
     videoUrl: { type: String, required: true },
+    // Pending Post created for this video so it can use the /post-management
+    // approve → publish flow. Null for older videos until posting is enabled.
+    postId: { type: String, default: null },
     taskId: { type: String, default: null },
     finalScript: { type: String, default: null }, // the actual script spoken in the video (AI-written or user's)
 

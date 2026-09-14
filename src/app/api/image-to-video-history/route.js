@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import ImageToVideo from "@/models/ImageToVideo";
+import Post from "@/models/PostStatus";
 
 // -----------------------------
 // SAVE A GENERATED IMAGE→VIDEO (POST)
@@ -51,6 +53,8 @@ export async function POST(req) {
 
 // -----------------------------
 // LIST A USER'S IMAGE→VIDEO RENDERS (GET)
+// Each row carries its linked Post (`post`, or null if it was deleted) so the
+// page can run the same approve → publish flow as /post-management.
 // -----------------------------
 export async function GET(req) {
   try {
@@ -65,8 +69,22 @@ export async function GET(req) {
       );
     }
 
-    const videos = await ImageToVideo.find({ userId }).sort({ createdAt: -1 }).limit(50);
-    return NextResponse.json({ success: true, data: videos });
+    const videos = await ImageToVideo.find({ userId }).sort({ createdAt: -1 }).limit(50).lean();
+
+    const postIds = videos
+      .map((v) => v.postId)
+      .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+    const posts = postIds.length
+      ? await Post.find({ _id: { $in: postIds }, userId }).lean()
+      : [];
+    const postsById = new Map(posts.map((p) => [String(p._id), p]));
+
+    const data = videos.map((v) => ({
+      ...v,
+      post: v.postId ? postsById.get(String(v.postId)) || null : null,
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (err) {
     console.error("IMAGE TO VIDEO LIST ERROR:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

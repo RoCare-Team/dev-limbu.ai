@@ -20,6 +20,9 @@ const AiAvatarVideoSchema = new mongoose.Schema(
     resolution: { type: String, default: "1080p" },
 
     videoUrl: { type: String, required: true },
+    // Pending Post created for this video so it can use the /post-management
+    // approve → publish flow. Null for older videos until they are approved.
+    postId: { type: String, default: null },
     videoId: { type: String, default: null },
     storage: { type: String, default: null },
     durationSeconds: { type: Number, default: null },

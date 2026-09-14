@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
   Coins,
@@ -18,11 +18,14 @@ import {
   Building2,
   TriangleAlert,
   ExternalLink,
-  Clock,
 } from "lucide-react";
 import Toast from "@/components/Toast";
 import { useKeywordPlanner } from "@/hooks/useKeywordPlanner";
 import { emitWalletDeduct } from "@/utils/walletEvents";
+import { getLocalStorage } from "@/utils/storage";
+import PostCard from "@/components/post-management/PostCard";
+import UnlinkedVideoCard from "@/components/video-posting/UnlinkedVideoCard";
+import { useVideoHistoryPosting } from "@/hooks/useVideoHistoryPosting";
 
 /* ----------------------------------------------------
    CONSTANTS
@@ -85,15 +88,24 @@ async function deductFromWalletAction(userId, payload) {
   return data;
 }
 
+// useSearchParams (inside the posting flow) must sit under a Suspense boundary in Next 16.
 export default function CgiVideoPage() {
+  return (
+    <Suspense fallback={null}>
+      <CgiVideoContent />
+    </Suspense>
+  );
+}
+
+function CgiVideoContent() {
   const [userId, setUserId] = useState("");
   const [walletBalance, setWalletBalance] = useState(null);
 
   const [toast, setToast] = useState(null);
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3200);
-  };
+  }, []);
 
   /* -------------------- Form state -------------------- */
   const [businessName, setBusinessName] = useState("");
@@ -108,6 +120,7 @@ export default function CgiVideoPage() {
 
   const productInputRef = useRef(null);
   const logoInputRef = useRef(null);
+  const historySectionRef = useRef(null);
 
   /* -------------------- Keywords (Google Keyword Planner ideas) -------------------- */
   // Wahi hook jo Keyword Planner / Competitor Analysis use karte hain — live
@@ -150,8 +163,39 @@ export default function CgiVideoPage() {
   const [resultVideo, setResultVideo] = useState(null);
 
   /* -------------------- History -------------------- */
+  // Each row is a CgiVideo record carrying its linked Post as `post` (or null).
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+
+  // Signature matches /post-management's fetchPosts(pageNum, isBackground) — the
+  // posting flow calls it after every publish to refresh statuses.
+  const fetchPosts = useCallback(async (_pageNum = 1, isBackground = false) => {
+    const uid = getLocalStorage("userId");
+    if (!uid) {
+      setLoadingHistory(false);
+      return;
+    }
+    if (!isBackground) setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/cgi-video-history?userId=${uid}`, { cache: "no-store" });
+      const d = await res.json();
+      if (d.success) setHistory(d.data || []);
+      else if (!isBackground) setHistory([]);
+    } catch {
+      if (!isBackground) setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  const posting = useVideoHistoryPosting({
+    userId,
+    history,
+    setHistory,
+    fetchPosts,
+    showToast,
+    historyEndpoint: "/api/cgi-video-history",
+  });
 
   /* ---------------------------- INIT ---------------------------- */
   useEffect(() => {
@@ -163,12 +207,7 @@ export default function CgiVideoPage() {
         .then((d) => setWalletBalance(d?.user?.wallet ?? d?.wallet ?? 0))
         .catch(() => setWalletBalance(0));
 
-      setLoadingHistory(true);
-      fetch(`/api/cgi-video-history?userId=${uid}`)
-        .then((r) => r.json())
-        .then((d) => setHistory(d.success ? d.data || [] : []))
-        .catch(() => setHistory([]))
-        .finally(() => setLoadingHistory(false));
+      fetchPosts(1, false);
 
       const pending = readPendingJob();
       if (pending?.taskId && pending.userId === uid && Date.now() - pending.startedAt < POLL_TIMEOUT_MS) {
@@ -347,6 +386,11 @@ export default function CgiVideoPage() {
       if (saved.data) {
         setHistory((prev) =>
           prev.some((h) => h.taskId === saved.data.taskId) ? prev : [saved.data, ...prev]
+        );
+        // The Approve → posting buttons live on the ad's card below — bring it into view.
+        setTimeout(
+          () => historySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          400
         );
       }
     } catch (err) {
@@ -986,16 +1030,16 @@ export default function CgiVideoPage() {
       </div>
 
       {/* History */}
-      <div className="mt-8">
+      <div className="mt-8 scroll-mt-4" ref={historySectionRef}>
         <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-900/60 mb-3 px-1">
           <Sparkles className="w-3.5 h-3.5 text-[#EAB308]" />
-          Your CGI Ads
+          Your CGI Ads — Approve &amp; Post
         </h2>
 
         {loadingHistory ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-72 rounded-2xl bg-slate-100 animate-pulse" />
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-96 rounded-3xl bg-slate-100 animate-pulse" />
             ))}
           </div>
         ) : history.length === 0 ? (
@@ -1007,54 +1051,26 @@ export default function CgiVideoPage() {
             <p className="text-xs text-slate-900/30">Generate one above and it'll show up here</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {history.map((item) => (
-              <HistoryVideoCard key={item._id} item={item} />
-            ))}
+          // Same grid + card as /post-management: an ad with a Post shows Approve →
+          // all posting buttons; one without gets Approve / Reject that creates its Post.
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
+            {history.map((item) =>
+              item.post ? (
+                <PostCard key={item._id} post={item.post} {...posting.cardProps} />
+              ) : (
+                <UnlinkedVideoCard
+                  key={item._id}
+                  item={item}
+                  title={item.productName || item.businessName}
+                  subtitle={item.adCopy?.headline}
+                  onApprove={posting.approveUnlinked}
+                  onReject={posting.rejectUnlinked}
+                  busy={posting.enablingId === item._id}
+                />
+              )
+            )}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-/* ----------------------------------------------------
-   HISTORY CARD
----------------------------------------------------- */
-function HistoryVideoCard({ item }) {
-  const createdLabel = item.createdAt
-    ? new Date(item.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })
-    : "";
-
-  return (
-    <div className="bg-white rounded-2xl border border-black/5 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
-      <div className="relative bg-black" style={{ aspectRatio: "9 / 16" }}>
-        <video src={item.videoUrl} className="w-full h-full object-contain bg-black" controls playsInline preload="metadata" />
-
-        {createdLabel && (
-          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full border border-white/70 bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-sm pointer-events-none">
-            {createdLabel}
-          </div>
-        )}
-      </div>
-
-      <div className="p-3 flex flex-col gap-1.5">
-        <h3 className="font-bold text-slate-900 text-xs truncate">
-          {item.productName || item.businessName}
-        </h3>
-        {item.adCopy?.headline && (
-          <p className="text-[11px] text-slate-500 line-clamp-2 leading-snug">{item.adCopy.headline}</p>
-        )}
-        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-          {item.musicMood && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold capitalize bg-[#EAB308]/10 text-[#92650a] border border-[#EAB308]/20 px-1.5 py-0.5 rounded-full">
-              <Music2 className="w-2.5 h-2.5" /> {item.musicMood}
-            </span>
-          )}
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded-full">
-            <Clock className="w-2.5 h-2.5" /> {item.durationSeconds ?? 10}s
-          </span>
-        </div>
       </div>
     </div>
   );

@@ -22,6 +22,9 @@ const CgiVideoSchema = new mongoose.Schema(
     musicMoodReason: { type: String, default: null },
 
     videoUrl: { type: String, required: true },
+    // Pending Post created for this ad so it can use the /post-management
+    // approve → publish flow. Null for older ads until they are approved.
+    postId: { type: String, default: null },
     storageWarning: { type: String, default: null },
 
     durationSeconds: { type: Number, default: 10 }, // fixed by the API

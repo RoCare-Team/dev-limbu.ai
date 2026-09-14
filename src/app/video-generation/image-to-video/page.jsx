@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import {
   Video,
   Coins,
@@ -16,6 +16,9 @@ import {
 import Toast from "@/components/Toast";
 import { uploadToS3Action } from "@/app/actions/uploadS3Actions";
 import { emitWalletDeduct } from "@/utils/walletEvents";
+import { getLocalStorage } from "@/utils/storage";
+import PostCard from "@/components/post-management/PostCard";
+import { useVideoPostingFlow } from "@/hooks/useVideoPostingFlow";
 
 /* ----------------------------------------------------
    CONSTANTS
@@ -26,57 +29,90 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 // Fixed length — this page only ever renders 12-second videos.
 const VIDEO_DURATION = 12;
 
+// useSearchParams (inside the posting flow) must sit under a Suspense boundary in Next 16.
 export default function ImageToVideoPage() {
+  return (
+    <Suspense fallback={null}>
+      <ImageToVideoContent />
+    </Suspense>
+  );
+}
+
+function ImageToVideoContent() {
   const [userId, setUserId] = useState("");
   const [walletBalance, setWalletBalance] = useState(null);
 
   const [toast, setToast] = useState(null);
-  const showToast = (message, type = "success") => {
+  const showToast = useCallback((message, type = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3200);
-  };
+  }, []);
 
-  /* -------------------- Form state -------------------- */
+  /* -------------------- Generation form -------------------- */
   const [preview, setPreview] = useState(null); // local object URL, just for the UI
   const [imageUrl, setImageUrl] = useState(""); // S3 URL — what actually gets sent
   const [isUploading, setIsUploading] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-
   const fileInputRef = useRef(null);
 
-  /* -------------------- Generation -------------------- */
   const [isGenerating, setIsGenerating] = useState(false);
   const [startedAt, setStartedAt] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [resultVideo, setResultVideo] = useState(null);
 
-  /* -------------------- History -------------------- */
-  const [history, setHistory] = useState([]);
+  /* -------------------- Videos (history rows + their Posts) -------------------- */
+  const [historyRows, setHistoryRows] = useState([]);
+  const [posts, setPosts] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const postsSectionRef = useRef(null);
 
-  /* ---------------------------- INIT ---------------------------- */
-  useEffect(() => {
-    const uid = localStorage.getItem("userId");
+  // Signature matches /post-management's fetchPosts(pageNum, isBackground) — the
+  // posting flow calls it after every publish to refresh statuses.
+  const fetchPosts = useCallback(async (_pageNum = 1, isBackground = false) => {
+    const uid = getLocalStorage("userId");
     if (!uid) {
       setLoadingHistory(false);
       return;
     }
-    setUserId(uid);
-    fetch(`/api/users/userbalance?userId=${uid}`)
-      .then((r) => r.json())
-      .then((d) => setWalletBalance(d?.user?.wallet ?? d?.wallet ?? 0))
-      .catch(() => setWalletBalance(0));
-
-    setLoadingHistory(true);
-    fetch(`/api/image-to-video-history?userId=${uid}`)
-      .then((r) => r.json())
-      .then((d) => setHistory(d.success ? d.data || [] : []))
-      .catch(() => setHistory([]))
-      .finally(() => setLoadingHistory(false));
+    if (!isBackground) setLoadingHistory(true);
+    try {
+      const res = await fetch(`/api/image-to-video-history?userId=${uid}`, { cache: "no-store" });
+      const d = await res.json();
+      const rows = d.success ? d.data || [] : [];
+      setHistoryRows(rows);
+      setPosts(rows.map((r) => r.post).filter(Boolean));
+    } catch {
+      if (!isBackground) {
+        setHistoryRows([]);
+        setPosts([]);
+      }
+    } finally {
+      setLoadingHistory(false);
+    }
   }, []);
 
-  /* -------------------- Elapsed timer while rendering -------------------- */
+  const { cardProps, modals } = useVideoPostingFlow({
+    userId,
+    posts,
+    setPosts,
+    fetchPosts,
+    showToast,
+  });
+
+  /* ---------------------------- INIT ---------------------------- */
+  useEffect(() => {
+    const uid = localStorage.getItem("userId");
+    if (uid) {
+      setUserId(uid);
+      fetch(`/api/users/userbalance?userId=${uid}`)
+        .then((r) => r.json())
+        .then((d) => setWalletBalance(d?.user?.wallet ?? d?.wallet ?? 0))
+        .catch(() => setWalletBalance(0));
+    }
+    fetchPosts(1, false);
+  }, [fetchPosts]);
+
   useEffect(() => {
     if (!isGenerating) return;
     setNow(Date.now());
@@ -154,7 +190,7 @@ export default function ImageToVideoPage() {
   const canGenerate = !isBusy && !!userId && !!imageUrl && !insufficientBalance;
 
   /* -------------------- Persist to this page's own history -------------------- */
-  const saveToHistory = async ({ videoUrl, postId }) => {
+  const saveToHistory = async ({ videoUrl, post }) => {
     try {
       const res = await fetch("/api/image-to-video-history", {
         method: "POST",
@@ -164,16 +200,15 @@ export default function ImageToVideoPage() {
           videoUrl,
           sourceImageUrl: imageUrl,
           prompt: prompt.trim(),
-          postId: postId ? String(postId) : null,
+          postId: post?._id ? String(post._id) : null,
           cost: GENERATION_COST,
         }),
       });
       const saved = await res.json().catch(() => ({}));
       if (!res.ok || !saved.success) throw new Error(saved.error || "Failed to save.");
       if (saved.data) {
-        setHistory((prev) =>
-          prev.some((h) => h._id === saved.data._id) ? prev : [saved.data, ...prev]
-        );
+        const row = { ...saved.data, post: post || null };
+        setHistoryRows((prev) => (prev.some((h) => h._id === row._id) ? prev : [row, ...prev]));
       }
     } catch (err) {
       console.error("Failed to save image-to-video history:", err);
@@ -186,10 +221,7 @@ export default function ImageToVideoPage() {
     if (!userId) return showToast("Please log in to convert images.", "error");
     if (!imageUrl) return showToast("Please upload an image first.", "error");
     if (insufficientBalance) {
-      return showToast(
-        `You need at least ${GENERATION_COST} coins to convert an image.`,
-        "error"
-      );
+      return showToast(`You need at least ${GENERATION_COST} coins to convert an image.`, "error");
     }
 
     setIsGenerating(true);
@@ -223,7 +255,7 @@ export default function ImageToVideoPage() {
       if (!videoUrl) throw new Error("No video URL was returned by the generator.");
 
       setResultVideo(videoUrl);
-      showToast("🎬 Video ready — saved to your library!", "success");
+      showToast("🎬 Video ready — approve karke post karein!", "success");
 
       // The route already charged the wallet; just mirror the new balance here.
       if (typeof data.wallet === "number") setWalletBalance(data.wallet);
@@ -232,7 +264,19 @@ export default function ImageToVideoPage() {
         showToast(`${data.coinsDeducted} coins deducted 💰`, "info");
       }
 
-      await saveToHistory({ videoUrl, postId: data?.post?._id });
+      // The route created a pending Post — surface it straight into the approve flow.
+      if (data.post?._id) {
+        setPosts((prev) => [
+          data.post,
+          ...prev.filter((p) => String(p._id) !== String(data.post._id)),
+        ]);
+        setTimeout(
+          () => postsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          400
+        );
+      }
+
+      await saveToHistory({ videoUrl, post: data.post });
     } catch (err) {
       console.error("Image-to-video failed:", err);
       showToast(err.message || "Something went wrong.", "error");
@@ -241,13 +285,17 @@ export default function ImageToVideoPage() {
     }
   };
 
+  /* ---------------------------- Render ---------------------------- */
   const elapsed = startedAt ? formatElapsed(now - startedAt) : "0:00";
+  // Rows whose Post was deleted (or never linked) still deserve a plain video card.
+  const orphanRows = historyRows.filter((r) => !r.post);
 
   return (
     <div className="font-inter">
       {toast && <Toast message={toast.message} type={toast.type} />}
+      {modals}
 
-      {/* Header */}
+      {/* ---------------- Header ---------------- */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 bg-white rounded-2xl border border-slate-200 shadow-sm px-4 py-3">
           <div className="w-9 h-9 rounded-xl bg-[#EAB308] flex items-center justify-center shadow-[0_0_15px_rgba(253,224,71,0.3)] shrink-0">
@@ -266,9 +314,7 @@ export default function ImageToVideoPage() {
         <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-2xl px-4 py-3">
           <Coins className="w-4 h-4 text-[#EAB308]" />
           <div className="flex flex-col leading-tight">
-            <span className="text-xs font-bold text-slate-900/70">
-              {GENERATION_COST} coins / video
-            </span>
+            <span className="text-xs font-bold text-slate-900/70">{GENERATION_COST} coins / video</span>
             <span className="text-[10px] text-slate-400 font-medium">
               Charged only when the video is ready
             </span>
@@ -286,8 +332,8 @@ export default function ImageToVideoPage() {
         </div>
       )}
 
+      {/* ---------------- Generator ---------------- */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
-        {/* Form */}
         <div className="lg:col-span-3 space-y-4">
           <SectionCard step={1} title="Your Image" icon={ImagePlus}>
             <div
@@ -349,9 +395,7 @@ export default function ImageToVideoPage() {
                       Drag &amp; drop your image, or{" "}
                       <span className="text-[#EAB308] underline underline-offset-2">browse</span>
                     </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      PNG, JPG or WEBP — max 10 MB
-                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">PNG, JPG or WEBP — max 10 MB</p>
                   </div>
                 </>
               )}
@@ -379,8 +423,7 @@ export default function ImageToVideoPage() {
                 className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60 resize-none"
               />
               <p className="text-[10px] text-slate-400 font-medium">
-                Describe the movement, not the picture. Khaali chhoda to ek default motion lag
-                jayega.
+                Describe the movement, not the picture. Khaali chhoda to ek default motion lag jayega.
               </p>
             </div>
 
@@ -419,9 +462,7 @@ export default function ImageToVideoPage() {
                 <Video className="w-3.5 h-3.5 text-[#EAB308]" />
                 Preview
               </h2>
-              <StatusPill
-                stage={resultVideo ? "ready" : isGenerating ? "rendering" : "idle"}
-              />
+              <StatusPill stage={resultVideo ? "ready" : isGenerating ? "rendering" : "idle"} />
             </div>
 
             <div
@@ -474,42 +515,57 @@ export default function ImageToVideoPage() {
             )}
 
             <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
-              Har video aapke account se judi rehti hai — post library me bhi save hoti hai,
-              wahan se schedule ya publish kar sakte hain.
+              Video banne ke baad niche <b>Your Videos</b> me aayegi — pehle Approve karein, phir GMB,
+              Facebook, Instagram, Pinterest, LinkedIn par post ya schedule karein.
             </p>
           </div>
         </div>
       </div>
 
-      {/* History */}
-      <div className="mt-8">
+      {/* ---------------- Your Videos — approve & publish ---------------- */}
+      <div className="mt-8 scroll-mt-4" ref={postsSectionRef}>
         <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-900/60 mb-3 px-1">
           <Sparkles className="w-3.5 h-3.5 text-[#EAB308]" />
-          Your Videos
+          Your Videos — Approve &amp; Post
         </h2>
 
         {loadingHistory ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-72 rounded-2xl bg-slate-100 animate-pulse" />
+          <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-96 rounded-4xl bg-slate-100 animate-pulse" />
             ))}
           </div>
-        ) : history.length === 0 ? (
+        ) : posts.length === 0 && orphanRows.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-white py-10 px-4 text-center">
             <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center">
               <Video className="w-5 h-5 text-slate-300" />
             </div>
             <p className="text-sm font-semibold text-slate-900/60">No videos yet</p>
-            <p className="text-xs text-slate-900/30">
-              Convert an image above and it'll show up here
-            </p>
+            <p className="text-xs text-slate-900/30">Convert an image above and it'll show up here</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {history.map((item) => (
-              <HistoryVideoCard key={item._id} item={item} />
-            ))}
-          </div>
+          <>
+            {posts.length > 0 && (
+              <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
+                {posts.map((post) => (
+                  <PostCard key={post._id} post={post} {...cardProps} />
+                ))}
+              </div>
+            )}
+
+            {orphanRows.length > 0 && (
+              <div className="mt-8">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-3 px-1">
+                  Purani videos (post library se hata di gayi)
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {orphanRows.map((item) => (
+                    <HistoryVideoCard key={item._id} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -517,7 +573,7 @@ export default function ImageToVideoPage() {
 }
 
 /* ----------------------------------------------------
-   HISTORY CARD
+   HISTORY CARD (only for rows whose Post no longer exists)
 ---------------------------------------------------- */
 function HistoryVideoCard({ item }) {
   const createdLabel = item.createdAt
@@ -534,14 +590,12 @@ function HistoryVideoCard({ item }) {
           playsInline
           preload="metadata"
         />
-
         {createdLabel && (
           <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full border border-white/70 bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-slate-700 shadow-sm pointer-events-none">
             {createdLabel}
           </div>
         )}
       </div>
-
       <div className="p-3 flex flex-col gap-1.5">
         <p className="text-[11px] text-slate-500 line-clamp-2 leading-snug">
           {item.prompt || "Image to Video"}

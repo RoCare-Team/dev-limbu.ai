@@ -74,7 +74,7 @@ const buildWhenPostedUpdate = (platform, postId = "") => ({
   },
 });
 
-export function + ({ userId, posts, setPosts, fetchPosts, showToast }) {
+export function useVideoPostingFlow({ userId, posts, setPosts, fetchPosts, showToast }) {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();

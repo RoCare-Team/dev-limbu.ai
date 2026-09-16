@@ -1,5 +1,6 @@
 import React from "react";
-import { X, History, Loader2, Receipt, ArrowUpCircle, ArrowDownCircle, Calendar, Clock } from "lucide-react";
+import { X, History, Loader2, Receipt, ArrowUpCircle, ArrowDownCircle, Calendar, Clock, ChevronDown } from "lucide-react";
+import { transactionLabel } from "@/lib/transactionLabels";
 
 const TransactionHistoryModal = React.memo(({
   showTransactions,
@@ -7,7 +8,10 @@ const TransactionHistoryModal = React.memo(({
   filterType,
   setFilterType,
   loadingTx,
-  filteredTransactions
+  filteredTransactions,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }) => {
   if (!showTransactions) return null;
 
@@ -112,16 +116,18 @@ const TransactionHistoryModal = React.memo(({
                         </div>
                         <div className="min-w-0">
                           <p className={`font-black text-xs uppercase tracking-tight truncate ${isCredit ? "text-green-900" : "text-red-900"}`}>
-                            {tx.description || tx.reason || "Wallet Operation"}
+                            {tx.label || tx.description || transactionLabel(tx.reason)}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
+                            {/* `createdAt` carries the real time — the old `date` field was
+                                date-only, which made every entry read 12:00 AM. */}
                             <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                               <Calendar className="w-3 h-3" />
-                              <span>{formatDate(tx?.createdAt || tx?.date)}</span>
+                              <span>{formatDate(tx?.createdAt || tx?.timestamp)}</span>
                             </div>
                             <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                               <Clock className="w-3 h-3" />
-                              <span>{formatTime(tx?.createdAt || tx?.date)}</span>
+                              <span>{formatTime(tx?.createdAt || tx?.timestamp)}</span>
                             </div>
                           </div>
                         </div>
@@ -138,6 +144,31 @@ const TransactionHistoryModal = React.memo(({
                   </div>
                 );
               })
+            )}
+
+            {/* Older history, one page at a time */}
+            {!loadingTx && filteredTransactions.length > 0 && (
+              <div className="pt-2 pb-1 text-center">
+                {hasMore ? (
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    disabled={loadingMore}
+                    className="inline-flex items-center gap-2 rounded-xl border border-black/10 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 transition hover:border-black hover:text-black disabled:opacity-60"
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    )}
+                    {loadingMore ? "Loading…" : "Load older transactions"}
+                  </button>
+                ) : (
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-300">
+                    Showing all {filteredTransactions.length} {filterType === "all" ? "" : filterType} transactions
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

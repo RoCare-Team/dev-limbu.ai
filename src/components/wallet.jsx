@@ -28,6 +28,9 @@ export default function SmartWalletRecharge() {
     gstAmount,
     totalAmount,
     filteredTransactions,
+    txHasMore,
+    loadingMoreTx,
+    loadMoreTransactions,
     handleRecharge,
     goBack,
     router
@@ -71,6 +74,9 @@ export default function SmartWalletRecharge() {
         setFilterType={setFilterType}
         loadingTx={loadingTx}
         filteredTransactions={filteredTransactions}
+        hasMore={txHasMore}
+        loadingMore={loadingMoreTx}
+        onLoadMore={loadMoreTransactions}
       />
 
       {/* Success Modal */}

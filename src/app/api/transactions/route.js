@@ -1,6 +1,21 @@
+import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 import Transaction from "@/models/Transaction";
+import { transactionLabel } from "@/lib/transactionLabels";
 
+const DEFAULT_LIMIT = 100; // callers that don't paginate (profile stats) keep the old behaviour
+const MAX_LIMIT = 200;
+
+/**
+ * GET /api/transactions?userId=
+ *   &limit=50                       page size (default 100, max 200)
+ *   &before=<createdAtISO>|<_id>    cursor from the previous page's `nextBefore`
+ *   &type=credit|debit              filter on the server, across the whole history
+ *
+ * Pehle sirf aakhri 100 transactions aati thi (baaki history kabhi nahi dikhti) aur
+ * `createdAt` response me tha hi nahi — Vault Logs date-only string padh kar har
+ * entry par 12:00 AM dikhata tha.
+ */
 export async function GET(req) {
   await dbConnect();
 
@@ -13,13 +28,43 @@ export async function GET(req) {
     });
   }
 
+  const requestedLimit = parseInt(searchParams.get("limit"), 10);
+  const limit =
+    Number.isFinite(requestedLimit) && requestedLimit > 0
+      ? Math.min(requestedLimit, MAX_LIMIT)
+      : DEFAULT_LIMIT;
+
+  const query = { userId };
+
+  const type = searchParams.get("type");
+  if (type === "credit") query.type = { $in: ["credit", "add"] };
+  else if (type === "debit") query.type = { $in: ["debit", "subtract"] };
+
+  // Cursor = createdAt + _id, so rows sharing the same millisecond are never skipped.
+  const before = searchParams.get("before");
+  if (before) {
+    const [iso, id] = before.split("|");
+    const at = new Date(iso);
+    if (!Number.isNaN(at.getTime())) {
+      const olderThan = [{ createdAt: { $lt: at } }];
+      if (id && mongoose.Types.ObjectId.isValid(id)) {
+        olderThan.push({ createdAt: at, _id: { $lt: new mongoose.Types.ObjectId(id) } });
+      }
+      query.$or = olderThan;
+    }
+  }
+
   try {
-    const transactions = await Transaction.find({ userId })
-      .sort({ createdAt: -1 })
-      .limit(100) // ✅ yaha limit lagayi
+    // One extra row tells us whether another page exists.
+    const rows = await Transaction.find(query)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(limit + 1)
       .lean();
 
-    const formatted = transactions.map((tx) => {
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    const formatted = page.map((tx) => {
       let detailMessage = "Wallet updated";
 
       if (tx.reason === "wallet_add") {
@@ -36,21 +81,29 @@ export async function GET(req) {
 
       return {
         id: tx._id,
+        _id: tx._id,
         type: tx.type,
         amount: tx.amount,
         balanceAfter: tx.balanceAfter,
         reason: tx.reason,
+        label: transactionLabel(tx.reason),
         metadata: tx.metadata || {},
         message: detailMessage,
+        createdAt: tx.createdAt,
         date: new Date(tx.createdAt).toLocaleDateString(),
         time: new Date(tx.createdAt).toLocaleTimeString(),
         timestamp: tx.createdAt,
       };
     });
 
-    return new Response(JSON.stringify({ transactions: formatted }), {
-      status: 200,
-    });
+    const last = page[page.length - 1];
+    const nextBefore =
+      hasMore && last ? `${new Date(last.createdAt).toISOString()}|${last._id}` : null;
+
+    return new Response(
+      JSON.stringify({ transactions: formatted, hasMore, nextBefore }),
+      { status: 200 }
+    );
   } catch (err) {
     console.error("Transaction Fetch Error:", err);
     return new Response(JSON.stringify({ error: "Internal Server Error" }), {

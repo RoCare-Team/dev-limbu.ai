@@ -41,6 +41,10 @@ const TransactionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Wallet history is always read per user, newest first — without this every
+// Vault Logs open scanned the whole collection.
+TransactionSchema.index({ userId: 1, createdAt: -1 });
+
 // Prevent model compile errors
 export default mongoose.models.Transaction ||
   mongoose.model("Transaction", TransactionSchema);

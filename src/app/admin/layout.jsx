@@ -25,6 +25,7 @@ import {
   Wand2,
   FileSpreadsheet,
   Globe,
+  Clapperboard,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
@@ -85,7 +86,7 @@ export default function AdminLayout({ children }) {
   const [openGroup, setOpenGroup] = useState(null);
 
   useEffect(() => {
-    const foundIndex = navGroups.findIndex((group) =>
+    const foundIndex = visibleNavGroups.findIndex((group) =>
       group.items.some((item) => pathname.startsWith(item.href)),
     );
 
@@ -234,6 +235,19 @@ export default function AdminLayout({ children }) {
         },
 
         {
+          title: "AI Studio",
+          groupIcon: <Clapperboard size={16} />,
+          items: [
+            {
+              name: "AI Videos",
+              href: "/admin/ai-videos",
+              icon: <Clapperboard size={16} />,
+              superAdminOnly: true,
+            },
+          ],
+        },
+
+        {
           title: "Content",
           groupIcon: <QrCode size={16} />,
           items: [
@@ -342,6 +356,14 @@ export default function AdminLayout({ children }) {
   /* ----------------------------
       ROLE-BASED FILTER
     ---------------------------- */
+  // Items flagged `superAdminOnly` are hidden for every other role; a group left
+  // with no items is dropped. The open-group index is computed on this list too.
+  const visibleNavGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.superAdminOnly || role === "superAdmin"),
+    }))
+    .filter((group) => group.items.length > 0);
 
   /* ----------------------------
       UI
@@ -438,7 +460,7 @@ export default function AdminLayout({ children }) {
     scrollbar-track-transparent
   "
 >
-          {navGroups.map((group, idx) => (
+          {visibleNavGroups.map((group, idx) => (
             <div key={idx}>
               <button
                 onClick={() => setOpenGroup(openGroup === idx ? null : idx)}

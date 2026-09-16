@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+
+const TX_PAGE_SIZE = 50;
 import { useRouter } from "next/navigation";
 import { getLocalStorage } from "@/utils/storage";
 
@@ -17,6 +19,15 @@ export function useWallet() {
   const [loadingTx, setLoadingTx] = useState(true);
   const [filterType, setFilterType] = useState("all");
   const [showTransactions, setShowTransactions] = useState(false);
+  // Full history is paged (a single user can have thousands of rows).
+  const [txHasMore, setTxHasMore] = useState(false);
+  const [txNextBefore, setTxNextBefore] = useState(null);
+  const [loadingMoreTx, setLoadingMoreTx] = useState(false);
+  // Every first-page load gets a number; replies from an older load (e.g. the
+  // previous filter) are ignored so they can't overwrite the current list.
+  const txRequestRef = useRef(0);
+  const filterTypeRef = useRef(filterType);
+  filterTypeRef.current = filterType;
 
   // Preset Amounts
   const presetAmounts = useMemo(() => [
@@ -53,26 +64,63 @@ export function useWallet() {
     });
   }, []);
 
-  const fetchTransactions = useCallback(async (uid) => {
+  const buildTxUrl = (uid, type, before) => {
+    const qs = new URLSearchParams({ userId: uid, limit: String(TX_PAGE_SIZE) });
+    if (type && type !== "all") qs.set("type", type);
+    if (before) qs.set("before", before);
+    return `/api/transactions?${qs.toString()}`;
+  };
+
+  // First page for the current filter (the server filters across the whole history).
+  const fetchTransactions = useCallback(async (uid, type = filterTypeRef.current) => {
+    if (!uid) return;
+    const requestId = ++txRequestRef.current;
     try {
       setLoadingTx(true);
-      const res = await fetch(`/api/transactions?userId=${uid}`);
+      const res = await fetch(buildTxUrl(uid, type));
       const data = await res.json();
+      if (requestId !== txRequestRef.current) return;
       setTransactions(data.transactions || []);
+      setTxHasMore(!!data.hasMore);
+      setTxNextBefore(data.nextBefore || null);
     } catch (err) {
       console.error("Transaction fetch failed:", err);
     } finally {
-      setLoadingTx(false);
+      if (requestId === txRequestRef.current) setLoadingTx(false);
     }
   }, []);
 
+  const loadMoreTransactions = useCallback(async () => {
+    if (!userId || !txHasMore || !txNextBefore || loadingMoreTx) return;
+    const requestId = txRequestRef.current;
+    try {
+      setLoadingMoreTx(true);
+      const res = await fetch(buildTxUrl(userId, filterTypeRef.current, txNextBefore));
+      const data = await res.json();
+      // Filter changed while this page was loading — drop it.
+      if (requestId !== txRequestRef.current) return;
+      setTransactions((prev) => {
+        const seen = new Set(prev.map((t) => String(t._id || t.id)));
+        return [...prev, ...(data.transactions || []).filter((t) => !seen.has(String(t._id || t.id)))];
+      });
+      setTxHasMore(!!data.hasMore);
+      setTxNextBefore(data.nextBefore || null);
+    } catch (err) {
+      console.error("Loading more transactions failed:", err);
+    } finally {
+      setLoadingMoreTx(false);
+    }
+  }, [userId, txHasMore, txNextBefore, loadingMoreTx]);
+
   useEffect(() => {
     const storedUserId = getLocalStorage("userId");
-    if (storedUserId) {
-      setUserId(storedUserId);
-      fetchTransactions(storedUserId);
-    }
-  }, [fetchTransactions]);
+    if (storedUserId) setUserId(storedUserId);
+  }, []);
+
+  // Load (or reload) the first page whenever the user or the filter changes.
+  useEffect(() => {
+    if (userId) fetchTransactions(userId, filterType);
+  }, [userId, filterType, fetchTransactions]);
 
   const handleRecharge = useCallback(async () => {
     if (!userId) {
@@ -221,6 +269,9 @@ export function useWallet() {
     gstAmount,
     totalAmount,
     filteredTransactions,
+    txHasMore,
+    loadingMoreTx,
+    loadMoreTransactions,
     handleRecharge,
     goBack,
     router

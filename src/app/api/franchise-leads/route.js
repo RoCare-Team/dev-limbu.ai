@@ -61,6 +61,13 @@ function formatLeadForResponse(leadDoc) {
     assignedFranchiseAdmin: leadDoc.assignedFranchiseAdminId,
     ivrMeInterested: leadDoc.ivrMeInterested === true,
     ivrMeInterestedAt: isoOrNull(leadDoc.ivrMeInterestedAt),
+    previousAssignee: leadDoc.previousAssignee?.name
+      ? {
+          name: leadDoc.previousAssignee.name,
+          movedToName: leadDoc.previousAssignee.movedToName || "",
+          movedAt: isoOrNull(leadDoc.previousAssignee.movedAt),
+        }
+      : null,
   };
 }
 
@@ -536,6 +543,25 @@ export async function PATCH(req) {
 
     if (assignedFranchiseAdminId !== undefined) {
       updateFields.assignedFranchiseAdminId = assignedFranchiseAdminId;
+
+      // Remember who had the lead before, so a wrong (bulk) reassign can be traced
+      // and undone. Only when the owner actually changes.
+      const current = await Lead.findOne({ leadId })
+        .select("assignedFranchiseAdminId")
+        .populate("assignedFranchiseAdminId", "fullName")
+        .lean();
+      const prevAdmin = current?.assignedFranchiseAdminId;
+      if (prevAdmin?._id && String(prevAdmin._id) !== String(assignedFranchiseAdminId || "")) {
+        const newAdmin = assignedFranchiseAdminId
+          ? await Admin.findById(assignedFranchiseAdminId).select("fullName").lean()
+          : null;
+        updateFields.previousAssignee = {
+          adminId: prevAdmin._id,
+          name: prevAdmin.fullName || "",
+          movedToName: newAdmin?.fullName || "Unassigned",
+          movedAt: new Date(),
+        };
+      }
     }
 
     const updatedLead = await Lead.findOneAndUpdate({ leadId }, updateFields, {

@@ -29,6 +29,16 @@ const franchiseLeadSchema = new mongoose.Schema(
       ref: "Admin",
       default: null,
     },
+    /**
+     * Who had this lead before the current assignee. Set on every reassignment —
+     * a bulk mis-assign once moved 1,402 leads with no trace of their old owner.
+     */
+    previousAssignee: {
+      adminId: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null },
+      name: { type: String, default: "" },
+      movedToName: { type: String, default: "" },
+      movedAt: { type: Date, default: null },
+    },
     remarks: [
       {
         text: { type: String, required: true },

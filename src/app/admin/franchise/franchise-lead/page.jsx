@@ -379,6 +379,7 @@ const normalizeLead = (lead) => {
     remarks: lead.remarks || [],
     lead_quality: normalizedQuality,
     assignedFranchiseAdmin: lead.assignedFranchiseAdmin,
+    previousAssignee: lead.previousAssignee || null,
     whatsapp_count: lead.whatsapp_count || 0,
     source: lead.source || "meta",
     ivrMeInterested: lead.ivrMeInterested === true,
@@ -977,6 +978,7 @@ export default function FranchiseLeadsPage() {
             remarks: L.remarks || [],
             lead_quality: L.lead_quality,
             assignedFranchiseAdmin: L.assignedFranchiseAdmin,
+            previousAssignee: L.previousAssignee || null,
             ivrMeInterested: L.ivrMeInterested,
             ivrMeInterestedAt: L.ivrMeInterestedAt || null,
             source: "meta",
@@ -1611,6 +1613,7 @@ export default function FranchiseLeadsPage() {
               ? {
                   ...lead,
                   assignedFranchiseAdmin: data.lead.assignedFranchiseAdmin,
+                  previousAssignee: data.lead.previousAssignee || lead.previousAssignee || null,
                 }
               : lead,
           ),
@@ -4923,6 +4926,18 @@ export default function FranchiseLeadsPage() {
                               {lead.assignedFranchiseAdmin?.fullName ||
                                 "Unassigned"}
                             </span>
+                          )}
+                          {lead.previousAssignee?.name && (
+                            <p
+                              className="mt-1 text-[10px] font-semibold text-amber-700"
+                              title={`Moved from ${lead.previousAssignee.name} to ${lead.previousAssignee.movedToName || "current assignee"}${
+                                lead.previousAssignee.movedAt
+                                  ? ` on ${new Date(lead.previousAssignee.movedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                                  : ""
+                              }`}
+                            >
+                              Pichhla: {lead.previousAssignee.name}
+                            </p>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

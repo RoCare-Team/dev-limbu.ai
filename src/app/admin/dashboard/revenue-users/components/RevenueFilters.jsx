@@ -17,6 +17,8 @@ export default function RevenueFilters({
   showFranchiseOnly,
   setShowFranchiseOnly,
   onExport,
+  onExportFyInvoices,
+  exportingInvoices = false,
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-t-2xl px-5 py-4 shadow-sm">
@@ -141,6 +143,32 @@ export default function RevenueFilters({
               />
             </svg>
             Export GST (Excel)
+          </button>
+        )}
+
+        {/* ALL INVOICES (GST + NON-GST) FROM 1 APRIL TILL TODAY */}
+        {onExportFyInvoices && (
+          <button
+            onClick={onExportFyInvoices}
+            disabled={exportingInvoices}
+            title="All GST + Non-GST invoices from 1 April (current FY) till today"
+            className="h-[42px] inline-flex items-center gap-2 px-5 rounded-xl text-sm font-medium
+            bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <svg
+              className={`w-4 h-4 ${exportingInvoices ? "animate-bounce" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            {exportingInvoices ? "Preparing..." : "All Invoices Apr–Today (Excel)"}
           </button>
         )}
       </div>

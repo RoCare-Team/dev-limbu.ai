@@ -58,6 +58,7 @@ export default function RevenueUsersPage() {
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [activeView, setActiveView] = useState("package");
   const [revenueUsersList, setRevenueUsersList] = useState([]);
+  const [exportingInvoices, setExportingInvoices] = useState(false);
   const [users, setUsers] = useState([]);
 
   const [updating, setUpdating] = useState(false);
@@ -1043,6 +1044,97 @@ export default function RevenueUsersPage() {
     XLSX.writeFile(workbook, `GST-Invoices-${today}.xlsx`);
   };
 
+  // Export every invoice (GST + non-GST) from 1 April of the current financial
+  // year till today. Fetches the range fresh so on-screen filters don't apply.
+  const handleExportFyInvoices = async () => {
+    setExportingInvoices(true);
+    try {
+      const now = new Date();
+      const fyStartYear =
+        now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      const toYmd = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const startDate = `${fyStartYear}-04-01`;
+      const endDate = toYmd(now);
+
+      const email =
+        localStorage.getItem("adminEmail") || localStorage.getItem("email");
+      const role = localStorage.getItem("role");
+      const params = new URLSearchParams({
+        email,
+        role,
+        dateFilter: "custom",
+        startDate,
+        endDate,
+      });
+      const res = await fetch(`/api/franchise-revenue?${params}`);
+      const data = await res.json();
+      const rows = data.success ? data.revenue || [] : [];
+
+      if (rows.length === 0) {
+        alert(`No invoices found from ${startDate} to ${endDate}`);
+        return;
+      }
+
+      // Records without a stored PDF get a link that generates it on open.
+      const invoiceLink = (item) =>
+        item.invoiceUrl ||
+        `${window.location.origin}/api/admin/invoice-tax?id=${item._id}`;
+
+      const exportData = rows.map((item) => {
+        const hasGst = item.gstNumber && String(item.gstNumber).trim() !== "";
+        return {
+          "Invoice Number": buildInvoiceNumber(item),
+          "Invoice Date": formatDateIST(item.createdAt),
+          "Invoice Type": hasGst ? "GST" : "Non-GST",
+          "GST Number": item.gstNumber || "",
+          "Customer Name": item.leadName || item.name || "",
+          Email: item.email || "",
+          Phone: item.phone || "",
+          Plan: item.plan || item.userPaidPackage || "",
+          Amount: Number(item.amount) || 0,
+          "UTR Number": item.utrNumber || "",
+          "Franchise Name": item.franchiseName || "",
+          "Franchise ID": item.franchiseId || "",
+          "Start Date": formatDateIST(
+            item.packageStartDate || item.userPackageStartDate,
+          ),
+          "Expiry Date": formatDateIST(
+            item.packageExpiryDate || item.userPackageExpiryDate,
+          ),
+          "Invoice URL": invoiceLink(item),
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // Make the Invoice URL cells clickable hyperlinks.
+      const headers = Object.keys(exportData[0]);
+      const urlCol = headers.indexOf("Invoice URL");
+      exportData.forEach((row, i) => {
+        const ref = XLSX.utils.encode_cell({ r: i + 1, c: urlCol });
+        if (worksheet[ref] && row["Invoice URL"]) {
+          worksheet[ref].l = {
+            Target: row["Invoice URL"],
+            Tooltip: "Download invoice",
+          };
+        }
+      });
+      worksheet["!cols"] = headers.map((h) => ({
+        wch: h === "Invoice URL" ? 60 : Math.max(h.length + 2, 14),
+      }));
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoices");
+      XLSX.writeFile(workbook, `Invoices-${startDate}-to-${endDate}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Invoice export failed");
+    } finally {
+      setExportingInvoices(false);
+    }
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -1248,6 +1340,8 @@ export default function RevenueUsersPage() {
         <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
           <RevenueFilters
             onExport={handleExportGst}
+            onExportFyInvoices={handleExportFyInvoices}
+            exportingInvoices={exportingInvoices}
             activeView={activeView}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}

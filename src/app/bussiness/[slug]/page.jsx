@@ -1,4 +1,5 @@
 import { findCityBySlug } from "@/utils/citySlug";
+import { getCityPageKeywords } from "@/lib/cityPageSeo";
 import FranchisePage from "./FranchisePage";
 import { notFound } from "next/navigation";
 
@@ -74,18 +75,8 @@ export async function generateMetadata({ params }) {
 
     publisher: "Limbu.ai",
 
-    keywords: [
-      "AI franchise business",
-      "franchise opportunities",
-      "Google Business Profile services",
-      "local SEO franchise",
-      "GMB management franchise",
-      "AI marketing franchise",
-      "business automation franchise",
-      "review management services",
-      "digital marketing franchise India",
-      "Limbu.ai franchise",
-    ],
+    // City pages get city keywords; shared with /api/state-pages (backlinking).
+    keywords: getCityPageKeywords("franchise-opportunities", cityName),
 
     openGraph: {
       title,

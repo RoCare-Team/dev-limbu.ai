@@ -2,12 +2,46 @@ import { getPublicSiteUrl } from "@/lib/siteUrl";
 
 const STATIC_PATHS = [
   "/",
+  "/about",
   "/contact",
   "/pricing",
+  "/blog",
   "/privacy-policy",
   "/terms-and-conditions",
+  "/cancellation-policy",
+  "/work-with-us",
+  "/webinar-demo",
+
+  // Services (national pages; city pages live in services.xml)
   "/services/google-bussiness-profile-management",
+  "/services/local-seo",
+  "/google-business-management-service",
+  "/city/gurugram",
+
+  // Franchise
   "/bussiness/franchise-opportunities",
+  "/franchise-opportunities",
+
+  // Industry landing pages
+  "/bakery-marketing-software",
+  "/car-garage-marketing-software",
+  "/clinic-marketing-software",
+  "/education-marketing-software",
+  "/gym-marketing-software",
+  "/handyman-marketing-software",
+  "/pest-control-marketing-software",
+  "/realestate-marketing-software",
+  "/restaurant-marketing-software",
+  "/salon-marketing-software",
+  "/tour-travel-marketing-software",
+  "/yoga-wellness-marketing-software",
+
+  // Guides
+  "/how-to-connect-gmb",
+  "/how-to-create-post",
+  "/how-to-generate-magic-qr",
+  "/how-to-post-on-gmb",
+  "/how-to-reply-review",
 ];
 
 export async function GET() {

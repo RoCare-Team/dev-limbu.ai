@@ -197,19 +197,42 @@ export function buildServiceItemsPatchBody(services, categoryGcid, opts = {}) {
       .map((s) => ({ displayName: s, description: '', priceType: 'none', price: '', category: '' }));
   }
 
-  const items = list
+  const cleaned = list
     .map((s) => {
       const cat = normGcid(s.category);
       const gcid = cat && (!allowed || allowed.has(cat)) ? cat : defaultGcid;
       return {
-        displayName: String(s.displayName || '').trim(),
+        displayName: String(s.displayName || '').trim().replace(/\s+/g, ' '),
         description: String(s.description || '').trim(),
         priceType: s.priceType || 'none',
         price: s.price,
         gcid,
       };
     })
-    .filter((s) => s.displayName && s.gcid)
+    .filter((s) => s.displayName && s.gcid);
+
+  // Google rejects the WHOLE save if two free-form services in one category share a
+  // display name ("Provided free-form service items must have unique display names
+  // within each category"). Duplicates creep in from AI generate / CSV import / manual
+  // re-adds, so merge them here: first one wins, and it borrows a description or price
+  // from a later duplicate when its own is empty. Done before the 100 cap so repeats
+  // can't crowd out real services.
+  const byKey = new Map();
+  for (const s of cleaned) {
+    const key = `${s.gcid}|${s.displayName.toLowerCase()}`;
+    const kept = byKey.get(key);
+    if (!kept) {
+      byKey.set(key, { ...s });
+      continue;
+    }
+    if (!kept.description && s.description) kept.description = s.description;
+    if ((!kept.priceType || kept.priceType === 'none') && s.priceType && s.priceType !== 'none') {
+      kept.priceType = s.priceType;
+      kept.price = s.price;
+    }
+  }
+
+  const items = [...byKey.values()]
     .slice(0, 100)
     .map((s) => {
       const item = {

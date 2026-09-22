@@ -129,7 +129,13 @@ function googleErrorDetail(errData) {
   for (const d of details) {
     const fv = Array.isArray(d.fieldViolations) ? d.fieldViolations : [];
     const msgs = fv.map((v) => v.description || v.field).filter(Boolean);
-    if (msgs.length) return msgs.join('; ');
+    if (msgs.length) {
+      // Google sends one violation per offending item, often the same text many
+      // times — show each distinct reason once with a count instead of a wall of repeats.
+      const counts = new Map();
+      for (const m of msgs) counts.set(m, (counts.get(m) || 0) + 1);
+      return [...counts].map(([m, n]) => (n > 1 ? `${m} (×${n})` : m)).join('; ');
+    }
   }
   return err.message || null;
 }

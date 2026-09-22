@@ -9,6 +9,7 @@ import ServiceStructuredData from "@/components/seo/ServiceStructuredData";
 
 import { notFound } from "next/navigation";
 import { findCityBySlug } from "@/utils/citySlug";
+import { getCityPageKeywords, getCityPageUrl } from "@/lib/cityPageSeo";
 
 const GBP_PREFIX = "google-bussiness-profile-management-";
 const GBP_BASE_SLUG = "google-bussiness-profile-management";
@@ -163,6 +164,9 @@ export async function generateMetadata({ params }) {
 
       description,
 
+      // Shared with /api/state-pages so backlinks carry the page's own keywords.
+      keywords: getCityPageKeywords("local-seo", cityName),
+
       alternates: {
         canonical: canonicalUrl,
       },
@@ -216,7 +220,10 @@ export async function generateMetadata({ params }) {
 
     const description = `Boost your ${cityName} business visibility with AI-powered Google Business Profile management, SEO optimization, reviews, and local ranking support from Limbu.ai.`;
 
-    const canonicalUrl = `${SITE_URL}/services/${slug}`;
+    // Old `google-bussiness-service-<city>` URLs still render, but must point
+    // search engines at the current URL (the one in the sitemap) — otherwise
+    // both versions compete as duplicates.
+    const canonicalUrl = getCityPageUrl("google-business-profile-management", city);
 
     return {
       metadataBase: new URL(SITE_URL),
@@ -224,6 +231,9 @@ export async function generateMetadata({ params }) {
       title,
 
       description,
+
+      // Shared with /api/state-pages so backlinks carry the page's own keywords.
+      keywords: getCityPageKeywords("google-business-profile-management", cityName),
 
       alternates: {
         canonical: canonicalUrl,

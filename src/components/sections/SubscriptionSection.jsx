@@ -130,14 +130,14 @@ export default function SubscriptionSection({
             const discountPct = listPrice
               ? Math.round((savings / listPrice) * 100)
               : 0;
-            const cycleTotalLabel =
+            const cycleSuffix =
               billingCycle === "quarterly"
-                ? "Quarterly total (3 months)"
+                ? "/ quarter"
                 : billingCycle === "half-yearly"
-                  ? "6 month total"
+                  ? "/ 6 months"
                   : billingCycle === "yearly"
-                    ? "Yearly total (12 months)"
-                    : "Monthly total";
+                    ? "/ year"
+                    : "/ month";
 
             return (
               <div
@@ -190,7 +190,18 @@ export default function SubscriptionSection({
                         </p>
                       )}
 
-                      {/* Price — monthly rate leads, cycle total sits below */}
+                      {/* Price — struck list price + discount badge, then payable price */}
+                      {savings > 0 && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xl font-bold text-slate-400 line-through decoration-red-500 decoration-[3px]">
+                            ₹{listPrice.toLocaleString()}
+                          </span>
+                          <span className="rounded-full bg-red-500 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+                            {discountPct}% OFF
+                          </span>
+                        </div>
+                      )}
+
                       <div className="flex items-baseline gap-1.5 mb-1">
                         <span
                           className="font-black leading-none text-black"
@@ -199,13 +210,13 @@ export default function SubscriptionSection({
                             fontSize: "clamp(2rem, 4vw, 2.5rem)",
                           }}
                         >
-                          ₹{plan.basePrice.toLocaleString()}
+                          ₹{price.toLocaleString()}
                         </span>
                         <span
                           className="text-xs font-bold"
                           style={{ color: "rgba(15, 23, 42, 0.6)" }}
                         >
-                          / month
+                          {cycleSuffix}
                         </span>
                       </div>
 
@@ -213,27 +224,11 @@ export default function SubscriptionSection({
                         + 18% GST
                       </p>
 
-                      {/* Cycle total — list price struck through, payable price highlighted */}
-                      <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
-                        <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: "rgba(15, 23, 42, 0.5)" }}>
-                          {cycleTotalLabel}
+                      {savings > 0 && (
+                        <div className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
+                          You save ₹{savings.toLocaleString()}
                         </div>
-
-                        <div className="flex items-baseline gap-2 mt-0.5">
-                          <span className="text-sm font-bold text-slate-400 line-through">
-                            ₹{listPrice.toLocaleString()}
-                          </span>
-                          <span className="text-2xl font-black text-green-600">
-                            ₹{price.toLocaleString()}
-                          </span>
-                        </div>
-
-                        {savings > 0 && (
-                          <div className="text-[11px] font-bold text-green-700 mt-0.5">
-                            You save ₹{savings.toLocaleString()} ({discountPct}% off)
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     {/* Features */}

@@ -25,7 +25,7 @@ export default function SubscriptionSection({
         {/* Heading */}
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Our{" "}
+            Our GMB{" "}
             <span className="bg-lightPrimary bg-clip-text text-slate-900">
               Package
             </span>
@@ -37,7 +37,7 @@ export default function SubscriptionSection({
 
           {/* Billing Toggle */}
           <div className="flex flex-wrap justify-center gap-2 mb-8">
-            {["monthly", "quarterly",  "yearly"].map((cycle) => (
+            {["quarterly", "yearly"].map((cycle) => (
               <button
                 key={cycle}
                 onClick={() => setBillingCycle(cycle)}
@@ -47,21 +47,16 @@ export default function SubscriptionSection({
                     : "bg-dark text-primary hover:bg-slate-200"
                 }`}
               >
-                {cycle === "monthly"
-                  ? "Monthly"
-                  : cycle === "quarterly"
-                  ? "Quarterly"
-                  
-                  : "Yearly"}
+                {cycle === "quarterly" ? "Quarterly" : "Yearly"}
 
                 {cycle === "quarterly" && (
-                  <span className="ml-1 text-xs text-lightPrimary">-10%  (Recommended)</span>
+                  <span className="ml-1 text-xs text-lightPrimary">-20%  (Recommended)</span>
                 )}
 
                 
 
                 {cycle === "yearly" && (
-                  <span className="ml-1 text-xs text-yellow-400">-20%</span>
+                  <span className="ml-1 text-xs text-yellow-400">-50%</span>
                 )}
               </button>
             ))}
@@ -82,9 +77,27 @@ export default function SubscriptionSection({
             const price = calculatePrice(plan.basePrice)
             const multiplier = getMultiplier()
 
+            // Undiscounted cycle total (monthly rate × months) vs what is payable
+            const listPrice = plan.basePrice * multiplier
+            const savings = listPrice - price
+            const discountPct = listPrice
+              ? Math.round((savings / listPrice) * 100)
+              : 0
+            const cycleTotalLabel =
+              billingCycle === "quarterly"
+                ? "Quarterly total (3 months)"
+                : billingCycle === "half-yearly"
+                ? "6 month total"
+                : billingCycle === "yearly"
+                ? "Yearly total (12 months)"
+                : "Monthly total"
+
             const displayFeatures = [
               `${plan.basePosts * multiplier} GMB Posts`,
-              `${plan.baseCitations * multiplier} Citations`,
+              // Plans without citations (Basic) skip the line entirely
+              ...(plan.baseCitations
+                ? [`${plan.baseCitations * multiplier} Citations`]
+                : []),
               ...plan.staticFeatures,
               // Social Media Management is an annual-only perk — unlocked only on the Yearly cycle, for all 3 plans
               ...(billingCycle === "yearly" ? ["Social Media Management"] : []),
@@ -117,19 +130,14 @@ export default function SubscriptionSection({
                     {plan.description}
                   </p>
 
+                  {/* Monthly rate leads; the cycle total sits below it */}
                   <div className="flex items-baseline gap-1">
                     <span className="text-4xl font-bold text-slate-900">
-                      ₹{price.toLocaleString()}
+                      ₹{plan.basePrice.toLocaleString()}
                     </span>
 
                     <span className="text-sm text-slate-500 font-medium">
-                      {billingCycle === "monthly"
-                        ? "/ month"
-                        : billingCycle === "quarterly"
-                        ? "/ quarter"
-                        : billingCycle === "half-yearly"
-                        ? "/ 6 months"
-                        : "/ year"}
+                      / month
                     </span>
                   </div>
 
@@ -137,21 +145,28 @@ export default function SubscriptionSection({
                     + 18% GST
                   </div>
 
-                  {/* Savings */}
-                  {billingCycle !== "monthly" && (
-                    <div className="text-xs text-green-600 font-semibold mt-1">
-                      Save ₹
-                      {(
-                        plan.basePrice *
-                          (billingCycle === "quarterly"
-                            ? 3
-                            : billingCycle === "half-yearly"
-                            ? 6
-                            : 12) -
-                        price
-                      ).toLocaleString()}
+                  {/* Cycle total — list price struck through, payable price highlighted */}
+                  <div className="mt-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-slate-500">
+                      {cycleTotalLabel}
                     </div>
-                  )}
+
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                      <span className="text-sm font-semibold text-slate-400 line-through">
+                        ₹{listPrice.toLocaleString()}
+                      </span>
+
+                      <span className="text-2xl font-extrabold text-green-600">
+                        ₹{price.toLocaleString()}
+                      </span>
+                    </div>
+
+                    {savings > 0 && (
+                      <div className="text-xs font-bold text-green-700 mt-0.5">
+                        You save ₹{savings.toLocaleString()} ({discountPct}% off)
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Features */}

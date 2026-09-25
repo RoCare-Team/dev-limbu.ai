@@ -47,7 +47,7 @@ export default function PricingPage() {
   // ── Modal / booking state ──
   const [showServiceModal, setShowServiceModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [billingCycle, setBillingCycle] = useState("monthly");
+  const [billingCycle, setBillingCycle] = useState("quarterly");
   const [bookingSuccess, setBookingSuccess] = useState(false);
 
   // ── Auth state read from localStorage ──
@@ -87,10 +87,10 @@ export default function PricingPage() {
   const subscriptionPlans = [
     {
       title: "Basic Plan",
-      basePrice: 3500,
-      totalAmount: 4130,
-      basePosts: 15,
-      baseCitations: 5,
+      basePrice: 2000,
+      totalAmount: 2360,
+      basePosts: 10,
+      baseCitations: 0, // Basic has no citations — the line is hidden when 0
       staticFeatures: [
         "Review Reply System",
         "Magic Qr Code Generation",
@@ -104,34 +104,11 @@ export default function PricingPage() {
       borderColor: "border-lightPrimary",
     },
     {
-      title: "Premium Plan",
-      basePrice: 7500,
-      totalAmount: 8850,
-      basePosts: 45,
-      baseCitations: 20,
-      staticFeatures: [
-        "Review Reply Management",
-        "Custom QR Code Generation",
-        "Business Insights Dashboard",
-        "Category Addition & Optimization",
-        "Website Builder",
-        "Professional Services Integration",
-        "10 Agent Access",
-        "WhatsApp Workflow Automation",
-        "10 AI-Generated Reels per Month",
-      ],
-      description: "Perfect for brands focused on automation and maximum reach",
-      popular: true,
-      color: "bg-neutral-600",
-      textColor: "text-neutral-600",
-      borderColor: "border-neutral-200",
-    },
-    {
       title: "Professional Plan",
-      basePrice: 5500,
-      totalAmount: 6490,
-      basePosts: 30,
-      baseCitations: 12,
+      basePrice: 3500,
+      totalAmount: 4130,
+      basePosts: 20,
+      baseCitations: 5,
       staticFeatures: [
         "Review Reply Management",
         "Custom QR Code Generation",
@@ -141,12 +118,33 @@ export default function PricingPage() {
         "WhatsApp API Integration",
         "Multi-Agent Support (Up to 5 Agents)",
         "Data Scraper (1,000 Leads / Month)",
-        "4 AI-Generated Reels per Month",
       ],
       description: "Best for growing businesses looking for better visibility",
       color: "bg-neutral-600",
       textColor: "text-neutral-600",
       borderColor: "border-purple-200",
+    },
+    {
+      title: "Premium Plan",
+      basePrice: 5500,
+      totalAmount: 6490,
+      basePosts: 30,
+      baseCitations: 10,
+      staticFeatures: [
+        "Review Reply Management",
+        "Custom QR Code Generation",
+        "Business Insights Dashboard",
+        "Category Addition & Optimization",
+        "Website Builder",
+        "Professional Services Integration",
+        "10 Agent Access",
+        "WhatsApp Workflow Automation",
+      ],
+      description: "Perfect for brands focused on automation and maximum reach",
+      popular: true,
+      color: "bg-neutral-600",
+      textColor: "text-neutral-600",
+      borderColor: "border-neutral-200",
     },
   ];
 
@@ -337,11 +335,12 @@ export default function PricingPage() {
   // ─────────────────────────────────────────────
   // Price helpers
   // ─────────────────────────────────────────────
+  // GMB packages start at the quarterly cycle: 20% off quarterly, 50% off yearly.
   const calculatePrice = (basePrice) => {
     if (billingCycle === "monthly") return basePrice;
-    if (billingCycle === "quarterly") return Math.round(basePrice * 3 * 0.9);
+    if (billingCycle === "quarterly") return Math.round(basePrice * 3 * 0.8);
     if (billingCycle === "half-yearly") return Math.round(basePrice * 6 * 0.85);
-    if (billingCycle === "yearly") return Math.round(basePrice * 12 * 0.8);
+    if (billingCycle === "yearly") return Math.round(basePrice * 12 * 0.5);
     return basePrice;
   };
 
@@ -377,7 +376,10 @@ export default function PricingPage() {
       subtitle: plan.description,
       features: [
         `${plan.basePosts * multiplier} GMB Posts`,
-        `${plan.baseCitations * multiplier} Citations`,
+        // Plans without citations (Basic) skip the line entirely
+        ...(plan.baseCitations
+          ? [`${plan.baseCitations * multiplier} Citations`]
+          : []),
         ...plan.staticFeatures,
         // Social Media Management is an annual-only perk — unlocked only on the Yearly cycle, for all 3 plans
         ...(billingCycle === "yearly" ? ["Social Media Management"] : []),

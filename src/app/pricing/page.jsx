@@ -17,6 +17,9 @@ const WebDevelopmentSection = lazy(
   () => import("@/components/sections/WebDevelopmentSection"),
 );
 const SEOSection = lazy(() => import("@/components/sections/SeoPlans"));
+const SocialMediaSection = lazy(
+  () => import("@/components/sections/SocialMediaSection"),
+);
 const AccountSetupSection = lazy(
   () => import("@/components/sections/AccountSetupSection"),
 );
@@ -136,6 +139,42 @@ export default function PricingPage() {
       color: "bg-neutral-600",
       textColor: "text-neutral-600",
       borderColor: "border-neutral-200",
+    },
+  ];
+
+  // Shared basics across every social media plan
+  const SOCIAL_BASE_FEATURES = [
+    "Reel Scripting & Editing",
+    "Captions & Hashtags",
+    "Posting on Instagram & Facebook",
+    "Post Insights / Analytics",
+    "Comments Management",
+    "DM Automation",
+  ];
+
+  // Social media reel plans — monthly rate; 10% off quarterly, 20% off yearly
+  const socialMediaPlans = [
+    {
+      title: "Social Starter",
+      basePrice: 3000,
+      baseReels: 4,
+      staticFeatures: SOCIAL_BASE_FEATURES,
+      description: "For brands starting out on Instagram & Facebook",
+    },
+    {
+      title: "Social Growth",
+      basePrice: 6000,
+      baseReels: 9,
+      staticFeatures: SOCIAL_BASE_FEATURES,
+      description: "For brands posting consistently every week",
+      popular: true,
+    },
+    {
+      title: "Social Pro",
+      basePrice: 12000,
+      baseReels: 20,
+      staticFeatures: SOCIAL_BASE_FEATURES,
+      description: "For brands that need daily short-form content",
     },
   ];
 
@@ -577,6 +616,13 @@ export default function PricingPage() {
             calculatePrice={calculatePrice}
             getMultiplier={getMultiplier}
             handleSubscriptionClick={handleSubscriptionClick}
+          />
+        </Suspense>
+
+        <Suspense fallback={<SectionSkeleton />}>
+          <SocialMediaSection
+            socialPlans={socialMediaPlans}
+            handlePlanClick={handlePlanClick}
           />
         </Suspense>
 

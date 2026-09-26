@@ -146,7 +146,6 @@ export default function PricingPage() {
   const SOCIAL_BASE_FEATURES = [
     "Reel Scripting & Editing",
     "Captions & Hashtags",
-    "Posting on Instagram & Facebook",
     "Post Insights / Analytics",
     "Comments Management",
     "DM Automation",

@@ -79,7 +79,7 @@ export default function SocialMediaSection({ socialPlans, handlePlanClick }) {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(2rem, 5vw, 4rem)",
+              fontSize: "clamp(1.9rem, 4.2vw, 3.2rem)",
             }}
           >
             Social Media{" "}

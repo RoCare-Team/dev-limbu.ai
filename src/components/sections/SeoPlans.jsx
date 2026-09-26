@@ -9,11 +9,15 @@ export default function SEOSection({ seoPlans, handlePlanClick }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
 
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Our{" "}
-            <span className="bg-lightPrimary bg-clip-text text-transparent" style={{ color: "var(--lemon-hover)" }}>
-              SEO Plans
-            </span>
+          <h2
+            className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
+            style={{
+              fontFamily: "var(--font-heading)",
+              color: "var(--foreground)",
+              fontSize: "clamp(1.9rem, 4.2vw, 3.2rem)",
+            }}
+          >
+            Our <span style={{ color: "var(--lemon-hover)" }}>SEO Plans</span>
           </h2>
 
           <p className="text-lg text-slate-600">

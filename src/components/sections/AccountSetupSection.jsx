@@ -54,7 +54,7 @@ export default function AccountSetupSection({ plans, handlePlanClick }) {
             style={{
               fontFamily: "var(--font-heading)",
               color: "var(--foreground)",
-              fontSize: "clamp(2rem, 5vw, 3rem)",
+              fontSize: "clamp(1.9rem, 4.2vw, 3.2rem)",
             }}
           >
             Account <span style={{ color: "var(--lemon-hover)" }}>Setup Services</span>

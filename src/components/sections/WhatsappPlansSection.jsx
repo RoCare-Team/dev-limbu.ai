@@ -8,8 +8,15 @@ export default function WhatsappPlansSection({ plans, handlePlanClick }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Heading */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Whatsapp <span className="text-yellow-500">Automation Plan</span>
+          <h2
+            className="font-bold uppercase leading-[0.95] tracking-tight mb-4"
+            style={{
+              fontFamily: "var(--font-heading)",
+              color: "var(--foreground)",
+              fontSize: "clamp(1.9rem, 4.2vw, 3.2rem)",
+            }}
+          >
+            Whatsapp <span style={{ color: "var(--lemon-hover)" }}>Automation Plan</span>
           </h2>
 
           <p className="text-lg text-slate-600">

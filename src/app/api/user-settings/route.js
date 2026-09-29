@@ -273,9 +273,14 @@ export async function POST(request) {
     const localStorageUserId = String(userId || user.userId || user._id.toString()).trim();
     console.log('[user-settings] AutomationPlan userId (from body / User):', localStorageUserId);
 
-    // Frequency is LOCKED to the user's plan — never trust the client value.
-    // Basic → alternate (15/mo), Professional → daily (30/mo), Premium → twicedaily (45/mo).
-    const safeFrequency    = getFixedFrequencyForPlan(user.paidPackage) || frequency || 'daily';
+    // The plan sets the DEFAULT cadence (Basic → alternate, Professional →
+    // daily, Premium → twicedaily) but the user may pick another one in
+    // /user-settings, so the chosen value is kept. Only a known cadence is
+    // accepted — a junk client value would otherwise reach the cron — and
+    // anything else falls back to the plan's own pace.
+    const ALLOWED_FREQUENCIES = new Set(['daily', 'alternate', 'twicedaily', 'weekly', 'custom']);
+    const planFrequency    = getFixedFrequencyForPlan(user.paidPackage) || 'daily';
+    const safeFrequency    = ALLOWED_FREQUENCIES.has(frequency) ? frequency : planFrequency;
     const safeKeywords     = Array.isArray(keywords) ? keywords.filter(Boolean) : [];
     const ALLOWED_PLATFORMS = new Set(['gmb', 'fb', 'ig']);
     let safePlatforms = Array.isArray(platforms)

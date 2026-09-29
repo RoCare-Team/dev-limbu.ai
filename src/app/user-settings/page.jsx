@@ -2,7 +2,7 @@
 
 import { useSession } from "@/hooks/useAppSession";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 import { getValidFrequencies, getRecommendedFrequency, getFixedFrequencyForPlan, getFrequencyStep, getPostsPerDay } from "@/utils/userSettingsHelpers";
@@ -771,6 +771,9 @@ export default function AutomationSettings({ onNavigateBack }) {
   // Form state (Steps 2–6)
   const [automationEnabled, setAutomationEnabled] = useState(false);
   const [frequency, setFrequency] = useState("daily");
+  // True once the cadence came from somewhere deliberate — a saved setting or a
+  // click. The plan default must not overwrite either of those.
+  const frequencyPinnedRef = useRef(false);
   const [startDate, setStartDate] = useState(() => toInputDate(new Date()));
   const [endDate, setEndDate] = useState("");
   const [skippedDates, setSkippedDates] = useState([]);
@@ -952,7 +955,12 @@ export default function AutomationSettings({ onNavigateBack }) {
           // Restore saved automation settings
           if (as) {
             setAutomationEnabled(as.automationEnabled ?? false);
-            setFrequency(as.frequency || "daily");
+            if (as.frequency) {
+              setFrequency(as.frequency);
+              frequencyPinnedRef.current = true;
+            } else {
+              setFrequency("daily");
+            }
             if (as.startDate) setStartDate(toInputDate(as.startDate));
             if (as.endDate) setEndDate(toInputDate(as.endDate));
             setSelectedKeywords(as.keywords || []);
@@ -1065,13 +1073,15 @@ export default function AutomationSettings({ onNavigateBack }) {
     }
   }, [gmbLocations]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Frequency is locked to the plan — Basic=alternate, Professional=daily,
-  // Premium=twicedaily. Keep the UI in sync even if a previously-saved plan
-  // had a stale/incorrect frequency stored.
+  // The plan picks the DEFAULT cadence (Basic=alternate, Professional=daily,
+  // Premium=twicedaily) — not the final answer. It applies only while nothing
+  // deliberate has set the cadence; without that guard, editing the frequency
+  // was undone the moment the plan finished loading.
   useEffect(() => {
     if (!userData?.paidPackage) return;
-    const fixed = getFixedFrequencyForPlan(userData.paidPackage);
-    setFrequency(prev => (prev === fixed ? prev : fixed));
+    if (frequencyPinnedRef.current) return;
+    const preset = getFixedFrequencyForPlan(userData.paidPackage);
+    setFrequency(prev => (prev === preset ? prev : preset));
   }, [userData?.paidPackage]);
 
   // ── Plan matching ──────────────────────────────────────────────────────────
@@ -1107,6 +1117,19 @@ export default function AutomationSettings({ onNavigateBack }) {
       (platformFb && selectedFbPages.length > 0) ||
       (platformIg && selectedIgPages.length > 0)
     );
+
+  // Posts this cadence cannot deliver before the plan expires. The plan's own
+  // cadence always fits; a slower one picked by hand may not, and that is worth
+  // saying out loud instead of silently short-changing the plan.
+  const cadenceShortfall = useMemo(() => {
+    if (frequency === "custom" || !startDate || !postsLeft || !pkgExpiry) return 0;
+    const start = new Date(startDate);
+    const expiry = new Date(pkgExpiry);
+    if (isNaN(start.getTime()) || isNaN(expiry.getTime()) || expiry < start) return 0;
+    const days = Math.floor((expiry - start) / 86400000) + 1;
+    const capacity = Math.ceil(days / getFrequencyStep(frequency)) * getPostsPerDay(frequency);
+    return Math.max(0, postsLeft - capacity);
+  }, [frequency, startDate, postsLeft, pkgExpiry]);
 
   // ── Auto-calculate end date ────────────────────────────────────────────────
   // When start date or frequency changes (and no manual end date is set),
@@ -2551,7 +2574,7 @@ export default function AutomationSettings({ onNavigateBack }) {
                 <div>
                   <div style={S.label}>Step 2 — Posting Frequency</div>
                   <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 8 }}>
-                    🔒 Fixed by your plan — {userData?.paidPackage || "your package"} always posts on this cadence.
+                    Recommended for {userData?.paidPackage || "your package"}: {frequencyLabel(getRecommendedFrequency(userData?.paidPackage))}. You can pick any cadence — the end date updates to match.
                   </div>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {getValidFrequencies(userData?.paidPackage).map(o => {
@@ -2559,7 +2582,11 @@ export default function AutomationSettings({ onNavigateBack }) {
                       const isRecommended = getRecommendedFrequency(userData?.paidPackage) === o.v;
                       return (
                         <button key={o.v}
-                          onClick={() => !o.disabled && setFrequency(o.v)}
+                          onClick={() => {
+                            if (o.disabled) return;
+                            frequencyPinnedRef.current = true;
+                            setFrequency(o.v);
+                          }}
                           title={o.disabled ? "Locked — not the cadence for your plan" : ""}
                           style={{
                             display: "flex", flexDirection: "column", gap: 2,
@@ -2654,10 +2681,23 @@ export default function AutomationSettings({ onNavigateBack }) {
                       onFocus={e => e.currentTarget.style.borderColor = "#3b82f6"}
                       onBlur={e => e.currentTarget.style.borderColor = "#bfdbfe"} />
                     <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
-                      Auto-set for {postsLeft} posts at {frequencyLabel(frequency).toLowerCase()} pace (fixed by your plan).
+                      Auto-set for {postsLeft} posts at {frequencyLabel(frequency).toLowerCase()} pace.
                     </div>
                   </div>
                 </div>}
+
+                {cadenceShortfall > 0 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 12, padding: "10px 14px" }}>
+                    <span style={{ fontSize: 14 }}>⚠️</span>
+                    <div style={{ fontSize: 12, color: "#92400e", lineHeight: 1.5 }}>
+                      At {frequencyLabel(frequency).toLowerCase()} pace, {cadenceShortfall} of your {postsLeft} remaining
+                      posts won&apos;t fit before the plan expires{pkgExpiry ? " on " + fmtDate(pkgExpiry) : ""}.
+                      {getRecommendedFrequency(userData?.paidPackage) !== frequency
+                        ? " Your plan's " + frequencyLabel(getRecommendedFrequency(userData?.paidPackage)).toLowerCase() + " pace fits them all."
+                        : ""}
+                    </div>
+                  </div>
+                )}
 
                 {/* Step 5: Skip dates (hidden for custom frequency) */}
                 {frequency !== "custom" &&

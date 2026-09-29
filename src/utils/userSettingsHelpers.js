@@ -71,14 +71,13 @@ export function getFixedFrequencyForPlan(planName) {
 }
 
 /**
- * Returns all frequency options for display, but only the ONE cadence that
- * matches the plan is enabled — everything else (including the previously
- * "user pickable" daily/alternate/weekly/custom set) is disabled. This locks
- * the frontend to the plan-correct cadence instead of letting the user choose
- * a frequency that can't deliver the plan's post count.
+ * Returns all frequency options for display. Every cadence is selectable — the
+ * plan only decides which one is RECOMMENDED (and pre-selected). A cadence
+ * slower than the plan's can leave posts undelivered before expiry, so the UI
+ * warns about that shortfall rather than taking the choice away.
  */
 export function getValidFrequencies(planName) {
-  const fixed = getFixedFrequencyForPlan(planName);
+  const recommended = getFixedFrequencyForPlan(planName);
 
   const ALL = [
     { v: 'daily',      l: 'Daily',            s: 'Every day — 1 post/day' },
@@ -90,7 +89,8 @@ export function getValidFrequencies(planName) {
 
   return ALL.map(opt => ({
     ...opt,
-    disabled: opt.v !== fixed,
+    recommended: opt.v === recommended,
+    disabled: false,
   }));
 }
 

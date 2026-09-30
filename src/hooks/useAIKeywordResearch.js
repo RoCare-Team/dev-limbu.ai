@@ -12,6 +12,7 @@ export function useAIKeywordResearch({ addKeyword, savedKeywordsSet, slug, locat
   const [reportId, setReportId] = useState(null);
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [generateError, setGenerateError] = useState("");
+  
 
   const generateKeywords = useCallback(async () => {
     const name = businessName.trim();

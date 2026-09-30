@@ -6,15 +6,18 @@ import {
   upstreamErrorMessage,
 } from "@/lib/cgiVideoApi";
 
-const TASK_ID_PATTERN = /^[a-f0-9]{32}$/i;
+// Upstream job ids are 32-char hex today; kept loose so a format change on their
+// side doesn't break polling, while still refusing anything path-unsafe.
+const JOB_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const taskId = searchParams.get("taskId") || "";
+    // `taskId` is the historical param name — `jobId` matches the v1 API.
+    const jobId = (searchParams.get("jobId") || searchParams.get("taskId") || "").trim();
 
-    if (!TASK_ID_PATTERN.test(taskId)) {
-      return NextResponse.json({ success: false, error: "A valid taskId is required." }, { status: 400 });
+    if (!JOB_ID_PATTERN.test(jobId)) {
+      return NextResponse.json({ success: false, error: "A valid job id is required." }, { status: 400 });
     }
 
     const controller = new AbortController();
@@ -22,7 +25,7 @@ export async function GET(req) {
 
     let externalRes;
     try {
-      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/task/${taskId}`, {
+      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/v1/ads/${jobId}`, {
         headers: cgiVideoHeaders(),
         cache: "no-store",
         signal: controller.signal,

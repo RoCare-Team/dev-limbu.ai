@@ -6,33 +6,27 @@ import {
   upstreamErrorMessage,
 } from "@/lib/cgiVideoApi";
 
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+// The v1 API takes the product photo as base64 inside a JSON body. Base64 adds
+// ~33%, so the cap is lower than the old multipart upload's — 10 MB of image is
+// already far more than a product shot needs.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const OPTIONAL_TEXT_FIELDS = ["product_name", "keywords", "music_mood"];
+const ALLOWED_ASPECT_RATIOS = new Set(["9:16", "16:9"]);
+const MIN_DURATION = 10;
+const MAX_DURATION = 60;
 
-// The upstream returns as soon as the ad copy is written and the video job is
-// submitted (not when the video is done), so a couple of minutes is plenty.
-export const maxDuration = 180;
+// Creating a job returns as soon as it is queued — the render itself is polled.
+export const maxDuration = 120;
 
 function isFile(value) {
   return value && typeof value === "object" && typeof value.size === "number" && value.size > 0;
 }
 
-function imageError(file, label) {
-  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return `${label} must be a PNG, JPG or WEBP image.`;
-  }
-  if (file.size > MAX_IMAGE_BYTES) {
-    return `${label} must be under 15 MB.`;
-  }
-  return null;
-}
-
 export async function POST(req) {
   try {
-    const incomingForm = await req.formData();
+    const form = await req.formData();
 
-    const businessName = String(incomingForm.get("business_name") || "").trim();
+    const businessName = String(form.get("business_name") || "").trim();
     if (!businessName) {
       return NextResponse.json(
         { success: false, error: "business_name is required." },
@@ -40,46 +34,64 @@ export async function POST(req) {
       );
     }
 
-    const product = incomingForm.get("product");
-    if (!isFile(product)) {
+    const product = form.get("product");
+    const productUrl = String(form.get("product_url") || "").trim();
+    if (!isFile(product) && !productUrl) {
       return NextResponse.json(
         { success: false, error: "A product image is required." },
         { status: 400 }
       );
     }
-    const productErr = imageError(product, "Product image");
-    if (productErr) {
-      return NextResponse.json({ success: false, error: productErr }, { status: 400 });
-    }
 
-    const forwardForm = new FormData();
-    forwardForm.append("business_name", businessName);
-    forwardForm.append("product", product, product.name);
-
-    const logo = incomingForm.get("logo");
-    if (isFile(logo)) {
-      const logoErr = imageError(logo, "Logo");
-      if (logoErr) {
-        return NextResponse.json({ success: false, error: logoErr }, { status: 400 });
+    let imageBase64 = null;
+    if (isFile(product)) {
+      if (!ALLOWED_IMAGE_TYPES.includes(product.type)) {
+        return NextResponse.json(
+          { success: false, error: "Product image must be a PNG, JPG or WEBP image." },
+          { status: 400 }
+        );
       }
-      forwardForm.append("logo", logo, logo.name);
+      if (product.size > MAX_IMAGE_BYTES) {
+        return NextResponse.json(
+          { success: false, error: "Product image must be under 10 MB." },
+          { status: 400 }
+        );
+      }
+      const bytes = Buffer.from(await product.arrayBuffer());
+      // A data: URI is accepted as-is by the API and keeps the mime type with it.
+      imageBase64 = `data:${product.type};base64,${bytes.toString("base64")}`;
     }
 
-    for (const field of OPTIONAL_TEXT_FIELDS) {
-      const value = String(incomingForm.get(field) || "").trim();
-      if (value) forwardForm.append(field, value);
-    }
+    const rawDuration = Number(form.get("duration_seconds"));
+    const duration = Number.isFinite(rawDuration)
+      ? Math.min(MAX_DURATION, Math.max(MIN_DURATION, Math.round(rawDuration)))
+      : 10;
+
+    const rawAspect = String(form.get("aspect_ratio") || "").trim();
+    const aspectRatio = ALLOWED_ASPECT_RATIOS.has(rawAspect) ? rawAspect : "9:16";
+
+    const payload = {
+      business_name: businessName,
+      product: {
+        name: String(form.get("product_name") || "").trim(),
+        keywords: String(form.get("keywords") || "").trim(),
+        ...(imageBase64 ? { image_base64: imageBase64 } : { image_url: productUrl }),
+      },
+      duration_seconds: duration,
+      aspect_ratio: aspectRatio,
+      music_mood: String(form.get("music_mood") || "auto").trim() || "auto",
+      visual_style: String(form.get("visual_style") || "auto").trim() || "auto",
+    };
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 170 * 1000);
+    const timeoutId = setTimeout(() => controller.abort(), 110 * 1000);
 
     let externalRes;
     try {
-      // No Content-Type header: fetch sets multipart/form-data with the boundary itself.
-      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/generate-ad`, {
+      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/v1/ads`, {
         method: "POST",
-        headers: cgiVideoHeaders(),
-        body: forwardForm,
+        headers: { ...cgiVideoHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
     } finally {

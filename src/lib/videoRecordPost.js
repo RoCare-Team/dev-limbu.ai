@@ -58,7 +58,13 @@ function aiAvatarVideoPostFields(record) {
   };
 }
 
-/** CGI ads carry AI ad copy (headline / CTA) plus the user's keywords — those become the copy. */
+/**
+ * CGI ad copy: brand + product + the user's keywords.
+ *
+ * Ads created before the v1 API also carry AI-written headline/CTA (adCopy).
+ * The v1 API returns none, so for new ads the brand line is the copy and the
+ * keywords become the hashtags below.
+ */
 function cgiVideoPostFields(record) {
   const headline = (record.adCopy?.headline || "").trim();
   const cta = (record.adCopy?.cta || "").trim();
@@ -83,7 +89,7 @@ function cgiVideoPostFields(record) {
     liDescription: description,
     piDescription: withTags,
     pinTitle: headline || record.productName || record.businessName,
-    videoPrompt: headline,
+    videoPrompt: headline || brand,
   };
 }
 

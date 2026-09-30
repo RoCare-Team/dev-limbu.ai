@@ -8,7 +8,6 @@ import {
   X,
   Wand2,
   Loader2,
-  ImageIcon,
   ImagePlus,
   Check,
   Eye,
@@ -16,7 +15,6 @@ import {
   Package,
   Plus,
   Building2,
-  TriangleAlert,
   ExternalLink,
 } from "lucide-react";
 import Toast from "@/components/Toast";
@@ -30,20 +28,35 @@ import { useVideoHistoryPosting } from "@/hooks/useVideoHistoryPosting";
 /* ----------------------------------------------------
    CONSTANTS
 ---------------------------------------------------- */
-const GENERATION_COST = 300; // flat — every CGI ad is a fixed 10-second 9:16 video
+// Length is the user's choice now (10-60s), so the price follows it: a 10s ad
+// still costs the old flat 300.
+const COST_PER_SECOND = 30;
 const POLL_INTERVAL_MS = 6000;
 const POLL_TIMEOUT_MS = 12 * 60 * 1000;
 const MAX_POLL_ERRORS = 5; // consecutive network/5xx failures before giving up
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+// Lower than before: the API takes the photo as base64, which inflates it ~33%.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 // The in-flight job is kept in localStorage so a reload resumes polling instead
 // of losing a video the user is about to pay for.
 const PENDING_JOB_KEY = "cgiVideoPendingJob";
 
+const DURATION_OPTIONS = [10, 15, 20, 30, 45, 60]; // API accepts 10-60 seconds
+const ASPECT_OPTIONS = [
+  { v: "9:16", label: "9:16 vertical", hint: "Reels, Shorts, Stories" },
+  { v: "16:9", label: "16:9 landscape", hint: "YouTube, website" },
+];
+// The v1 API has no music-library endpoint any more — mood is a free string
+// with "auto" as its default, so these are offered as ready-made choices.
+const MUSIC_MOODS = ["auto", "chill", "cinematic", "energetic", "luxury", "upbeat"];
+const VISUAL_STYLES = ["auto", "cinematic", "minimal", "luxury", "vibrant", "natural"];
+
+// The API's own job stages, in the order they happen.
 const PROGRESS_STEPS = [
-  { key: "writing_copy", label: "Writing ad copy" },
-  { key: "generating_video", label: "Rendering CGI video" },
-  { key: "adding_music", label: "Mixing in music" },
+  { key: "queued", label: "Queued" },
+  { key: "planning", label: "Planning the ad" },
+  { key: "generating", label: "Rendering CGI video" },
+  { key: "post_processing", label: "Adding music & polish" },
   { key: "uploading", label: "Uploading" },
 ];
 
@@ -112,14 +125,13 @@ function CgiVideoContent() {
   const [productName, setProductName] = useState("");
   const [keywords, setKeywords] = useState("");
   const [productImage, setProductImage] = useState(null); // { file, preview }
-  const [logo, setLogo] = useState(null); // File
   const [musicMood, setMusicMood] = useState("auto");
-  const [moods, setMoods] = useState([]);
-  const [loadingMoods, setLoadingMoods] = useState(true);
+  const [visualStyle, setVisualStyle] = useState("auto");
+  const [durationSeconds, setDurationSeconds] = useState(10);
+  const [aspectRatio, setAspectRatio] = useState("9:16");
   const [isDragging, setIsDragging] = useState(false);
 
   const productInputRef = useRef(null);
-  const logoInputRef = useRef(null);
   const historySectionRef = useRef(null);
 
   /* -------------------- Keywords (Google Keyword Planner ideas) -------------------- */
@@ -156,8 +168,9 @@ function CgiVideoContent() {
 
   /* -------------------- Generation -------------------- */
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // { taskId, userId, businessName, productName, keywords, adCopy, musicMood,
-  //   musicMoodReason, status, progressMessage, startedAt }
+  // { taskId (= API job_id), userId, businessName, productName, keywords,
+  //   musicMood, visualStyle, durationSeconds, aspectRatio, status, progress,
+  //   progressMessage, startedAt }
   const [job, setJob] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [resultVideo, setResultVideo] = useState(null);
@@ -219,12 +232,6 @@ function CgiVideoContent() {
       setLoadingHistory(false);
     }
 
-    setLoadingMoods(true);
-    fetch("/api/cgi-video/music-library")
-      .then((r) => r.json())
-      .then((d) => setMoods(d.success ? d.tracks || [] : []))
-      .catch(() => setMoods([]))
-      .finally(() => setLoadingMoods(false));
   }, []);
 
   /* -------------------- Live keyword ideas (debounced) -------------------- */
@@ -295,12 +302,13 @@ function CgiVideoContent() {
         const task = data.data || {};
 
         if (task.status === "failed") {
-          failJob(`${task.error || task.progress_message || "Video generation failed."} You have not been charged.`);
+          const why = task.error?.message || task.message || "Video generation failed.";
+          failJob(`${why} You have not been charged.`);
           return;
         }
 
-        if (task.status === "success") {
-          if (!task.video_url) {
+        if (task.status === "completed") {
+          if (!task.result?.video_url) {
             failJob("The ad finished but no video URL was returned. You have not been charged.");
             return;
           }
@@ -313,9 +321,8 @@ function CgiVideoContent() {
             ? {
                 ...prev,
                 status: task.status || prev.status,
-                progressMessage: task.progress_message || prev.progressMessage,
-                musicMood: task.music_mood || prev.musicMood,
-                musicMoodReason: task.music_mood_reason || prev.musicMoodReason,
+                progress: typeof task.progress === "number" ? task.progress : prev.progress,
+                progressMessage: task.message || prev.progressMessage,
               }
             : prev
         );
@@ -344,11 +351,12 @@ function CgiVideoContent() {
     const finished = {
       taskId: snapshot.taskId,
       businessName: snapshot.businessName,
-      videoUrl: task.video_url,
-      storageWarning: task.storage_warning || null,
-      adCopy: snapshot.adCopy,
-      musicMood: task.music_mood || snapshot.musicMood,
-      musicMoodReason: task.music_mood_reason || snapshot.musicMoodReason,
+      videoUrl: task.result?.video_url,
+      // The finished file decides the real length — and therefore the charge.
+      durationSeconds: task.result?.duration_seconds ?? snapshot.durationSeconds,
+      musicMood: snapshot.musicMood,
+      visualStyle: snapshot.visualStyle,
+      aspectRatio: snapshot.aspectRatio,
     };
     setResultVideo(finished);
     showToast("🎬 CGI ad generated successfully!", "success");
@@ -360,6 +368,9 @@ function CgiVideoContent() {
   };
 
   const persistAndDeduct = async (snapshot, finished) => {
+    // Billed on what was ordered, not on the file's exact runtime — a 10s ad
+    // that renders as 9.79s must not quietly cost a different number of coins.
+    const cost = snapshot.durationSeconds * COST_PER_SECOND;
     let created = false;
     try {
       const res = await fetch("/api/cgi-video-history", {
@@ -371,12 +382,12 @@ function CgiVideoContent() {
           businessName: snapshot.businessName,
           productName: snapshot.productName,
           keywords: snapshot.keywords,
-          adCopy: snapshot.adCopy,
           musicMood: finished.musicMood,
-          musicMoodReason: finished.musicMoodReason,
+          visualStyle: finished.visualStyle,
+          durationSeconds: finished.durationSeconds,
+          aspectRatio: finished.aspectRatio,
           videoUrl: finished.videoUrl,
-          storageWarning: finished.storageWarning,
-          cost: GENERATION_COST,
+          cost,
         }),
       });
       const saved = await res.json().catch(() => ({}));
@@ -404,17 +415,21 @@ function CgiVideoContent() {
 
     try {
       const walletData = await deductFromWalletAction(snapshot.userId, {
-        amount: GENERATION_COST,
+        amount: cost,
         type: "deduct",
         reason: "video_generated_cgi",
-        metadata: { taskId: snapshot.taskId, videoUrl: finished.videoUrl },
+        metadata: {
+          taskId: snapshot.taskId,
+          videoUrl: finished.videoUrl,
+          durationSeconds: snapshot.durationSeconds,
+        },
       });
       const newBalance = walletData?.wallet ?? walletData?.data?.wallet ?? walletData?.user?.wallet;
       setWalletBalance(
-        typeof newBalance === "number" ? newBalance : (b) => Math.max(0, (b ?? 0) - GENERATION_COST)
+        typeof newBalance === "number" ? newBalance : (b) => Math.max(0, (b ?? 0) - cost)
       );
-      emitWalletDeduct(GENERATION_COST);
-      showToast(`${GENERATION_COST} coins deducted 💰`, "info");
+      emitWalletDeduct(cost);
+      showToast(`${cost} coins deducted 💰`, "info");
     } catch (err) {
       console.error(err);
       showToast("Video created, but coin deduction failed. Please contact support.", "warning");
@@ -429,7 +444,7 @@ function CgiVideoContent() {
       return false;
     }
     if (file.size > MAX_IMAGE_BYTES) {
-      showToast(`${label} must be under 15 MB.`, "error");
+      showToast(`${label} must be under 10 MB.`, "error");
       return false;
     }
     return true;
@@ -455,15 +470,9 @@ function CgiVideoContent() {
     applyProductFile(e.dataTransfer.files?.[0]);
   };
 
-  const handleLogoUpload = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !validateImage(file, "Logo")) return;
-    setLogo(file);
-  };
-
   const isBusy = isSubmitting || !!job;
-  const insufficientBalance = walletBalance !== null && walletBalance < GENERATION_COST;
+  const generationCost = durationSeconds * COST_PER_SECOND;
+  const insufficientBalance = walletBalance !== null && walletBalance < generationCost;
 
   const canGenerate =
     !isBusy && !!userId && !insufficientBalance && !!businessName.trim() && !!productImage;
@@ -473,7 +482,7 @@ function CgiVideoContent() {
     if (!businessName.trim()) return showToast("Please enter your business name.", "error");
     if (!productImage) return showToast("Please upload a product image.", "error");
     if (insufficientBalance) {
-      return showToast(`You need at least ${GENERATION_COST} coins in your wallet to generate a CGI ad.`, "error");
+      return showToast(`You need ${generationCost} coins for a ${durationSeconds}s ad. Your balance is ${walletBalance ?? 0}.`, "error");
     }
 
     setIsSubmitting(true);
@@ -494,8 +503,10 @@ function CgiVideoContent() {
       if (productName.trim()) form.append("product_name", productName.trim());
       if (finalKeywords) form.append("keywords", finalKeywords);
       form.append("product", productImage.file);
-      if (logo) form.append("logo", logo);
       form.append("music_mood", musicMood);
+      form.append("visual_style", visualStyle);
+      form.append("duration_seconds", String(durationSeconds));
+      form.append("aspect_ratio", aspectRatio);
 
       const res = await fetch("/api/cgi-video/generate", { method: "POST", body: form });
       const data = await res.json().catch(() => ({}));
@@ -504,28 +515,27 @@ function CgiVideoContent() {
       }
 
       const started = data.data || {};
-      if (!started.task_id) throw new Error("The video service did not return a job id.");
+      if (!started.job_id) throw new Error("The video service did not return a job id.");
 
       const newJob = {
-        taskId: started.task_id,
+        taskId: started.job_id,
         userId,
         businessName: businessName.trim(),
         productName: productName.trim(),
         keywords: finalKeywords,
-        adCopy: {
-          headline: started.ad_copy?.headline || null,
-          businessNameLine: started.ad_copy?.business_name_line || null,
-          cta: started.ad_copy?.cta || null,
-        },
-        musicMood: started.music_mood || null,
-        musicMoodReason: started.music_mood_reason || null,
-        status: started.status || "generating_video",
-        progressMessage: "Rendering your CGI video…",
+        musicMood,
+        visualStyle,
+        // What the ad was ordered as — the charge is based on this.
+        durationSeconds: started.duration_seconds || durationSeconds,
+        aspectRatio,
+        status: started.status || "queued",
+        progress: 0,
+        progressMessage: "Queued — your CGI ad is about to start rendering…",
         startedAt: Date.now(),
       };
       savePendingJob(newJob);
       setJob(newJob);
-      showToast("Ad copy written — rendering your CGI video. This takes a few minutes.", "info");
+      showToast("Job queued — rendering your CGI video. This takes a few minutes.", "info");
     } catch (err) {
       console.error(err);
       showToast(err.message || "Failed to start CGI ad generation.", "error");
@@ -535,10 +545,9 @@ function CgiVideoContent() {
   };
 
   const stage = resultVideo?.videoUrl ? "ready" : isBusy ? "rendering" : "idle";
-  const activeAdCopy = job?.adCopy || resultVideo?.adCopy;
-  const activeMood = job?.musicMood || resultVideo?.musicMood;
-  const activeMoodReason = job?.musicMoodReason || resultVideo?.musicMoodReason;
   const currentStepIndex = job ? PROGRESS_STEPS.findIndex((s) => s.key === job.status) : -1;
+  // The preview frame mirrors whatever shape the finished ad will have.
+  const previewAspect = (resultVideo?.aspectRatio || aspectRatio) === "16:9" ? "16 / 9" : "9 / 16";
 
   return (
     <div className="font-inter">
@@ -557,7 +566,7 @@ function CgiVideoContent() {
               CGI <span className="text-[#EAB308]">Product Video</span>
             </h1>
             <p className="text-xs text-slate-500 font-medium">
-              Turn one product photo into a 10-second CGI ad for Reels &amp; Shorts
+              Turn one product photo into a CGI ad for Reels, Shorts &amp; YouTube
             </p>
           </div>
         </div>
@@ -565,7 +574,7 @@ function CgiVideoContent() {
         <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-2xl px-4 py-3">
           <Coins className="w-4 h-4 text-[#EAB308]" />
           <div className="flex flex-col leading-tight">
-            <span className="text-xs font-bold text-slate-900/70">{GENERATION_COST} coins / ad</span>
+            <span className="text-xs font-bold text-slate-900/70">{generationCost} coins · {durationSeconds}s</span>
             <span className="text-[10px] text-slate-400 font-medium">Charged only when the video is ready</span>
           </div>
         </div>
@@ -575,7 +584,7 @@ function CgiVideoContent() {
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5">
           <Sparkles className="w-4 h-4 text-red-500 shrink-0" />
           <p className="text-xs font-semibold text-red-700">
-            You need at least {GENERATION_COST} coins in your wallet to generate a CGI ad. Current balance:{" "}
+            A {durationSeconds}s ad costs {generationCost} coins ({COST_PER_SECOND}/second). Current balance:{" "}
             {walletBalance ?? 0} coins.
           </p>
         </div>
@@ -716,43 +725,6 @@ function CgiVideoContent() {
               )}
             </div>
 
-            <div
-              onClick={() => !isBusy && logoInputRef.current?.click()}
-              className={`flex items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 transition-all ${
-                isBusy ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-[#EAB308]/50"
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center shrink-0">
-                  <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 truncate">
-                    {logo ? logo.name : "Add brand logo (optional)"}
-                  </p>
-                  <p className="text-[10px] text-slate-400">Placed top-right. Transparent PNG looks cleanest.</p>
-                </div>
-              </div>
-              {logo && !isBusy && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLogo(null);
-                  }}
-                  className="p-1 rounded-md hover:bg-slate-200"
-                >
-                  <X className="w-3.5 h-3.5 text-slate-500" />
-                </button>
-              )}
-            </div>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              onChange={handleLogoUpload}
-              className="hidden"
-            />
           </SectionCard>
 
           <SectionCard step={2} title="Product Image" icon={Package}>
@@ -845,8 +817,8 @@ function CgiVideoContent() {
             </div>
           </SectionCard>
 
-          <SectionCard step={3} title="Music & Format" icon={Music2}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+          <SectionCard step={3} title="Style & Format" icon={Music2}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-900/90 flex items-center gap-1.5">
                   <Music2 className="w-3.5 h-3.5 text-[#EAB308]" />
@@ -855,26 +827,83 @@ function CgiVideoContent() {
                 <select
                   value={musicMood}
                   onChange={(e) => setMusicMood(e.target.value)}
-                  disabled={isBusy || loadingMoods}
+                  disabled={isBusy}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 capitalize focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60"
                 >
-                  <option value="auto">{loadingMoods ? "Loading…" : "Auto — let AI pick"}</option>
-                  {moods.map((m) => (
+                  {MUSIC_MOODS.map((m) => (
                     <option key={m} value={m}>
-                      {m}
+                      {m === "auto" ? "Auto — let AI pick" : m}
                     </option>
                   ))}
                 </select>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-900/90 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#EAB308]" />
+                  Visual Style
+                </label>
+                <select
+                  value={visualStyle}
+                  onChange={(e) => setVisualStyle(e.target.value)}
+                  disabled={isBusy}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 capitalize focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60"
+                >
+                  {VISUAL_STYLES.map((v) => (
+                    <option key={v} value={v}>
+                      {v === "auto" ? "Auto — let AI pick" : v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <label className="text-xs font-semibold text-slate-900/90">
+                Length — {durationSeconds}s · {generationCost} coins
+              </label>
               <div className="flex flex-wrap gap-1.5">
-                {["10 seconds", "9:16 vertical", "720 × 1280"].map((spec) => (
-                  <span
-                    key={spec}
-                    className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600"
+                {DURATION_OPTIONS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => setDurationSeconds(d)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-60 ${
+                      durationSeconds === d
+                        ? "bg-[#EAB308] border-[#EAB308] text-black"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#EAB308]/40"
+                    }`}
                   >
-                    {spec}
-                  </span>
+                    {d}s
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400 font-medium">
+                {COST_PER_SECOND} coins per second — a longer ad costs more and takes longer to render.
+              </p>
+            </div>
+
+            <div className="mt-3 space-y-1">
+              <label className="text-xs font-semibold text-slate-900/90">Aspect Ratio</label>
+              <div className="flex flex-wrap gap-1.5">
+                {ASPECT_OPTIONS.map((a) => (
+                  <button
+                    key={a.v}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => setAspectRatio(a.v)}
+                    className={`flex flex-col items-start px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-60 ${
+                      aspectRatio === a.v
+                        ? "bg-[#EAB308] border-[#EAB308] text-black"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#EAB308]/40"
+                    }`}
+                  >
+                    {a.label}
+                    <span className={`text-[10px] font-medium ${aspectRatio === a.v ? "text-black/70" : "text-slate-400"}`}>
+                      {a.hint}
+                    </span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -889,10 +918,10 @@ function CgiVideoContent() {
           >
             {isBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
             {isSubmitting
-              ? "Writing ad copy…"
+              ? "Starting…"
               : job
               ? "Generating CGI ad…"
-              : `Generate CGI Ad — ${GENERATION_COST} coins`}
+              : `Generate ${durationSeconds}s CGI Ad — ${generationCost} coins`}
           </button>
         </div>
 
@@ -909,7 +938,7 @@ function CgiVideoContent() {
 
             <div
               className="relative h-[60vh] max-h-[520px] max-w-full mx-auto rounded-lg bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 border border-slate-200 flex flex-col items-center justify-center gap-3 overflow-hidden"
-              style={{ aspectRatio: "9 / 16" }}
+              style={{ aspectRatio: previewAspect }}
             >
               {resultVideo?.videoUrl ? (
                 <video
@@ -926,7 +955,16 @@ function CgiVideoContent() {
                     <Wand2 className="w-5 h-5 text-[#EAB308] absolute inset-0 m-auto" />
                   </div>
                   <p className="text-xs font-bold text-slate-700">{job.progressMessage}</p>
-                  <p className="text-[11px] font-mono text-slate-500">{formatElapsed(now - job.startedAt)}</p>
+                  <p className="text-[11px] font-mono text-slate-500">
+                    {formatElapsed(now - job.startedAt)}
+                    {typeof job.progress === "number" ? ` · ${job.progress}%` : ""}
+                  </p>
+                  <div className="w-full max-w-[200px] h-1.5 rounded-full bg-slate-200 overflow-hidden">
+                    <div
+                      className="h-full bg-[#EAB308] transition-all duration-500"
+                      style={{ width: `${Math.max(3, Math.min(100, job.progress ?? 3))}%` }}
+                    />
+                  </div>
 
                   <div className="w-full max-w-[200px] space-y-1.5 text-left">
                     {PROGRESS_STEPS.map((s, i) => {
@@ -990,36 +1028,28 @@ function CgiVideoContent() {
               </a>
             )}
 
-            {resultVideo?.storageWarning && (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-                <TriangleAlert className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-[11px] text-amber-800">{resultVideo.storageWarning}</p>
-              </div>
-            )}
-
-            {activeAdCopy && (activeAdCopy.headline || activeAdCopy.cta) && (
+            {resultVideo?.videoUrl && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1.5">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">On-screen copy</p>
-                {activeAdCopy.headline && (
-                  <p className="text-sm font-black text-slate-900">{activeAdCopy.headline}</p>
-                )}
-                {activeAdCopy.businessNameLine && (
-                  <p className="text-[11px] text-slate-500">{activeAdCopy.businessNameLine}</p>
-                )}
-                {activeAdCopy.cta && (
-                  <span className="inline-block rounded-full bg-[#EAB308] px-2.5 py-0.5 text-[10px] font-black uppercase text-black">
-                    {activeAdCopy.cta}
-                  </span>
-                )}
-                {activeMood && (
-                  <p className="text-[11px] text-slate-500 pt-1 flex items-start gap-1">
-                    <Music2 className="w-3 h-3 mt-0.5 shrink-0 text-[#EAB308]" />
-                    <span>
-                      <span className="font-bold capitalize text-slate-700">{activeMood}</span>
-                      {activeMoodReason ? ` — ${activeMoodReason}` : ""}
-                    </span>
-                  </p>
-                )}
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">This ad</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    typeof resultVideo.durationSeconds === "number"
+                      ? `${resultVideo.durationSeconds.toFixed(1)}s`
+                      : null,
+                    resultVideo.aspectRatio,
+                    resultVideo.musicMood && resultVideo.musicMood !== "auto" ? resultVideo.musicMood : null,
+                    resultVideo.visualStyle && resultVideo.visualStyle !== "auto" ? resultVideo.visualStyle : null,
+                  ]
+                    .filter(Boolean)
+                    .map((chip) => (
+                      <span
+                        key={chip}
+                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold capitalize text-slate-600"
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                </div>
               </div>
             )}
 

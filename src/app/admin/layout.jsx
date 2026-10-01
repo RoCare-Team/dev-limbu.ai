@@ -26,6 +26,7 @@ import {
   FileSpreadsheet,
   Globe,
   Clapperboard,
+  CalendarClock,
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
@@ -242,6 +243,12 @@ export default function AdminLayout({ children }) {
               name: "AI Videos",
               href: "/admin/ai-videos",
               icon: <Clapperboard size={16} />,
+              superAdminOnly: true,
+            },
+            {
+              name: "Automation Plans",
+              href: "/admin/automation-plans",
+              icon: <CalendarClock size={16} />,
               superAdminOnly: true,
             },
           ],

@@ -4,16 +4,26 @@ export function getPlanPostLimit(planName, planDuration) {
 
   const plans = {
     "basic plan": {
-      monthly: 15,
-      "month": 15,
-      quarterly: 45,
-      "quarter": 45,
-      "half-yearly": 90,
-      "6 months": 90,
-      yearly: 180,
-      "year": 180,
+      monthly: 10,
+      "month": 10,
+      quarterly: 30,
+      "quarter": 30,
+      "half-yearly": 60,
+      "6 months": 60,
+      yearly: 120,
+      "year": 120,
     },
     "professional plan": {
+      monthly: 20,
+      "month": 20,
+      quarterly: 60,
+      "quarter": 60,
+      "half-yearly": 120,
+      "6 months": 120,
+      yearly: 240,
+      "year": 240,
+    },
+    "premium plan": {
       monthly: 30,
       "month": 30,
       quarterly: 90,
@@ -22,16 +32,6 @@ export function getPlanPostLimit(planName, planDuration) {
       "6 months": 180,
       yearly: 360,
       "year": 360,
-    },
-    "premium plan": {
-      monthly: 45,
-      "month": 45,
-      quarterly: 135,
-      "quarter": 135,
-      "half-yearly": 270,
-      "6 months": 270,
-      yearly: 540,
-      "year": 540,
     },
   };
 
@@ -57,9 +57,14 @@ export function getPostsPerMonth(planName) {
 /**
  * Every plan has EXACTLY ONE correct posting cadence — the plan dictates it,
  * the user does not choose it:
- *   Basic Plan        → 15 posts/month  → alternate day (gap of 1 day)
- *   Professional Plan → 30 posts/month  → daily (1 post/day)
- *   Premium Plan       → 45 posts/month  → twicedaily (2 posts/day — morning + evening)
+ *   Basic Plan        → 10 posts/month  → alternate day (gap of 1 day)
+ *   Professional Plan → 20 posts/month  → daily (1 post/day)
+ *   Premium Plan       → 30 posts/month  → twicedaily (2 posts/day — morning + evening)
+ *
+ * NOTE: since the plans moved to 10/20/30 posts, these cadences run through a
+ * month's quota early (twicedaily spends 30 posts in ~15 days). The cadence is
+ * only the DEFAULT — the user can pick another in /user-settings, and the end
+ * date is recalculated from whatever they pick.
  * Any plan we don't recognise falls back to 'daily'.
  */
 export function getFixedFrequencyForPlan(planName) {

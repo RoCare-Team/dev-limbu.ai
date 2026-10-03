@@ -68,9 +68,9 @@ export default function PlanUpgradeModal({
 
         <div className="space-y-3 mb-6 max-h-[40vh] overflow-y-auto pr-1">
           {(subscriptionPlans
-            ? subscriptionPlans.billingCycles.find(
+            ? subscriptionPlans.billingCycles?.find(
                 (c) => c.cycle === selectedCycle,
-              )?.plans
+              )?.plans ?? []
             : ["Basic Plan", "Professional Plan", "Premium Plan"].map((p) => ({
                 title: p,
               }))
@@ -110,9 +110,20 @@ export default function PlanUpgradeModal({
                       </span>
                     </div>
 
-                    {plan.totalAmount && (
+                    {(plan.basePrice || plan.totalAmount) && (
                       <div className="text-xs text-gray-500 mt-1 ml-7">
-                        ₹{plan.totalAmount} / {plan.duration}
+                        <span className="font-semibold text-gray-700">
+                          ₹{(plan.basePrice ?? plan.totalAmount).toLocaleString("en-IN")}
+                        </span>{" "}
+                        / {plan.duration}
+                        <span className="block text-[11px] text-gray-400">
+                          {plan.gst ? `+ ₹${plan.gst.toLocaleString("en-IN")} GST · ` : ""}
+                          {plan.totalAmount
+                            ? `total ₹${plan.totalAmount.toLocaleString("en-IN")}`
+                            : ""}
+                          {plan.posts ? ` · ${plan.posts} posts` : ""}
+                          {plan.citations ? ` · ${plan.citations} citations` : ""}
+                        </span>
                       </div>
                     )}
                   </div>

@@ -133,11 +133,18 @@ export function parseCheckoutDiscountPercent(searchParams) {
   return n
 }
 
+/**
+ * Cycle pricing. These factors MUST stay equal to calculatePrice() in
+ * src/app/pricing/page.jsx — that is the page the customer saw before landing
+ * on /checkout, and a cheaper quote there than the amount charged here is the
+ * one bug this function can cause.
+ * Quarterly -20%, Half-Yearly -15%, Yearly -50%.
+ */
 export function calculatePriceForCycle(basePrice, billingCycle) {
   if (billingCycle === "monthly") return basePrice
-  if (billingCycle === "quarterly") return Math.round(basePrice * 3 * 0.9)
+  if (billingCycle === "quarterly") return Math.round(basePrice * 3 * 0.8)
   if (billingCycle === "half-yearly") return Math.round(basePrice * 6 * 0.85)
-  if (billingCycle === "yearly") return Math.round(basePrice * 12 * 0.8)
+  if (billingCycle === "yearly") return Math.round(basePrice * 12 * 0.5)
   return basePrice
 }
 

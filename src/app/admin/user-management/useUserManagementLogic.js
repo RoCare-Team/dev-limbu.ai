@@ -1259,6 +1259,16 @@ export default function useUserManagementLogic() {
         const res = await fetch("/api/home-data?type=subscriptionPlans");
         const data = await res.json();
         setSubscriptionPlans(data);
+
+        // The catalog only carries the cycles that are actually on sale (today:
+        // quarterly and yearly). Pointing at a cycle that isn't there leaves the
+        // Upgrade Plan modal with no plans to show, so fall back to the first.
+        const cycles = Array.isArray(data?.billingCycles) ? data.billingCycles : [];
+        if (cycles.length) {
+          setSelectedCycle((prev) =>
+            cycles.some((c) => c.cycle === prev) ? prev : cycles[0].cycle
+          );
+        }
       } catch (err) {
         console.error("Error fetching plans:", err);
       }

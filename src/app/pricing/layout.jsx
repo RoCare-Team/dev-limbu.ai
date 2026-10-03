@@ -29,11 +29,11 @@ const schemas = [
         item: {
           "@type": "Product",
           name: "Basic Plan",
-          description: "Ideal for small businesses needing basic online presence. Includes 15 GMB posts, 5 citations, review reply system, Magic QR, and insights dashboard.",
+          description: "Ideal for small businesses needing basic online presence. Quarterly package with 30 GMB posts, review reply system, Magic QR, and insights dashboard.",
           brand: { "@type": "Brand", name: "Limbu.ai" },
           offers: {
             "@type": "Offer",
-            price: "2950",
+            price: "5664",
             priceCurrency: "INR",
             availability: "https://schema.org/InStock",
             seller: { "@type": "Organization", name: "Limbu.ai" },
@@ -46,11 +46,11 @@ const schemas = [
         item: {
           "@type": "Product",
           name: "Professional Plan",
-          description: "Best for growing businesses. Includes 30 GMB posts, 12 citations, review management, Magic QR, and website builder.",
+          description: "Best for growing businesses. Quarterly package with 60 GMB posts, 15 citations, review management, Magic QR, and website builder.",
           brand: { "@type": "Brand", name: "Limbu.ai" },
           offers: {
             "@type": "Offer",
-            price: "6490",
+            price: "9912",
             priceCurrency: "INR",
             availability: "https://schema.org/InStock",
             seller: { "@type": "Organization", name: "Limbu.ai" },
@@ -63,11 +63,11 @@ const schemas = [
         item: {
           "@type": "Product",
           name: "Premium Plan",
-          description: "Perfect for brands focused on automation and maximum reach. Includes 45 GMB posts, 15 citations, and all Pro features plus professional services.",
+          description: "Perfect for brands focused on automation and maximum reach. Quarterly package with 90 GMB posts, 30 citations, and all Pro features plus professional services.",
           brand: { "@type": "Brand", name: "Limbu.ai" },
           offers: {
             "@type": "Offer",
-            price: "8850",
+            price: "15576",
             priceCurrency: "INR",
             availability: "https://schema.org/InStock",
             seller: { "@type": "Organization", name: "Limbu.ai" },

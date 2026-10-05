@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter, Eye, EyeOff, KeyRound, Copy, Check, X, ShieldAlert } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
+import AccessPicker from "@/components/admin/AccessPicker";
+import { ROLE_DEFAULT_ACCESS } from "@/lib/adminAccess";
 
 /* ----------------------------
    PERMISSION LABELS
@@ -60,7 +62,14 @@ export default function UsersPage() {
       manageFranchise: false,
       seeAnalytics: false,
     },
+    // Section-wise menu access (lib/adminAccess.js). Picking a role pre-fills
+    // this; whatever is ticked here is what the user actually gets.
+    access: ROLE_DEFAULT_ACCESS.agent,
   });
+
+  /** Role change resets the ticks to that role's default, then it stays editable. */
+  const handleRoleChange = (role) =>
+    setForm((f) => ({ ...f, role, access: ROLE_DEFAULT_ACCESS[role] || [] }));
 
   /* ----------------------------
      FETCH USERS
@@ -716,9 +725,8 @@ const copyPassword = async (id) => {
             <div>
               <label className="text-sm text-gray-600">Role</label>
               <select
-                onChange={(e) =>
-                  setForm({ ...form, role: e.target.value })
-                }
+                value={form.role}
+                onChange={(e) => handleRoleChange(e.target.value)}
                 className="w-full mt-1 px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
                 <option value="superAdmin">Super Admin</option>
@@ -733,38 +741,23 @@ const copyPassword = async (id) => {
             </div>
           </div>
 
-          {/* PERMISSIONS */}
+          {/* SECTION ACCESS — decides the sidebar and the route guard */}
           <div className="mt-8">
-            <h3 className="font-semibold text-gray-700 mb-4">
-              Sidebar Permissions
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {Object.keys(PERMISSION_LABELS).map((key) => (
-                <label
-                  key={key}
-                  className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.permissions[key]}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        permissions: {
-                          ...form.permissions,
-                          [key]: e.target.checked,
-                        },
-                      })
-                    }
-                    className="w-5 h-5 text-blue-600"
-                  />
-                  <span className="text-gray-700">
-                    {PERMISSION_LABELS[key]}
-                  </span>
-                </label>
-              ))}
+            <div className="mb-1 flex items-center justify-between">
+              <h3 className="font-semibold text-gray-700">Section access</h3>
+              <span className="text-xs text-gray-500">
+                {form.access.length} selected
+              </span>
             </div>
+            <p className="mb-4 text-xs text-gray-500">
+              Only ticked pages show in this user&apos;s sidebar; any other admin URL
+              redirects them back to their first allowed page.
+            </p>
+
+            <AccessPicker
+              value={form.access}
+              onChange={(access) => setForm((f) => ({ ...f, access }))}
+            />
           </div>
 
           <div className="mt-8 flex justify-end">

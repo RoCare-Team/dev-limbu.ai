@@ -60,6 +60,7 @@ export default function Login() {
       localStorage.setItem("token", data.token || "");
       localStorage.setItem("role", data.role || "");
       localStorage.setItem("permissions", JSON.stringify(data.permissions || []));
+      localStorage.setItem("access", JSON.stringify(data.access || []));
       localStorage.setItem("adminName", data.fullName || "");
       // `email` sirf backward-compat ke liye. Asli admin identity `adminEmail`
       // hai — kyunki impersonation (/impersonate-login) usi origin ke localStorage

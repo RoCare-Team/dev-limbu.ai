@@ -110,6 +110,13 @@ const AdminSchema = new mongoose.Schema(
       seeAnalytics: Boolean,
     },
 
+    /**
+     * Section-wise menu access — item keys from lib/adminAccess.js, chosen when
+     * the user is created. Empty means "never configured": such an admin falls
+     * back to the role's default list instead of losing the whole panel.
+     */
+    access: { type: [String], default: [] },
+
     isActive: { type: Boolean, default: true },
 
     /**
@@ -123,7 +130,8 @@ const AdminSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// auto permissions
+// Coarse permissions still follow the role. `access` is deliberately NOT touched
+// here — it is the admin's explicit per-section choice and must survive a role edit.
 AdminSchema.pre("save", function (next) {
   if (this.isNew || this.isModified("role")) {
     this.permissions = ROLE_PERMISSIONS[this.role] || {};

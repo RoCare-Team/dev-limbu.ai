@@ -30,6 +30,12 @@ import {
 } from "lucide-react";
 import { LeaderboardSharp } from "@mui/icons-material";
 import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
+import {
+  accessKeyForPath,
+  canAccessPath,
+  effectiveAccess,
+  firstAllowedHref,
+} from "@/lib/adminAccess";
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
@@ -38,6 +44,9 @@ export default function AdminLayout({ children }) {
   const [open, setOpen] = useState(true);
   const [role, setRole] = useState("");
   const [permissions, setPermissions] = useState({});
+  // Section-wise menu access, stored at login. null = not read yet, so the menu
+  // renders nothing rather than flashing items this admin may not have.
+  const [access, setAccess] = useState(null);
   const [adminName, setAdminName] = useState("");
   const [email, setEmail] = useState("");
   const theme = "light";
@@ -66,6 +75,15 @@ export default function AdminLayout({ children }) {
       setPermissions(JSON.parse(localStorage.getItem("permissions")) || {});
     } catch {
       setPermissions({});
+    }
+
+    try {
+      const stored = JSON.parse(localStorage.getItem("access"));
+      setAccess(Array.isArray(stored) ? stored : []);
+    } catch {
+      // Admins who logged in before this existed have no stored list; an empty
+      // one makes effectiveAccess() fall back to their role's default.
+      setAccess([]);
     }
   }, [router]);
 
@@ -365,12 +383,33 @@ export default function AdminLayout({ children }) {
     ---------------------------- */
   // Items flagged `superAdminOnly` are hidden for every other role; a group left
   // with no items is dropped. The open-group index is computed on this list too.
+  const allowedKeys = access === null ? [] : effectiveAccess(role, access);
+
   const visibleNavGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.superAdminOnly || role === "superAdmin"),
+      items: group.items.filter((item) => {
+        if (item.superAdminOnly && role !== "superAdmin") return false;
+        if (access === null) return false; // still loading
+        const key = accessKeyForPath(item.href);
+        // An item outside the catalog (nothing maps to it) stays visible — the
+        // catalog gates what it knows, it does not hide new pages by accident.
+        return !key || allowedKeys.includes(key);
+      }),
     }))
     .filter((group) => group.items.length > 0);
+
+  /* ----------------------------
+      ROUTE GUARD
+      Hiding a menu item is not access control on its own — the URL still
+      works. Anyone landing on a page their access does not cover is sent to
+      the first page they do have.
+    ---------------------------- */
+  useEffect(() => {
+    if (access === null || !role) return;
+    if (canAccessPath(role, access, pathname)) return;
+    router.replace(firstAllowedHref(role, access));
+  }, [access, role, pathname, router]);
 
   /* ----------------------------
       UI

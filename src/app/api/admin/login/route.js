@@ -57,6 +57,8 @@ export async function POST(req) {
       token,
       role: admin.role,
       permissions: admin.permissions || {},
+      // Section-wise menu access — the sidebar and route guard read this.
+      access: Array.isArray(admin.access) ? admin.access : [],
     });
   } catch (err) {
     console.error("Admin login error:", err);

@@ -1,4 +1,5 @@
 import Admin from "@/models/Admin";
+import { ROLE_DEFAULT_ACCESS, sanitizeAccess } from "@/lib/adminAccess";
 import dbConnect from "@/lib/dbConnect";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
@@ -85,7 +86,7 @@ export async function POST(req) {
       return NextResponse.json({ message: "No permission" }, { status: 403 });
     }
 
-    const { fullName, email, password, role } = await req.json();
+    const { fullName, email, password, role, access } = await req.json();
 
     if (!fullName || !email || !password || !role) {
       return NextResponse.json({ message: "Missing fields" }, { status: 400 });
@@ -109,6 +110,11 @@ export async function POST(req) {
       plainPassword: password,
       role,
       permissions: ROLE_PRESETS[role] || {},
+      // What the creator ticked section-wise; falls back to the role's default
+      // list so a user is never created with no menu at all.
+      access: sanitizeAccess(access).length
+        ? sanitizeAccess(access)
+        : ROLE_DEFAULT_ACCESS[role] || [],
       managerId: creator.id,
       franchiseId: creator.franchiseId || null,
     });
@@ -176,9 +182,14 @@ export async function PUT(req) {
       body.password = await bcrypt.hash(body.password, 10);
     }
 
-    // If role updating → auto assign permissions
+    // If role updating → auto assign the coarse permissions. The section-wise
+    // `access` is only replaced when the caller actually sends a new list.
     if (body.role) {
       body.permissions = ROLE_PRESETS[body.role] || {};
+    }
+    if ("access" in body) {
+      const clean = sanitizeAccess(body.access);
+      body.access = clean.length ? clean : ROLE_DEFAULT_ACCESS[body.role || targetUser.role] || [];
     }
 
     const updatedUser = await Admin.findByIdAndUpdate(

@@ -41,6 +41,45 @@ async function assertPayoutAdmin(email) {
   return { ok: true, admin };
 }
 
+/**
+ * Optional settlement window, from ?month=YYYY-MM or ?from=&to= (ISO dates).
+ * Returns null when no window was asked for, which keeps the all-time behaviour.
+ */
+function parseWindow(searchParams) {
+  const month = searchParams.get("month");
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [y, m] = month.split("-").map(Number);
+    return { from: new Date(Date.UTC(y, m - 1, 1)), to: new Date(Date.UTC(y, m, 1)), label: month };
+  }
+
+  const fromRaw = searchParams.get("from");
+  const toRaw = searchParams.get("to");
+  if (!fromRaw && !toRaw) return null;
+
+  const from = fromRaw ? new Date(fromRaw) : new Date(0);
+  // `to` is inclusive for the caller, exclusive for us — push it a day forward.
+  const to = toRaw ? new Date(new Date(toRaw).getTime() + 24 * 60 * 60 * 1000) : new Date(8640000000000000);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return null;
+  return { from, to, label: `${fromRaw || ""}..${toRaw || ""}` };
+}
+
+/** Revenue is counted in the month it was recorded. */
+const revenueWindowMatch = (window) =>
+  window ? { createdAt: { $gte: window.from, $lt: window.to } } : {};
+
+/**
+ * A payout belongs to the window it SETTLES (periodFrom), falling back to the
+ * day it was paid when no period was entered — so money paid in April for
+ * March's revenue is counted against March.
+ */
+const payoutWindowStages = (window) =>
+  window
+    ? [
+        { $addFields: { effectiveAt: { $ifNull: ["$periodFrom", "$paidAt"] } } },
+        { $match: { effectiveAt: { $gte: window.from, $lt: window.to } } },
+      ]
+    : [];
+
 /** Gross revenue collected for a franchise (same filter the panel uses). */
 async function getGrossRevenue(franchiseCode) {
   const [row] = await FranchiseRevenue.aggregate([
@@ -97,23 +136,48 @@ export async function GET(req) {
         .sort({ franchiseName: 1 })
         .lean();
 
-      const [revenueRows, payoutRows] = await Promise.all([
-        FranchiseRevenue.aggregate([
-          { $match: { status: { $ne: "inactive" } } },
-          { $group: { _id: "$franchiseId", gross: { $sum: "$amount" } } },
-        ]),
-        FranchisePayout.aggregate([
-          { $match: { status: "paid" } },
-          {
-            $group: {
-              _id: "$franchiseCode",
-              paid: { $sum: "$amount" },
-              count: { $sum: 1 },
-              lastPaidAt: { $max: "$paidAt" },
+      const window = parseWindow(searchParams);
+
+      const [revenueRows, payoutRows, allTimeRevenueRows, allTimePayoutRows] =
+        await Promise.all([
+          FranchiseRevenue.aggregate([
+            { $match: { status: { $ne: "inactive" }, ...revenueWindowMatch(window) } },
+            { $group: { _id: "$franchiseId", gross: { $sum: "$amount" } } },
+          ]),
+          FranchisePayout.aggregate([
+            { $match: { status: "paid" } },
+            ...payoutWindowStages(window),
+            {
+              $group: {
+                _id: "$franchiseCode",
+                paid: { $sum: "$amount" },
+                count: { $sum: 1 },
+                lastPaidAt: { $max: "$paidAt" },
+              },
             },
-          },
-        ]),
-      ]);
+          ]),
+          // All-time figures travel alongside so the row can still show the real
+          // outstanding balance while a month is being settled.
+          window
+            ? FranchiseRevenue.aggregate([
+                { $match: { status: { $ne: "inactive" } } },
+                { $group: { _id: "$franchiseId", gross: { $sum: "$amount" } } },
+              ])
+            : Promise.resolve(null),
+          window
+            ? FranchisePayout.aggregate([
+                { $match: { status: "paid" } },
+                {
+                  $group: {
+                    _id: "$franchiseCode",
+                    paid: { $sum: "$amount" },
+                    count: { $sum: 1 },
+                    lastPaidAt: { $max: "$paidAt" },
+                  },
+                },
+              ])
+            : Promise.resolve(null),
+        ]);
 
       const revenueByCode = new Map(
         revenueRows.map((row) => [String(row._id || ""), row.gross || 0]),
@@ -122,20 +186,41 @@ export async function GET(req) {
         payoutRows.map((row) => [String(row._id || ""), row]),
       );
 
+      const allTimeRevenueByCode = new Map(
+        (allTimeRevenueRows || []).map((row) => [String(row._id || ""), row.gross || 0]),
+      );
+      const allTimePayoutByCode = new Map(
+        (allTimePayoutRows || []).map((row) => [String(row._id || ""), row]),
+      );
+
       const data = franchises.map((franchise) => {
         const code = franchise.franchiseCode;
         const gross = revenueByCode.get(code) || 0;
         const payout = payoutByCode.get(code);
+
+        const allTimeGross = window ? allTimeRevenueByCode.get(code) || 0 : gross;
+        const allTimePayout = window ? allTimePayoutByCode.get(code) : payout;
 
         return {
           ...franchise,
           ...buildSummary(gross, payout?.paid || 0),
           payoutCount: payout?.count || 0,
           lastPaidAt: payout?.lastPaidAt || null,
+          allTime: {
+            ...buildSummary(allTimeGross, allTimePayout?.paid || 0),
+            payoutCount: allTimePayout?.count || 0,
+            lastPaidAt: allTimePayout?.lastPaidAt || null,
+          },
         };
       });
 
-      return NextResponse.json({ success: true, data });
+      return NextResponse.json({
+        success: true,
+        data,
+        period: window
+          ? { from: window.from, to: window.to, label: window.label }
+          : null,
+      });
     }
 
     const franchiseCode = searchParams.get("franchiseCode");

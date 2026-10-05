@@ -41,12 +41,36 @@ const formatDate = (value) => {
 
 const todayInputValue = () => new Date().toISOString().slice(0, 10);
 
+/** "YYYY-MM" for a Date — the value an <input type="month"> expects. */
+const monthInputValue = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const shiftMonth = (month, step) => {
+  const [y, m] = month.split("-").map(Number);
+  return monthInputValue(new Date(y, m - 1 + step, 1));
+};
+
+const monthLabel = (month) => {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+};
+
+/** First and last day of a month, as the date inputs in the payout form want them. */
+const monthBounds = (month) => {
+  const [y, m] = month.split("-").map(Number);
+  const last = new Date(y, m, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, "0")}` };
+};
+
 export default function FranchisePayoutPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  // "" = all time. Otherwise "YYYY-MM": revenue recorded in that month, and the
+  // payouts that settle it.
+  const [month, setMonth] = useState("");
 
   const [payoutFranchise, setPayoutFranchise] = useState(null);
   const [historyFranchise, setHistoryFranchise] = useState(null);
@@ -63,7 +87,9 @@ export default function FranchisePayoutPage() {
     setError("");
     try {
       const res = await fetch(
-        `/api/franchise-payout?all=1&adminEmail=${encodeURIComponent(adminEmail)}`,
+        `/api/franchise-payout?all=1&adminEmail=${encodeURIComponent(adminEmail)}${
+          month ? `&month=${month}` : ""
+        }`,
         { cache: "no-store" },
       );
       const json = await res.json();
@@ -78,7 +104,7 @@ export default function FranchisePayoutPage() {
     } finally {
       setLoading(false);
     }
-  }, [adminEmail]);
+  }, [adminEmail, month]);
 
   useEffect(() => {
     fetchSummary();
@@ -129,21 +155,66 @@ export default function FranchisePayoutPage() {
           </p>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search franchise, code or owner"
-            className="w-72 rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Period — the whole page (totals, rows, payout form) follows this */}
+          <div className="flex items-center gap-1 rounded-lg border border-gray-300 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setMonth("")}
+              className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
+                month ? "text-gray-500 hover:bg-gray-100" : "bg-gray-900 text-white"
+              }`}
+            >
+              All time
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonth((m) => shiftMonth(m || monthInputValue(), -1))}
+              className="rounded-md px-2 py-1.5 text-gray-500 hover:bg-gray-100"
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="rounded-md border-0 px-2 py-1.5 text-sm text-gray-900 outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setMonth((m) => shiftMonth(m || monthInputValue(), 1))}
+              className="rounded-md px-2 py-1.5 text-gray-500 hover:bg-gray-100"
+              aria-label="Next month"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search franchise, code or owner"
+              className="w-72 rounded-lg border border-gray-300 bg-white py-2 pl-10 pr-4 text-sm text-gray-900 outline-none focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+            />
+          </div>
         </div>
       </div>
 
+      {month && (
+        <p className="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-900">
+          Showing <strong>{monthLabel(month)}</strong> only — revenue recorded in this month, and
+          the payouts that settle it. The Pay Out form is pre-filled with this month&apos;s pending
+          amount and period.
+        </p>
+      )}
+
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Collected"
+          label={month ? `Collected · ${monthLabel(month)}` : "Total Collected"}
           value={formatAmount(totals.gross)}
           icon={<IndianRupee size={18} />}
           tone="bg-gray-100 text-gray-800"
@@ -161,7 +232,7 @@ export default function FranchisePayoutPage() {
           tone="bg-emerald-50 text-emerald-700"
         />
         <StatCard
-          label="Pending Payout"
+          label={month ? `Pending · ${monthLabel(month)}` : "Pending Payout"}
           value={formatAmount(totals.pending)}
           icon={<AlertCircle size={18} />}
           tone="bg-amber-50 text-amber-700"
@@ -275,6 +346,7 @@ export default function FranchisePayoutPage() {
 
       {payoutFranchise && (
         <PayoutModal
+          month={month}
           franchise={payoutFranchise}
           adminEmail={adminEmail}
           onClose={() => setPayoutFranchise(null)}
@@ -320,14 +392,17 @@ function StatCard({ label, value, icon, tone, highlight }) {
   );
 }
 
-function PayoutModal({ franchise, adminEmail, onClose, onSuccess }) {
+function PayoutModal({ franchise, adminEmail, month = "", onClose, onSuccess }) {
+  // Settling a month: the period is that month, so this payout is counted
+  // against it next time the month is opened (see periodFrom in the API).
+  const bounds = month ? monthBounds(month) : null;
   const [form, setForm] = useState({
     amount: franchise.pending > 0 ? String(Math.round(franchise.pending)) : "",
     paymentMode: "bank-transfer",
     referenceNo: "",
     notes: "",
-    periodFrom: "",
-    periodTo: "",
+    periodFrom: bounds?.from || "",
+    periodTo: bounds?.to || "",
     paidAt: todayInputValue(),
   });
   const [file, setFile] = useState(null);

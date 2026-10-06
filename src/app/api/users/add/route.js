@@ -13,6 +13,10 @@ const UserSchema = new mongoose.Schema({
   email: String,
   phone: String,
 
+  // Agent this lead belongs to. ObjectId — every other query filters on that
+  // type, and a string here would silently drop the lead out of those filters.
+  assignedAgentId: { type: mongoose.Schema.Types.ObjectId, default: null },
+
   wallet: Number,
   freeUsedCount: Number,
   referCode: String,
@@ -48,13 +52,27 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const { fullName, email, phone, referCode, plan } = await req.json();
+    const { fullName, email, phone, referCode, plan, assignedAgentId } =
+      await req.json();
 
     if (!fullName || !email) {
       return NextResponse.json(
         { success: false, error: "Full Name & Email required" },
         { status: 400 }
       );
+    }
+
+    // Assignment is optional; a malformed id is refused rather than quietly
+    // creating an unassigned lead the admin believes is assigned.
+    let agentId = null;
+    if (assignedAgentId) {
+      if (!mongoose.Types.ObjectId.isValid(assignedAgentId)) {
+        return NextResponse.json(
+          { success: false, error: "Invalid agent selected" },
+          { status: 400 }
+        );
+      }
+      agentId = new mongoose.Types.ObjectId(assignedAgentId);
     }
 
     // Auto-Generate User ID
@@ -66,6 +84,7 @@ export async function POST(req) {
       referCode,
       email,
       phone,
+      assignedAgentId: agentId,
 
       // Default wallet & usage
       wallet: 500,

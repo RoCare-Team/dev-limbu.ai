@@ -103,6 +103,8 @@ export default function useUserManagementLogic() {
     email: "",
     phone: "",
     plan: "Basic",
+    // "" = leave unassigned (the Add User modal's default)
+    assignedAgentId: "",
   });
   const [viewingUserPosts, setViewingUserPosts] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
@@ -2709,6 +2711,7 @@ export default function useUserManagementLogic() {
           email: "",
           phone: "",
           plan: "Free",
+          assignedAgentId: "",
         });
 
         setAddingUser(false);

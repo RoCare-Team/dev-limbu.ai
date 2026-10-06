@@ -1150,6 +1150,7 @@ export default function UserManagement() {
 
         {/* Add New User Modal */}
         <AddUserModal
+          agents={agents}
           addingUser={addingUser}
           setAddingUser={setAddingUser}
           newUser={newUser}

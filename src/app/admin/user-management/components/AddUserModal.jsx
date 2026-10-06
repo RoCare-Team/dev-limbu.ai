@@ -10,6 +10,8 @@ export default function AddUserModal({
   newUser,
   setNewUser,
   handleAddUser,
+  // Same list the table's assign dropdown uses (/api/admin/user-agent).
+  agents = [],
 }) {
   if (!addingUser) return null;
 
@@ -108,6 +110,37 @@ export default function AddUserModal({
               <option value="Standard">Standard</option>
               <option value="Premium">Premium</option>
             </select>
+          </div>
+
+          {/* Assign To — the lead starts out owned by someone instead of
+              sitting unassigned until an admin remembers to pick an agent */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Assign To
+            </label>
+            <select
+              value={newUser.assignedAgentId || ""}
+              onChange={(e) =>
+                setNewUser({ ...newUser, assignedAgentId: e.target.value })
+              }
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700
+                  bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100
+                  rounded-xl focus:ring-2 focus:ring-indigo-500
+                  focus:border-transparent outline-none"
+            >
+              <option value="">Unassigned</option>
+              {agents.map((agent) => (
+                <option key={agent._id} value={agent._id}>
+                  {agent.fullName || agent.email}
+                  {agent.role ? ` · ${agent.role}` : ""}
+                </option>
+              ))}
+            </select>
+            {agents.length === 0 && (
+              <p className="mt-1 text-xs text-gray-400">
+                No agents available to assign right now.
+              </p>
+            )}
           </div>
         </div>
 

@@ -882,6 +882,8 @@ export default function useUserManagementLogic() {
   }, []);
 
   useEffect(() => {
+    if (!role) return;
+
     if (
       role === "superAdmin" ||
       role === "admin" ||
@@ -893,7 +895,27 @@ export default function useUserManagementLogic() {
           if (data.success) setAgents(data.data);
         })
         .catch((err) => console.error("Error fetching agents:", err));
+      return;
     }
+
+    // Everyone else (agents, support, managers) may not list the whole team —
+    // /api/admin/user-agent is admin-only — but they must still be able to take
+    // a lead for themselves, so the only option offered is their own account.
+    const selfId = localStorage.getItem("adminId");
+    if (!selfId) {
+      setAgents([]);
+      return;
+    }
+    setAgents([
+      {
+        _id: selfId,
+        fullName: localStorage.getItem("adminName") || "Me",
+        email:
+          localStorage.getItem("adminEmail") || localStorage.getItem("email") || "",
+        role,
+        isSelf: true,
+      },
+    ]);
   }, [role]);
 
   useEffect(() => {

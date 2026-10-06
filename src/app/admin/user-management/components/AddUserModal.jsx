@@ -131,8 +131,9 @@ export default function AddUserModal({
               <option value="">Unassigned</option>
               {agents.map((agent) => (
                 <option key={agent._id} value={agent._id}>
-                  {agent.fullName || agent.email}
-                  {agent.role ? ` · ${agent.role}` : ""}
+                  {agent.isSelf
+                    ? `${agent.fullName || agent.email} (me)`
+                    : `${agent.fullName || agent.email}${agent.role ? ` · ${agent.role}` : ""}`}
                 </option>
               ))}
             </select>

@@ -63,16 +63,21 @@ export async function POST(req) {
     // =========================
     const rev = await FranchiseRevenue.findById(revenueId);
 
-    // ✅ Allow both user_onboard and service
-    if (!rev || !["user_onboard", "service"].includes(rev.type)) {
+    if (!rev) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid onboard revenue entry",
+          message: "Revenue entry not found",
         },
-        { status: 400 }
+        { status: 404 }
       );
     }
+
+    // What the row's type decides is the SIDE EFFECT of approving it — never
+    // whether a decision can be recorded at all. Rejecting is valid for every
+    // row; approving activates a plan or a service only where that makes sense.
+    const PLAN_TYPES = ["user_onboard", "plan"];
+    const SERVICE_TYPES = ["service"];
 
     // =========================
     // Prevent Duplicate Decision
@@ -101,12 +106,16 @@ export async function POST(req) {
     // =========================
     // USER_ONBOARD APPROVAL
     // =========================
-    if (decision === "approved" && rev.type === "user_onboard") {
+    if (decision === "approved" && PLAN_TYPES.includes(rev.type)) {
       const planName = rev.plan?.trim() || "Premium Plan";
 
+      // The row usually carries the window the customer actually bought; only
+      // fall back to "a year from now" when it does not.
       const oneYearMs = 365 * 24 * 60 * 60 * 1000;
-      const now = new Date();
-      const expiry = new Date(now.getTime() + oneYearMs);
+      const now = rev.packageStartDate ? new Date(rev.packageStartDate) : new Date();
+      const expiry = rev.packageExpiryDate
+        ? new Date(rev.packageExpiryDate)
+        : new Date(now.getTime() + oneYearMs);
 
       await User.findOneAndUpdate(
         { userId: rev.leadId },
@@ -127,7 +136,7 @@ export async function POST(req) {
     // =========================
     // SERVICE APPROVAL
     // =========================
-    if (decision === "approved" && rev.type === "service") {
+    if (decision === "approved" && SERVICE_TYPES.includes(rev.type)) {
       const serviceName =
         rev.paidService?.trim() ||
         rev.plan?.trim() ||
@@ -166,10 +175,13 @@ export async function POST(req) {
     let message = "Approval updated successfully";
 
     if (decision === "approved") {
-      if (rev.type === "user_onboard") {
+      if (PLAN_TYPES.includes(rev.type)) {
         message = "Plan activated for user";
-      } else if (rev.type === "service") {
+      } else if (SERVICE_TYPES.includes(rev.type)) {
         message = "Service activated for user";
+      } else {
+        // e.g. franchise_lead — the decision is recorded, nothing is activated.
+        message = "Marked as approved";
       }
     } else {
       message = "Marked as not approved";

@@ -20,6 +20,8 @@ const CgiVideoSchema = new mongoose.Schema(
 
     musicMood: { type: String, default: null }, // mood actually used — never "auto"
     musicMoodReason: { type: String, default: null },
+    // Backdrop/lighting treatment the AI resolved "auto" into.
+    visualStyle: { type: String, default: null },
 
     videoUrl: { type: String, required: true },
     // Pending Post created for this ad so it can use the /post-management

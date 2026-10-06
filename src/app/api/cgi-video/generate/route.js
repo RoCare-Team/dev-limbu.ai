@@ -6,27 +6,50 @@ import {
   upstreamErrorMessage,
 } from "@/lib/cgiVideoApi";
 
-// The v1 API takes the product photo as base64 inside a JSON body. Base64 adds
-// ~33%, so the cap is lower than the old multipart upload's — 10 MB of image is
-// already far more than a product shot needs.
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-const ALLOWED_ASPECT_RATIOS = new Set(["9:16", "16:9"]);
-const MIN_DURATION = 10;
-const MAX_DURATION = 60;
 
-// Creating a job returns as soon as it is queued — the render itself is polled.
-export const maxDuration = 120;
+// The API renders a 20-second ad as two 10-second clips joined with a crossfade,
+// so it costs two generations upstream. Only these two lengths exist.
+const ALLOWED_DURATIONS = [10, 20];
+
+// Straight from the service's OpenAPI enums — anything else is refused there.
+const MUSIC_MOODS = ["auto", "upbeat", "cinematic", "chill", "luxury", "energetic", "none"];
+const VISUAL_STYLES = [
+  "auto",
+  "high_key",
+  "dark_luxe",
+  "neon_tech",
+  "golden_hour",
+  "liquid_energy",
+  "pastel_minimal",
+  "monochrome",
+  "gradient_glow",
+];
+
+// Returns once the job is queued and the ad copy is written; the render itself
+// is polled through /api/cgi-video/task.
+export const maxDuration = 180;
 
 function isFile(value) {
   return value && typeof value === "object" && typeof value.size === "number" && value.size > 0;
 }
 
+function imageError(file, label) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return `${label} must be a PNG, JPG or WEBP image.`;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return `${label} must be under 15 MB.`;
+  }
+  return null;
+}
+
 export async function POST(req) {
   try {
-    const form = await req.formData();
+    const incoming = await req.formData();
 
-    const businessName = String(form.get("business_name") || "").trim();
+    const businessName = String(incoming.get("business_name") || "").trim();
     if (!businessName) {
       return NextResponse.json(
         { success: false, error: "business_name is required." },
@@ -34,8 +57,8 @@ export async function POST(req) {
       );
     }
 
-    const product = form.get("product");
-    const productUrl = String(form.get("product_url") || "").trim();
+    const product = incoming.get("product");
+    const productUrl = String(incoming.get("product_url") || "").trim();
     if (!isFile(product) && !productUrl) {
       return NextResponse.json(
         { success: false, error: "A product image is required." },
@@ -43,55 +66,57 @@ export async function POST(req) {
       );
     }
 
-    let imageBase64 = null;
+    const forward = new FormData();
+    forward.append("business_name", businessName);
+
     if (isFile(product)) {
-      if (!ALLOWED_IMAGE_TYPES.includes(product.type)) {
-        return NextResponse.json(
-          { success: false, error: "Product image must be a PNG, JPG or WEBP image." },
-          { status: 400 }
-        );
-      }
-      if (product.size > MAX_IMAGE_BYTES) {
-        return NextResponse.json(
-          { success: false, error: "Product image must be under 10 MB." },
-          { status: 400 }
-        );
-      }
-      const bytes = Buffer.from(await product.arrayBuffer());
-      // A data: URI is accepted as-is by the API and keeps the mime type with it.
-      imageBase64 = `data:${product.type};base64,${bytes.toString("base64")}`;
+      const err = imageError(product, "Product image");
+      if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
+      forward.append("product", product, product.name);
+    } else {
+      forward.append("product_url", productUrl);
     }
 
-    const rawDuration = Number(form.get("duration_seconds"));
-    const duration = Number.isFinite(rawDuration)
-      ? Math.min(MAX_DURATION, Math.max(MIN_DURATION, Math.round(rawDuration)))
-      : 10;
+    const logo = incoming.get("logo");
+    if (isFile(logo)) {
+      const err = imageError(logo, "Logo");
+      if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
+      forward.append("logo", logo, logo.name);
+    }
 
-    const rawAspect = String(form.get("aspect_ratio") || "").trim();
-    const aspectRatio = ALLOWED_ASPECT_RATIOS.has(rawAspect) ? rawAspect : "9:16";
+    for (const field of ["product_name", "keywords"]) {
+      const value = String(incoming.get(field) || "").trim();
+      if (value) forward.append(field, value);
+    }
 
-    const payload = {
-      business_name: businessName,
-      product: {
-        name: String(form.get("product_name") || "").trim(),
-        keywords: String(form.get("keywords") || "").trim(),
-        ...(imageBase64 ? { image_base64: imageBase64 } : { image_url: productUrl }),
-      },
-      duration_seconds: duration,
-      aspect_ratio: aspectRatio,
-      music_mood: String(form.get("music_mood") || "auto").trim() || "auto",
-      visual_style: String(form.get("visual_style") || "auto").trim() || "auto",
-    };
+    const rawDuration = Number(incoming.get("duration_seconds"));
+    forward.append(
+      "duration_seconds",
+      String(ALLOWED_DURATIONS.includes(rawDuration) ? rawDuration : 10)
+    );
+
+    const mood = String(incoming.get("music_mood") || "auto").trim();
+    forward.append("music_mood", MUSIC_MOODS.includes(mood) ? mood : "auto");
+
+    const style = String(incoming.get("visual_style") || "auto").trim();
+    forward.append("visual_style", VISUAL_STYLES.includes(style) ? style : "auto");
+
+    // Reproduces an earlier ad's camera move and typography.
+    const seed = String(incoming.get("look_seed") || "").trim();
+    if (seed && Number.isFinite(Number(seed))) forward.append("look_seed", seed);
+
+    // `wait` stays off: the browser polls, so this request never holds a
+    // connection open for the whole render.
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 110 * 1000);
+    const timeoutId = setTimeout(() => controller.abort(), 170 * 1000);
 
     let externalRes;
     try {
-      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/v1/ads`, {
+      externalRes = await fetch(`${CGI_VIDEO_API_URL}/api/generate-ad`, {
         method: "POST",
-        headers: { ...cgiVideoHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: cgiVideoHeaders(), // no Content-Type — fetch sets the boundary
+        body: forward,
         signal: controller.signal,
       });
     } finally {

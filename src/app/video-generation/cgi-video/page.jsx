@@ -16,6 +16,8 @@ import {
   Plus,
   Building2,
   ExternalLink,
+  ImageIcon,
+  TriangleAlert,
 } from "lucide-react";
 import Toast from "@/components/Toast";
 import { useKeywordPlanner } from "@/hooks/useKeywordPlanner";
@@ -28,35 +30,42 @@ import { useVideoHistoryPosting } from "@/hooks/useVideoHistoryPosting";
 /* ----------------------------------------------------
    CONSTANTS
 ---------------------------------------------------- */
-// Length is the user's choice now (10-60s), so the price follows it: a 10s ad
-// still costs the old flat 300.
+// Price follows length: 10s costs the familiar 300, 20s costs 600 — which is
+// fair, because the service renders a 20s ad as TWO 10s clips (two generations).
 const COST_PER_SECOND = 30;
 const POLL_INTERVAL_MS = 6000;
 const POLL_TIMEOUT_MS = 12 * 60 * 1000;
 const MAX_POLL_ERRORS = 5; // consecutive network/5xx failures before giving up
-// Lower than before: the API takes the photo as base64, which inflates it ~33%.
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
 // The in-flight job is kept in localStorage so a reload resumes polling instead
 // of losing a video the user is about to pay for.
 const PENDING_JOB_KEY = "cgiVideoPendingJob";
 
-const DURATION_OPTIONS = [10, 15, 20, 30, 45, 60]; // API accepts 10-60 seconds
-const ASPECT_OPTIONS = [
-  { v: "9:16", label: "9:16 vertical", hint: "Reels, Shorts, Stories" },
-  { v: "16:9", label: "16:9 landscape", hint: "YouTube, website" },
-];
-// The v1 API has no music-library endpoint any more — mood is a free string
-// with "auto" as its default, so these are offered as ready-made choices.
-const MUSIC_MOODS = ["auto", "chill", "cinematic", "energetic", "luxury", "upbeat"];
-const VISUAL_STYLES = ["auto", "cinematic", "minimal", "luxury", "vibrant", "natural"];
+// The API offers exactly these two lengths. Output is always 9:16 — there is no
+// aspect-ratio option on the service.
+const DURATION_OPTIONS = [10, 20];
 
-// The API's own job stages, in the order they happen.
+// Straight from the service's enums.
+const MUSIC_MOODS = ["auto", "upbeat", "cinematic", "chill", "luxury", "energetic", "none"];
+const VISUAL_STYLES = [
+  { v: "auto", label: "Auto — let AI pick" },
+  { v: "high_key", label: "High key" },
+  { v: "dark_luxe", label: "Dark luxe" },
+  { v: "neon_tech", label: "Neon tech" },
+  { v: "golden_hour", label: "Golden hour" },
+  { v: "liquid_energy", label: "Liquid energy" },
+  { v: "pastel_minimal", label: "Pastel minimal" },
+  { v: "monochrome", label: "Monochrome" },
+  { v: "gradient_glow", label: "Gradient glow" },
+];
+
+// The API's own task statuses, in the order they happen.
 const PROGRESS_STEPS = [
   { key: "queued", label: "Queued" },
-  { key: "planning", label: "Planning the ad" },
-  { key: "generating", label: "Rendering CGI video" },
-  { key: "post_processing", label: "Adding music & polish" },
+  { key: "writing_copy", label: "Writing ad copy" },
+  { key: "generating_video", label: "Rendering CGI video" },
+  { key: "adding_music", label: "Mixing in music" },
   { key: "uploading", label: "Uploading" },
 ];
 
@@ -125,13 +134,16 @@ function CgiVideoContent() {
   const [productName, setProductName] = useState("");
   const [keywords, setKeywords] = useState("");
   const [productImage, setProductImage] = useState(null); // { file, preview }
+  const [logo, setLogo] = useState(null); // File — pasted onto the finished video
   const [musicMood, setMusicMood] = useState("auto");
   const [visualStyle, setVisualStyle] = useState("auto");
   const [durationSeconds, setDurationSeconds] = useState(10);
-  const [aspectRatio, setAspectRatio] = useState("9:16");
+  // Moods that actually have a track right now (/api/music-library).
+  const [moodTracks, setMoodTracks] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
 
   const productInputRef = useRef(null);
+  const logoInputRef = useRef(null);
   const historySectionRef = useRef(null);
 
   /* -------------------- Keywords (Google Keyword Planner ideas) -------------------- */
@@ -168,9 +180,9 @@ function CgiVideoContent() {
 
   /* -------------------- Generation -------------------- */
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // { taskId (= API job_id), userId, businessName, productName, keywords,
-  //   musicMood, visualStyle, durationSeconds, aspectRatio, status, progress,
-  //   progressMessage, startedAt }
+  // { taskId, userId, businessName, productName, keywords,
+  //   adCopy, musicMood, musicMoodReason, visualStyle, visualStyleReason,
+  //   lookSeed, durationSeconds, status, progressMessage, startedAt }
   const [job, setJob] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   const [resultVideo, setResultVideo] = useState(null);
@@ -212,6 +224,13 @@ function CgiVideoContent() {
 
   /* ---------------------------- INIT ---------------------------- */
   useEffect(() => {
+    // Which moods have a track today — a mood with no track silently falls back
+    // to no music, so the ones that work are marked in the dropdown.
+    fetch("/api/cgi-video/music-library")
+      .then((r) => r.json())
+      .then((d) => setMoodTracks(d.success ? d.tracks || [] : []))
+      .catch(() => setMoodTracks([]));
+
     const uid = localStorage.getItem("userId");
     if (uid) {
       setUserId(uid);
@@ -302,13 +321,13 @@ function CgiVideoContent() {
         const task = data.data || {};
 
         if (task.status === "failed") {
-          const why = task.error?.message || task.message || "Video generation failed.";
+          const why = task.error || task.progress_message || "Video generation failed.";
           failJob(`${why} You have not been charged.`);
           return;
         }
 
-        if (task.status === "completed") {
-          if (!task.result?.video_url) {
+        if (task.status === "success") {
+          if (!task.video_url) {
             failJob("The ad finished but no video URL was returned. You have not been charged.");
             return;
           }
@@ -321,8 +340,11 @@ function CgiVideoContent() {
             ? {
                 ...prev,
                 status: task.status || prev.status,
-                progress: typeof task.progress === "number" ? task.progress : prev.progress,
-                progressMessage: task.message || prev.progressMessage,
+                progressMessage: task.progress_message || prev.progressMessage,
+                musicMood: task.music_mood || prev.musicMood,
+                musicMoodReason: task.music_mood_reason || prev.musicMoodReason,
+                visualStyle: task.visual_style || prev.visualStyle,
+                visualStyleReason: task.visual_style_reason || prev.visualStyleReason,
               }
             : prev
         );
@@ -351,12 +373,17 @@ function CgiVideoContent() {
     const finished = {
       taskId: snapshot.taskId,
       businessName: snapshot.businessName,
-      videoUrl: task.result?.video_url,
-      // The finished file decides the real length — and therefore the charge.
-      durationSeconds: task.result?.duration_seconds ?? snapshot.durationSeconds,
-      musicMood: snapshot.musicMood,
-      visualStyle: snapshot.visualStyle,
-      aspectRatio: snapshot.aspectRatio,
+      videoUrl: task.video_url,
+      // Charged on what was ordered, not on the file's exact runtime.
+      durationSeconds: snapshot.durationSeconds,
+      adCopy: snapshot.adCopy,
+      // The AI resolves "auto" into a real mood/style — show what it picked.
+      musicMood: task.music_mood || snapshot.musicMood,
+      musicMoodReason: task.music_mood_reason || snapshot.musicMoodReason,
+      visualStyle: task.visual_style || snapshot.visualStyle,
+      visualStyleReason: task.visual_style_reason || snapshot.visualStyleReason,
+      lookSeed: task.look_seed ?? snapshot.lookSeed ?? null,
+      storageWarning: task.storage_warning || null,
     };
     setResultVideo(finished);
     showToast("🎬 CGI ad generated successfully!", "success");
@@ -382,11 +409,13 @@ function CgiVideoContent() {
           businessName: snapshot.businessName,
           productName: snapshot.productName,
           keywords: snapshot.keywords,
+          adCopy: finished.adCopy,
           musicMood: finished.musicMood,
+          musicMoodReason: finished.musicMoodReason,
           visualStyle: finished.visualStyle,
           durationSeconds: finished.durationSeconds,
-          aspectRatio: finished.aspectRatio,
           videoUrl: finished.videoUrl,
+          storageWarning: finished.storageWarning,
           cost,
         }),
       });
@@ -470,6 +499,13 @@ function CgiVideoContent() {
     applyProductFile(e.dataTransfer.files?.[0]);
   };
 
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !validateImage(file, "Logo")) return;
+    setLogo(file);
+  };
+
   const isBusy = isSubmitting || !!job;
   const generationCost = durationSeconds * COST_PER_SECOND;
   const insufficientBalance = walletBalance !== null && walletBalance < generationCost;
@@ -503,10 +539,10 @@ function CgiVideoContent() {
       if (productName.trim()) form.append("product_name", productName.trim());
       if (finalKeywords) form.append("keywords", finalKeywords);
       form.append("product", productImage.file);
+      if (logo) form.append("logo", logo);
       form.append("music_mood", musicMood);
       form.append("visual_style", visualStyle);
       form.append("duration_seconds", String(durationSeconds));
-      form.append("aspect_ratio", aspectRatio);
 
       const res = await fetch("/api/cgi-video/generate", { method: "POST", body: form });
       const data = await res.json().catch(() => ({}));
@@ -515,27 +551,34 @@ function CgiVideoContent() {
       }
 
       const started = data.data || {};
-      if (!started.job_id) throw new Error("The video service did not return a job id.");
+      if (!started.task_id) throw new Error("The video service did not return a job id.");
 
       const newJob = {
-        taskId: started.job_id,
+        taskId: started.task_id,
         userId,
         businessName: businessName.trim(),
         productName: productName.trim(),
         keywords: finalKeywords,
-        musicMood,
-        visualStyle,
+        // The ad copy is written before the render starts, so it is already here.
+        adCopy: {
+          headline: started.ad_copy?.headline || null,
+          businessNameLine: started.ad_copy?.business_name_line || null,
+          cta: started.ad_copy?.cta || null,
+        },
+        musicMood: started.music_mood || musicMood,
+        musicMoodReason: started.music_mood_reason || null,
+        visualStyle: started.visual_style || visualStyle,
+        visualStyleReason: started.visual_style_reason || null,
+        lookSeed: started.look_seed ?? null,
         // What the ad was ordered as — the charge is based on this.
-        durationSeconds: started.duration_seconds || durationSeconds,
-        aspectRatio,
+        durationSeconds,
         status: started.status || "queued",
-        progress: 0,
-        progressMessage: "Queued — your CGI ad is about to start rendering…",
+        progressMessage: started.message || "Rendering your CGI video…",
         startedAt: Date.now(),
       };
       savePendingJob(newJob);
       setJob(newJob);
-      showToast("Job queued — rendering your CGI video. This takes a few minutes.", "info");
+      showToast("Ad copy written — rendering your CGI video. This takes a few minutes.", "info");
     } catch (err) {
       console.error(err);
       showToast(err.message || "Failed to start CGI ad generation.", "error");
@@ -546,8 +589,11 @@ function CgiVideoContent() {
 
   const stage = resultVideo?.videoUrl ? "ready" : isBusy ? "rendering" : "idle";
   const currentStepIndex = job ? PROGRESS_STEPS.findIndex((s) => s.key === job.status) : -1;
-  // The preview frame mirrors whatever shape the finished ad will have.
-  const previewAspect = (resultVideo?.aspectRatio || aspectRatio) === "16:9" ? "16 / 9" : "9 / 16";
+  // Ad copy exists from the moment the job is created, so it can be shown while
+  // the video is still rendering.
+  const activeAdCopy = job?.adCopy || resultVideo?.adCopy;
+  const activeMood = job?.musicMood || resultVideo?.musicMood;
+  const activeMoodReason = job?.musicMoodReason || resultVideo?.musicMoodReason;
 
   return (
     <div className="font-inter">
@@ -725,6 +771,45 @@ function CgiVideoContent() {
               )}
             </div>
 
+            <div
+              onClick={() => !isBusy && logoInputRef.current?.click()}
+              className={`mt-3 flex items-center justify-between gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 transition-all ${
+                isBusy ? "cursor-not-allowed opacity-70" : "cursor-pointer hover:border-[#EAB308]/50"
+              }`}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-900 truncate">
+                    {logo ? logo.name : "Add brand logo (optional)"}
+                  </p>
+                  <p className="text-[10px] text-slate-400">
+                    Pasted onto the finished video as-is — a transparent PNG looks cleanest.
+                  </p>
+                </div>
+              </div>
+              {logo && !isBusy && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLogo(null);
+                  }}
+                  className="p-1 rounded-md hover:bg-slate-200"
+                >
+                  <X className="w-3.5 h-3.5 text-slate-500" />
+                </button>
+              )}
+            </div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={handleLogoUpload}
+              className="hidden"
+            />
           </SectionCard>
 
           <SectionCard step={2} title="Product Image" icon={Package}>
@@ -832,7 +917,11 @@ function CgiVideoContent() {
                 >
                   {MUSIC_MOODS.map((m) => (
                     <option key={m} value={m}>
-                      {m === "auto" ? "Auto — let AI pick" : m}
+                      {m === "auto"
+                        ? "Auto — let AI pick"
+                        : m === "none"
+                        ? "No music"
+                        : `${m}${moodTracks.length && !moodTracks.includes(m) ? " (no track yet)" : ""}`}
                     </option>
                   ))}
                 </select>
@@ -850,8 +939,8 @@ function CgiVideoContent() {
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 capitalize focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60"
                 >
                   {VISUAL_STYLES.map((v) => (
-                    <option key={v} value={v}>
-                      {v === "auto" ? "Auto — let AI pick" : v}
+                    <option key={v.v} value={v.v}>
+                      {v.label}
                     </option>
                   ))}
                 </select>
@@ -880,32 +969,20 @@ function CgiVideoContent() {
                 ))}
               </div>
               <p className="text-[10px] text-slate-400 font-medium">
-                {COST_PER_SECOND} coins per second — a longer ad costs more and takes longer to render.
+                {COST_PER_SECOND} coins per second. A 20s ad is rendered as two 10s clips joined
+                together, so it costs twice as much and takes about twice as long.
               </p>
             </div>
 
-            <div className="mt-3 space-y-1">
-              <label className="text-xs font-semibold text-slate-900/90">Aspect Ratio</label>
-              <div className="flex flex-wrap gap-1.5">
-                {ASPECT_OPTIONS.map((a) => (
-                  <button
-                    key={a.v}
-                    type="button"
-                    disabled={isBusy}
-                    onClick={() => setAspectRatio(a.v)}
-                    className={`flex flex-col items-start px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-60 ${
-                      aspectRatio === a.v
-                        ? "bg-[#EAB308] border-[#EAB308] text-black"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:border-[#EAB308]/40"
-                    }`}
-                  >
-                    {a.label}
-                    <span className={`text-[10px] font-medium ${aspectRatio === a.v ? "text-black/70" : "text-slate-400"}`}>
-                      {a.hint}
-                    </span>
-                  </button>
-                ))}
-              </div>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {["9:16 vertical", "720 × 1280", "Reels · Shorts"].map((spec) => (
+                <span
+                  key={spec}
+                  className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-600"
+                >
+                  {spec}
+                </span>
+              ))}
             </div>
           </SectionCard>
 
@@ -938,7 +1015,7 @@ function CgiVideoContent() {
 
             <div
               className="relative h-[60vh] max-h-[520px] max-w-full mx-auto rounded-lg bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 border border-slate-200 flex flex-col items-center justify-center gap-3 overflow-hidden"
-              style={{ aspectRatio: previewAspect }}
+              style={{ aspectRatio: "9 / 16" }}
             >
               {resultVideo?.videoUrl ? (
                 <video
@@ -957,14 +1034,7 @@ function CgiVideoContent() {
                   <p className="text-xs font-bold text-slate-700">{job.progressMessage}</p>
                   <p className="text-[11px] font-mono text-slate-500">
                     {formatElapsed(now - job.startedAt)}
-                    {typeof job.progress === "number" ? ` · ${job.progress}%` : ""}
                   </p>
-                  <div className="w-full max-w-[200px] h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                    <div
-                      className="h-full bg-[#EAB308] transition-all duration-500"
-                      style={{ width: `${Math.max(3, Math.min(100, job.progress ?? 3))}%` }}
-                    />
-                  </div>
 
                   <div className="w-full max-w-[200px] space-y-1.5 text-left">
                     {PROGRESS_STEPS.map((s, i) => {
@@ -1028,28 +1098,38 @@ function CgiVideoContent() {
               </a>
             )}
 
-            {resultVideo?.videoUrl && (
+            {resultVideo?.storageWarning && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <TriangleAlert className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-amber-800">{resultVideo.storageWarning}</p>
+              </div>
+            )}
+
+            {activeAdCopy && (activeAdCopy.headline || activeAdCopy.cta) && (
               <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 space-y-1.5">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">This ad</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    typeof resultVideo.durationSeconds === "number"
-                      ? `${resultVideo.durationSeconds.toFixed(1)}s`
-                      : null,
-                    resultVideo.aspectRatio,
-                    resultVideo.musicMood && resultVideo.musicMood !== "auto" ? resultVideo.musicMood : null,
-                    resultVideo.visualStyle && resultVideo.visualStyle !== "auto" ? resultVideo.visualStyle : null,
-                  ]
-                    .filter(Boolean)
-                    .map((chip) => (
-                      <span
-                        key={chip}
-                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold capitalize text-slate-600"
-                      >
-                        {chip}
-                      </span>
-                    ))}
-                </div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wide">
+                  On-screen copy
+                </p>
+                {activeAdCopy.headline && (
+                  <p className="text-sm font-black text-slate-900">{activeAdCopy.headline}</p>
+                )}
+                {activeAdCopy.businessNameLine && (
+                  <p className="text-[11px] text-slate-500">{activeAdCopy.businessNameLine}</p>
+                )}
+                {activeAdCopy.cta && (
+                  <span className="inline-block rounded-full bg-[#EAB308] px-2.5 py-0.5 text-[10px] font-black uppercase text-black">
+                    {activeAdCopy.cta}
+                  </span>
+                )}
+                {activeMood && (
+                  <p className="text-[11px] text-slate-500 pt-1 flex items-start gap-1">
+                    <Music2 className="w-3 h-3 mt-0.5 shrink-0 text-[#EAB308]" />
+                    <span>
+                      <span className="font-bold capitalize text-slate-700">{activeMood}</span>
+                      {activeMoodReason ? ` — ${activeMoodReason}` : ""}
+                    </span>
+                  </p>
+                )}
               </div>
             )}
 

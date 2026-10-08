@@ -2,9 +2,9 @@ import dbConnect from "@/lib/dbConnect";
 import HomeData from "@/models/HomeData";
 import {
   expandPricingLandingForApi,
-  expandPlanArrayForApi,
   mergePricingLanding,
 } from "@/lib/pricingLandingDefaults";
+import { buildSocialMediaPlansPayload } from "@/lib/socialMediaPlansApi";
 import {
   expandSubscriptionPlansForApi,
   getSubscriptionPlansPayloadForExpand,
@@ -68,15 +68,21 @@ export async function GET(req) {
     }
 
     // Social media plans have no stored doc of their own, unlike seoPlans /
-    // webDevelopmentPlans, so a plain lookup returned null. Serve them from the
-    // same catalog /checkout uses — with planKey and purchase links — and merge
-    // a saved doc over the top if one is ever created.
+    // webDevelopmentPlans, so a plain lookup returned null. They are served
+    // from the same catalog /checkout uses, in the `billingCycles` shape the
+    // GMB packages already use, and at the prices /pricing displays — the
+    // chatbot's 10% is opt-in via ?chatbot=1 rather than silently baked in.
     if (type === "socialMediaPlans") {
       const doc = await HomeData.findOne({ type: "socialMediaPlans" }).lean();
-      const data = expandPlanArrayForApi("socialMediaPlans", doc, {
-        applyChatbotPriceDiscount: !forCheckout,
+      const payload = buildSocialMediaPlansPayload(doc, {
+        applyChatbotDiscount: searchParams.get("chatbot") === "1",
       });
-      return NextResponse.json({ ...(doc || {}), type: "socialMediaPlans", data });
+      return NextResponse.json({
+        ...(doc || {}),
+        type: "socialMediaPlans",
+        ...payload,
+        data: payload,
+      });
     }
 
     if (type === "subscriptionPlans") {

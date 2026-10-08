@@ -414,35 +414,6 @@ export const PRICING_LANDING_DEFAULTS = {
   ],
 }
 
-/**
- * One plan array, by its catalog key, ready to serve on its own endpoint.
- *
- * The other plan types each live in their own HomeData doc (`seoPlans`,
- * `webDevelopmentPlans`, …) and are served raw. Social media plans had no doc
- * at all, so `?type=socialMediaPlans` answered null. Rather than require
- * someone to POST the prices in by hand — and then have two copies to keep in
- * step — this serves the catalog defaults, and merges a saved doc over them by
- * planKey if one is ever created.
- *
- * @param {string} key one of PLAN_ARRAY_KEYS, e.g. "socialMediaPlans"
- * @param {object|null} doc the HomeData doc for that type, if it exists
- * @param {{ applyChatbotPriceDiscount?: boolean }} [options]
- */
-export function expandPlanArrayForApi(key, doc, options = {}) {
-  const defaults = PRICING_LANDING_DEFAULTS[key]
-  if (!Array.isArray(defaults)) return null
-
-  // A per-type doc stores the bare array; tolerate { data: [...] } too.
-  const raw = doc?.data !== undefined ? doc.data : doc
-  const saved = Array.isArray(raw) ? raw : Array.isArray(raw?.[key]) ? raw[key] : []
-
-  const merged = mergePlanListWithDefaults(defaults, saved)
-  // Reuse the catalog expander so links and discounts behave identically to
-  // what /checkout and the chatbot already receive.
-  const expanded = expandPricingLandingForApi({ [key]: merged }, options)
-  return expanded?.[key] ?? merged
-}
-
 export function mergePricingLanding(doc) {
   const d = doc?.data !== undefined ? doc.data : doc
   const def = PRICING_LANDING_DEFAULTS

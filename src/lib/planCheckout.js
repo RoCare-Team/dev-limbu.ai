@@ -203,6 +203,7 @@ const PLAN_GROUPS = [
   { key: "servicePlans", kind: "service" },
   { key: "webDevelopmentPlans", kind: "web" },
   { key: "seoPlans", kind: "seo" },
+  { key: "socialMediaPlans", kind: "social" },
   { key: "accountSetupPlans", kind: "account" },
 ]
 
@@ -274,6 +275,48 @@ export function buildModalPlanForCheckout(found, billingCycle = "monthly") {
       totalPrice: Math.round(plan.basePrice * 1.18),
       subtitle: plan.description,
       purchaseLink: plan.purchaseLink || "",
+    }
+  }
+
+  if (kind === "social") {
+    // Social plans bill per month and carry their own cycle discounts (10%
+    // quarterly, 20% yearly) — deliberately NOT the GMB package scheme, so
+    // calculatePriceForCycle must not be used here. Reel count scales with the
+    // cycle the same way the /pricing cards show it.
+    const months = getMultiplierForCycle(cycle)
+    const discounts = plan.cycleDiscounts || { monthly: 0, quarterly: 0.1, yearly: 0.2 }
+    const discount = Number(discounts[cycle]) || 0
+    const listPrice = plan.basePrice * months
+    const price = Math.round(listPrice * (1 - discount))
+    const gst = Math.round(price * 0.18)
+    const reels = (plan.baseReels || 0) * months
+
+    return {
+      ...plan,
+      planKey: plan.planKey,
+      planType: "Social Media",
+      planDuration: cycle,
+      price: `₹${price.toLocaleString()}`,
+      listPrice: `₹${listPrice.toLocaleString()}`,
+      discountPercent: Math.round(discount * 100),
+      savings: `₹${(listPrice - price).toLocaleString()}`,
+      period:
+        cycle === "monthly"
+          ? "/ month"
+          : cycle === "quarterly"
+            ? "/ quarter"
+            : cycle === "half-yearly"
+              ? "/ 6 months"
+              : "/ year",
+      gstAmount: `₹${gst.toLocaleString()}`,
+      totalPrice: price + gst,
+      subtitle: plan.description,
+      features: [
+        `${reels} Reels${cycle === "monthly" ? " per Month" : ""}`,
+        ...(plan.staticFeatures || []),
+      ],
+      reels,
+      purchaseLink: buildCheckoutUrl(plan.planKey, cycle),
     }
   }
 

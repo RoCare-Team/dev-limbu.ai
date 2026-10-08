@@ -4,9 +4,52 @@
  */
 
 import { normalizePlatformDescriptions } from "@/utils/aiPostDescriptions";
+import {
+  writeAutomationCaptions,
+  getRecentOpenings,
+  pickAngle,
+} from "@/lib/automationCaptionWriter";
 
 export function getAutomationCronBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+}
+
+export const ASSET_SLOTS = [
+  "characterImage",
+  "uniformImage",
+  "productImage",
+  "backgroundImage",
+  "logoImage",
+];
+
+/**
+ * Picks ONE image per slot for the post at `index`.
+ *
+ * A slot with a pool rotates through it in order — index 0 takes the first
+ * image, index 1 the second, and it only repeats once the pool is exhausted.
+ * A slot without a pool keeps using its single configured image, exactly as
+ * before pools existed.
+ */
+export function resolveImagesForIndex(imageConfig = {}, index = 0, dateKey = "") {
+  const pools = imageConfig.pools || {};
+  const next = { ...imageConfig };
+  const i = Number.isFinite(index) && index >= 0 ? Math.floor(index) : 0;
+
+  // What the user pinned for this exact day, if anything.
+  const pinned =
+    (dateKey &&
+      (imageConfig.overrides || []).find((o) => o?.date === dateKey)?.images) ||
+    {};
+
+  for (const slot of ASSET_SLOTS) {
+    if (pinned[slot]) {
+      next[slot] = pinned[slot];
+      continue;
+    }
+    const pool = Array.isArray(pools[slot]) ? pools[slot].filter(Boolean) : [];
+    if (pool.length) next[slot] = pool[i % pool.length];
+  }
+  return next;
 }
 
 /** Strip disabled asset slots before calling aiAssetsGenerate */
@@ -60,9 +103,38 @@ async function callGpt(systemPrompt, userPrompt, maxTokens = 400) {
   }
 }
 
-export async function generateImagePrompt({ keyword, businessName, cityName }) {
+/**
+ * A different shot for each slot.
+ *
+ * Without this every prompt asked for the same thing — one hero subject,
+ * eye-level, soft light — so a client's feed became twelve near-identical
+ * frames. Rotating the treatment alongside the caption angle means consecutive
+ * posts look like a campaign rather than a repeat.
+ */
+const VISUAL_TREATMENTS = [
+  "a tight hero close-up of the product or service detail, shallow depth of field, 85mm",
+  "a wider environmental shot showing the clean workspace or storefront interior, 24mm",
+  "a candid in-action moment — hands mid-work, genuine focus, slight motion, 50mm",
+  "a macro detail shot of texture, finish or craft, strong directional light",
+  "a warm two-person moment: staff member with a satisfied customer, eye-level, 35mm",
+  "a tidy flat-lay / top-down arrangement of the tools or products on a clean surface",
+  "a bright natural-light portrait of the professional at work, soft window light, 50mm",
+  "a before-and-after style single frame showing the finished result in use",
+];
+
+export async function generateImagePrompt({
+  keyword,
+  businessName,
+  cityName,
+  postIndex = 0,
+}) {
   const fallback = `${keyword} — ${businessName}${cityName ? ", " + cityName : ""}`;
   const cityLine = cityName ? `City / locality : "${cityName}", India` : "";
+  const i = Number.isFinite(postIndex) && postIndex >= 0 ? Math.floor(postIndex) : 0;
+  const treatment = VISUAL_TREATMENTS[i % VISUAL_TREATMENTS.length];
+  // Same slot counter the caption angle uses, so the picture and the words are
+  // telling the same story.
+  const angle = pickAngle(i);
   const result = await callGpt(
     [
       "You are a senior commercial advertising photographer and art director.",
@@ -76,10 +148,16 @@ ${cityLine}
 
 TASK: Write ONE vivid, camera-ready image prompt for a scroll-stopping ad that visually sells "${keyword}" for this business.
 
+REQUIRED SHOT for this post (follow it — do not substitute a generic hero shot):
+${treatment}
+
+The post's written angle is "${angle.key}" — ${angle.brief}
+Make the picture support THAT angle specifically, not a generic advert.
+
 Build the prompt to cover, in a single flowing paragraph (45-75 words):
 1. HERO SUBJECT — the exact product / service / person most relevant to "${keyword}" (be concrete and authentic to an Indian local business).
 2. SETTING & ACTION — a realistic, tidy, aspirational scene${cityName ? `, subtly relatable to ${cityName}, India` : ""}.
-3. CAMERA & LIGHT — lens & angle (e.g. 35mm, eye-level, slight low angle), soft natural or studio lighting, shallow depth of field, professional colour grade / mood.
+3. CAMERA & LIGHT — use the required shot above for lens & framing, with soft natural or studio lighting, appropriate depth of field, and a professional colour grade / mood.
 4. QUALITY CUES — "photorealistic, ultra-detailed, sharp focus, 4K, commercial advertising photography, premium".
 5. COMPOSITION — keep clean, uncluttered negative space, and ALWAYS keep the TOP RIGHT CORNER completely empty/clean (plain, low-detail area) reserved for the brand logo, plus space for text and phone number to be added later.
 
@@ -115,10 +193,23 @@ export async function generateImageAndText({
   businessName,
   cityName,
   imageConfig = {},
+  postIndex = 0,
+  // "YYYY-MM-DD" of the day this post publishes, in the plan's timezone.
+  publishDateKey = "",
   platforms,
+  // Business context for the caption writer. The more of this the caller
+  // passes, the less generic the captions are — all of it is optional.
+  userId = "",
+  services = [],
+  businessDescription = "",
+  websiteUrl = "",
+  phone = "",
 } = {}) {
   const BASE_URL = getAutomationCronBaseUrl();
-  const cfg = applyIncludeInGeneration(imageConfig);
+  // A pinned day wins; otherwise rotate the pools. Then drop switched-off slots.
+  const cfg = applyIncludeInGeneration(
+    resolveImagesForIndex(imageConfig, postIndex, publishDateKey),
+  );
   const cleanB64 = (s) =>
     typeof s === "string" && s.startsWith("data:image")
       ? s.split(",")[1]
@@ -151,6 +242,30 @@ export async function generateImageAndText({
     "[automation-content] aiAssetsGenerate —",
     `${BASE_URL}/api/aiAssetsGenerate`,
   );
+
+  // Write the captions ourselves, in parallel with the image call so this costs
+  // no extra wall-clock. The webhook's own captions stay as the fallback: they
+  // publish fine, they are just formulaic (measured: 53% of this platform's
+  // Instagram captions used to open with the same word).
+  const ourCaptionsPromise = (async () => {
+    try {
+      const recentOpenings = await getRecentOpenings(userId);
+      return await writeAutomationCaptions({
+        businessName,
+        cityName,
+        keyword,
+        services,
+        businessDescription,
+        websiteUrl,
+        phone,
+        postIndex,
+        recentOpenings,
+      });
+    } catch (err) {
+      console.error("[automation-content] caption writer failed:", err.message);
+      return null;
+    }
+  })();
 
   // Retry a few times: the upstream service (assets-image.limbutech.in) can be
   // briefly unreachable / slow. Without retries a single blip drops the whole
@@ -193,19 +308,27 @@ export async function generateImageAndText({
         // the SAME normalizer post-management uses.
         const norm = normalizePlatformDescriptions({ ...json, ...d });
         const gmb = (norm.gmb_des || d?.description || "").trim();
-        const postText =
+        const webhookText =
           gmb || (norm.fb_des || norm.ig_des || "").trim() || textFallback;
+
+        // Our own captions if they arrived, the webhook's if they did not.
+        const ours = await ourCaptionsPromise;
+        const postText = (ours?.gmb || webhookText).trim();
+
         // Each platform keeps its own caption; fall back to the GMB text only when
         // that platform's caption is missing so no field is ever empty.
         const descriptions = {
           gmb: postText,
-          fb: (norm.fb_des || "").trim() || postText,
-          ig: (norm.ig_des || "").trim() || postText,
-          li: (norm.li_des || "").trim() || postText,
-          pin: (norm.pin_des || "").trim() || postText,
-          pinTitle: (norm.pin_title || "").trim(),
-          yt: (norm.yt_des || "").trim() || postText,
+          fb: (ours?.fb || norm.fb_des || "").trim() || postText,
+          ig: (ours?.ig || norm.ig_des || "").trim() || postText,
+          li: (ours?.li || norm.li_des || "").trim() || postText,
+          pin: (ours?.pin || norm.pin_des || "").trim() || postText,
+          pinTitle: (ours?.pinTitle || norm.pin_title || "").trim(),
+          yt: (ours?.yt || norm.yt_des || "").trim() || postText,
         };
+        console.log(
+          `[automation-content] captions by ${ours ? "caption-writer (angle=" + ours.angle + ")" : "webhook fallback"}`,
+        );
         // NOTE: Keep any {city} placeholder INTACT here. The gmb-post upstream
         // (via /api/gmb/publish) replaces {city} per location using each
         // location's cityName, so a single generated caption serves all
@@ -237,17 +360,21 @@ export async function generateImageAndText({
   console.error(
     `[automation-content] generateImageAndText FAILED after ${MAX_ATTEMPTS} attempts — image service unreachable?`,
   );
+  // No image means the caller aborts this slot, but hand back whatever text we
+  // did manage to write rather than discarding it.
+  const ours = await ourCaptionsPromise;
+  const text = (ours?.gmb || textFallback).trim();
   return {
     imageUrl: null,
-    postText: textFallback,
+    postText: text,
     descriptions: {
-      gmb: textFallback,
-      fb: textFallback,
-      ig: textFallback,
-      li: textFallback,
-      pin: textFallback,
-      pinTitle: "",
-      yt: textFallback,
+      gmb: text,
+      fb: ours?.fb || text,
+      ig: ours?.ig || text,
+      li: ours?.li || text,
+      pin: ours?.pin || text,
+      pinTitle: ours?.pinTitle || "",
+      yt: ours?.yt || text,
     },
   };
 }

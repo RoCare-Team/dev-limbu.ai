@@ -641,6 +641,11 @@ export async function POST(request) {
         backgroundImage: backgroundImage ?? null,
         logoImage:       logoImage       ?? null,
         includeInGeneration: mergedInclude,
+        // The daily image pools are managed on their own endpoint; this save
+        // replaces imageConfig wholesale, so they must be carried across or a
+        // settings save would silently empty every pool.
+        pools: existingPlan?.imageConfig?.pools || {},
+        overrides: existingPlan?.imageConfig?.overrides || [],
       },
       platforms:        safePlatforms,
       postingHour:        postingHourNum,

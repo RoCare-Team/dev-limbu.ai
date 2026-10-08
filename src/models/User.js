@@ -171,6 +171,9 @@ const userSchema = new mongoose.Schema(
     /** One-time welcome_bonus WhatsApp (AISensy) after registration */
     welcomeBonusWhatsAppSent: { type: Boolean, default: false },
 
+    /** Client's business/brand name, as captured at onboarding. */
+    businessName: { type: String, default: "" },
+
     connectedBusinessEmail: { type: String, default: null },
     selectedBusiness: {
       type: {

@@ -2,6 +2,7 @@ import dbConnect from "@/lib/dbConnect";
 import HomeData from "@/models/HomeData";
 import {
   expandPricingLandingForApi,
+  expandPlanArrayForApi,
   mergePricingLanding,
 } from "@/lib/pricingLandingDefaults";
 import {
@@ -64,6 +65,18 @@ export async function GET(req) {
         return NextResponse.json({ type: "pricingLanding", data });
       }
       return NextResponse.json({ ...doc, data });
+    }
+
+    // Social media plans have no stored doc of their own, unlike seoPlans /
+    // webDevelopmentPlans, so a plain lookup returned null. Serve them from the
+    // same catalog /checkout uses — with planKey and purchase links — and merge
+    // a saved doc over the top if one is ever created.
+    if (type === "socialMediaPlans") {
+      const doc = await HomeData.findOne({ type: "socialMediaPlans" }).lean();
+      const data = expandPlanArrayForApi("socialMediaPlans", doc, {
+        applyChatbotPriceDiscount: !forCheckout,
+      });
+      return NextResponse.json({ ...(doc || {}), type: "socialMediaPlans", data });
     }
 
     if (type === "subscriptionPlans") {

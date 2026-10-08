@@ -19,6 +19,10 @@ import { sanitizeGmbDescription, resolveGmbCta, resolveDefaultGmbCta, sanitizePh
 import { createRunLogger } from "@/lib/automationRunLogger";
 import { logPublish } from "@/lib/automationFileLogger";
 import { reportGmbAuthFailure } from "@/lib/gmbReconnectAlert";
+import {
+  sendDailyPostUpdateWhatsApp,
+  normalizeIndiaPhone,
+} from "@/lib/dailyPostWhatsApp";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -34,6 +38,16 @@ const log = (...args) => {
     console.log(...formatted);
   } catch {}
   debugLogs.push(formatted.join(" "));
+};
+
+/** Platform names as a client would say them, for the "post is live" message. */
+const PUBLISHED_PLATFORM_LABELS = {
+  gmb: "Google",
+  fb: "Facebook",
+  ig: "Instagram",
+  pinterest: "Pinterest",
+  li: "LinkedIn",
+  yt: "YouTube",
 };
 
 const DEFAULT_WHEN_POSTED = [
@@ -1222,6 +1236,64 @@ export async function GET(req) {
         post.nextRetryAt = null;
         stats.posted++;
         slog.success("done", `posted to [${Array.from(platformsPosted).join(", ")}]`);
+
+        // ── Tell the client their post is LIVE ───────────────────────────────
+        // This is the moment that was missing. An automation post is generated
+        // about 24 hours before it publishes (measured median: 1438 minutes),
+        // and the only WhatsApp that ever went out was that day-early preview —
+        // so from the client's side nothing arrived when the post actually went
+        // up. Latched on whatsappPublishNotifiedAt so a retry that completes a
+        // partial publish does not message them a second time.
+        if (!post.whatsappPublishNotifiedAt) {
+          try {
+            const destination = normalizeIndiaPhone(
+              user?.phone || user?.mobileNumber || user?.mobile || user?.whatsappNumber,
+            );
+            if (destination) {
+              const nameParts = String(user?.fullName || user?.name || "User")
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+              const where = Array.from(platformsPosted)
+                .map((p) => PUBLISHED_PLATFORM_LABELS[p] || p)
+                .join(", ");
+              const caption = post.gmbDescription || post.description || "";
+
+              const waRes = await sendDailyPostUpdateWhatsApp({
+                destination,
+                firstName: nameParts[0] || "User",
+                lastName: nameParts.slice(1).join(" "),
+                // The approved template renders {{2}} as free text, so the
+                // status line rides along with the caption — no new template
+                // needed, and the client can tell this apart from the preview.
+                postContent: `Your post is now LIVE on ${where}. ${caption}`,
+                imageUrl: post.aiOutput || "",
+              });
+
+              if (waRes.ok) {
+                post.whatsappPublishNotifiedAt = new Date();
+                log(`✓ "post is live" WhatsApp sent to ${destination}`);
+                slog.pass("notify:whatsapp", `post-live sent to ${destination} (${where})`);
+              } else {
+                log(`⚠ "post is live" WhatsApp failed for ${destination}: ${waRes.error}`);
+                // Deliberately info, not fail: the run logger turns any fail
+                // step into outcome="failed", and the post DID publish. A
+                // notification problem must not be reported as a failed post.
+                slog.info(
+                  "notify:whatsapp",
+                  `post-live NOT sent to ${destination} — ${waRes.error}`,
+                );
+              }
+            } else {
+              slog.skip("notify:whatsapp", "client phone missing or invalid");
+            }
+          } catch (waErr) {
+            // The post is already published — a notification problem must not
+            // change its status or trigger a retry.
+            log(`⚠ "post is live" WhatsApp exception: ${waErr.message}`);
+            slog.info("notify:whatsapp", `post-live exception — ${waErr.message}`);
+          }
+        }
 
         try {
           const platforms = Array.from(platformsPosted);

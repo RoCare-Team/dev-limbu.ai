@@ -164,11 +164,14 @@ export async function GET(request) {
     const cityName = loc0?.locality || loc0?.name || plan.businessName || '';
 
     try {
+      const loc0 = Array.isArray(plan.locations) ? plan.locations[0] : null;
       const imagePrompt = await generateImagePrompt({
         keyword,
         businessName: plan.businessName || '',
         cityName,
         imageConfig: plan.imageConfig || {},
+        // Rotates the shot type, so prefetched posts don't all look alike.
+        postIndex,
       });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
@@ -176,7 +179,16 @@ export async function GET(request) {
         businessName: plan.businessName || '',
         cityName,
         imageConfig: plan.imageConfig || {},
+        postIndex,
+        publishDateKey: zonedYmdString(nextRef, tz),
         platforms: plan.platforms,
+        // Context for the caption writer: the client's own words and services
+        // are what make a caption business-specific instead of generic.
+        userId: plan.userId,
+        services: Array.isArray(plan.keywords) ? plan.keywords.filter(Boolean) : [],
+        businessDescription: plan.businessProfileDescription || plan.topic || '',
+        websiteUrl: loc0?.websiteUrl || '',
+        phone: loc0?.primaryPhone || '',
       });
       const imgTrim = String(imageUrl || '').trim();
       const txtTrim = String(postText || '').trim();

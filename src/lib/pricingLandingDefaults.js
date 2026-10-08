@@ -62,6 +62,11 @@ export const PRICING_LANDING_DEFAULTS = {
       titleHighlight: "SEO Plans",
       subtitle: "Improve your website ranking and online visibility",
     },
+    socialMedia: {
+      titlePrefix: "Social Media",
+      titleHighlight: "Reel Plans",
+      subtitle: "Short-form content, scripted and edited for your brand",
+    },
     accountSetup: {
       titlePrefix: "Professional",
       titleHighlight: "Account Setup Services",
@@ -287,6 +292,76 @@ export const PRICING_LANDING_DEFAULTS = {
     },
   ],
 
+  /**
+   * Social media reel plans — the same three shown on /pricing.
+   *
+   * These run on their OWN cycle discounts (10% quarterly, 20% yearly) rather
+   * than the GMB package ones (20% quarterly / 15% half-yearly / 50% yearly),
+   * which is why `cycleDiscounts` is carried on the plan instead of being
+   * assumed by the checkout. `baseReels` multiplies by the cycle's months, so
+   * a quarterly Social Growth is 27 reels, not 9.
+   */
+  socialMediaPlans: [
+    {
+      planKey: "social-starter",
+      purchaseLink: "/checkout?planKey=social-starter",
+      title: "Social Starter",
+      basePrice: 3000,
+      baseReels: 4,
+      billingUnit: "month",
+      cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      staticFeatures: [
+        "Reel Scripting & Editing",
+        "Captions & Hashtags",
+        "Post Insights / Analytics",
+        "Comments Management",
+        "DM Automation",
+      ],
+      description: "For brands starting out on Instagram & Facebook",
+      color: "bg-neutral-600",
+      textColor: "text-neutral-600",
+    },
+    {
+      planKey: "social-growth",
+      purchaseLink: "/checkout?planKey=social-growth",
+      title: "Social Growth",
+      basePrice: 6000,
+      baseReels: 9,
+      billingUnit: "month",
+      cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      staticFeatures: [
+        "Reel Scripting & Editing",
+        "Captions & Hashtags",
+        "Post Insights / Analytics",
+        "Comments Management",
+        "DM Automation",
+      ],
+      description: "For brands posting consistently every week",
+      popular: true,
+      color: "bg-neutral-600",
+      textColor: "text-neutral-600",
+    },
+    {
+      planKey: "social-pro",
+      purchaseLink: "/checkout?planKey=social-pro",
+      title: "Social Pro",
+      basePrice: 12000,
+      baseReels: 20,
+      billingUnit: "month",
+      cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      staticFeatures: [
+        "Reel Scripting & Editing",
+        "Captions & Hashtags",
+        "Post Insights / Analytics",
+        "Comments Management",
+        "DM Automation",
+      ],
+      description: "For brands that need daily short-form content",
+      color: "bg-neutral-600",
+      textColor: "text-neutral-600",
+    },
+  ],
+
   accountSetupPlans: [
     {
       planKey: "account-google-ads",
@@ -339,6 +414,35 @@ export const PRICING_LANDING_DEFAULTS = {
   ],
 }
 
+/**
+ * One plan array, by its catalog key, ready to serve on its own endpoint.
+ *
+ * The other plan types each live in their own HomeData doc (`seoPlans`,
+ * `webDevelopmentPlans`, …) and are served raw. Social media plans had no doc
+ * at all, so `?type=socialMediaPlans` answered null. Rather than require
+ * someone to POST the prices in by hand — and then have two copies to keep in
+ * step — this serves the catalog defaults, and merges a saved doc over them by
+ * planKey if one is ever created.
+ *
+ * @param {string} key one of PLAN_ARRAY_KEYS, e.g. "socialMediaPlans"
+ * @param {object|null} doc the HomeData doc for that type, if it exists
+ * @param {{ applyChatbotPriceDiscount?: boolean }} [options]
+ */
+export function expandPlanArrayForApi(key, doc, options = {}) {
+  const defaults = PRICING_LANDING_DEFAULTS[key]
+  if (!Array.isArray(defaults)) return null
+
+  // A per-type doc stores the bare array; tolerate { data: [...] } too.
+  const raw = doc?.data !== undefined ? doc.data : doc
+  const saved = Array.isArray(raw) ? raw : Array.isArray(raw?.[key]) ? raw[key] : []
+
+  const merged = mergePlanListWithDefaults(defaults, saved)
+  // Reuse the catalog expander so links and discounts behave identically to
+  // what /checkout and the chatbot already receive.
+  const expanded = expandPricingLandingForApi({ [key]: merged }, options)
+  return expanded?.[key] ?? merged
+}
+
 export function mergePricingLanding(doc) {
   const d = doc?.data !== undefined ? doc.data : doc
   const def = PRICING_LANDING_DEFAULTS
@@ -359,12 +463,14 @@ export function mergePricingLanding(doc) {
     servicePlans: pickArr("servicePlans"),
     webDevelopmentPlans: pickArr("webDevelopmentPlans"),
     seoPlans: pickArr("seoPlans"),
+    socialMediaPlans: pickArr("socialMediaPlans"),
     accountSetupPlans: pickArr("accountSetupPlans"),
     sections: {
       subscription: mergeSection("subscription"),
       service: mergeSection("service"),
       web: mergeSection("web"),
       seo: mergeSection("seo"),
+      socialMedia: mergeSection("socialMedia"),
       accountSetup: mergeSection("accountSetup"),
     },
   }
@@ -375,6 +481,7 @@ const PLAN_ARRAY_KEYS = [
   "servicePlans",
   "webDevelopmentPlans",
   "seoPlans",
+  "socialMediaPlans",
   "accountSetupPlans",
 ]
 

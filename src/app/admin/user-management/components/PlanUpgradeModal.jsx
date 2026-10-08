@@ -25,6 +25,8 @@ export default function PlanUpgradeModal({
   setplanRemarks,
   gstNumber,
   setGstNumber,
+  planBusinessName,
+  setPlanBusinessName,
   updating,
   confirmPlanChange,
 }) {
@@ -239,6 +241,24 @@ export default function PlanUpgradeModal({
               placeholder="Enter remark..."
               rows={2}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none"
+            />
+          </div>
+
+          {/* Business name — the onboarding record is written from this form,
+              so the client's business name is captured here. */}
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-gray-700 mb-1">
+              Business Name{" "}
+              {planAmount && parseFloat(planAmount) > 0 && (
+                <span className="text-red-500">*</span>
+              )}
+            </label>
+            <input
+              type="text"
+              value={planBusinessName}
+              onChange={(e) => setPlanBusinessName(e.target.value)}
+              placeholder="Client's business / brand name"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
             />
           </div>
 

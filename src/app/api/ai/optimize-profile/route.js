@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { HOUSE_STYLE, shortBusinessName } from '@/lib/contentStyleRules';
 
 export async function POST(request) {
   try {
@@ -8,18 +9,35 @@ export async function POST(request) {
       return NextResponse.json({ error: 'OPENAI_API_KEY not configured in .env.local' }, { status: 500 });
     }
 
-    const prompt = `Optimize this Google Business Profile:
+    const prompt = `Optimize this Google Business Profile.
 
 Business Name: ${businessName || 'Not set'}
+Short form to use in prose: ${shortBusinessName(businessName) || 'the business'}
 Current Description: ${description || 'Not set'}
 Current Categories: ${categories?.map(c => c.name || c).join(', ') || 'None'}
 
-Generate:
-1. Optimized Business Name (50 chars max, SEO keywords, benefit-focused)
-2. Optimized Description (500 chars max, SEO keywords, services, location, unique selling points, call-to-action)
-3. 5-8 Suggested Primary/Secondary Categories (relevant to business, exact Google categories)
+Produce three things:
 
-SEO-focused, local-first, compelling copy. JSON output only:
+1. optimizedBusinessName — 50 characters max. Google's own guidelines forbid
+   stuffing keywords or taglines into the name, and a stuffed name risks
+   suspension. So return the REAL business name, cleaned up: correct
+   capitalisation, no ALL CAPS, no keyword list, no city appended unless it is
+   genuinely part of the registered name.
+
+2. optimizedDescription — 500 characters max. Open with what the business does
+   and who it serves. Name the actual services. Mention the locality once,
+   naturally. End with one plain invitation. Keep every fact from the current
+   description; improve only the wording.
+
+3. suggestedCategories — 5 to 8 real Google Business Profile category names
+   (exactly as Google words them, e.g. "Dental clinic", "Water purification
+   company"). Order them most relevant first; the first one is the primary.
+   Only categories that genuinely describe this business — a wrong category
+   hurts ranking more than a missing one.
+
+${HOUSE_STYLE}
+
+JSON output only:
 
 {
   "optimizedBusinessName": "...",
@@ -37,7 +55,10 @@ SEO-focused, local-first, compelling copy. JSON output only:
         model: 'gpt-4o-mini',
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 1000,
-        temperature: 0.3,
+        temperature: 0.4,
+        // The response is JSON.parse'd below; without this a stray markdown
+        // fence or a leading sentence takes the whole request down.
+        response_format: { type: 'json_object' },
       }),
     });
 

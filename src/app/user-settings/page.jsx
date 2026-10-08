@@ -801,6 +801,14 @@ export default function AutomationSettings({ onNavigateBack }) {
   const [latestAssets, setLatestAssets] = useState([]);
   const [savedImageConfig, setSavedImageConfig] = useState(null);
   const [assetInclude, setAssetInclude] = useState(defaultAssetInclude);
+  // Daily image pools — several images per slot, rotated one per post.
+  const [poolUserId, setPoolUserId] = useState("");
+  const [imagePools, setImagePools] = useState({});
+  const [poolBusySlot, setPoolBusySlot] = useState("");
+  const [poolError, setPoolError] = useState("");
+  // Day-by-day plan: which image each upcoming post will use.
+  const [imageSchedule, setImageSchedule] = useState([]);
+  const [pinning, setPinning] = useState("");
   const [imageSize, setImageSize] = useState(DEFAULT_IMAGE_SIZE);
   const [assetPreview, setAssetPreview] = useState(null); // { label, src } | null
 
@@ -1098,6 +1106,95 @@ export default function AutomationSettings({ onNavigateBack }) {
   const postsLeft = Math.max(0, totalPosts - postsUsed);
   const usagePct = totalPosts > 0 ? Math.min(100, (postsUsed / totalPosts) * 100) : 0;
   const usageByPlatform = autoStatus?.usageByPlatform || { gmb: 0, fb: 0, ig: 0 };
+
+  useEffect(() => {
+    const id = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
+    if (id) setPoolUserId(id);
+  }, []);
+
+  useEffect(() => {
+    if (!poolUserId) return;
+    fetch(`/api/user-settings/image-pool?userId=${encodeURIComponent(poolUserId)}`)
+      .then((r) => r.json())
+      .then((d) => setImagePools(d.success ? d.pools || {} : {}))
+      .catch(() => setImagePools({}));
+  }, [poolUserId]);
+
+  /** The day-by-day preview, computed server-side with the cron's own resolver. */
+  const loadSchedule = async (id) => {
+    const uid = id || poolUserId;
+    if (!uid) return;
+    try {
+      // No `days` → the API returns every remaining post in the plan.
+      const res = await fetch(`/api/user-settings/image-schedule?userId=${encodeURIComponent(uid)}`);
+      const d = await res.json();
+      setImageSchedule(d.success ? d.schedule || [] : []);
+    } catch {
+      setImageSchedule([]);
+    }
+  };
+
+  useEffect(() => {
+    if (poolUserId) loadSchedule(poolUserId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolUserId, imagePools]);
+
+  /** Pin (or unpin, with url=null) one slot's image for one date. */
+  const pinImage = async (date, slot, url) => {
+    setPinning(`${date}:${slot}`);
+    setPoolError("");
+    try {
+      const res = await fetch("/api/user-settings/image-schedule", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: poolUserId, date, slot, url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || "Could not set that day");
+      await loadSchedule();
+    } catch (err) {
+      setPoolError(err.message);
+    } finally {
+      setPinning("");
+    }
+  };
+
+  /** Upload one image into a slot's pool. */
+  const addToPool = async (slot, file) => {
+    if (!file) return;
+    setPoolBusySlot(slot);
+    setPoolError("");
+    try {
+      const form = new FormData();
+      form.append("userId", poolUserId);
+      form.append("slot", slot);
+      form.append("file", file);
+      const res = await fetch("/api/user-settings/image-pool", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || "Upload failed");
+      setImagePools((p) => ({ ...p, [slot]: data.pool || [] }));
+    } catch (err) {
+      setPoolError(err.message);
+    } finally {
+      setPoolBusySlot("");
+    }
+  };
+
+  const removeFromPool = async (slot, url) => {
+    setPoolBusySlot(slot);
+    setPoolError("");
+    try {
+      const qs = new URLSearchParams({ userId: poolUserId, slot, url });
+      const res = await fetch(`/api/user-settings/image-pool?${qs}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) throw new Error(data.error || "Could not remove");
+      setImagePools((p) => ({ ...p, [slot]: data.pool || [] }));
+    } catch (err) {
+      setPoolError(err.message);
+    } finally {
+      setPoolBusySlot("");
+    }
+  };
 
   const latestAssetRow = Array.isArray(latestAssets) && latestAssets.length > 0 ? latestAssets[0] : null;
   const hasAssetImages = hasUsableAssetImages({ userData, savedImageConfig, latestAssetRow, include: assetInclude });
@@ -2496,7 +2593,14 @@ export default function AutomationSettings({ onNavigateBack }) {
             </div>
             <div style={{ padding: "12px 20px 16px", borderTop: "1px solid #f3f4f6" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Preview & select for AI</div>
-              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>Tap the image to enlarge. Use the checkbox to include or exclude each asset from generation.</div>
+              <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 12 }}>
+                Tap the image to enlarge. Use the checkbox to include or exclude each asset from generation.
+                Add several images to a slot&apos;s <strong>daily pool</strong> and automation uses the next one
+                each day — a photo only repeats once the whole pool has been used.
+              </div>
+              {poolError && (
+                <div style={{ fontSize: 11, color: "#b91c1c", marginBottom: 10, fontWeight: 600 }}>{poolError}</div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
                 {ASSET_IMAGE_FIELDS.map((key) => {
                   const raw = pickFirstNonEmpty(userData?.[key], savedImageConfig?.[key], latestAssetRow?.[key]);
@@ -2541,14 +2645,220 @@ export default function AutomationSettings({ onNavigateBack }) {
                       {raw && !displaySrc && (
                         <div style={{ fontSize: 10, color: "#d97706" }}>Saved — preview not supported for this format</div>
                       )}
-                      {!raw && (
-                        <div style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.35 }}>Empty — upload in Asset Management</div>
+                      {!raw && !(imagePools[key] || []).length && (
+                        <div style={{ fontSize: 10, color: "#9ca3af", lineHeight: 1.35 }}>Empty — add images below</div>
                       )}
+
+                      {/* Daily pool: one image per post, in order, then it loops */}
+                      <div style={{ borderTop: "1px dashed #e5e7eb", paddingTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: "#6b7280" }}>
+                          Daily pool ({(imagePools[key] || []).length})
+                        </div>
+
+                        {(imagePools[key] || []).length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {(imagePools[key] || []).map((url, i) => (
+                              <div key={url} style={{ position: "relative" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setAssetPreview({ label: `${ASSET_LABELS[key]} — day ${i + 1}`, src: url })}
+                                  style={{ padding: 0, border: "1px solid #e5e7eb", borderRadius: 6, background: "#fff", cursor: "zoom-in", lineHeight: 0 }}
+                                  title={`Day ${i + 1} in the rotation`}
+                                >
+                                  <img src={url} alt="" style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 5, display: "block" }} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeFromPool(key, url)}
+                                  disabled={poolBusySlot === key}
+                                  title="Remove from pool"
+                                  style={{
+                                    position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%",
+                                    border: "none", background: "#111827", color: "#fff", fontSize: 11, lineHeight: "18px",
+                                    cursor: "pointer", padding: 0,
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <label
+                          style={{
+                            display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                            border: "1px dashed #f59e0b", borderRadius: 8, padding: "6px 8px", fontSize: 11,
+                            fontWeight: 700, color: "#b45309", cursor: poolBusySlot === key ? "wait" : "pointer",
+                            background: "#fff",
+                          }}
+                        >
+                          {poolBusySlot === key ? "Uploading…" : "+ Add image"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            disabled={poolBusySlot === key}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              addToPool(key, f);
+                            }}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
+            {imageSchedule.length > 0 && (() => {
+              // Only the slots that actually have something to show.
+              const liveSlots = ASSET_IMAGE_FIELDS.filter(
+                (slot) =>
+                  (imagePools[slot] || []).length > 0 ||
+                  imageSchedule.some((d) => d.images[slot]),
+              );
+              if (!liveSlots.length) return null;
+
+              return (
+                <div style={{ padding: "0 20px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                      Poora plan — {imageSchedule.length} post
+                      {imageSchedule.length > 1 ? "s" : ""}
+                      {imageSchedule.length > 1 && (
+                        <span style={{ fontWeight: 500, color: "#6b7280" }}>
+                          {" "}({new Date(imageSchedule[0].date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                          {" → "}
+                          {new Date(imageSchedule[imageSchedule.length - 1].date + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })})
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280" }}>
+                      Har post ke liye kaunsi image jayegi. <strong>Auto</strong> matlab pool se
+                      apne aap — kisi din apni image chahiye to us din ke dropdown se chun lo.
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      border: "1px solid #e5e7eb", borderRadius: 10, overflow: "hidden", background: "#fff",
+                    }}
+                  >
+                    {/* Header: slot names once */}
+                    <div
+                      style={{
+                        display: "flex", alignItems: "center", gap: 18, padding: "9px 14px",
+                        background: "#f9fafb", borderBottom: "1px solid #e5e7eb",
+                        fontSize: 11, fontWeight: 700, color: "#6b7280", textTransform: "uppercase", letterSpacing: 0.4,
+                      }}
+                    >
+                      <span style={{ minWidth: 118 }}>Post / Day</span>
+                      {liveSlots.map((slot) => (
+                        <span key={slot} style={{ minWidth: 150 }}>
+                          {ASSET_LABELS[slot]}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div style={{ maxHeight: 420, overflowY: "auto" }}>
+                      {imageSchedule.map((day, dayIdx) => {
+                        const d = new Date(day.date + "T00:00:00");
+                        return (
+                          <div
+                            key={day.date}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 18, padding: "8px 14px",
+                              borderBottom: "1px solid #f3f4f6",
+                              background: day.pinnedSlots.length ? "#fffbeb" : "#fff",
+                              borderLeft: day.pinnedSlots.length ? "3px solid #f59e0b" : "3px solid transparent",
+                            }}
+                          >
+                            <span style={{ minWidth: 118, display: "flex", flexDirection: "column", lineHeight: 1.3 }}>
+                              <span style={{ fontSize: 13, color: "#111827", fontWeight: 700 }}>
+                                {d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                <span style={{ color: "#9ca3af", fontWeight: 500, fontSize: 12 }}>
+                                  {" "}{d.toLocaleDateString("en-IN", { weekday: "short" })}
+                                </span>
+                              </span>
+                              <span style={{ fontSize: 10, color: "#9ca3af" }}>
+                                Post {dayIdx + 1}
+                                {day.pinnedSlots.length ? (
+                                  <span style={{ color: "#b45309", fontWeight: 700 }}> · custom</span>
+                                ) : null}
+                              </span>
+                            </span>
+
+                            {liveSlots.map((slot) => {
+                              const src = day.images[slot];
+                              const pool = imagePools[slot] || [];
+                              const isPinned = day.pinnedSlots.includes(slot);
+                              const busy = pinning === `${day.date}:${slot}`;
+                              // Which image of the pool this is — so the thumbnail
+                              // and the dropdown always agree.
+                              const poolPos = src ? pool.indexOf(src) : -1;
+
+                              return (
+                                <span
+                                  key={slot}
+                                  style={{ minWidth: 150, display: "flex", alignItems: "center", gap: 8, opacity: busy ? 0.5 : 1 }}
+                                >
+                                  <span
+                                    style={{
+                                      width: 44, height: 44, borderRadius: 8, overflow: "hidden", flexShrink: 0,
+                                      border: isPinned ? "2px solid #f59e0b" : "1px solid #e5e7eb", background: "#f9fafb",
+                                    }}
+                                    title={isPinned ? "Is din ke liye aapne fix ki hai" : "Pool se apne aap chuni gayi"}
+                                  >
+                                    {src ? (
+                                      <img
+                                        src={toDisplayableImageSrc(src) || src}
+                                        alt=""
+                                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                                      />
+                                    ) : null}
+                                  </span>
+
+                                  {pool.length > 0 ? (
+                                    <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                      <select
+                                        value={isPinned ? src : ""}
+                                        disabled={busy}
+                                        onChange={(e) => pinImage(day.date, slot, e.target.value || null)}
+                                        style={{
+                                          fontSize: 11, border: "1px solid #e5e7eb", borderRadius: 6,
+                                          padding: "3px 4px", width: 96, background: "#fff", color: "#374151",
+                                        }}
+                                      >
+                                        <option value="">Auto</option>
+                                        {pool.map((url, i) => (
+                                          <option key={url} value={url}>Image {i + 1}</option>
+                                        ))}
+                                      </select>
+                                      <span style={{ fontSize: 9, color: isPinned ? "#b45309" : "#9ca3af" }}>
+                                        {isPinned
+                                          ? "aapki chuni hui"
+                                          : poolPos >= 0
+                                            ? `auto · image ${poolPos + 1}`
+                                            : "auto"}
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: 10, color: "#9ca3af" }}>pool khaali</span>
+                                  )}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             {!hasAssetImages && (
               <div style={{ padding: "0 20px 16px", fontSize: 12, color: "#92400e" }}>
                 Turn on at least one slot that has an image, or upload assets in Asset Management, before saving automation.

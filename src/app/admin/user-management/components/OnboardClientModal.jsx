@@ -16,6 +16,12 @@ export default function OnboardClientModal({
 }) {
   if (!(showOnboardModal && onboardModalUser)) return null;
 
+  const knownBusinessName =
+    onboardModalUser.businessName ||
+    onboardModalUser.selectedBusiness?.name ||
+    onboardModalUser.businessReport?.businessName ||
+    "";
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
@@ -32,6 +38,7 @@ export default function OnboardClientModal({
               setOnboardModalUser(null);
               setOnboardData({
                 plan: "",
+                businessName: "",
                 amount: "",
                 screenshot: null,
                 notes: "",
@@ -61,6 +68,32 @@ export default function OnboardClientModal({
               <option value="Premium Plan">Premium Plan</option>
               <option value="Enterprise Plan">Enterprise Plan</option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Business Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Client's business / brand name"
+              value={onboardData.businessName}
+              onChange={(e) =>
+                setOnboardData({ ...onboardData, businessName: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
+            />
+            {knownBusinessName && knownBusinessName !== onboardData.businessName && (
+              <button
+                type="button"
+                onClick={() =>
+                  setOnboardData({ ...onboardData, businessName: knownBusinessName })
+                }
+                className="mt-1 text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+              >
+                Use “{knownBusinessName}”
+              </button>
+            )}
           </div>
 
           <div>
@@ -132,6 +165,7 @@ export default function OnboardClientModal({
             disabled={
               uploadingOnboard ||
               !onboardData.plan ||
+              !onboardData.businessName?.trim() ||
               !onboardData.amount ||
               !onboardData.screenshot
             }

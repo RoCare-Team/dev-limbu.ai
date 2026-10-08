@@ -21,6 +21,42 @@ const SUBSCRIPTION_TITLE_TO_PLAN_KEY = {
   "Professional Plan": "subscription-professional",
 }
 
+/**
+ * How much more an iOS purchase costs than the same plan bought on the web.
+ *
+ * Apple takes a commission on in-app purchases, so the iOS price has to sit
+ * above the web price for the plan to earn the same. 15% on the GST-inclusive
+ * total — i.e. a ₹4,800 quarterly plan is ₹4,800 + ₹864 GST = ₹5,664, and
+ * ₹6,514 on iOS.
+ */
+export const IOS_PRICE_UPLIFT = 0.15
+
+const DEFAULT_GST_RATE = 18
+
+/**
+ * The iOS price for one plan, from its real (undiscounted) web price.
+ *
+ * Two things this has to get right, both of which were wrong before:
+ *  - It must use the plan's ORIGINAL basePrice. The API applies a 10% chatbot
+ *    discount to every subscription plan, and iOS pricing must not inherit a
+ *    marketing discount.
+ *  - It must be applied AFTER applyChatbotDiscountToPlan, because that helper
+ *    overwrites ios_price with the discounted total — which is why the stored
+ *    ios_price values never reached the app.
+ */
+function computeIosPrice(plan, gstRate = DEFAULT_GST_RATE) {
+  const base = Number(plan?.basePrice)
+  if (!Number.isFinite(base) || base <= 0) return null
+
+  const rate = Number.isFinite(Number(gstRate)) ? Number(gstRate) : DEFAULT_GST_RATE
+  // Prefer the stored GST so a plan with a hand-set figure keeps it.
+  const gst = Number.isFinite(Number(plan?.gst))
+    ? Number(plan.gst)
+    : Math.round(base * (rate / 100))
+
+  return Math.round((base + gst) * (1 + IOS_PRICE_UPLIFT))
+}
+
 function inferPlanKeyFromTitle(title) {
   const t = typeof title === "string" ? title.trim() : ""
   if (!t) return ""
@@ -148,6 +184,13 @@ export function expandSubscriptionPlansForApi(data) {
           if (inferredKey && !plan.planKey) {
             out.planKey = inferredKey
           }
+
+          // Set last, from the ORIGINAL plan: applyChatbotDiscountToPlan above
+          // replaces ios_price with the discounted total, so anything written
+          // before this point is lost.
+          const ios = computeIosPrice(plan, dataWithTest.gstRate)
+          if (ios != null) out.ios_price = ios
+
           return out
         })
       : cycle.plans

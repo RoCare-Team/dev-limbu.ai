@@ -795,93 +795,191 @@ const FactChip = React.memo(({ ok, label }) => (
 ));
 FactChip.displayName = "FactChip";
 
+/**
+ * Keyword coverage, shown so it can be acted on.
+ *
+ * The audit engine returns a keyword score but not its reasoning, so this card
+ * used to show three bars that were almost never green and never said why.
+ * The engine does tell us which keywords it found in the description, in the
+ * services and in the categories — that IS the basis of the score, so the card
+ * now lays it out keyword by keyword: where each one was found, where it is
+ * missing, and the exact text to paste to fix it.
+ */
 const KeywordAnalysis = React.memo(({ keywords }) => {
-  const found = new Set([
-    ...(keywords.found_in_description || []),
-    ...(keywords.found_in_services || []),
-    ...(keywords.found_in_categories || []),
-  ]);
-  const missing = keywords.missing_keywords || [];
   const expected = keywords.expected_keywords || [];
-  const coverage = expected.length ? Math.round((found.size / expected.length) * 100) : 0;
+  const inDescription = new Set(keywords.found_in_description || []);
+  const inServices = new Set(keywords.found_in_services || []);
+  const inCategories = new Set(keywords.found_in_categories || []);
+  const missing = keywords.missing_keywords || [];
 
-  const matchBars = [
-    { label: "Description", value: keywords.description_match_score },
-    { label: "Services", value: keywords.services_match_score },
-    { label: "Categories", value: keywords.categories_match_score },
-  ].filter((b) => typeof b.value === "number");
+  const found = new Set([...inDescription, ...inServices, ...inCategories]);
+  const coverage = expected.length
+    ? Math.round((found.size / expected.length) * 100)
+    : 0;
+
+  // A keyword counts as placed only where the engine actually found it, so an
+  // empty column is a real to-do rather than a rendering gap.
+  const PLACES = [
+    { key: "description", label: "Description", set: inDescription, score: keywords.description_match_score },
+    { key: "services", label: "Services", set: inServices, score: keywords.services_match_score },
+    { key: "categories", label: "Categories", set: inCategories, score: keywords.categories_match_score },
+  ];
+
+  // Everything the client has to add, grouped by where it belongs.
+  const todo = PLACES.map((p) => ({
+    ...p,
+    absent: expected.filter((k) => !p.set.has(k)),
+  })).filter((p) => p.absent.length > 0);
+
+  const copy = (text, what) => {
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => toast.success(what + " copied"))
+      .catch(() => toast.error("Could not copy"));
+  };
+
+  if (!expected.length) return null;
 
   return (
     <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-100/80 shadow-sm mb-8">
-      <div className="flex items-center gap-2 mb-5">
+      <div className="flex items-center gap-2 mb-2">
         <Search className="w-4 h-4 text-amber-500" />
         <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-800">
           Keyword Coverage
         </h3>
         <span className="ml-auto text-xs font-extrabold text-slate-700 bg-white border border-slate-200 px-2.5 py-1 rounded-lg">
-          {coverage}% covered
+          {found.size}/{expected.length} keywords placed · {coverage}%
         </span>
       </div>
 
-      {matchBars.length > 0 && (
-        <div className="flex flex-col gap-4 mb-6">
-          {matchBars.map((b) => {
-            const pct = Math.round(b.value);
-            const color = pct >= 70 ? "#10b981" : pct >= 40 ? "#f97316" : "#ef4444";
-            return (
-              <div key={b.label} className="w-full">
-                <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  <span>{b.label}</span>
-                  <span style={{ color }}>{pct}%</span>
+      {/* How the number is arrived at — in one sentence, not a tooltip. */}
+      <p className="text-xs text-slate-500 leading-relaxed mb-5">
+        We check each keyword in the three places Google reads: your{" "}
+        <strong className="text-slate-700">business description</strong>, your{" "}
+        <strong className="text-slate-700">services list</strong> and your{" "}
+        <strong className="text-slate-700">categories</strong>. Each bar below is
+        the share of your keywords that appear in that one place — so a bar only
+        turns green once most keywords are actually written there. The table
+        shows exactly which are missing where.
+      </p>
+
+      <div className="flex flex-col gap-4 mb-6">
+        {PLACES.filter((p) => typeof p.score === "number").map((p) => {
+          const pct = Math.round(p.score);
+          const color = pct >= 70 ? "#10b981" : pct >= 40 ? "#f97316" : "#ef4444";
+          return (
+            <div key={p.key} className="w-full">
+              <div className="flex justify-between items-center text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                <span>
+                  {p.label}
+                  <span className="ml-2 normal-case tracking-normal font-medium text-slate-400">
+                    {p.set.size} of {expected.length} keywords here
+                  </span>
+                </span>
+                <span style={{ color }}>{pct}%</span>
+              </div>
+              <div className="w-full h-2.5 rounded-full bg-slate-200/70 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{ width: pct + "%", backgroundColor: color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Keyword by keyword, so "why isn't this green" has a visible answer. */}
+      <div className="overflow-x-auto -mx-2 px-2 mb-6">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+              <th className="text-left py-2 pr-3 font-extrabold">Keyword</th>
+              {PLACES.map((p) => (
+                <th key={p.key} className="py-2 px-2 text-center font-extrabold whitespace-nowrap">
+                  {p.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {expected.map((k) => {
+              const placed = PLACES.filter((p) => p.set.has(k)).length;
+              return (
+                <tr
+                  key={k}
+                  className="border-t border-slate-200/70"
+                  style={{ background: placed === 0 ? "#fff1f2" : "transparent" }}
+                >
+                  <td className="py-2 pr-3 font-bold text-slate-700 align-middle">{k}</td>
+                  {PLACES.map((p) => (
+                    <td key={p.key} className="py-2 px-2 text-center align-middle">
+                      {p.set.has(k) ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-500 inline-block" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-slate-300 inline-block" />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* The actual next action, per place, ready to paste. */}
+      {todo.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 mb-3 flex items-center gap-1.5">
+            <AlertCircle className="w-4 h-4" /> To raise this score
+          </p>
+          <div className="flex flex-col gap-3">
+            {todo.map((p) => (
+              <div key={p.key}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-slate-700">
+                    Add to your {p.label.toLowerCase()} ({p.absent.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copy(p.absent.join(", "), p.label + " keywords")}
+                    className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline underline-offset-2"
+                  >
+                    copy
+                  </button>
                 </div>
-                <div className="w-full h-2.5 rounded-full bg-slate-200/70 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-1000"
-                    style={{ width: `${pct}%`, backgroundColor: color }}
-                  />
+                <div className="flex flex-wrap gap-1.5">
+                  {p.absent.map((k, i) => (
+                    <span
+                      key={i}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-slate-600 border border-amber-200"
+                    >
+                      {k}
+                    </span>
+                  ))}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+          {missing.length > 0 && (
+            <p className="text-[11px] text-amber-800/80 mt-3 leading-relaxed">
+              <strong>{missing.length}</strong>{" "}
+              {missing.length === 1 ? "keyword is" : "keywords are"} missing from
+              your profile entirely: {missing.join(", ")}. Those are the ones
+              holding the score down the most — add them to your description
+              first, then your services.
+            </p>
+          )}
         </div>
       )}
 
-      <div className="grid sm:grid-cols-2 gap-5">
-        {found.size > 0 && (
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 mb-2 flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4" /> Include Keywords
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {[...found].map((k, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 transition-all hover:bg-emerald-100"
-                >
-                  {k}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-        {missing.length > 0 && (
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-wider text-rose-600 mb-2 flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4" /> Missing Keywords
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {missing.map((k, i) => (
-                <span
-                  key={i}
-                  className="px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100 transition-all hover:bg-rose-100"
-                >
-                  {k}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {todo.length === 0 && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs font-bold text-emerald-800 flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" />
+          Every keyword appears in all three places. Nothing to fix here.
+        </div>
+      )}
     </div>
   );
 });
@@ -1428,7 +1526,33 @@ const Speedometer = React.memo(({ score }) => {
 });
 Speedometer.displayName = "Speedometer";
 
+/**
+ * What each score actually measures.
+ *
+ * The audit engine sends a factor name and a number but no reasoning, so a
+ * client looking at "AI Keyword Match 40%" had no way to know what to change.
+ * Matched loosely on the factor name because the engine owns that wording.
+ */
+const FACTOR_EXPLAINERS = [
+  {
+    match: /keyword/i,
+    text: "How many of your target keywords actually appear in your business description, your services list and your categories. Full marks need them written in all three — see the Keyword Coverage table above for which ones are missing where.",
+  },
+  {
+    match: /review/i,
+    text: "Based on your review count, your average rating, and how many reviews have a reply. Replying to every review is the fastest part to fix.",
+  },
+  { match: /photo|media|image/i, text: "Based on how many photos your profile has and how recently you added one. Google favours profiles that add media regularly." },
+  { match: /post/i, text: "Based on whether you post regularly and how recent your latest post is. A gap of more than a week starts costing you here." },
+  { match: /complet|profile|information/i, text: "Whether the core fields are filled in: description, hours, phone, website, address, categories and attributes. Every empty field costs points." },
+  { match: /hour/i, text: "Whether regular opening hours are set, and whether holiday hours are added for upcoming public holidays." },
+];
+
+const explainFactor = (factor) =>
+  FACTOR_EXPLAINERS.find((e) => e.match.test(String(factor || "")))?.text || "";
+
 const ScoreItem = React.memo(({ factor, score, outOf, details }) => {
+  const explainer = explainFactor(factor);
   const percentage = outOf > 0 ? Math.round((score / outOf) * 100) : 0;
   const circumference = 2 * Math.PI * 28;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
@@ -1480,6 +1604,11 @@ const ScoreItem = React.memo(({ factor, score, outOf, details }) => {
         <p className="text-xs text-slate-400 font-bold mt-1.5">
           {score}/{outOf} pts
         </p>
+        {explainer && (
+          <p className="text-[11px] text-slate-500 leading-relaxed mt-2.5 px-1 text-left">
+            {explainer}
+          </p>
+        )}
       </div>
 
       {details && details.length > 0 && (

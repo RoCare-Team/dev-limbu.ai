@@ -145,6 +145,8 @@ export default function useUserManagementLogic() {
   const [planExpiryDate, setPlanExpiryDate] = useState("");
 
   const [gstNumber, setGstNumber] = useState("");
+  // Client's business name, captured on the plan/onboarding form.
+  const [planBusinessName, setPlanBusinessName] = useState("");
 
   useEffect(() => {
     if (planStartDate) {
@@ -263,6 +265,7 @@ export default function useUserManagementLogic() {
   const [onboardModalUser, setOnboardModalUser] = useState(null);
   const [onboardData, setOnboardData] = useState({
     plan: "",
+    businessName: "",
     amount: "",
     screenshot: null,
     notes: "",
@@ -2133,6 +2136,18 @@ export default function useUserManagementLogic() {
     setPlanScreenshot(null); // Reset screenshot
   };
 
+  // When the plan modal opens, offer the business name we already have for this
+  // user so the admin only types it the first time.
+  useEffect(() => {
+    if (!selectedUser) return;
+    setPlanBusinessName(
+      selectedUser.businessName ||
+        selectedUser.selectedBusiness?.name ||
+        selectedUser.businessReport?.businessName ||
+        "",
+    );
+  }, [selectedUser]);
+
   const confirmPlanChange = async () => {
     const packageStartDate = planStartDate || "";
     const packageExpiryDate = planExpiryDate || "";
@@ -2147,6 +2162,13 @@ export default function useUserManagementLogic() {
         "Payment screenshot is required when amount is entered.",
         "error",
       );
+      return;
+    }
+
+    // An amount means a revenue row is about to be written — that row is the
+    // onboarding record, so it must carry the client's business name.
+    if (planAmount && parseFloat(planAmount) > 0 && !planBusinessName.trim()) {
+      showToast("Business name is required when amount is entered.", "error");
       return;
     }
 
@@ -2170,6 +2192,7 @@ export default function useUserManagementLogic() {
           body: JSON.stringify({
             leadId: selectedUser.userId,
             leadName: selectedUser.fullName,
+            businessName: planBusinessName.trim(),
             amount: parseFloat(planAmount),
             paymentScreenshot: screenshotUrl,
 
@@ -3217,8 +3240,16 @@ export default function useUserManagementLogic() {
 
   /* ---------------- HANDLE ONBOARD CLIENT SUBMISSION ---------------- */
   const handleOnboardSubmit = async () => {
-    if (!onboardData.plan || !onboardData.amount || !onboardData.screenshot) {
-      showToast("Please provide plan, amount and payment screenshot", "error");
+    if (
+      !onboardData.plan ||
+      !onboardData.businessName?.trim() ||
+      !onboardData.amount ||
+      !onboardData.screenshot
+    ) {
+      showToast(
+        "Please provide plan, business name, amount and payment screenshot",
+        "error",
+      );
       return;
     }
 
@@ -3235,6 +3266,7 @@ export default function useUserManagementLogic() {
         body: JSON.stringify({
           leadId: onboardModalUser.userId,
           leadName: onboardModalUser.fullName,
+          businessName: onboardData.businessName.trim(),
           amount: parseFloat(onboardData.amount),
           paymentScreenshot: screenshotUrl,
           email: (localStorage.getItem("adminEmail") || localStorage.getItem("email")),
@@ -3250,7 +3282,13 @@ export default function useUserManagementLogic() {
         showToast("Client onboarded successfully!", "success");
         setShowOnboardModal(false);
         setOnboardModalUser(null);
-        setOnboardData({ plan: "", amount: "", screenshot: null, notes: "" });
+        setOnboardData({
+          plan: "",
+          businessName: "",
+          amount: "",
+          screenshot: null,
+          notes: "",
+        });
         fetchRevenue(); // Refresh revenue data
       } else {
         showToast(data.message || "Failed to onboard client", "error");
@@ -3361,6 +3399,8 @@ export default function useUserManagementLogic() {
     setPlanExpiryDate,
     gstNumber,
     setGstNumber,
+    planBusinessName,
+    setPlanBusinessName,
     planScreenshot,
     setPlanScreenshot,
     chatbotSummaryMetrics,

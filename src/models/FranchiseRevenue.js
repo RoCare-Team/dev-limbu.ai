@@ -4,6 +4,8 @@ const FranchiseRevenueSchema = new mongoose.Schema(
   {
     leadId: { type: String, default: "" },
     leadName: { type: String, default: "" },
+    /** The client's business/brand name, captured when they are onboarded. */
+    businessName: { type: String, default: "" },
     amount: { type: Number, required: true },
     paymentScreenshot: { type: String, default: "" },
     screenshot: { type: String, default: "" },

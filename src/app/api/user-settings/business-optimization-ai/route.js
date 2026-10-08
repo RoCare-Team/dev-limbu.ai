@@ -6,6 +6,7 @@ import {
   GMB_PROFILE_DESCRIPTION_MIN,
   clampGmbDescription,
 } from '@/lib/gmbConstants';
+import { HOUSE_STYLE, HOUSE_STYLE_SHORT } from '@/lib/contentStyleRules';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,8 @@ async function expandToMinDescription(openai, initial, context) {
   for (let attempt = 0; attempt < 2 && current.length < GMB_PROFILE_DESCRIPTION_MIN; attempt += 1) {
     const need = GMB_PROFILE_DESCRIPTION_MIN - current.length;
     const sys =
-      'You are a Google Business Profile copywriter. Expand the given description so it uses nearly the full length allowance. Add ONLY accurate, useful detail grounded in the JSON context (services offered, areas served, experience, guarantees, what makes the business trustworthy). Do NOT pad with filler, do NOT repeat sentences, keep it natural and SEO-friendly, keep the soft CTA at the end. Return ONLY the description text, no quotes, no markdown.';
+      'You are a Google Business Profile copywriter. Expand the given description so it uses nearly the full length allowance. Every added character must be a NEW, accurate fact drawn from the JSON context — a named service, an area served, opening-hours detail, who it suits. Never pad with adjectives, never restate a sentence in different words, never add a guarantee or claim the context does not support: a shorter honest description is better than a padded one. Keep the plain invitation at the end. Return ONLY the description text, no quotes, no markdown.\n\n' +
+      HOUSE_STYLE_SHORT;
     const user = `Business facts (JSON):\n${JSON.stringify(context || {}, null, 0)}\n\nCurrent description (${current.length} chars):\n${current}\n\nTask: Rewrite it to be between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — it currently needs about ${need} more characters. ALWAYS finish the final sentence and end on a complete word; never stop mid-word or mid-sentence, and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Keep every fact accurate. Return ONLY the description text.`;
     try {
       const completion = await openai.chat.completions.create({
@@ -55,9 +57,11 @@ const FIELD_INSTRUCTIONS = {
   tagline:
     'Write a punchy 8–12 word tagline. Return ONLY the tagline.',
   description:
-    `Write a Google Business Profile description: SEO-friendly and accurate to the facts given. When the context provides them, weave in the business category (primaryCategory), the city (city/locality), the address/area, the target keyword(s), and the customer intent (what the searcher wants) naturally — do not list them as labels. Include locality/service areas and end with a soft CTA. LENGTH: write between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — use nearly the full allowance but ALWAYS finish your final sentence and end on a complete word; never stop mid-word or mid-sentence, and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Return ONLY the description text.`,
+    `Write a Google Business Profile description. Open with what the business does and who it serves — no preamble. Name the ACTUAL services from the context rather than summarising them. When the context provides them, weave in the business category (primaryCategory), the city (city/locality), the address/area and the target keyword(s) naturally, each ONCE, exactly where a local owner would say them — never as a list of labels and never repeated for search engines. End with one plain, practical invitation (call, visit, book), not a slogan. LENGTH: write between ${GMB_PROFILE_DESCRIPTION_MIN} and ${GMB_PROFILE_DESCRIPTION_MAX - 2} characters (including spaces) — use nearly the full allowance but ALWAYS finish your final sentence and end on a complete word; never stop mid-word or mid-sentence, and never exceed ${GMB_PROFILE_DESCRIPTION_MAX}. Return ONLY the description text.
+
+${HOUSE_STYLE}`,
   services:
-    'List exactly 5 concrete services this business offers (from category + context). Return ONLY a JSON array of strings like ["a","b","c","d","e"] — no markdown.',
+    'List exactly 5 services this business actually offers, taken from the context (its category, keywords, existing services and description). Name them the way a customer would ask for them — "Root canal treatment", not "Comprehensive Dental Solutions". Each 2-5 words, no adjectives, no duplicates, no invented specialities. Return ONLY a JSON array of strings like ["a","b","c","d","e"] — no markdown.',
   phone:
     'Return the phone from context if present; otherwise a placeholder Indian format. Return ONLY the number string.',
   website:
@@ -405,7 +409,8 @@ export async function POST(request) {
     const systemContent =
       fieldId === 'serviceArea'
         ? 'You suggest Google Business Profile service-area locality lines. Follow the user task exactly. Output ONLY the hyphen bullet list (5–7 lines). No preamble, no markdown fences, no numbering other than the hyphen bullets shown in the example.'
-        : 'You optimize Google Business Profile fields. Follow the user task exactly. No preamble, no markdown unless JSON array was requested.';
+        : 'You optimize Google Business Profile fields for Indian local businesses, writing as the owner would speak rather than as a brochure. Follow the user task exactly. No preamble, no markdown unless a JSON array was requested.\n\n' +
+          HOUSE_STYLE_SHORT;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',

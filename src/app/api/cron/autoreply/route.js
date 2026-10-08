@@ -2,6 +2,7 @@
 
 import dbConnect from "@/lib/dbConnect";
 import AutoReply from "@/models/AutoReply";
+import GmbActivity from "@/models/GmbActivity";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -190,6 +191,7 @@ async function sendAIReply({
   locationId,
   review,
   locationInfo,
+  userId,
 }) {
   try {
     // ✅ Validate locationId before anything else
@@ -273,6 +275,30 @@ async function sendAIReply({
     console.log(
       `✅ [sendAIReply] Successfully replied to review "${review.reviewId}"`,
     );
+
+    // Record it — this is the only trace of the reply outside Google, and the
+    // weekly client report is written from these rows.
+    if (userId) {
+      try {
+        await GmbActivity.create({
+          userId,
+          type: "review_reply",
+          locationId,
+          locationName: locationInfo?.title || "",
+          details: {
+            reviewId: review.reviewId || "",
+            rating: review.starRating || "",
+            reviewer: review.reviewer?.displayName || "",
+            comment: (review.comment || "").slice(0, 400),
+          },
+          at: new Date(),
+        });
+      } catch (logErr) {
+        // A logging failure must never undo a reply that already went out.
+        console.error("[sendAIReply] activity log failed:", logErr.message);
+      }
+    }
+
     return true;
   } catch (err) {
     console.error(
@@ -418,6 +444,7 @@ export async function GET() {
                     locationId,
                     review,
                     locationInfo,
+                    userId: userIdentifier,
                   });
                 } catch (err) {
                   console.error(

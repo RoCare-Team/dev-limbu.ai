@@ -284,6 +284,7 @@ export async function POST(req) {
     const {
       leadId,
       leadName,
+      businessName,
       amount,
       paymentScreenshot,
       email,
@@ -318,6 +319,7 @@ export async function POST(req) {
     const newRevenue = new FranchiseRevenue({
       leadId,
       leadName,
+      businessName: (businessName || "").trim(),
       amount: parseFloat(amount),
       paymentScreenshot: paymentScreenshot || "",
       screenshot: paymentScreenshot || "",
@@ -346,6 +348,20 @@ export async function POST(req) {
     });
 
     await newRevenue.save();
+
+    // Keep the client's business name on the user too — onboarding is the one
+    // moment it is known for sure, and every later screen reads the user.
+    if (businessName && String(businessName).trim() && leadId) {
+      try {
+        await User.updateOne(
+          { userId: leadId },
+          { $set: { businessName: String(businessName).trim() } },
+        );
+      } catch (err) {
+        // A failed copy must not lose the onboarding that was just recorded.
+        console.error("Could not copy businessName onto the user:", err);
+      }
+    }
 
     let updatedRevenue = newRevenue;
 

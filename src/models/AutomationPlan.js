@@ -44,6 +44,46 @@ const automationPlanSchema = new mongoose.Schema(
         backgroundImage: { type: Boolean, default: true },
         logoImage:       { type: Boolean, default: true },
       },
+
+      /**
+       * Several images per slot (S3 URLs), set up once. Each post walks one step
+       * through every pool (post #0 → first image, #1 → second …), so a photo
+       * only comes round again after the whole pool has been used.
+       *
+       * Empty pool = fall back to the single image above, which is how every
+       * plan created before this worked.
+       */
+      pools: {
+        characterImage:  { type: [String], default: [] },
+        uniformImage:    { type: [String], default: [] },
+        productImage:    { type: [String], default: [] },
+        backgroundImage: { type: [String], default: [] },
+        logoImage:       { type: [String], default: [] },
+      },
+
+      /**
+       * "On THIS date, use THIS image." One entry per calendar day (the plan's
+       * own posting timezone), holding only the slots the user pinned — every
+       * other slot still takes its turn from the pool.
+       */
+      overrides: {
+        type: [
+          new mongoose.Schema(
+            {
+              date: { type: String, required: true }, // YYYY-MM-DD
+              images: {
+                characterImage:  { type: String, default: null },
+                uniformImage:    { type: String, default: null },
+                productImage:    { type: String, default: null },
+                backgroundImage: { type: String, default: null },
+                logoImage:       { type: String, default: null },
+              },
+            },
+            { _id: false },
+          ),
+        ],
+        default: [],
+      },
     },
 
     // Pre-generated image+copy for the next publish run (phase=prefetch cron fills this).

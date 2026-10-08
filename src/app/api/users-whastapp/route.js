@@ -78,6 +78,26 @@ export async function POST(req) {
         };
         break;
 
+      case "weekly_post_report":
+        // Weekly activity summary with the full PDF attached. The AiSensy
+        // template must take these six variables in this order:
+        // name, week range, posts, where, reviews replied, profile updates.
+        templateParams = [
+          firstName || "there",
+          body.weekLabel || "",
+          String(body.totalPosts ?? "0"),
+          body.platformLine || "",
+          String(body.reviewCount ?? "0"),
+          String(body.optimizationCount ?? "0"),
+        ];
+        if (reportUrl) {
+          media = {
+            url: reportUrl,
+            filename: body.reportFilename || "Weekly_Report.pdf",
+          };
+        }
+        break;
+
       case "keyword_research_update":
         templateParams = ["$FirstName", "$LastName"];
         if (reportUrl) {

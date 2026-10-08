@@ -20,6 +20,7 @@ import {
   generateImagePrompt,
   generateImageAndText,
 } from '@/lib/automationPlanContentGeneration';
+import { zonedYmdString } from '@/utils/postingScheduleWindow';
 import { createRunLogger } from '@/lib/automationRunLogger';
 import { sendDailyPostUpdateWhatsApp, normalizeIndiaPhone } from '@/lib/dailyPostWhatsApp';
 import { logGenerate, logAutomationLine } from '@/lib/automationFileLogger';
@@ -157,14 +158,32 @@ export async function GET() {
       slog.info('queue:start', `slot ${idx}/${t.postLimit} keyword="${keyword}" biz="${businessName}"`);
 
       try {
-      const imagePrompt = await generateImagePrompt({ keyword, businessName, cityName, imageConfig: plan.imageConfig || {} });
+      const imagePrompt = await generateImagePrompt({
+        keyword,
+        businessName,
+        cityName,
+        imageConfig: plan.imageConfig || {},
+        // Rotates the shot type alongside the caption angle.
+        postIndex: idx,
+      });
       const { imageUrl, postText, descriptions } = await generateImageAndText({
         imagePrompt,
         keyword,
         businessName,
         cityName,
         imageConfig: plan.imageConfig || {},
+        // Same counter the keyword rotation uses, so images and keywords move together.
+        postIndex: idx,
+        // Lets a date the user pinned override the rotation for this slot.
+        publishDateKey: zonedYmdString(publishAt, plan.postingTimezone || 'Asia/Kolkata'),
         platforms: plan.platforms,
+        // Context for the caption writer: this client's own services and words,
+        // plus their recent openings, are what keep captions from repeating.
+        userId: plan.userId,
+        services: keywords,
+        businessDescription: plan.businessProfileDescription || plan.topic || '',
+        websiteUrl: loc0?.websiteUrl || '',
+        phone: loc0?.primaryPhone || '',
       });
 
       // Image ban gayi — log par set kar do (publish fail bhi ho to URL dikhe).

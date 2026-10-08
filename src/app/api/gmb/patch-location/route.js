@@ -206,6 +206,84 @@ async function patchAttributes(accessToken, locationId, attributeMask, body) {
   });
 }
 
+/**
+ * A short, readable note about what a field was actually changed TO.
+ *
+ * "Business description updated" tells a client nothing they can check, so a
+ * trimmed copy of the new value travels with the activity row and the weekly
+ * report shows the substance. Bounded on purpose — this is a log, not a backup.
+ */
+function summarizeChange(field, body) {
+  const clip = (s, n) => {
+    const t = String(s || "").replace(/\s+/g, " ").trim();
+    return t.length > n ? t.slice(0, n - 1) + "…" : t;
+  };
+
+  switch (field) {
+    case "profile":
+      return clip(body?.description, 220);
+    case "serviceItems": {
+      const items = Array.isArray(body?.serviceItems) ? body.serviceItems : [];
+      const names = items
+        .map((s) => String(s?.title || s?.displayName || "").trim())
+        .filter(Boolean);
+      return names.length ? clip(names.join(", "), 220) : clip(body?.services, 220);
+    }
+    case "categories": {
+      const c = body?.categories || body?.primaryCategory;
+      if (Array.isArray(c)) {
+        return clip(c.map((x) => String(x?.displayName || x?.name || x)).join(", "), 180);
+      }
+      return clip(typeof c === "object" && c ? c.displayName || c.name : c, 180);
+    }
+    case "websiteUri":
+      return clip(body?.websiteUri || body?.website, 120);
+    case "phoneNumbers":
+      return clip(body?.primaryPhone, 40);
+    case "title":
+      return clip(body?.title, 120);
+    case "serviceArea": {
+      const a = body?.serviceArea || body?.serviceAreas || body?.areas;
+      return Array.isArray(a) ? clip(a.map((x) => String(x?.name || x)).join(", "), 180) : "";
+    }
+    case "regularHours":
+      return "opening hours";
+    case "specialHours":
+      return "holiday hours";
+    case "attributes":
+      return "profile attributes";
+    default:
+      return "";
+  }
+}
+
+/** Written after a successful patch so the weekly report can say what changed. */
+async function logProfileUpdate({ userId, locationId, locationName, fields, body }) {
+  if (!userId || !fields.length) return;
+  try {
+    const GmbActivity = (await import("@/models/GmbActivity")).default;
+
+    // One note per field, so the client sees the new wording, not a field name.
+    const changes = {};
+    for (const f of fields) {
+      const note = summarizeChange(f, body);
+      if (note) changes[f] = note;
+    }
+
+    await GmbActivity.create({
+      userId,
+      type: "profile_update",
+      locationId: locationId || "",
+      locationName: locationName || "",
+      details: { fields, changes },
+      at: new Date(),
+    });
+  } catch (err) {
+    // Never let the audit trail break the update the user just made.
+    console.error("[patch-location] activity log failed:", err.message);
+  }
+}
+
 // A Google Maps key (Geocoding API) — used to resolve service-area names to placeIds.
 function mapsApiKey() {
   return (
@@ -830,6 +908,14 @@ export async function POST(request) {
         ? `${firstWithMessage.field} — ${firstWithMessage.message || firstWithMessage.code || `HTTP ${firstWithMessage.status}`}`
         : '';
 
+      await logProfileUpdate({
+        userId: user.userId,
+        locationId,
+        locationName: user.selectedBusiness?.name || user.businessName || "",
+        fields: succeeded.map((s) => s.field),
+        body,
+      });
+
       return NextResponse.json(
         {
           success: false,
@@ -847,6 +933,14 @@ export async function POST(request) {
         { status: pickFailureStatus(failed) }
       );
     }
+
+    await logProfileUpdate({
+      userId: user.userId,
+      locationId,
+      locationName: user.selectedBusiness?.name || user.businessName || "",
+      fields: results.filter((r) => r.ok !== false).map((r) => r.field),
+      body,
+    });
 
     return NextResponse.json({
       success: true,

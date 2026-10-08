@@ -95,6 +95,12 @@ const PostSchema = new mongoose.Schema(
     publishAttempts: { type: Number, default: 0 },
     nextRetryAt: { type: Date, default: null },
 
+    // When the client was told on WhatsApp that this post is live. A post can
+    // reach the "posted" branch more than once (a partial publish that later
+    // completes on retry), and the client should not be messaged twice for the
+    // same post — so this is a one-way latch, not a counter.
+    whatsappPublishNotifiedAt: { type: Date, default: null },
+
     rejectReason: { type: String, default: "" },
     error: { type: String, default: "" },
     facebookPostId: { type: String, default: "" },
@@ -142,7 +148,8 @@ const PostSchema = new mongoose.Schema(
 if (
   mongoose.models.Post &&
   (!mongoose.models.Post.schema.path("gmbPostMeta") ||
-    !mongoose.models.Post.schema.path("processingSince"))
+    !mongoose.models.Post.schema.path("processingSince") ||
+    !mongoose.models.Post.schema.path("whatsappPublishNotifiedAt"))
 ) {
   delete mongoose.models.Post;
 }

@@ -135,6 +135,8 @@ export default function UserManagement() {
     planExpiryDate,
     gstNumber,
     setGstNumber,
+    planBusinessName,
+    setPlanBusinessName,
     planScreenshot,
     setPlanScreenshot,
     chatbotSummaryMetrics,
@@ -1112,6 +1114,8 @@ export default function UserManagement() {
           setplanRemarks={setplanRemarks}
           gstNumber={gstNumber}
           setGstNumber={setGstNumber}
+          planBusinessName={planBusinessName}
+          setPlanBusinessName={setPlanBusinessName}
           updating={updating}
           confirmPlanChange={confirmPlanChange}
         />

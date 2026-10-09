@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   Building2,
+  Check,
   Eye,
   FileText,
   IndianRupee,
@@ -695,6 +696,48 @@ function CollectionHistoryModal({
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [invoicingId, setInvoicingId] = useState("");
+  const [decidingId, setDecidingId] = useState("");
+
+  /**
+   * Records approve / reject for one entry.
+   *
+   * Goes through the same /franchise-revenue/onboard-approval endpoint the
+   * Revenue Users List uses, so approving here activates the client's plan
+   * exactly as it does there — this is a second door onto one decision, not a
+   * second way of deciding. The endpoint refuses a second decision, which is
+   * why the buttons only appear while an entry is still undecided.
+   */
+  const decide = async (entry, decision) => {
+    const name = entry.businessName || entry.leadName || "this entry";
+    const warning =
+      decision === "approved"
+        ? `Approve ${name} (${formatAmount(entry.amount)})? This activates their plan and cannot be changed afterwards.`
+        : `Reject ${name} (${formatAmount(entry.amount)})? This cannot be changed afterwards.`;
+    if (!window.confirm(warning)) return;
+
+    setDecidingId(entry._id);
+    try {
+      const res = await fetch("/api/franchise-revenue/onboard-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail, revenueId: entry._id, decision }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        alert(json.message || "Could not record the decision");
+        return;
+      }
+      setEntries((rows) =>
+        rows.map((r) =>
+          r._id === entry._id ? { ...r, planApprovalStatus: decision } : r,
+        ),
+      );
+    } catch (err) {
+      alert(err.message || "Could not record the decision");
+    } finally {
+      setDecidingId("");
+    }
+  };
 
   /** Builds the invoice for one entry and swaps the new URL into that row. */
   const generateInvoice = async (entry) => {
@@ -805,7 +848,7 @@ function CollectionHistoryModal({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-sm">
+              <table className="w-full min-w-[1020px] text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
                     <th className="px-3 py-2.5 text-left font-semibold">Client</th>
@@ -853,7 +896,35 @@ function CollectionHistoryModal({
                           {formatDate(entry.createdAt)}
                         </td>
                         <td className="px-3 py-3">
-                          <ApprovalChip status={entry.planApprovalStatus} />
+                          {entry.planApprovalStatus === "approved" ||
+                          entry.planApprovalStatus === "rejected" ? (
+                            <ApprovalChip status={entry.planApprovalStatus} />
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                disabled={decidingId === entry._id}
+                                onClick={() => decide(entry, "approved")}
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50"
+                              >
+                                {decidingId === entry._id ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Check size={12} />
+                                )}
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                disabled={decidingId === entry._id}
+                                onClick={() => decide(entry, "rejected")}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+                              >
+                                <X size={12} />
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-3 text-right font-semibold text-gray-900">
                           {formatAmount(entry.amount)}

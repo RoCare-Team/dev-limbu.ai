@@ -113,6 +113,7 @@ function buildSummary(gross, paid) {
 // GET
 //  ?franchiseCode=X            → one franchise (franchise token OR admin)
 //  ?all=1&adminEmail=...       → every franchise's earned / paid / pending
+//  ?breakdown=1&franchiseCode= → the individual collections behind "Collected"
 // ==================
 export async function GET(req) {
   try {
@@ -121,6 +122,64 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const adminEmail = searchParams.get("adminEmail");
     const wantsAll = searchParams.get("all");
+
+    // Which clients the "Collected" figure is actually made of.
+    //
+    // The payout table showed one total per franchise with no way to see what
+    // was inside it — payouts had a history, the money coming in did not. This
+    // runs the SAME match the Collected column aggregates (same status filter,
+    // same window), so the rows always add up to the number on screen.
+    if (searchParams.get("breakdown")) {
+      const franchiseCode = searchParams.get("franchiseCode");
+      if (!franchiseCode) {
+        return NextResponse.json(
+          { success: false, message: "franchiseCode is required" },
+          { status: 400 },
+        );
+      }
+
+      // A franchise may read its own; an admin may read any.
+      const tokenAccess = assertFranchiseBookingAccess(req);
+      if (!tokenAccess.ok) {
+        const adminAccess = await assertPayoutAdmin(adminEmail);
+        if (!adminAccess.ok) {
+          return NextResponse.json(
+            { success: false, message: adminAccess.message },
+            { status: adminAccess.status },
+          );
+        }
+      }
+
+      const window = parseWindow(searchParams);
+      const entries = await FranchiseRevenue.find({
+        franchiseId: franchiseCode,
+        status: { $ne: "inactive" },
+        ...revenueWindowMatch(window),
+      })
+        .select(
+          "leadId leadName businessName amount plan email phone utrNumber " +
+            "invoiceNumber invoiceUrl bookingSource onboardedByName status " +
+            "paymentScreenshot screenshot packageStartDate packageExpiryDate createdAt",
+        )
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const gross = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+      return NextResponse.json({
+        success: true,
+        data: entries,
+        summary: {
+          count: entries.length,
+          gross,
+          franchiseEarned: gross * SHARE_RATE,
+          shareRate: SHARE_RATE,
+        },
+        period: window
+          ? { from: window.from, to: window.to, label: window.label }
+          : null,
+      });
+    }
 
     if (wantsAll) {
       const access = await assertPayoutAdmin(adminEmail);

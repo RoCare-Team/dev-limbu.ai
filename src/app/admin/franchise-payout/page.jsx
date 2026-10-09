@@ -74,6 +74,7 @@ export default function FranchisePayoutPage() {
 
   const [payoutFranchise, setPayoutFranchise] = useState(null);
   const [historyFranchise, setHistoryFranchise] = useState(null);
+  const [collectionFranchise, setCollectionFranchise] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
 
   useEffect(() => {
@@ -286,8 +287,26 @@ export default function FranchisePayoutPage() {
                       <span>{row.ownerName}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-4 text-right font-semibold text-gray-800">
-                    {formatAmount(row.grossRevenue)}
+                  <td className="px-5 py-4 text-right">
+                    {/* The total is the entry point to what it is made of —
+                        payouts already had a history, collections did not. */}
+                    <button
+                      type="button"
+                      disabled={!row.grossRevenue}
+                      onClick={() => setCollectionFranchise(row)}
+                      title={
+                        row.grossRevenue
+                          ? "See which clients this came from"
+                          : "Nothing collected in this period"
+                      }
+                      className={`font-semibold ${
+                        row.grossRevenue
+                          ? "text-gray-800 underline decoration-dotted decoration-gray-400 underline-offset-4 hover:text-indigo-700 hover:decoration-indigo-500"
+                          : "cursor-default text-gray-400"
+                      }`}
+                    >
+                      {formatAmount(row.grossRevenue)}
+                    </button>
                   </td>
                   <td className="px-5 py-4 text-right font-bold text-indigo-700">
                     {formatAmount(row.franchiseEarned)}
@@ -364,6 +383,16 @@ export default function FranchisePayoutPage() {
           onClose={() => setHistoryFranchise(null)}
           onPreview={setPreviewUrl}
           onChanged={fetchSummary}
+        />
+      )}
+
+      {collectionFranchise && (
+        <CollectionHistoryModal
+          franchise={collectionFranchise}
+          adminEmail={adminEmail}
+          month={month}
+          onClose={() => setCollectionFranchise(null)}
+          onPreview={setPreviewUrl}
         />
       )}
 
@@ -604,6 +633,190 @@ function PayoutModal({ franchise, adminEmail, month = "", onClose, onSuccess }) 
             {saving && <Loader2 size={15} className="animate-spin" />}
             {saving ? "Saving..." : "Record Payout"}
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Where a franchise's "Collected" total actually came from.
+ *
+ * The table showed one number per franchise and nothing behind it: a payout had
+ * a history, the money coming in did not, so there was no way to answer "which
+ * clients is this made of" without opening the database. This reads the same
+ * revenue rows the Collected column aggregates — same status filter, same month
+ * window — so the list always adds up to the figure on the row.
+ */
+function CollectionHistoryModal({
+  franchise,
+  adminEmail,
+  month = "",
+  onClose,
+  onPreview,
+}) {
+  const [entries, setEntries] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const res = await fetch(
+          `/api/franchise-payout?breakdown=1&franchiseCode=${encodeURIComponent(
+            franchise.franchiseCode,
+          )}&adminEmail=${encodeURIComponent(adminEmail)}${month ? `&month=${month}` : ""}`,
+          { cache: "no-store" },
+        );
+        const json = await res.json();
+        if (!alive) return;
+        if (!json.success) throw new Error(json.message || "Failed to load collections");
+        setEntries(json.data || []);
+        setSummary(json.summary || null);
+      } catch (err) {
+        if (alive) {
+          setLoadError(err.message || "Failed to load collections");
+          setEntries([]);
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [franchise.franchiseCode, adminEmail, month]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
+      <div className="max-h-[85vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-950">Collection History</h2>
+            <p className="text-sm text-gray-500">
+              {franchise.franchiseName} · {franchise.franchiseCode}
+              {month ? ` · ${monthLabel(month)}` : " · All time"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {summary && !loading && (
+          <div className="grid grid-cols-3 gap-3 border-b border-gray-100 bg-gray-50 px-5 py-4 text-center">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-gray-500">Clients</div>
+              <div className="text-lg font-bold text-gray-950">{summary.count}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-gray-500">Collected</div>
+              <div className="text-lg font-bold text-gray-950">
+                {formatAmount(summary.gross)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-gray-500">Share (50%)</div>
+              <div className="text-lg font-bold text-indigo-700">
+                {formatAmount(summary.franchiseEarned)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="p-5">
+          {loading ? (
+            <Loader2 className="mx-auto my-8 animate-spin text-gray-400" size={22} />
+          ) : loadError ? (
+            <p className="py-10 text-center text-sm text-rose-600">{loadError}</p>
+          ) : entries.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-500">
+              No revenue recorded{month ? ` in ${monthLabel(month)}` : ""} for this franchise.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
+                    <th className="px-3 py-2.5 text-left font-semibold">Client</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Plan</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Onboarded by</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Date</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">Proof</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {entries.map((entry) => {
+                    const proof = entry.paymentScreenshot || entry.screenshot || "";
+                    return (
+                      <tr key={entry._id} className="hover:bg-gray-50">
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-gray-950">
+                            {entry.businessName || entry.leadName || "—"}
+                          </div>
+                          {entry.businessName && entry.leadName && (
+                            <div className="text-xs text-gray-500">{entry.leadName}</div>
+                          )}
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-gray-500">
+                            {entry.phone && <span>{entry.phone}</span>}
+                            {entry.email && <span>{entry.email}</span>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-gray-700">
+                          <div>{entry.plan || "—"}</div>
+                          {entry.packageExpiryDate && (
+                            <div className="text-xs text-gray-400">
+                              till {formatDate(entry.packageExpiryDate)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-gray-700">
+                          <div>{entry.onboardedByName || "—"}</div>
+                          {entry.bookingSource && (
+                            <div className="text-xs text-gray-400">{entry.bookingSource}</div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-gray-600">
+                          {formatDate(entry.createdAt)}
+                        </td>
+                        <td className="px-3 py-3 text-right font-semibold text-gray-900">
+                          {formatAmount(entry.amount)}
+                          {entry.utrNumber && (
+                            <div className="text-xs font-normal text-gray-400">
+                              UTR {entry.utrNumber}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          {proof ? (
+                            <button
+                              type="button"
+                              onClick={() => onPreview?.(proof)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              <Eye size={13} />
+                              View
+                            </button>
+                          ) : (
+                            <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

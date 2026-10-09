@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Building2,
   Eye,
+  FileText,
   IndianRupee,
   Loader2,
   Search,
@@ -640,6 +641,40 @@ function PayoutModal({ franchise, adminEmail, month = "", onClose, onSuccess }) 
 }
 
 /**
+ * How an entry's plan approval reads to an admin.
+ *
+ * Most rows carry no approval at all (180 of 300 are null) — they were recorded
+ * before approval existed. Showing those as "Pending" would invent a queue that
+ * nobody is working, so an unset value says so plainly instead.
+ */
+const APPROVAL_STYLES = {
+  approved: { label: "Approved", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  pending: { label: "Pending", className: "bg-amber-50 text-amber-700 border-amber-200" },
+  rejected: { label: "Rejected", className: "bg-rose-50 text-rose-600 border-rose-200" },
+};
+
+function ApprovalChip({ status }) {
+  const style = APPROVAL_STYLES[status];
+  if (!style) {
+    return (
+      <span
+        className="text-xs text-gray-400"
+        title="No approval was recorded for this entry"
+      >
+        Not set
+      </span>
+    );
+  }
+  return (
+    <span
+      className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-bold ${style.className}`}
+    >
+      {style.label}
+    </span>
+  );
+}
+
+/**
  * Where a franchise's "Collected" total actually came from.
  *
  * The table showed one number per franchise and nothing behind it: a payout had
@@ -659,6 +694,33 @@ function CollectionHistoryModal({
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [invoicingId, setInvoicingId] = useState("");
+
+  /** Builds the invoice for one entry and swaps the new URL into that row. */
+  const generateInvoice = async (entry) => {
+    setInvoicingId(entry._id);
+    try {
+      const res = await fetch("/api/franchise-payout/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: entry._id, adminEmail }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        alert(json.message || "Could not generate the invoice");
+        return;
+      }
+      setEntries((rows) =>
+        rows.map((r) =>
+          r._id === entry._id ? { ...r, invoiceUrl: json.invoiceUrl } : r,
+        ),
+      );
+    } catch (err) {
+      alert(err.message || "Could not generate the invoice");
+    } finally {
+      setInvoicingId("");
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -743,15 +805,17 @@ function CollectionHistoryModal({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[920px] text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-xs uppercase tracking-wider text-gray-500">
                     <th className="px-3 py-2.5 text-left font-semibold">Client</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Plan</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Onboarded by</th>
                     <th className="px-3 py-2.5 text-left font-semibold">Date</th>
+                    <th className="px-3 py-2.5 text-left font-semibold">Approval</th>
                     <th className="px-3 py-2.5 text-right font-semibold">Amount</th>
                     <th className="px-3 py-2.5 text-right font-semibold">Proof</th>
+                    <th className="px-3 py-2.5 text-right font-semibold">Invoice</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -788,6 +852,9 @@ function CollectionHistoryModal({
                         <td className="px-3 py-3 text-gray-600">
                           {formatDate(entry.createdAt)}
                         </td>
+                        <td className="px-3 py-3">
+                          <ApprovalChip status={entry.planApprovalStatus} />
+                        </td>
                         <td className="px-3 py-3 text-right font-semibold text-gray-900">
                           {formatAmount(entry.amount)}
                           {entry.utrNumber && (
@@ -808,6 +875,33 @@ function CollectionHistoryModal({
                             </button>
                           ) : (
                             <span className="text-xs text-gray-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          {entry.invoiceUrl ? (
+                            <a
+                              href={entry.invoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              <FileText size={13} />
+                              Invoice
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={invoicingId === entry._id}
+                              onClick={() => generateInvoice(entry)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-gray-950 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                            >
+                              {invoicingId === entry._id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <FileText size={13} />
+                              )}
+                              {invoicingId === entry._id ? "Making…" : "Generate"}
+                            </button>
                           )}
                         </td>
                       </tr>

@@ -2,44 +2,14 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import dbConnect from "@/lib/dbConnect";
 
-import Admin from "@/models/Admin";
 import FranchisePanel from "@/models/franchisePanel";
 import FranchisePayout from "@/models/FranchisePayout";
 import FranchiseRevenue from "@/models/FranchiseRevenue";
 import { assertFranchiseBookingAccess } from "@/lib/franchiseAuthServer";
+import { assertPayoutAdmin } from "@/lib/franchisePayoutAccess";
 
 /** Franchise keeps 50% of collected revenue. Mirrors the revenue-share UI. */
 const SHARE_RATE = 0.5;
-
-const PAYOUT_ADMIN_ROLES = ["superAdmin", "superFranchiseAdmin"];
-
-/**
- * Admin identity comes from the `adminEmail` param and is verified against the
- * Admin collection — the panel itself only keeps role/email in localStorage.
- */
-async function assertPayoutAdmin(email) {
-  if (!email) {
-    return { ok: false, status: 401, message: "Admin email is required" };
-  }
-
-  const admin = await Admin.findOne({ email: String(email).toLowerCase() })
-    .select("fullName email role")
-    .lean();
-
-  if (!admin) {
-    return { ok: false, status: 401, message: "Admin not found" };
-  }
-
-  if (!PAYOUT_ADMIN_ROLES.includes(admin.role)) {
-    return {
-      ok: false,
-      status: 403,
-      message: "Only super admin can manage franchise payouts",
-    };
-  }
-
-  return { ok: true, admin };
-}
 
 /**
  * Optional settlement window, from ?month=YYYY-MM or ?from=&to= (ISO dates).
@@ -159,7 +129,8 @@ export async function GET(req) {
         .select(
           "leadId leadName businessName amount plan email phone utrNumber " +
             "invoiceNumber invoiceUrl bookingSource onboardedByName status " +
-            "paymentScreenshot screenshot packageStartDate packageExpiryDate createdAt",
+            "planApprovalStatus paymentScreenshot screenshot " +
+            "packageStartDate packageExpiryDate createdAt",
         )
         .sort({ createdAt: -1 })
         .lean();

@@ -54,7 +54,7 @@ const handleSelectRow = (id) => {
   );
 };
 
-  const fetchCommonUsers = async (pageIndex, limit) => {
+const fetchCommonUsers = async (pageIndex, limit) => {
     setLoading(true);
     try {
       const response = await fetch(

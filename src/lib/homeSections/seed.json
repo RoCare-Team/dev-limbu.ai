@@ -1,0 +1,621 @@
+{
+  "_note": "Starting content + access rules for the home_sections collection. Plan names come from home-data?type=subscriptionPlans / seoPlans / socialMediaPlans. Business team should confirm the rules before go-live; they can be changed later through the admin APIs.",
+  "sections": [
+    {
+      "key": "gbp",
+      "title": "Google Business Profile",
+      "subtitle": "Optimize and grow your local business",
+      "icon": {
+        "type": "brand",
+        "value": "google"
+      },
+      "viewAll": {
+        "type": "plans",
+        "value": "services"
+      },
+      "order": 1,
+      "items": [
+        {
+          "key": "gbp_insight",
+          "label": "GBP Insight",
+          "icon": {
+            "type": "material",
+            "value": "bar_chart"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "gmb_insight"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "health_score",
+          "label": "Health Score",
+          "icon": {
+            "type": "material",
+            "value": "star"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "gmb"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": false,
+            "freeLimit": 2,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "gbp_create_post",
+          "label": "Create Post",
+          "icon": {
+            "type": "material",
+            "value": "edit_square"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "create_post"
+          },
+          "order": 3,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "review_reply",
+          "label": "Review Reply",
+          "icon": {
+            "type": "material",
+            "value": "chat_bubble_outline"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "reviews"
+          },
+          "order": 4,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "magic_qr",
+          "label": "Magic QR",
+          "icon": {
+            "type": "material",
+            "value": "qr_code_2"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "qr"
+          },
+          "order": 5,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "website_builder",
+          "label": "Website Builder",
+          "icon": {
+            "type": "material",
+            "value": "language"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "web"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "key": "social_media",
+      "title": "Social Media",
+      "subtitle": "Create AI posts & videos for social",
+      "icon": {
+        "type": "brand",
+        "value": "instagram"
+      },
+      "viewAll": {
+        "type": "feature",
+        "value": "text_to_video"
+      },
+      "order": 2,
+      "items": [
+        {
+          "key": "social_create_post",
+          "label": "Create Post",
+          "icon": {
+            "type": "material",
+            "value": "add_photo_alternate"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "create_post"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [
+              "Social Starter",
+              "Social Growth",
+              "Social Pro"
+            ],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "text_to_video",
+          "label": "Text to Video",
+          "icon": {
+            "type": "material",
+            "value": "auto_awesome"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "feature",
+            "value": "text_to_video"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "image_to_video",
+          "label": "Image to Video",
+          "icon": {
+            "type": "material",
+            "value": "slideshow"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "feature",
+            "value": "image_to_video"
+          },
+          "order": 3,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "ai_avatar_video",
+          "label": "AI Avatar Video",
+          "icon": {
+            "type": "material",
+            "value": "face_retouching_natural"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "feature",
+            "value": "ai_avatar_video"
+          },
+          "order": 4,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "cgi_video",
+          "label": "CGI Video",
+          "icon": {
+            "type": "material",
+            "value": "view_in_ar"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "feature",
+            "value": "cgi_video"
+          },
+          "order": 5,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "social_plans",
+          "label": "Social Plans",
+          "icon": {
+            "type": "material",
+            "value": "workspace_premium"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "free_users"
+          },
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "key": "website_seo",
+      "title": "Website SEO",
+      "subtitle": "Rank higher and get more traffic",
+      "icon": {
+        "type": "material",
+        "value": "travel_explore"
+      },
+      "viewAll": {
+        "type": "all_services",
+        "value": "seo"
+      },
+      "order": 3,
+      "items": [
+        {
+          "key": "onpage_seo",
+          "label": "Onpage SEO",
+          "icon": {
+            "type": "material",
+            "value": "description"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [
+              "Basic SEO",
+              "Standard SEO",
+              "Advanced SEO"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "technical_seo",
+          "label": "Technical SEO",
+          "icon": {
+            "type": "material",
+            "value": "settings"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [
+              "Basic SEO",
+              "Standard SEO",
+              "Advanced SEO"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "offpage_seo",
+          "label": "Offpage SEO",
+          "icon": {
+            "type": "material",
+            "value": "link"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "order": 3,
+          "access": {
+            "includedInPlans": [
+              "Basic SEO",
+              "Standard SEO",
+              "Advanced SEO"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "keyword_research",
+          "label": "Keyword Research",
+          "icon": {
+            "type": "material",
+            "value": "key"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "keyword_research"
+          },
+          "order": 4,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "content_management",
+          "label": "Content Management",
+          "icon": {
+            "type": "material",
+            "value": "edit_note"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "order": 5,
+          "access": {
+            "includedInPlans": [
+              "Basic SEO",
+              "Standard SEO",
+              "Advanced SEO"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "local_rank_tracker",
+          "label": "Local Rank Tracker",
+          "icon": {
+            "type": "material",
+            "value": "location_searching"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "local_rank_tracker"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "key": "paid_ads",
+      "title": "Paid Ads",
+      "subtitle": "Run high-converting ad campaigns",
+      "icon": {
+        "type": "material",
+        "value": "campaign"
+      },
+      "viewAll": {
+        "type": "all_services",
+        "value": "paid_ads"
+      },
+      "order": 4,
+      "items": [
+        {
+          "key": "google_ads",
+          "label": "Google Ads",
+          "icon": {
+            "type": "brand",
+            "value": "google"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "youtube_ads",
+          "label": "YouTube Ads",
+          "icon": {
+            "type": "brand",
+            "value": "youtube"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "facebook_ads",
+          "label": "Facebook Ads",
+          "icon": {
+            "type": "brand",
+            "value": "facebook"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 3,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "instagram_ads",
+          "label": "Instagram Ads",
+          "icon": {
+            "type": "brand",
+            "value": "instagram"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 4,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "linkedin_ads",
+          "label": "LinkedIn Ads",
+          "icon": {
+            "type": "brand",
+            "value": "linkedin"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 5,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "all_ad_plans",
+          "label": "All Ad Plans",
+          "icon": {
+            "type": "material",
+            "value": "insights"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "ads"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    }
+  ]
+}

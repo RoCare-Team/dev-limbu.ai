@@ -4936,7 +4936,7 @@ export default function FranchiseLeadsPage() {
                                   : ""
                               }`}
                             >
-                              Pichhla: {lead.previousAssignee.name}
+                              Last time Assigned agent: {lead.previousAssignee.name}
                             </p>
                           )}
                         </td>

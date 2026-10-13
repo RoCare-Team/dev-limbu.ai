@@ -7,11 +7,7 @@ const nextConfig = {
 
   poweredByHeader: false,
 
-  // Prevent build failures
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-
+  // Prevent build failures (Next 16 no longer lints during build)
   typescript: {
     ignoreBuildErrors: true,
   },

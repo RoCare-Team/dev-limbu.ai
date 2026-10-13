@@ -1,7 +1,10 @@
 import HeaderSection from "@/components/sections/HeaderSection";
 import FooterSection from "@/components/sections/FooterSection";
 import BlogCard from "@/components/ui/BlogCard";
-import { Metadata } from "next";
+
+// Blogs are fetched with no-store; without this the build prerenders /blog
+// statically, getBlogs() swallows the dynamic-usage error and the page ships empty.
+export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "GMB Marketing Blog & Local SEO Tips | Limbu.ai",

@@ -620,8 +620,13 @@ export async function PUT(req) {
     const updatedPackageData = {
       ...(plan && { plan }),
       ...(email !== undefined && email !== null && { email }),
-      ...(amount && { amount }),
-      ...(planRemarks && { planRemarks }),
+      ...(amount !== null && amount !== undefined && amount !== "" && {
+        amount: Number(amount) || 0,
+      }),
+      // formData.get() returns null when the field was not sent; an empty string
+      // is a deliberate "clear the remark", so only null means "leave as is".
+      ...(planRemarks !== null && planRemarks !== undefined && { planRemarks }),
+      ...(notes !== null && notes !== undefined && { notes }),
 
       ...(screenshotUrl && {
         paymentScreenshot: screenshotUrl,
@@ -648,25 +653,18 @@ export async function PUT(req) {
     );
 
     // 🔥 USER COLLECTION UPDATE
-    if (updated?.leadId) {
-      await User.findOneAndUpdate(
-        { userId: updated.leadId },
-        {
-          $set: {
-            packageStartDate: packageStartDate
-              ? new Date(packageStartDate)
-              : null,
+    // Only touch the user's package dates when this request actually carries
+    // them — an edit that changes just the amount/remark used to blank them out.
+    const userUpdate = {
+      ...(packageStartDate && { packageStartDate: new Date(packageStartDate) }),
+      ...(packageExpiryDate && {
+        packageExpiryDate: new Date(packageExpiryDate),
+      }),
+      ...(email !== undefined && email !== null && { email }),
+    };
 
-            packageExpiryDate: packageExpiryDate
-              ? new Date(packageExpiryDate)
-              : null,
-
-            ...(email !== undefined && email !== null && { email }),
-          },
-        },
-      );
-
-      console.log("USER DATE UPDATED", updated.leadId);
+    if (updated?.leadId && Object.keys(userUpdate).length) {
+      await User.findOneAndUpdate({ userId: updated.leadId }, { $set: userUpdate });
     }
 
     return NextResponse.json({

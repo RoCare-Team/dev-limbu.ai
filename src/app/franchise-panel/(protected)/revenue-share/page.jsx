@@ -15,6 +15,7 @@ import {
   Layers,
   PieChart,
   Radio,
+  Pencil,
   RefreshCw,
   Wallet,
   X,
@@ -134,6 +135,13 @@ export default function RevenueShare() {
   const [renewGstNumber, setRenewGstNumber] = useState("");
   const [savingPlan, setSavingPlan] = useState(false);
 
+  /* ---------------- EDIT RECORD (amount / remarks / proof) ---------------- */
+  const [editRow, setEditRow] = useState(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editRemarks, setEditRemarks] = useState("");
+  const [editProof, setEditProof] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const fetchRevenue = async () => {
       try {
         const franchiseUser = getFranchiseUserFromStorage();
@@ -194,6 +202,81 @@ export default function RevenueShare() {
       } finally {
         setLoading(false);
       }
+  };
+
+  /* ---------------- EDIT RECORD ---------------- */
+
+  /**
+   * Remark kisi bhi onboarding flow se aa sakta hai: kuch flows `planRemarks`
+   * bhejte hain, kuch `notes`. `notes` me system ka apna text bhi hota hai
+   * ("Plan upgrade to X"), wo remark nahi hai — isliye use chhod do.
+   */
+  const AUTO_NOTE = /^Plan (upgrade to|renewed from)/i;
+  const remarkOf = (row) => {
+    const own = (row?.planRemarks || "").trim();
+    if (own) return own;
+    const note = (row?.notes || "").trim();
+    return note && !AUTO_NOTE.test(note) ? note : "";
+  };
+
+  const openEditModal = (row) => {
+    setEditRow(row);
+    setEditAmount(row.amount ?? "");
+    setEditRemarks(remarkOf(row));
+    setEditProof(null);
+  };
+
+  const closeEditModal = () => {
+    setEditRow(null);
+    setEditAmount("");
+    setEditRemarks("");
+    setEditProof(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editRow?._id) return;
+
+    const amountNum = Number(editAmount);
+    if (!Number.isFinite(amountNum) || amountNum < 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const form = new FormData();
+      form.append("id", editRow._id);
+      form.append("amount", String(amountNum));
+
+      // Service rows ka remark `notes` me rehta hai, package rows ka `planRemarks` me.
+      if (typeKeyOf(editRow) === "service") {
+        form.append("type", "service");
+        form.append("notes", editRemarks);
+      } else {
+        form.append("planRemarks", editRemarks);
+      }
+
+      if (editProof) form.append("paymentScreenshot", editProof);
+
+      const res = await fetch("/api/franchise-revenue", {
+        method: "PUT",
+        headers: getFranchiseAuthHeaders(),
+        body: form,
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Update failed");
+      }
+
+      closeEditModal();
+      await fetchRevenue();
+    } catch (err) {
+      console.error("Revenue edit error:", err);
+      alert(err.message || "Could not save changes");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   useEffect(() => {
@@ -694,9 +777,9 @@ export default function RevenueShare() {
             <thead>
               <tr className="bg-[#1e293b] text-xs uppercase tracking-wider text-white">
                 <th className="px-6 py-4 text-left font-semibold">Customer</th>
-                <th className="px-6 py-4 text-left font-semibold">Type</th>
+                <th className="px-6 py-4 text-center font-semibold">Edit</th>
                 <th className="px-6 py-4 text-left font-semibold">Plan</th>
-                <th className="px-6 py-4 text-left font-semibold">Source</th>
+                <th className="px-6 py-4 text-left font-semibold">Remarks</th>
                 <th className="px-6 py-4 text-right font-semibold">Amount</th>
                 <th className="px-6 py-4 text-right font-semibold">
                   Franchise {SHARE_RATE * 100}%
@@ -724,21 +807,31 @@ export default function RevenueShare() {
                           {row.email || "-"}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-700">
-                        {typeLabelOf(typeKeyOf(row))}
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(row)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100"
+                          title="Edit amount, remarks or payment proof"
+                        >
+                          <Pencil size={14} />
+                          Edit
+                        </button>
                       </td>
                       <td className="px-6 py-4 text-gray-700">
                         {row.plan || "-"}
                       </td>
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${sourceBadgeClass(
-                            row.bookingSource,
-                          )}`}
-                        >
-                          <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {sourceLabel(row.bookingSource)}
-                        </span>
+                        {remarkOf(row) ? (
+                          <p
+                            className="w-[260px] whitespace-pre-wrap break-words text-xs leading-relaxed text-gray-700"
+                            title={remarkOf(row)}
+                          >
+                            {remarkOf(row)}
+                          </p>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-right font-bold">
                         {formatAmount(amount)}
@@ -955,6 +1048,107 @@ export default function RevenueShare() {
         revenuePlans={REVENUE_PLANS}
       />
 
+
+      {/* ---------------- EDIT RECORD MODAL ---------------- */}
+      {editRow && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-200 px-6 py-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-950">
+                  Edit Payment
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {editRow.leadName || "Customer"} · {editRow.plan || "-"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditModal}
+                className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Amount (₹)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Remarks
+                </label>
+                <textarea
+                  rows={4}
+                  value={editRemarks}
+                  onChange={(e) => setEditRemarks(e.target.value)}
+                  placeholder="Onboarding remark, custom note…"
+                  className="w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+                  Payment Proof
+                </label>
+                {(editRow.paymentScreenshot || editRow.screenshot) && !editProof && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewUrl(
+                        editRow.paymentScreenshot || editRow.screenshot,
+                      )
+                    }
+                    className="mb-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:underline"
+                  >
+                    <Eye size={14} />
+                    View current proof
+                  </button>
+                )}
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setEditProof(e.target.files?.[0] || null)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1 file:text-xs file:font-semibold"
+                />
+                <p className="mt-1 text-[11px] text-gray-500">
+                  Choose a file only if you want to replace the current proof.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={closeEditModal}
+                disabled={savingEdit}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {savingEdit ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />
     </div>

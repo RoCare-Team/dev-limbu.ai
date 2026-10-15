@@ -1,7 +1,7 @@
 import Admin from "@/models/Admin";
 
 /** Only these roles may read or settle franchise payouts. */
-export const PAYOUT_ADMIN_ROLES = ["superAdmin", "superFranchiseAdmin"];
+export const PAYOUT_ADMIN_ROLES = ["superAdmin", "seniorManager", "superFranchiseAdmin"];
 
 /**
  * Admin identity comes from the `adminEmail` param and is verified against the

@@ -3,12 +3,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dbConnect from "@/lib/dbConnect";
 import Admin from "@/models/Admin";
+import { canManageRole } from "@/lib/adminAccess";
 
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 const REVEAL_PASSKEY = process.env.USER_PASSWORD_PASSKEY || "limbu007";
 
 /** Only these roles may see or reset another user's password. */
-const ALLOWED_ROLES = ["superAdmin", "admin"];
+const ALLOWED_ROLES = ["superAdmin", "seniorManager", "admin"];
 
 function authorize(req) {
   const auth = req.headers.get("authorization");
@@ -58,12 +59,19 @@ export async function POST(req) {
       );
     }
 
-    const user = await Admin.findById(id).select("+plainPassword fullName");
+    const user = await Admin.findById(id).select("+plainPassword fullName role");
 
     if (!user) {
       return NextResponse.json(
         { success: false, message: "User not found" },
         { status: 404 }
+      );
+    }
+
+    if (!canManageRole(auth.decoded.role, user.role)) {
+      return NextResponse.json(
+        { success: false, message: "No permission for a superAdmin account" },
+        { status: 403 }
       );
     }
 
@@ -129,6 +137,13 @@ export async function PATCH(req) {
       return NextResponse.json(
         { success: false, message: "User not found" },
         { status: 404 }
+      );
+    }
+
+    if (!canManageRole(auth.decoded.role, user.role)) {
+      return NextResponse.json(
+        { success: false, message: "No permission for a superAdmin account" },
+        { status: 403 }
       );
     }
 

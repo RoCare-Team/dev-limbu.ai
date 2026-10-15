@@ -220,7 +220,7 @@ export default function UserStats({
                     Users Today
                   </p>
 
-                  {(role === "superAdmin" ||
+                  {((role === "superAdmin" || role === "seniorManager") ||
                     role === "admin" ||
                     role === "superfranchiseAdmin") &&
                   !isAgent &&

@@ -8,6 +8,13 @@ const ROLE_PERMISSIONS = {
     manageFranchise: true,
     seeAnalytics: true,
   },
+  seniorManager: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: true,
+    seeAnalytics: true,
+  },
   superFranchiseAdmin: {
     manageUsers: false,
     manageTeam: false,
@@ -72,6 +79,7 @@ const AdminSchema = new mongoose.Schema(
       type: String,
       enum: [
         "superAdmin",
+        "seniorManager",
         "superFranchiseAdmin",
         "franchiseAdmin",
         "admin",

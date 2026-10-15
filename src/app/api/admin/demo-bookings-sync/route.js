@@ -19,7 +19,7 @@ export async function POST(req) {
 
     await dbConnect();
     const admin = await Admin.findOne({ email: adminEmail }).select("role");
-    if (!admin || !["superAdmin", "admin"].includes(admin.role)) {
+    if (!admin || !["superAdmin", "seniorManager", "admin"].includes(admin.role)) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 403 },

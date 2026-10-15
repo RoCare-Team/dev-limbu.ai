@@ -506,7 +506,7 @@ export default function AdminDashboard() {
 
       // ── 3. Call & Follow-up stats ─────────────────────────────────────────
       if (
-        currentRole === "superAdmin" ||
+        (currentRole === "superAdmin" || currentRole === "seniorManager") ||
         currentRole === "admin" ||
         currentRole === "agent"
       ) {

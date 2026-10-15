@@ -808,7 +808,7 @@ export async function GET(req) {
 
       let extraStats = {};
 
-      if (admin.role === "superAdmin") {
+      if ((admin.role === "superAdmin" || admin.role === "seniorManager")) {
         const { start: startOfDay, end: endOfDay } = getAppDayBounds();
         const todayCreated = {
           createdAt: { $gte: startOfDay, $lte: endOfDay },
@@ -1177,7 +1177,7 @@ export async function GET(req) {
 
     /* 13. superAdmin extra stats */
     let superAdminData = {};
-    if (admin.role === "superAdmin") {
+    if ((admin.role === "superAdmin" || admin.role === "seniorManager")) {
       const { start: startOfDay, end: endOfDay } = getAppDayBounds();
       const todayCreated = { createdAt: { $gte: startOfDay, $lte: endOfDay } };
 

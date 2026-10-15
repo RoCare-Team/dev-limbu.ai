@@ -48,11 +48,11 @@ export async function POST(req) {
       email: String(email).toLowerCase().trim(),
     }).lean();
 
-    if (!admin || admin.role !== "superAdmin") {
+    if (!admin || (admin.role !== "superAdmin" && admin.role !== "seniorManager")) {
       return NextResponse.json(
         {
           success: false,
-          message: "Only superAdmin can approve payments",
+          message: "Only superAdmin or Senior Manager can approve payments",
         },
         { status: 403 }
       );

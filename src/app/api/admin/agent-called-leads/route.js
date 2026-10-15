@@ -51,7 +51,7 @@ export async function GET(req) {
     }
 
     const admin = await Admin.findOne({ email: adminEmail }).select("role");
-    if (!admin || admin.role !== "superAdmin") {
+    if (!admin || (admin.role !== "superAdmin" && admin.role !== "seniorManager")) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 403 },

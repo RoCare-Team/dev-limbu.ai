@@ -389,7 +389,7 @@ export default function AdminLayout({ children }) {
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
-        if (item.superAdminOnly && role !== "superAdmin") return false;
+        if (item.superAdminOnly && (role !== "superAdmin" && role !== "seniorManager")) return false;
         if (access === null) return false; // still loading
         const key = accessKeyForPath(item.href);
         // An item outside the catalog (nothing maps to it) stays visible — the

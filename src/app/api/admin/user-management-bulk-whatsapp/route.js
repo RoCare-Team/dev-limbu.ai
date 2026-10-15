@@ -82,7 +82,7 @@ export async function POST(req) {
       email: adminEmail.trim(),
     }).select("role email");
 
-    if (!admin || admin.role !== "superAdmin") {
+    if (!admin || (admin.role !== "superAdmin" && admin.role !== "seniorManager")) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 },

@@ -1,5 +1,5 @@
 import Admin from "@/models/Admin";
-import { ROLE_DEFAULT_ACCESS, sanitizeAccess } from "@/lib/adminAccess";
+import { ROLE_DEFAULT_ACCESS, canManageRole, sanitizeAccess } from "@/lib/adminAccess";
 import dbConnect from "@/lib/dbConnect";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
@@ -10,6 +10,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 const ROLE_PRESETS = {
   superAdmin: {
+    manageUsers: true,
+    manageTeam: true,
+    manageLeads: true,
+    manageFranchise: true,
+    seeAnalytics: true,
+  },
+  seniorManager: {
     manageUsers: true,
     manageTeam: true,
     manageLeads: true,
@@ -78,6 +85,7 @@ export async function POST(req) {
 
     const allowed =
       creator.role === "superAdmin" ||
+      creator.role === "seniorManager" ||
       creator.role === "admin" ||
       creator.role === "franchiseAdmin" ||
       (creator.role === "subadmin" && creator.permissions?.manageUsers);
@@ -90,6 +98,10 @@ export async function POST(req) {
 
     if (!fullName || !email || !password || !role) {
       return NextResponse.json({ message: "Missing fields" }, { status: 400 });
+    }
+
+    if (!canManageRole(creator.role, role)) {
+      return NextResponse.json({ message: "Only a superAdmin can create a superAdmin" }, { status: 403 });
     }
 
     const exists = await Admin.findOne({ email });
@@ -165,6 +177,7 @@ export async function PUT(req) {
     // 🔒 Permission Check
     const allowed =
       updater.role === "superAdmin" ||
+      updater.role === "seniorManager" ||
       updater.role === "admin" ||
       (updater.role === "franchiseAdmin" &&
         targetUser.franchiseId?.toString() === updater.franchiseId);
@@ -174,6 +187,31 @@ export async function PUT(req) {
         { message: "No permission to update user" },
         { status: 403 }
       );
+    }
+
+    if (
+      !canManageRole(updater.role, targetUser.role) ||
+      (body.role && !canManageRole(updater.role, body.role))
+    ) {
+      return NextResponse.json(
+        { message: "Only a superAdmin can edit or create a superAdmin" },
+        { status: 403 }
+      );
+    }
+
+    // Only the fields the User Management screen edits — never managerId,
+    // franchiseId or other ownership fields from a request body.
+    const EDITABLE = ["fullName", "email", "mobile", "role", "password", "access", "isActive", "leadsEnabled"];
+    for (const k of Object.keys(body)) {
+      if (!EDITABLE.includes(k)) delete body[k];
+    }
+
+    if (body.email) {
+      body.email = String(body.email).trim().toLowerCase();
+      const taken = await Admin.exists({ email: body.email, _id: { $ne: id } });
+      if (taken) {
+        return NextResponse.json({ message: "Email already exists" }, { status: 409 });
+      }
     }
 
     // If password updating → rehash (and keep the admin-visible copy in sync)
@@ -256,11 +294,12 @@ export async function DELETE(req) {
     // 🔒 Permission Check
     const allowed =
       deleter.role === "superAdmin" ||
+      deleter.role === "seniorManager" ||
       deleter.role === "admin" ||
       (deleter.role === "franchiseAdmin" &&
         targetUser.franchiseId?.toString() === deleter.franchiseId);
 
-    if (!allowed) {
+    if (!allowed || !canManageRole(deleter.role, targetUser.role)) {
       return NextResponse.json(
         { message: "No permission to delete user" },
         { status: 403 }

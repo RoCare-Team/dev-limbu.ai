@@ -115,7 +115,7 @@ export default function AdminAutomationPlansPage() {
   );
 
   useEffect(() => {
-    if (role === "superAdmin") fetchPage(1);
+    if ((role === "superAdmin" || role === "seniorManager")) fetchPage(1);
   }, [role, fetchPage]);
 
   const togglePlan = async (row) => {
@@ -168,11 +168,11 @@ export default function AdminAutomationPlansPage() {
 
   if (role === null) return null;
 
-  if (role !== "superAdmin") {
+  if ((role !== "superAdmin" && role !== "seniorManager")) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <ShieldAlert className="mb-3 h-10 w-10 text-red-400" />
-        <h1 className="text-lg font-bold text-slate-900">superAdmin only</h1>
+        <h1 className="text-lg font-bold text-slate-900">superAdmin / Senior Manager only</h1>
         <p className="mt-1 text-sm text-slate-500">
           This page starts, stops and deletes automation for every user.
         </p>

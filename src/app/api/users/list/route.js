@@ -35,7 +35,7 @@ export async function GET(req) {
     // the plaintext copy is only served by the passkey-guarded /api/users/password.
     const HIDE_PASSWORDS = "-password -plainPassword";
 
-    if (user.role === "superAdmin" || user.role === "admin") {
+    if ((user.role === "superAdmin" || user.role === "seniorManager") || user.role === "admin") {
       // Full access
       users = await Admin.find().select(HIDE_PASSWORDS);
     }

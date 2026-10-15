@@ -20,7 +20,9 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get("includeInactive") === "1";
 
-    const query = { role: "agent" };
+    // seniorManager leads par agent ki tarah kaam karta hai (remarks, calls),
+    // isliye assign dropdown me wo bhi aana chahiye.
+    const query = { role: { $in: ["agent", "seniorManager"] } };
     if (!includeInactive) {
       // Purane docs me isActive field nahi hai → unhe active hi maano.
       query.isActive = { $ne: false };

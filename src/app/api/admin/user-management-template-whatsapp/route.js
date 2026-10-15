@@ -188,7 +188,7 @@ export async function POST(req) {
       "role email",
     );
 
-    if (!admin || admin.role !== "superAdmin") {
+    if (!admin || (admin.role !== "superAdmin" && admin.role !== "seniorManager")) {
       return NextResponse.json(
         { success: false, message: "Forbidden" },
         { status: 403 },

@@ -818,7 +818,7 @@ export default function useUserManagementLogic() {
     const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     if (!email) return;
 
-    const canSyncMeta = ["superAdmin", "admin"].includes(adminRole);
+    const canSyncMeta = ["superAdmin", "seniorManager", "admin"].includes(adminRole);
 
     if (!silent) setIsRefreshingMetaLeads(true);
 
@@ -888,7 +888,7 @@ export default function useUserManagementLogic() {
     if (!role) return;
 
     if (
-      role === "superAdmin" ||
+      (role === "superAdmin" || role === "seniorManager") ||
       role === "admin" ||
       role === "superfranchiseAdmin"
     ) {
@@ -922,7 +922,7 @@ export default function useUserManagementLogic() {
   }, [role]);
 
   useEffect(() => {
-    if (role && role !== "superAdmin") {
+    if (role && (role !== "superAdmin" && role !== "seniorManager")) {
       setBulkWaSelectedUserIds([]);
       setBulkWaShowPanel(false);
       setBulkWaResult(null);
@@ -935,7 +935,7 @@ export default function useUserManagementLogic() {
 
   const fetchCallStats = useCallback(async () => {
     const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
-    if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role)) return;
+    if (!adminEmail || !["superAdmin", "seniorManager", "admin", "agent"].includes(role)) return;
 
     setCallStatsLoading(true);
     try {
@@ -965,7 +965,7 @@ export default function useUserManagementLogic() {
   useEffect(() => {
     const fetchFollowUpLeads = async () => {
       const adminEmail = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
-      if (!adminEmail || !["superAdmin", "admin", "agent"].includes(role))
+      if (!adminEmail || !["superAdmin", "seniorManager", "admin", "agent"].includes(role))
         return;
 
       try {
@@ -1060,7 +1060,7 @@ export default function useUserManagementLogic() {
     const isTodayLocalBrowser = (createdAt) =>
       new Date(createdAt).toDateString() === new Date().toDateString();
     const useApiTodayBreakdown =
-      (role === "superAdmin" ||
+      ((role === "superAdmin" || role === "seniorManager") ||
         role === "admin" ||
         role === "superfranchiseAdmin") &&
       !isAgent &&
@@ -1360,7 +1360,7 @@ export default function useUserManagementLogic() {
         const data = await res.json();
         if (data.success) {
           // On this page, we only care about user onboarding revenue.
-          if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
+          if ((userRole === "superAdmin" || userRole === "seniorManager") || userRole === "superFranchiseAdmin") {
           } else if (userRole === "agent") {
             // For agents, totalRevenue from API is already just their user_onboard revenue
           } else {
@@ -2469,7 +2469,7 @@ export default function useUserManagementLogic() {
   };
 
   const sendBulkUserManagementWhatsApp = async () => {
-    if (role !== "superAdmin") return;
+    if ((role !== "superAdmin" && role !== "seniorManager")) return;
     if (!bulkWaSendDate) {
       setBulkWaResult({
         success: false,
@@ -2587,7 +2587,7 @@ export default function useUserManagementLogic() {
    * @param extras    template-specific data, jaise { webinarDateTime }
    */
   const sendTemplateWhatsApp = async (template, extras = {}) => {
-    if (role !== "superAdmin") return;
+    if ((role !== "superAdmin" && role !== "seniorManager")) return;
 
     console.log("SELECTED IDS COUNT", bulkWaSelectedUserIds.length);
 
@@ -2673,7 +2673,7 @@ export default function useUserManagementLogic() {
 
   /** Sends one of the built-in email templates (or a custom one) to the selection. */
   const sendTemplateEmail = async (template) => {
-    if (role !== "superAdmin") return;
+    if ((role !== "superAdmin" && role !== "seniorManager")) return;
 
     const usersPayload = getSelectedEmailUsersPayload();
 

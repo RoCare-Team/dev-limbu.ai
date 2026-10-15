@@ -79,6 +79,7 @@ const PUBLIC_ROUTES = new Set([
 const ALLOWED_ADMIN_ROLES = [
   "admin",
   "superAdmin",
+  "seniorManager",
   "superFranchiseAdmin",
   "franchiseAdmin",
   "manager",

@@ -188,7 +188,7 @@ export default function UserFiltersPanel({
             alignItems: "center",
           }}
         >
-          {(role === "superAdmin" ||
+          {((role === "superAdmin" || role === "seniorManager") ||
             role === "admin" ||
             role === "superfranchiseAdmin") && (
             <>
@@ -215,7 +215,7 @@ export default function UserFiltersPanel({
                 </Select>
               </FormControl>
 
-              {(role === "superAdmin" ||
+              {((role === "superAdmin" || role === "seniorManager") ||
                 role === "admin" ||
                 role === "superfranchiseAdmin") && (
                 <FormControl size="small" fullWidth>

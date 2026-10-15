@@ -125,7 +125,7 @@ export default function UserTableRow({
       {botUserId && (
         <tr className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"}`}>
           <td
-            colSpan={role === "superAdmin" ? 15 : 14}
+            colSpan={(role === "superAdmin" || role === "seniorManager") ? 15 : 14}
             className="px-6 pt-3 pb-1 border-b-0"
           >
             <div className="flex items-center gap-3">
@@ -178,7 +178,7 @@ export default function UserTableRow({
           rowIndex % 2 === 0 ? "bg-white" : "bg-slate-50/40"
         } ${botUserId ? "border-t-0" : ""}`}
       >
-        {role === "superAdmin" && (
+        {(role === "superAdmin" || role === "seniorManager") && (
           <td
             className="px-3 py-5 w-14 align-middle"
             onClick={(e) => e.stopPropagation()}
@@ -498,7 +498,7 @@ export default function UserTableRow({
           className="px-6 py-5 whitespace-nowrap"
           onClick={(e) => e.stopPropagation()}
         >
-          {role === "superAdmin" ||
+          {(role === "superAdmin" || role === "seniorManager") ||
           role === "admin" ||
           role === "superfranchiseAdmin" ? (
             <div
@@ -736,7 +736,7 @@ export default function UserTableRow({
             >
               <Phone size={14} />
             </button>
-            {(role === "superAdmin" || role === "admin" || role === "agent") && (
+            {((role === "superAdmin" || role === "seniorManager") || role === "admin" || role === "agent") && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -748,7 +748,7 @@ export default function UserTableRow({
                 <Edit2 size={14} />
               </button>
             )}
-            {role === "superAdmin" && (
+            {(role === "superAdmin" || role === "seniorManager") && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();

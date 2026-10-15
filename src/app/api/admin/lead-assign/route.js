@@ -24,7 +24,8 @@ export async function POST(req) {
 
     const agentExists = await Admin.findOne({
       _id: toId,
-      role: "agent",
+      // seniorManager bhi leads uthata hai, isliye wo bhi valid target hai.
+      role: { $in: ["agent", "seniorManager"] },
     });
 
     if (!agentExists) {

@@ -1414,7 +1414,7 @@ export default function RevenueUsersPage() {
                         <TableCell className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider py-4 border-b border-slate-200">
                           Notes / Remarks
                         </TableCell>
-                        {role === "superAdmin" && (
+                        {(role === "superAdmin" || role === "seniorManager") && (
                           <TableCell className="bg-slate-50/80 text-xs font-semibold text-slate-500 uppercase tracking-wider py-4 border-b border-slate-200">
                             Admin Status
                           </TableCell>
@@ -1718,7 +1718,7 @@ export default function RevenueUsersPage() {
                             </button>
                           </TableCell>
 
-                          {role === "superAdmin" && (
+                          {(role === "superAdmin" || role === "seniorManager") && (
                             <TableCell className="border-b border-slate-100 py-4">
                               {currentPlan?.type === "user_onboard" ||
                               currentPlan?.type === "plan" ? (

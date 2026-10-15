@@ -636,12 +636,12 @@ export default function FranchiseLeadsPage() {
 
   const canSelectFranchiseLeads = useMemo(
     () =>
-      ["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(role),
+      ["superAdmin", "seniorManager", "superFranchiseAdmin", "franchiseAdmin"].includes(role),
     [role],
   );
 
   const canBulkAssignLeads =
-    role === "superFranchiseAdmin" || role === "superAdmin";
+    role === "superFranchiseAdmin" || (role === "superAdmin" || role === "seniorManager");
 
   const selectedLeadIdSet = useMemo(
     () => new Set(selectedLeads.map(franchiseLeadIdKey)),
@@ -706,7 +706,7 @@ export default function FranchiseLeadsPage() {
   }, [franchisePendingFollowUpsInView]);
 
   const franchiseVoiceAlertsEnabled =
-    role === "superAdmin" ||
+    (role === "superAdmin" || role === "seniorManager") ||
     role === "superFranchiseAdmin" ||
     role === "franchiseAdmin";
   useFollowUpVoiceAlerts(franchiseVoiceItems, {
@@ -732,7 +732,7 @@ export default function FranchiseLeadsPage() {
         const data = await res.json();
         if (data.success) {
           // For superAdmin, show only franchise revenue on this page
-          if (userRole === "superAdmin" || userRole === "superFranchiseAdmin") {
+          if ((userRole === "superAdmin" || userRole === "seniorManager") || userRole === "superFranchiseAdmin") {
             setTotalRevenue(data.totalFranchiseRevenue || 0);
             setRevenueCount(data.franchiseLeadCount || 0);
           } else {
@@ -757,7 +757,7 @@ export default function FranchiseLeadsPage() {
 
           // Calculate Onboard Leads Breakdown for super admins
           if (
-            (userRole === "superAdmin" || userRole === "superFranchiseAdmin") &&
+            ((userRole === "superAdmin" || userRole === "seniorManager") || userRole === "superFranchiseAdmin") &&
             data.revenue
           ) {
             const breakdown = data.revenue
@@ -905,7 +905,7 @@ export default function FranchiseLeadsPage() {
 
       // Import API sirf superAdmin/admin ko allow karta hai — baaki roles ke
       // liye sirf list refresh kar dete hain (403 toast se bachne ke liye).
-      if (!email || !["superAdmin", "admin"].includes(userRole || "")) {
+      if (!email || !["superAdmin", "seniorManager", "admin"].includes(userRole || "")) {
         await fetchLeadsRef.current?.();
         return;
       }
@@ -1004,7 +1004,7 @@ export default function FranchiseLeadsPage() {
 
   const fetchFranchiseAdmins = useCallback(() => {
     const userRole = localStorage.getItem("role");
-    if (userRole === "superFranchiseAdmin" || userRole === "superAdmin") {
+    if (userRole === "superFranchiseAdmin" || (userRole === "superAdmin" || userRole === "seniorManager")) {
       fetch("/api/admin/franchise-admins")
         .then((res) => res.json())
         .then((data) => {
@@ -1066,7 +1066,7 @@ export default function FranchiseLeadsPage() {
 
   useEffect(() => {
     if (
-      (role === "superAdmin" || role === "superFranchiseAdmin") &&
+      ((role === "superAdmin" || role === "seniorManager") || role === "superFranchiseAdmin") &&
       franchiseFollowUpFilter === "next7days"
     ) {
       setFranchiseFollowUpFilter("all");
@@ -1078,7 +1078,7 @@ export default function FranchiseLeadsPage() {
     const r = localStorage.getItem("role");
     if (
       !email ||
-      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+      !["superAdmin", "seniorManager", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
     )
       return;
     (async () => {
@@ -1099,7 +1099,7 @@ export default function FranchiseLeadsPage() {
     const r = localStorage.getItem("role");
     if (
       !email ||
-      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+      !["superAdmin", "seniorManager", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
     )
       return;
     let cancelled = false;
@@ -1128,7 +1128,7 @@ export default function FranchiseLeadsPage() {
   useEffect(() => {
     const email = (localStorage.getItem("adminEmail") || localStorage.getItem("email"));
     const r = localStorage.getItem("role");
-    if (!email || !["superAdmin", "superFranchiseAdmin"].includes(r || "")) {
+    if (!email || !["superAdmin", "seniorManager", "superFranchiseAdmin"].includes(r || "")) {
       return;
     }
     let cancelled = false;
@@ -1156,7 +1156,7 @@ export default function FranchiseLeadsPage() {
     const r = localStorage.getItem("role");
     if (
       !email ||
-      !["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
+      !["superAdmin", "seniorManager", "superFranchiseAdmin", "franchiseAdmin"].includes(r || "")
     ) {
       return;
     }
@@ -2870,7 +2870,7 @@ export default function FranchiseLeadsPage() {
               </button> */}
 
               {(role === "superFranchiseAdmin" ||
-                role === "superAdmin" ||
+                (role === "superAdmin" || role === "seniorManager") ||
                 role === "franchiseAdmin") && (
                 <button
                   onClick={() => setShowAddLeadModal(true)}
@@ -2985,7 +2985,7 @@ export default function FranchiseLeadsPage() {
                 </select>
               </label>
 
-              {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+              {(role === "superFranchiseAdmin" || (role === "superAdmin" || role === "seniorManager")) && (
                 <label className="flex flex-col gap-1 min-w-0">
                   <span className={FILTER_LABEL_CLASS}>Assignee</span>
                   <select
@@ -3210,7 +3210,7 @@ export default function FranchiseLeadsPage() {
               ))}
         </div>
 
-        {["superAdmin", "superFranchiseAdmin", "franchiseAdmin"].includes(
+        {["superAdmin", "seniorManager", "superFranchiseAdmin", "franchiseAdmin"].includes(
           role,
         ) && (
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -3229,7 +3229,7 @@ export default function FranchiseLeadsPage() {
                     : " (all agents)"}
                 </p>
               </div>
-              {(role === "superAdmin" || role === "superFranchiseAdmin") && (
+              {((role === "superAdmin" || role === "seniorManager") || role === "superFranchiseAdmin") && (
                 <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
                   <span className="text-[10px] font-bold uppercase text-amber-800 tracking-wide">
                     Total follow-ups
@@ -3631,7 +3631,7 @@ export default function FranchiseLeadsPage() {
                   </div>
                 )}
 
-              {(role === "superAdmin" || role === "superFranchiseAdmin") &&
+              {((role === "superAdmin" || role === "seniorManager") || role === "superFranchiseAdmin") &&
                 (franchiseFollowUpStats.byAgent || []).length > 0 && (
                   <div className="rounded-xl border border-gray-200 overflow-hidden">
                     <button
@@ -3907,7 +3907,7 @@ export default function FranchiseLeadsPage() {
         )}
 
         {/* ===== SUPER ADMIN: TODAY'S LEADS + TEAM PERFORMANCE ===== */}
-        {(role === "superFranchiseAdmin" || role === "superAdmin") && (
+        {(role === "superFranchiseAdmin" || (role === "superAdmin" || role === "seniorManager")) && (
           <div className="space-y-4">
             {/* ---------- TODAY'S LEADS ---------- */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -4377,7 +4377,7 @@ export default function FranchiseLeadsPage() {
                 Email Template
               </button>
 
-              {role === "superAdmin" && (
+              {(role === "superAdmin" || role === "seniorManager") && (
                 <button
                   onClick={handleBulkDelete}
                   disabled={loading}
@@ -4734,7 +4734,7 @@ export default function FranchiseLeadsPage() {
                               >
                                 <Eye className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
                               </button>
-                              {role === "superAdmin" && (
+                              {(role === "superAdmin" || role === "seniorManager") && (
                                 <button
                                   onClick={() => handleDeleteLead(lead.id)}
                                   className="p-2 hover:bg-red-100 rounded-lg transition-colors group"
@@ -4888,7 +4888,7 @@ export default function FranchiseLeadsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {role === "superFranchiseAdmin" ||
-                          role === "superAdmin" ? (
+                          (role === "superAdmin" || role === "seniorManager") ? (
                             <div
                               className={`relative inline-block rounded-lg border ${getAvatarColor(lead.assignedFranchiseAdmin?.fullName || "Unassigned")}`}
                             >

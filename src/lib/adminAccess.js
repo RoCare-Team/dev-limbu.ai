@@ -104,6 +104,11 @@ const sectionKeys = (key) =>
  */
 export const ROLE_DEFAULT_ACCESS = {
   superAdmin: ALL_ACCESS_KEYS,
+  // Second to superAdmin: everything except Leads and Franchise, which are
+  // ticked per user when this manager should handle them.
+  seniorManager: ALL_ACCESS_KEYS.filter(
+    (k) => !sectionKeys("leads").includes(k) && !sectionKeys("franchise").includes(k)
+  ),
   admin: ALL_ACCESS_KEYS.filter((k) => !sectionKeys("ai-studio").includes(k)),
   // A franchise admin's job is the franchise pipeline — nothing else.
   franchiseAdmin: ["dashboard", ...sectionKeys("franchise")],
@@ -114,6 +119,16 @@ export const ROLE_DEFAULT_ACCESS = {
   superFranchiseAdmin: ["dashboard", ...sectionKeys("franchise")],
   manager: ["dashboard", ...sectionKeys("leads"), "account-manager"],
 };
+
+/**
+ * Can `actorRole` edit, delete, or see the password of an admin whose role is
+ * `targetRole` (and give someone that role)? Only a superAdmin touches
+ * superAdmin accounts, so a seniorManager can never take over or create one.
+ */
+export function canManageRole(actorRole, targetRole) {
+  if (targetRole !== "superAdmin") return true;
+  return actorRole === "superAdmin" || actorRole === "admin";
+}
 
 /** Keeps only keys this build knows about, so a stale/edited list can't widen access. */
 export function sanitizeAccess(list) {

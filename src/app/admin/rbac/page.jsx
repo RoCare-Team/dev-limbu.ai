@@ -1,11 +1,25 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter, Eye, EyeOff, KeyRound, Copy, Check, X, ShieldAlert } from "lucide-react";
+import { Power, Trash2, UserCheck, UserX, Users, UserCog, Layers, UserPlus, List, Filter, Eye, EyeOff, KeyRound, Copy, Check, X, ShieldAlert, Pencil } from "lucide-react";
 import Lottie from "lottie-react";
 import animationData from "@/assets/animation/Loading.json";
 import AccessPicker from "@/components/admin/AccessPicker";
-import { ROLE_DEFAULT_ACCESS } from "@/lib/adminAccess";
+import { ROLE_DEFAULT_ACCESS, canManageRole } from "@/lib/adminAccess";
+
+/** Roles in rank order — Create and Edit both pick from this list. */
+const ROLE_OPTIONS = [
+  { value: "superAdmin", label: "Super Admin" },
+  { value: "seniorManager", label: "Senior Manager" },
+  { value: "superFranchiseAdmin", label: "Super Franchise Admin" },
+  { value: "franchiseAdmin", label: "Franchise Admin" },
+  { value: "admin", label: "Admin" },
+  { value: "subadmin", label: "Sub Admin" },
+  { value: "manager", label: "Account Manager" },
+  { value: "agent", label: "Agent" },
+  { value: "support", label: "Support" },
+];
+const roleLabel = (role) => ROLE_OPTIONS.find((r) => r.value === role)?.label || role;
 
 /* ----------------------------
    PERMISSION LABELS
@@ -70,6 +84,89 @@ export default function UsersPage() {
   /** Role change resets the ticks to that role's default, then it stays editable. */
   const handleRoleChange = (role) =>
     setForm((f) => ({ ...f, role, access: ROLE_DEFAULT_ACCESS[role] || [] }));
+
+  /** Logged-in admin's role — decides who they may edit and which roles they may give. */
+  const [myRole, setMyRole] = useState("");
+  useEffect(() => {
+    setMyRole(localStorage.getItem("role") || "");
+  }, []);
+  const canEditUsers = myRole === "superAdmin" || myRole === "seniorManager";
+  const assignableRoles = ROLE_OPTIONS.filter((r) => canManageRole(myRole, r.value));
+
+  /* ----------------------------
+     EDIT USER
+  ---------------------------- */
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  const openEdit = (u) => {
+    setEditTarget(u);
+    setEditError("");
+    setEditForm({
+      fullName: u.fullName || "",
+      email: u.email || "",
+      mobile: u.mobile || "",
+      role: u.role,
+      password: "",
+      access: u.access?.length ? u.access : ROLE_DEFAULT_ACCESS[u.role] || [],
+    });
+  };
+
+  const closeEdit = () => {
+    if (editBusy) return;
+    setEditTarget(null);
+    setEditForm(null);
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.fullName.trim() || !editForm.email.trim()) {
+      setEditError("Name and email are required");
+      return;
+    }
+    if (editForm.password && editForm.password.trim().length < 6) {
+      setEditError("New password must be at least 6 characters");
+      return;
+    }
+    setEditBusy(true);
+    setEditError("");
+    const body = {
+      fullName: editForm.fullName.trim(),
+      email: editForm.email.trim(),
+      mobile: editForm.mobile.trim(),
+      role: editForm.role,
+      access: editForm.access,
+    };
+    if (editForm.password.trim()) body.password = editForm.password.trim();
+    try {
+      const res = await fetch(`/api/users/create?id=${editTarget._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setEditError(data.message || "Could not update user");
+        return;
+      }
+      setUsers((prev) => prev.map((u) => (u._id === editTarget._id ? { ...u, ...data.user } : u)));
+      // A changed password invalidates any copy shown in the table.
+      if (body.password) {
+        setRevealed((r) => ({ ...r, [editTarget._id]: undefined }));
+        setVisible((v) => ({ ...v, [editTarget._id]: false }));
+      }
+      setEditTarget(null);
+      setEditForm(null);
+    } catch {
+      setEditError("Network error, please try again");
+    } finally {
+      setEditBusy(false);
+    }
+  };
 
   /* ----------------------------
      FETCH USERS
@@ -582,7 +679,7 @@ const copyPassword = async (id) => {
                         </div>
                       </td>
 
-                      <td className="border px-4 py-2 capitalize">{u.role}</td>
+                      <td className="border px-4 py-2">{roleLabel(u.role)}</td>
                       <td className="border px-4 py-2">
                         {u.isActive ? (
                           <span className="text-green-600 font-medium">Active</span>
@@ -642,27 +739,41 @@ const copyPassword = async (id) => {
                       <td className="border px-4 py-2">
   <div className="flex items-center gap-3">
 
-    {/* Activate / Deactivate */}
-    <button
-      onClick={() => toggleStatus(u._id, u.isActive)}
-      className={`p-2 rounded-full transition ${
-        u.isActive
-          ? "bg-green-100 text-green-600 hover:bg-green-200"
-          : "bg-red-100 text-red-600 hover:bg-red-200"
-      }`}
-      title={u.isActive ? "Deactivate" : "Activate"}
-    >
-      <Power size={16} />
-    </button>
+    {/* Edit — superAdmin / seniorManager; only a superAdmin edits a superAdmin */}
+    {canEditUsers && canManageRole(myRole, u.role) && (
+      <button
+        onClick={() => openEdit(u)}
+        className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+        title="Edit User"
+      >
+        <Pencil size={16} />
+      </button>
+    )}
 
-    {/* Delete */}
-    <button
-      onClick={() => handleDelete(u._id)}
-      className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition"
-      title="Delete User"
-    >
-      <Trash2 size={16} />
-    </button>
+    {/* Activate / Deactivate + Delete — hidden on superAdmin rows for a seniorManager (the API refuses them) */}
+    {canManageRole(myRole, u.role) && (
+      <>
+        <button
+          onClick={() => toggleStatus(u._id, u.isActive)}
+          className={`p-2 rounded-full transition ${
+            u.isActive
+              ? "bg-green-100 text-green-600 hover:bg-green-200"
+              : "bg-red-100 text-red-600 hover:bg-red-200"
+          }`}
+          title={u.isActive ? "Deactivate" : "Activate"}
+        >
+          <Power size={16} />
+        </button>
+
+        <button
+          onClick={() => handleDelete(u._id)}
+          className="p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-600 transition"
+          title="Delete User"
+        >
+          <Trash2 size={16} />
+        </button>
+      </>
+    )}
 
   </div>
 </td>
@@ -729,14 +840,9 @@ const copyPassword = async (id) => {
                 onChange={(e) => handleRoleChange(e.target.value)}
                 className="w-full mt-1 px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
               >
-                <option value="superAdmin">Super Admin</option>
-                <option value="superFranchiseAdmin">Super Franchise Admin</option>
-                <option value="franchiseAdmin">Franchise Admin</option>
-                <option value="admin">Admin</option>
-                <option value="subadmin">Sub Admin</option>
-                <option value="manager">Account Manager</option>
-                <option value="agent">Agent</option>
-                <option value="support">Support</option>
+                {assignableRoles.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -769,6 +875,137 @@ const copyPassword = async (id) => {
             </button>
           </div>
 
+        </div>
+      )}
+
+      {/* EDIT USER MODAL */}
+      {editTarget && editForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 backdrop-blur-sm p-4"
+          onClick={closeEdit}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 px-6 pt-5 pb-4 border-b border-gray-100">
+              <div className="p-2.5 rounded-xl bg-blue-50">
+                <Pencil size={20} className="text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-gray-800">Edit user</h3>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {editTarget.fullName} · {editTarget.email}
+                </p>
+              </div>
+              <button
+                onClick={closeEdit}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-5">
+              {editError && (
+                <div className="mb-4 flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <ShieldAlert size={15} className="mt-0.5 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-600">Full Name</label>
+                  <input
+                    value={editForm.fullName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Email</label>
+                  <input
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Mobile</label>
+                  <input
+                    value={editForm.mobile}
+                    onChange={(e) => setEditForm((f) => ({ ...f, mobile: e.target.value }))}
+                    placeholder="Optional"
+                    className="w-full mt-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Role</label>
+                  <select
+                    value={editForm.role}
+                    onChange={(e) => {
+                      const role = e.target.value;
+                      setEditForm((f) => ({ ...f, role, access: ROLE_DEFAULT_ACCESS[role] || [] }));
+                    }}
+                    className="w-full mt-1 px-4 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    {assignableRoles.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                    {/* Legacy role not in the list (e.g. old data) — keep it selectable so saving doesn't silently change it */}
+                    {!assignableRoles.some((r) => r.value === editTarget.role) && (
+                      <option value={editTarget.role}>{roleLabel(editTarget.role)}</option>
+                    )}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-600">New Password</label>
+                  <input
+                    type="text"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
+                    placeholder="Leave empty to keep the current password"
+                    className="w-full mt-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <div className="mb-1 flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-700">Section access</h3>
+                  <span className="text-xs text-gray-500">{editForm.access.length} selected</span>
+                </div>
+                <p className="mb-4 text-xs text-gray-500">
+                  Changing the role resets these ticks to that role&apos;s default.
+                  {editForm.role === "seniorManager" &&
+                    " Senior Manager starts without Leads and Franchise; tick them to give those sections."}
+                </p>
+                <AccessPicker
+                  value={editForm.access}
+                  onChange={(access) => setEditForm((f) => ({ ...f, access }))}
+                  disabled={editBusy}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={closeEdit}
+                disabled={editBusy}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 rounded-lg hover:bg-gray-100 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={editBusy}
+                className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {editBusy ? "Saving..." : "Save changes"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

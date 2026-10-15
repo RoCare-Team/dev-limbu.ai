@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 // Ye roles kisi bhi agent ka lead status badal sakte hain.
-const ADMIN_ROLES = ["superAdmin", "admin", "subadmin", "manager"];
+const ADMIN_ROLES = ["superAdmin", "seniorManager", "admin", "subadmin", "manager"];
 
 function getAuthUser(req) {
   const auth = req.headers.get("authorization");

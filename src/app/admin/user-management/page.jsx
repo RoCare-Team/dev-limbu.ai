@@ -390,7 +390,7 @@ export default function UserManagement() {
             />
           )}
 
-          {(role === "superAdmin" ||
+          {((role === "superAdmin" || role === "seniorManager") ||
             role === "admin" ||
             role === "superfranchiseAdmin" ||
             role === "agent") && (
@@ -413,7 +413,7 @@ export default function UserManagement() {
           )}
 
           {/* ── Agent call activity: today vs yesterday (superAdmin only) ─── */}
-          {role === "superAdmin" && (
+          {(role === "superAdmin" || role === "seniorManager") && (
             <Box sx={{ mb: 1 }}>
               <AgentCallStatsPanel
                 rows={callStats?.callsByAgentDayWise || []}
@@ -477,7 +477,7 @@ export default function UserManagement() {
               backgroundColor: "#fff",
             }}
           >
-            {(role === "superAdmin" ||
+            {((role === "superAdmin" || role === "seniorManager") ||
               role === "admin" ||
               role === "agent" ||
               role === "superfranchiseAdmin") && (
@@ -697,7 +697,7 @@ export default function UserManagement() {
                 </button>
               </div>
             )}
-            {role === "superAdmin" && (
+            {(role === "superAdmin" || role === "seniorManager") && (
               <>
                 {bulkWaSelectedUserIds.length > 0 && (
                   <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-4 py-5 md:px-8 border-b border-white/10">
@@ -843,7 +843,7 @@ export default function UserManagement() {
                 <table className="min-w-full">
                   <thead className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur">
                     <tr>
-                      {role === "superAdmin" && (
+                      {(role === "superAdmin" || role === "seniorManager") && (
                         <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-700 uppercase tracking-wider border-b border-slate-200 w-14">
                           <input
                             type="checkbox"
@@ -920,7 +920,7 @@ export default function UserManagement() {
                     (chatbotMetricLoading && chatbotMetricTableActive) ? (
                       <tr>
                         <td
-                          colSpan={role === "superAdmin" ? 15 : 14}
+                          colSpan={(role === "superAdmin" || role === "seniorManager") ? 15 : 14}
                           className="text-center py-14"
                         >
                           <div className="flex flex-col items-center justify-center gap-2 text-indigo-600">
@@ -944,7 +944,7 @@ export default function UserManagement() {
                               {/* 🔥 DATE HEADING */}
                               <tr>
                                 <td
-                                  colSpan={role === "superAdmin" ? 15 : 14}
+                                  colSpan={(role === "superAdmin" || role === "seniorManager") ? 15 : 14}
                                   className="bg-gray-100 font-bold px-6 py-3 text-gray-700"
                                 >
                                   {date} (Total: {users.length})
@@ -1016,7 +1016,7 @@ export default function UserManagement() {
                           filteredUsers.length === 0 && (
                             <tr>
                               <td
-                                colSpan={role === "superAdmin" ? 15 : 14}
+                                colSpan={(role === "superAdmin" || role === "seniorManager") ? 15 : 14}
                                 className="text-center py-12"
                               >
                                 No users found

@@ -13,6 +13,7 @@ import { ROLE_DEFAULT_ACCESS } from "@/lib/adminAccess";
  */
 const ROLES = [
   "superAdmin",
+  "seniorManager",
   "admin",
   "franchiseAdmin",
   "subadmin",

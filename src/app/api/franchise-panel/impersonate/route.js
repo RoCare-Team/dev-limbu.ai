@@ -7,7 +7,7 @@ import FranchisePanel from "@/models/franchisePanel";
 const JWT_SECRET = process.env.JWT_SECRET || "mannubhai_secret";
 
 /** Only these admin roles may enter a franchise panel. */
-const ALLOWED_ROLES = ["superAdmin", "admin"];
+const ALLOWED_ROLES = ["superAdmin", "seniorManager", "admin"];
 
 /**
  * Admin -> franchise impersonation.

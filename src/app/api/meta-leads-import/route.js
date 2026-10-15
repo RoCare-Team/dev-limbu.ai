@@ -631,7 +631,7 @@ export async function GET(req) {
       }
 
       const admin = await Admin.findOne({ email: adminEmail }).select("role");
-      if (!admin || !["superAdmin", "admin"].includes(admin.role)) {
+      if (!admin || !["superAdmin", "seniorManager", "admin"].includes(admin.role)) {
         return NextResponse.json(
           { success: false, error: "Forbidden" },
           { status: 403 },

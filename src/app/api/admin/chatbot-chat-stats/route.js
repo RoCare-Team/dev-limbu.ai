@@ -21,7 +21,7 @@ export async function GET(req) {
     const admin = await Admin.findOne({ email: adminEmail }).select("role");
     if (
       !admin ||
-      !["superAdmin", "admin", "superfranchiseAdmin", "agent"].includes(
+      !["superAdmin", "seniorManager", "admin", "superfranchiseAdmin", "agent"].includes(
         admin.role,
       )
     ) {

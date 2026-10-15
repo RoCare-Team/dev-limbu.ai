@@ -141,7 +141,7 @@ export async function GET(req) {
     let franchiseLeadCount = 0;
     let paidLeads = [];
 
-    if (role === "superAdmin" || role === "superFranchiseAdmin") {
+    if ((role === "superAdmin" || role === "seniorManager") || role === "superFranchiseAdmin") {
       revenueData = await FranchiseRevenue.find({
         status: { $in: ["active", "user_onboard"] },
         ...dateMatchQuery,

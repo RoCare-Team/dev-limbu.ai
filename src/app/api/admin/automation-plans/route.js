@@ -16,8 +16,8 @@ function requireSuperAdmin(req) {
   }
   try {
     const decoded = jwt.verify(auth.split(" ")[1], JWT_SECRET);
-    if (decoded?.role !== "superAdmin") {
-      return NextResponse.json({ success: false, error: "superAdmin only" }, { status: 403 });
+    if ((decoded?.role !== "superAdmin" && decoded?.role !== "seniorManager")) {
+      return NextResponse.json({ success: false, error: "superAdmin / Senior Manager only" }, { status: 403 });
     }
     return null;
   } catch {

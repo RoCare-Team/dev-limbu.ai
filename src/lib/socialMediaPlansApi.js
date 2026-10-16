@@ -77,7 +77,13 @@ export function buildSocialMediaPlansPayload(doc, options = {}) {
       const reels = (Number(plan.baseReels) || 0) * c.months
 
       // Apple takes a commission, so the in-app price sits above the web one.
-      const iosPrice = Math.round(totalAmount * (1 + IOS_PRICE_UPLIFT))
+      // A plan can pin the exact App Store tier per cycle via `iosPrices`;
+      // `null` there means Apple has no tier for it, so iOS skips that cycle.
+      const iosOverride = plan.iosPrices?.[c.cycle]
+      const iosAvailable = iosOverride !== null
+      const iosPrice = iosAvailable
+        ? (iosOverride ?? Math.round(totalAmount * (1 + IOS_PRICE_UPLIFT)))
+        : null
 
       const link = buildCheckoutUrl(plan.planKey, c.cycle)
       const paymentLink = applyChatbotDiscount
@@ -90,7 +96,7 @@ export function buildSocialMediaPlansPayload(doc, options = {}) {
         basePrice,
         gst,
         totalAmount,
-        ios_price: iosPrice,
+        ...(iosAvailable ? { ios_price: iosPrice } : { ios_available: false }),
         duration: c.duration,
         listPrice,
         save: listPrice - basePrice,
@@ -112,6 +118,10 @@ export function buildSocialMediaPlansPayload(doc, options = {}) {
       // applyChatbotDiscountToPlan would otherwise overwrite with the
       // discounted total.
       const discounted = applyChatbotDiscountToPlan(out)
+      if (!iosAvailable) {
+        const { ios_price: _dropped, ...rest } = discounted
+        return { ...rest, ios_available: false }
+      }
       return { ...discounted, ios_price: iosPrice }
     }),
   }))

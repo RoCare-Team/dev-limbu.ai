@@ -310,6 +310,12 @@ export const PRICING_LANDING_DEFAULTS = {
       baseReels: 4,
       billingUnit: "month",
       cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      /**
+       * App Store tier prices — Apple ke apne price points, computed uplift se
+       * alag. `null` matlab us cycle ke liye koi tier available nahi hai, to
+       * wo plan iOS par offer nahi hota.
+       */
+      iosPrices: { monthly: 4049, quarterly: 10900, yearly: 39000 },
       staticFeatures: [
         "Reel Scripting & Editing",
         "Captions & Hashtags",
@@ -329,6 +335,12 @@ export const PRICING_LANDING_DEFAULTS = {
       baseReels: 9,
       billingUnit: "month",
       cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      /**
+       * App Store tier prices — Apple ke apne price points, computed uplift se
+       * alag. `null` matlab us cycle ke liye koi tier available nahi hai, to
+       * wo plan iOS par offer nahi hota.
+       */
+      iosPrices: { monthly: 8100, quarterly: 21900, yearly: 77900 },
       staticFeatures: [
         "Reel Scripting & Editing",
         "Captions & Hashtags",
@@ -349,6 +361,12 @@ export const PRICING_LANDING_DEFAULTS = {
       baseReels: 20,
       billingUnit: "month",
       cycleDiscounts: { monthly: 0, quarterly: 0.1, yearly: 0.2 },
+      /**
+       * App Store tier prices — Apple ke apne price points, computed uplift se
+       * alag. `null` matlab us cycle ke liye koi tier available nahi hai, to
+       * wo plan iOS par offer nahi hota.
+       */
+      iosPrices: { monthly: 16000, quarterly: 43900, yearly: null },
       staticFeatures: [
         "Reel Scripting & Editing",
         "Captions & Hashtags",

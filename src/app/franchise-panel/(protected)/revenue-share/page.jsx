@@ -13,6 +13,8 @@ import {
   FileText,
   IndianRupee,
   Layers,
+  Search,
+  SlidersHorizontal,
   PieChart,
   Radio,
   Pencil,
@@ -49,6 +51,9 @@ const toDateInput = (date) => {
 };
 
 const EMPTY_DRILL = { type: "", plan: "", source: "", month: "" };
+
+/** Table ke apne filters — drill-down se alag, dono saath chalte hain. */
+const EMPTY_FILTERS = { q: "", type: "", plan: "", source: "", from: "", to: "" };
 
 const PAYMENT_MODE_LABELS = {
   "bank-transfer": "Bank Transfer",
@@ -117,6 +122,7 @@ export default function RevenueShare() {
   const [error, setError] = useState("");
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [drill, setDrill] = useState(EMPTY_DRILL);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [payouts, setPayouts] = useState([]);
   const [payoutSummary, setPayoutSummary] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -495,22 +501,57 @@ export default function RevenueShare() {
     [rows],
   );
 
-  const visibleRows = useMemo(
-    () =>
-      rows.filter((row) => {
-        if (drill.type && typeKeyOf(row) !== drill.type) return false;
-        if (drill.plan && (row.plan?.trim() || "Unspecified") !== drill.plan)
-          return false;
-        if (
-          drill.source &&
-          (row.bookingSource?.trim() || "manual-upload") !== drill.source
-        )
-          return false;
-        if (drill.month && monthKeyOf(row) !== drill.month) return false;
-        return true;
-      }),
-    [rows, drill],
-  );
+  const visibleRows = useMemo(() => {
+    const q = filters.q.trim().toLowerCase();
+    const from = filters.from ? new Date(`${filters.from}T00:00:00`) : null;
+    const to = filters.to ? new Date(`${filters.to}T23:59:59.999`) : null;
+
+    return rows.filter((row) => {
+      if (drill.type && typeKeyOf(row) !== drill.type) return false;
+      if (drill.plan && (row.plan?.trim() || "Unspecified") !== drill.plan)
+        return false;
+      if (
+        drill.source &&
+        (row.bookingSource?.trim() || "manual-upload") !== drill.source
+      )
+        return false;
+      if (drill.month && monthKeyOf(row) !== drill.month) return false;
+
+      if (filters.type && typeKeyOf(row) !== filters.type) return false;
+      if (filters.plan && (row.plan?.trim() || "Unspecified") !== filters.plan)
+        return false;
+      if (
+        filters.source &&
+        (row.bookingSource?.trim() || "manual-upload") !== filters.source
+      )
+        return false;
+
+      if (from || to) {
+        const at = new Date(row.createdAt);
+        if (from && at < from) return false;
+        if (to && at > to) return false;
+      }
+
+      if (q) {
+        const haystack = [
+          row.leadName,
+          row.email,
+          row.phone,
+          row.plan,
+          row.utrNumber,
+          remarkOf(row),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+
+      return true;
+    });
+  }, [rows, drill, filters]);
+
+  const filtersActive = Object.values(filters).some((v) => v);
 
   const visibleTotal = useMemo(
     () => visibleRows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
@@ -771,6 +812,146 @@ export default function RevenueShare() {
         </div>
       )}
 
+      {/* ---------------- FILTER BAR ---------------- */}
+      <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+              <SlidersHorizontal size={15} />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-gray-950">Filters</p>
+              <p className="text-xs text-gray-500">
+                Showing {visibleRows.length} of {rows.length} payments ·{" "}
+                <span className="font-semibold text-gray-700">
+                  {formatAmount(visibleTotal)}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {filtersActive && (
+            <button
+              type="button"
+              onClick={() => setFilters(EMPTY_FILTERS)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              <X size={13} />
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="lg:col-span-2">
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Search
+            </label>
+            <div className="relative">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={filters.q}
+                onChange={(e) =>
+                  setFilters((f) => ({ ...f, q: e.target.value }))
+                }
+                placeholder="Customer, email, plan, UTR, remark…"
+                className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none transition focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Type
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, type: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+            >
+              <option value="">All types</option>
+              {breakdown.byType.map((b) => (
+                <option key={b.key} value={b.key}>
+                  {b.label} ({b.count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Plan
+            </label>
+            <select
+              value={filters.plan}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, plan: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+            >
+              <option value="">All plans</option>
+              {breakdown.byPlan.map((b) => (
+                <option key={b.key} value={b.key}>
+                  {b.label} ({b.count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Source
+            </label>
+            <select
+              value={filters.source}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, source: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+            >
+              <option value="">All sources</option>
+              {breakdown.bySource.map((b) => (
+                <option key={b.key} value={b.key}>
+                  {b.label} ({b.count})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              From
+            </label>
+            <input
+              type="date"
+              value={filters.from}
+              onChange={(e) =>
+                setFilters((f) => ({ ...f, from: e.target.value }))
+              }
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              To
+            </label>
+            <input
+              type="date"
+              value={filters.to}
+              onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-indigo-500"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-md">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -904,7 +1085,7 @@ export default function RevenueShare() {
                 <tr>
                   <td colSpan="9" className="py-16 text-center text-gray-500">
                     {rows.length
-                      ? "No revenue matches the selected breakdown."
+                      ? "No payments match the current filters."
                       : "No revenue found for this franchise."}
                   </td>
                 </tr>

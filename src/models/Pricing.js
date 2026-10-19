@@ -15,10 +15,6 @@ const PricingSchema = new mongoose.Schema(
         imageGmbPrice: { type: Number, default: 20 },
         imageFbPrice: { type: Number, default: 0 },
         imageInstaPrice: { type: Number, default: 0 },
-
-        // Coins charged each time a plan-less user opens a GBP tool in the app
-        // (1 coin = ₹1). Plan holders are never charged — see lib/featureAccess.
-        featureAccessPrice: { type: Number, default: 5 },
     },
     { timestamps: true }
 );

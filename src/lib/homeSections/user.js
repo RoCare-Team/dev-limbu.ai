@@ -15,8 +15,7 @@ export function normalizePhone(phone) {
  * mobile number. Returns a plain object or null (guest / unknown user).
  */
 export async function findUser({ userId, phone }) {
-  const fields =
-    "userId phone subscription freeUsedCount freeUsage wallet paidPackage packageExpiryDate";
+  const fields = "userId phone subscription freeUsedCount freeUsage";
 
   if (userId) {
     const byId = await User.findOne({ userId: String(userId).trim() })
@@ -38,55 +37,17 @@ export async function findUser({ userId, phone }) {
 }
 
 /**
- * One spelling for a plan name, so a tile listing "Basic Plan" also matches a
- * user whose subscription just says "Basic" — 167 live users are in exactly
- * that state and were being shown locked tiles they had paid for.
- */
-export function normalizePlanName(name) {
-  return String(name || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/\s*plans?$/, "");
-}
-
-/** Plan names that are not a subscription at all. */
-const NON_PLAN_NAMES = new Set(["", "free", "walletrecharge", "wallet recharge"]);
-
-/**
- * Names of the plans the user currently has, normalised.
- *
- * Two sources, because a plan can be sold either way:
- *  - `paidPackage` + `packageExpiryDate`, written by the website/admin panel.
- *  - `subscription`, written by in-app purchases. A past expiry does not count;
- *    a missing one does, since older records never stored it. "WalletRecharge"
- *    is a top-up, not a plan.
+ * Names of the plans the user currently has, lower-cased.
+ * "Free" is not a paid plan, so it is never returned.
  */
 export function getActivePlans(user) {
   if (!user) return [];
-
-  const now = Date.now();
-  const names = new Set();
-
-  const pkg = normalizePlanName(user.paidPackage);
-  const pkgExpiry = user.packageExpiryDate
-    ? new Date(user.packageExpiryDate).getTime()
-    : 0;
-  if (pkg && !NON_PLAN_NAMES.has(pkg) && pkgExpiry > now) names.add(pkg);
-
   const sub = user.subscription || {};
-  const subPlan = normalizePlanName(sub.plan);
-  const subExpiry = sub.expiry ? new Date(sub.expiry).getTime() : null;
-  if (
-    sub.status === "active" &&
-    subPlan &&
-    !NON_PLAN_NAMES.has(subPlan) &&
-    (subExpiry === null || subExpiry > now)
-  ) {
-    names.add(subPlan);
+  const plan = String(sub.plan || "").trim();
+  if (plan && plan.toLowerCase() !== "free" && sub.status === "active") {
+    return [plan.toLowerCase()];
   }
-
-  return [...names];
+  return [];
 }
 
 /**

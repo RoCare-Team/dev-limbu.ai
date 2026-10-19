@@ -66,12 +66,6 @@ export const FEATURE_ACTIONS = [
   "image_to_video",
   "ai_avatar_video",
   "cgi_video",
-  // Social media tools (pay-per-open, like the GBP ones)
-  "create_reels",
-  "social_insights",
-  "dm",
-  "comment",
-  "like",
 ];
 
 // action.value when action.type === "plans" (tabs of the Service Plans screen)
@@ -91,11 +85,9 @@ export const ACCESS_STATUS = {
   ACTIVE: "active", // user's current plan includes this service
   FREE: "free", // free for this user (free for all, or free uses left)
   LOCKED: "locked", // needs a plan, or free uses are finished
-  PAY_PER_USE: "pay_per_use", // no plan, but can be opened by paying coins
-  COIN_BASED: "coin_based", // opens freely; coins are metered on the work done
   OPEN: "open", // no plan rules on this tile (just opens)
 };
 
 // Badges the API itself puts on tiles, on top of BADGES.
-export const COMPUTED_BADGES = ["ACTIVE", "UPGRADE", "PAY"];
+export const COMPUTED_BADGES = ["ACTIVE", "UPGRADE"];
 

@@ -23,8 +23,6 @@ const REASON_LABELS = {
   refund_video_failed: "Refund — video failed",
   refund_failed_generation: "Refund — generation failed",
 
-  feature_access: "Feature access (GBP tool)",
-
   wallet_add: "Wallet recharge",
   wallet_recharge: "Wallet recharge",
   "wallet reacharge": "Wallet recharge",

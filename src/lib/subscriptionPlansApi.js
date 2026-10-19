@@ -45,6 +45,11 @@ const DEFAULT_GST_RATE = 18
  *    ios_price values never reached the app.
  */
 function computeIosPrice(plan, gstRate = DEFAULT_GST_RATE) {
+  // A plan can pin its exact App Store tier, because Apple only sells at its
+  // own price points — the uplift below just lands near one, not on it.
+  const override = Number(plan?.iosPriceOverride)
+  if (Number.isFinite(override) && override > 0) return override
+
   const base = Number(plan?.basePrice)
   if (!Number.isFinite(base) || base <= 0) return null
 

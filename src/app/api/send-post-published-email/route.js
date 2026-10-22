@@ -149,6 +149,7 @@ AI-Powered Business Growth Platform
       subject: emailSubject,
       htmlContent: emailContent,
     };
+    
 
     const response = await fetch(BREVO_URL, {
       method: "POST",

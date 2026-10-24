@@ -119,7 +119,6 @@ export default function AdminAiVideosPage() {
   return (
     <div>
       <Toaster position="top-right" />
-
       {/* Header */}
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">

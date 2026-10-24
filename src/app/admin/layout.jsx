@@ -287,6 +287,11 @@ export default function AdminLayout({ children }) {
               icon: <Map size={16} />,
             },
             {
+              name: "Our Store (City)",
+              href: "/admin/local-stores",
+              icon: <Map size={16} />,
+            },
+            {
               name: "Website Builder",
               href: "/admin/website-builder",
               icon: <Globe size={16} />,

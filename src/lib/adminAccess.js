@@ -55,6 +55,7 @@ export const ADMIN_SECTIONS = [
     items: [
       { key: "blog", label: "Blog Management", href: "/admin/blog" },
       { key: "city-services", label: "City Services", href: "/admin/citys" },
+      { key: "local-stores", label: "Our Store (City)", href: "/admin/local-stores" },
       { key: "website-builder", label: "Website Builder", href: "/admin/website-builder" },
     ],
   },

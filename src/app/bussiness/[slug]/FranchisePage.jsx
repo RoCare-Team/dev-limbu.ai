@@ -21,6 +21,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { mostCities } from "@/utils/popularCity";
 import FranchiseApplyTrigger from "./FranchiseApplyTrigger";
+import OurStoreSection from "@/components/sections/OurStoreSection";
 
 // ✅ Helper: extract and format city name from URL param
 // e.g. "franchise-opportunities-new-delhi" → "New Delhi"
@@ -1149,6 +1150,9 @@ export default function FranchisePage({ slug = "", cityName: cityNameProp }) {
           </div>
         </div>
       </section>
+
+      {/* =================== OUR STORE (city franchise partner) =================== */}
+      <OurStoreSection cityName={cityName} />
 
       {/* =================== FINAL CTA =================== */}
       <section className="relative py-16 sm:py-20 px-6 overflow-hidden bg-gradient-to-b from-white to-slate-50">

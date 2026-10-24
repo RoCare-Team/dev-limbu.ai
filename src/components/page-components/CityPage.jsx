@@ -1,4 +1,5 @@
 import React from "react";
+import OurStoreSection from "@/components/sections/OurStoreSection";
 import {
   MapPin,
   TrendingUp,
@@ -1326,6 +1327,9 @@ export default function DynamicServiceCityPage({
 
         {/* ── GUARANTEE ── */}
         <GuaranteeSection cityName={cityName} />
+
+        {/* ── OUR STORE (city franchise partner) ── */}
+        <OurStoreSection city={rawCity} cityName={cityName} />
 
         {/* ── FAQ ── */}
         <section id="faq" className="py-14 bg-white">

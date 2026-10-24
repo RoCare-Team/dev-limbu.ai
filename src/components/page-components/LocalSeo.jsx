@@ -1,3 +1,4 @@
+import OurStoreSection from "@/components/sections/OurStoreSection";
 import {
   CheckCircle,
   BarChart3,
@@ -677,6 +678,9 @@ export default function LocalSEOPage({ city, slug }) {
             </div>
           </div>
         </section>
+
+        {/* ── OUR STORE (city franchise partner) ── */}
+        <OurStoreSection city={city} cityName={cityName} />
 
         <section className="py-20 bg-white text-slate-900">
           <div className="container mx-auto px-6">

@@ -210,10 +210,39 @@ export async function generateImageAndText({
   const cfg = applyIncludeInGeneration(
     resolveImagesForIndex(imageConfig, postIndex, publishDateKey),
   );
-  const cleanB64 = (s) =>
-    typeof s === "string" && s.startsWith("data:image")
-      ? s.split(",")[1]
-      : s || "";
+  /**
+   * generate-ad sirf RAW BASE64 leta hai.
+   *
+   * Pool me daali hui images S3 **URL** ki tarah save hoti hain (admin upload
+   * karta hai to wahi URL milta hai), aur URL seedha bhej dene par upstream
+   * HTTP 500 deta tha → imageUrl null → poora din ka post "aiAssetsGenerate
+   * down?" keh kar fail. Isliye URL ko yahin download karke base64 banao.
+   *
+   * Image na mil paaye to khaali string — background ke bina post ban jaana
+   * poore post ke fail hone se behtar hai.
+   */
+  const cleanB64 = async (s) => {
+    if (typeof s !== "string" || !s) return "";
+    if (s.startsWith("data:image")) return s.split(",")[1];
+    if (!/^https?:\/\//i.test(s)) return s;
+
+    try {
+      const res = await fetch(s);
+      if (!res.ok) {
+        console.warn(
+          `[automation-content] pool image fetch failed (HTTP ${res.status}): ${s.slice(0, 120)}`,
+        );
+        return "";
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      return buf.toString("base64");
+    } catch (err) {
+      console.warn(
+        `[automation-content] pool image fetch error: ${err.message} — ${s.slice(0, 120)}`,
+      );
+      return "";
+    }
+  };
 
   const textFallback = `${keyword} | ${businessName}${cityName ? " — " + cityName : ""}`;
 
@@ -223,17 +252,28 @@ export async function generateImageAndText({
   // fields are simply ignored, but the ones we publish are always platform-native.
   const requested = ["gmb", "fb", "ig", "pinterest"];
 
+  // Saare slots ek saath resolve karo — pool URLs download hone par bhi ye
+  // parallel chalte hain, isliye extra wall-clock nahi lagta.
+  const [characterImage, uniformImage, productImage, backgroundImage, logoImage] =
+    await Promise.all([
+      cleanB64(cfg.characterImage),
+      cleanB64(cfg.uniformImage),
+      cleanB64(cfg.productImage),
+      cleanB64(cfg.backgroundImage),
+      cleanB64(cfg.logoImage),
+    ]);
+
   const payload = {
     topic: imagePrompt || keyword || "",
     bussiness_name: businessName || "",
     keywords: keyword || "",
     colourPalette: cfg.colourPalette || "",
     size: cfg.size || "4:3",
-    characterImage: cleanB64(cfg.characterImage),
-    uniformImage: cleanB64(cfg.uniformImage),
-    productImage: cleanB64(cfg.productImage),
-    backgroundImage: cleanB64(cfg.backgroundImage),
-    logoImage: cleanB64(cfg.logoImage),
+    characterImage,
+    uniformImage,
+    productImage,
+    backgroundImage,
+    logoImage,
     platform: requested.join(","),
     mode: "ai",
   };

@@ -16,6 +16,7 @@ import {
   MessageCircle,
   MessageSquare,
   MoveRight,
+  MapPin,
   Phone,
   QrCode,
   RefreshCw,
@@ -490,6 +491,12 @@ export default function UserTableRow({
             <div className="flex items-center gap-2 text-gray-600">
               <Phone size={12} /> {user.phone || user.mobileNumber || "N/A"}
             </div>
+            {/* Meta lead forms me jo city/location bhara hota hai */}
+            {user.city && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <MapPin size={12} /> {user.city}
+              </div>
+            )}
           </div>
         </td>
 

@@ -136,6 +136,14 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
+    /**
+     * Lead ka sheher. Meta lead forms "city" / "location" / "area" / "district"
+     * me se jo bhara ho wahi aata hai (meta-leads-import isse nikalta hai).
+     * Schema me ye field na hone ki wajah se Mongoose ise chup-chaap gira deta
+     * tha, isliye leads table me location kabhi dikhta hi nahi tha.
+     */
+    city: { type: String, default: "", trim: true },
+
     source: {
       type: String,
       enum: [

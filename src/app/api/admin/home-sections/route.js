@@ -5,10 +5,8 @@ import { ok, fail, requireAdmin, readJson, seedIfEmpty } from "@/lib/homeSection
 
 export const dynamic = "force-dynamic";
 
-/** ADMIN — GET /api/admin/home-sections (includes inactive sections/items) */
-export async function GET(req) {
-  const denied = requireAdmin(req);
-  if (denied) return denied;
+/** PUBLIC (read-only) — GET /api/admin/home-sections (includes inactive sections/items) */
+export async function GET() {
   try {
     await dbConnect();
     await seedIfEmpty();

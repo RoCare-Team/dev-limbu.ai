@@ -47,7 +47,7 @@ export async function POST(req) {
   // ye API ka post handler he
   try {
     await dbConnect(); // har reauest pe DB connect ensure karta hai
-    const { phone, otp, name, email, referCode, agentCode, fcmtoken } =
+    const { phone, otp, name, email, city, referCode, agentCode, fcmtoken } =
       await req.json();
     if (!phone) {
       // agr otp nahi aya matlab user OTP request kar raha he
@@ -244,6 +244,7 @@ export async function POST(req) {
         fullName: name,
         email,
         phone,
+        city: typeof city === "string" ? city.trim() : "", // signup form ka city field (purane app versions nahi bhejte)
         fcmToken: otpRecord.fcmtoken || fcmtoken || null,
         referCode: cleanAgentCode || cleanReferCode || referCode,
         franchiseId,

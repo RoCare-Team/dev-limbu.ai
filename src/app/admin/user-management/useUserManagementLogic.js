@@ -102,6 +102,7 @@ export default function useUserManagementLogic() {
     userId: "",
     email: "",
     phone: "",
+    city: "",
     plan: "Basic",
     // "" = leave unassigned (the Add User modal's default)
     assignedAgentId: "",
@@ -2755,6 +2756,7 @@ export default function useUserManagementLogic() {
           fullName: "",
           email: "",
           phone: "",
+          city: "",
           plan: "Free",
           assignedAgentId: "",
         });

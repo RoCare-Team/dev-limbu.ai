@@ -71,6 +71,25 @@ export default function AddUserModal({
             />
           </div>
 
+          {/* City */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              City
+            </label>
+            <input
+              type="text"
+              placeholder="Enter city"
+              value={newUser.city || ""}
+              onChange={(e) =>
+                setNewUser({ ...newUser, city: e.target.value })
+              }
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700
+                  bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100
+                  rounded-xl focus:ring-2 focus:ring-indigo-500
+                  focus:border-transparent outline-none"
+            />
+          </div>
+
           {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">

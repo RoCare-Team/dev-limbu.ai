@@ -52,7 +52,7 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const { fullName, email, phone, referCode, plan, assignedAgentId } =
+    const { fullName, email, phone, city, referCode, plan, assignedAgentId } =
       await req.json();
 
     if (!fullName || !email) {
@@ -84,6 +84,7 @@ export async function POST(req) {
       referCode,
       email,
       phone,
+      city: typeof city === "string" ? city.trim() : "",
       assignedAgentId: agentId,
 
       // Default wallet & usage

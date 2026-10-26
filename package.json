@@ -11,6 +11,7 @@
     "backfill:subscription-payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs",
     "backfill:payment-links": "node scripts/backfill-subscription-plan-payment-links.mjs",
     "sync:gmb-categories": "node scripts/sync-gmb-categories.mjs",
+    "sync:home-sections": "node scripts/sync-home-sections.mjs",
     "export:gmb-categories": "node scripts/export-gmb-categories-xlsx.mjs"
   },
   "dependencies": {

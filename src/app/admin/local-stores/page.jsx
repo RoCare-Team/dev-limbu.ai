@@ -297,7 +297,7 @@ export default function LocalStoresPage() {
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="AurenAI"
+                  placeholder="Limbu AI"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
                 />
               </Field>
@@ -320,7 +320,7 @@ export default function LocalStoresPage() {
                     onChange={(e) =>
                       setForm({ ...form, whatsapp: e.target.value })
                     }
-                    placeholder="+91 95111 68671"
+                    placeholder="+91 92893 44726"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-indigo-500"
                   />
                 </Field>

@@ -10,6 +10,7 @@ export default function Signup() {
   const [form, setForm] = useState({
     fullName: "",
     email: "",
+    city: "",
     password: "",
     confirmPassword: ""
   });
@@ -34,6 +35,7 @@ export default function Signup() {
         body: JSON.stringify({
           fullName: form.fullName,
           email: form.email,
+          city: form.city,
           password: form.password
         })
       });
@@ -44,7 +46,7 @@ export default function Signup() {
 
       toast.success("Account created successfully!");
       router.push("/login"); // redirect to login
-      setForm({ fullName: "", email: "", password: "", confirmPassword: "" });
+      setForm({ fullName: "", email: "", city: "", password: "", confirmPassword: "" });
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -88,6 +90,19 @@ export default function Signup() {
               onChange={handleChange}
               className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
               placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">City</label>
+            <input
+              type="text"
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+              placeholder="Your city"
               required
             />
           </div>

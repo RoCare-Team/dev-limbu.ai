@@ -16,9 +16,9 @@ export const DEFAULT_LOCAL_STORES = [
   {
     citySlug: "kanpur",
     cityName: "Kanpur",
-    name: "AurenAI",
+    name: "Limbu AI",
     address: "G-20, Site-3, Panki, Kanpur, Uttar Pradesh, India",
-    whatsapp: "+91 95111 68671",
+    whatsapp: "+91 92893 44726",
     phone: "",
     mapUrl: "",
     isActive: true,

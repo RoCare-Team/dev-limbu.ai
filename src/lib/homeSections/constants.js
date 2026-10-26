@@ -47,6 +47,12 @@ export const MATERIAL_ICONS = [
   "schedule",
   "analytics",
   "smart_toy",
+  "photo_library",
+  "query_stats",
+  "monitor_heart",
+  "forum",
+  "send",
+  "delete_sweep",
 ];
 
 // action.type
@@ -66,6 +72,13 @@ export const FEATURE_ACTIONS = [
   "image_to_video",
   "ai_avatar_video",
   "cgi_video",
+  "assets",
+  "competitor_analysis",
+  "social_insights",
+  "comment_auto_reply",
+  "dm_auto_reply",
+  "delete_negative_comments",
+  "reels",
 ];
 
 // action.value when action.type === "plans" (tabs of the Service Plans screen)

@@ -14,6 +14,7 @@ import {
   User,
   Lock,
   Tag,
+  MapPin,
   CheckCircle,
   AlertCircle,
   ArrowLeft,
@@ -109,6 +110,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [city, setCity] = useState("");
   const [referCode, setReferCode] = useState("");
   const [agentCode, setAgentCode] = useState("");
   const [step, setStep] = useState("phone");
@@ -160,6 +162,7 @@ export default function LoginPage() {
     const e = {};
     if (!validateName(name)) e.name = "Name must be 2–30 characters";
     if (!validateEmail(email)) e.email = "Enter a valid email address";
+    if (city.trim().length < 2) e.city = "Enter your city";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -234,6 +237,7 @@ export default function LoginPage() {
         otp,
         name,
         email,
+        city,
         referCode,
         agentCode,
       );
@@ -527,8 +531,25 @@ export default function LoginPage() {
                         if (errors.email)
                           setErrors((p) => ({ ...p, email: "" }));
                       }}
-                      onKeyPress={(e) => hk(e, completeReg)}
                       error={errors.email}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black tracking-[0.15em] uppercase mb-2 text-slate-500 ml-1">
+                      City
+                    </label>
+                    <Field
+                      icon={MapPin}
+                      type="text"
+                      placeholder="Your city"
+                      value={city}
+                      maxLength={50}
+                      onChange={(e) => {
+                        setCity(e.target.value);
+                        if (errors.city) setErrors((p) => ({ ...p, city: "" }));
+                      }}
+                      onKeyPress={(e) => hk(e, completeReg)}
+                      error={errors.city}
                     />
                   </div>
                   <div>

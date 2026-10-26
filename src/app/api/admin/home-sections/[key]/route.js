@@ -3,10 +3,8 @@ import HomeSection from "@/models/HomeSection";
 import { validateSection } from "@/lib/homeSections/validation";
 import { ok, fail, requireAdmin, readJson } from "@/lib/homeSections/server";
 
-/** ADMIN — GET /api/admin/home-sections/:key */
+/** PUBLIC (read-only) — GET /api/admin/home-sections/:key */
 export async function GET(req, { params }) {
-  const denied = requireAdmin(req);
-  if (denied) return denied;
   try {
     const { key } = await params;
     await dbConnect();

@@ -29,7 +29,7 @@ export async function POST(req) {
   await dbConnect(); // Har request pe DB connect ensure karta hai.
 
   try {
-    const { fullName, email, password } = await req.json(); // Frontend se data receive kar raha hai.
+    const { fullName, email, password, city } = await req.json(); // Frontend se data receive kar raha hai.
 
     if (!fullName || !email || !password) {
       // Empty data allow nahi karte.
@@ -77,6 +77,7 @@ export async function POST(req) {
       fullName,
       email,
       passwordHash,
+      city: typeof city === "string" ? city.trim() : "",
       wallet: 0, // Initial balance zero.
       assignedAgentId,
       source: "signup",

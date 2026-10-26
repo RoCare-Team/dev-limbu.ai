@@ -17,7 +17,7 @@
       "items": [
         {
           "key": "gbp_insight",
-          "label": "GBP Insight",
+          "label": "GMB Insights",
           "icon": {
             "type": "material",
             "value": "bar_chart"
@@ -42,7 +42,7 @@
         },
         {
           "key": "health_score",
-          "label": "Health Score",
+          "label": "GMB Health",
           "icon": {
             "type": "material",
             "value": "star"
@@ -59,15 +59,15 @@
               "Professional Plan",
               "Premium Plan"
             ],
-            "freeForAll": false,
-            "freeLimit": 2,
+            "freeForAll": true,
+            "freeLimit": 0,
             "visibleTo": "all"
           },
           "isActive": true
         },
         {
           "key": "gbp_create_post",
-          "label": "Create Post",
+          "label": "Post Management",
           "icon": {
             "type": "material",
             "value": "edit_square"
@@ -84,7 +84,7 @@
               "Professional Plan",
               "Premium Plan"
             ],
-            "freeForAll": false,
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -92,7 +92,7 @@
         },
         {
           "key": "review_reply",
-          "label": "Review Reply",
+          "label": "Review Management",
           "icon": {
             "type": "material",
             "value": "chat_bubble_outline"
@@ -109,7 +109,7 @@
               "Professional Plan",
               "Premium Plan"
             ],
-            "freeForAll": false,
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -141,6 +141,81 @@
           "isActive": true
         },
         {
+          "key": "assets_management",
+          "label": "Assets Management",
+          "icon": {
+            "type": "material",
+            "value": "photo_library"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "assets"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "keyword_planner",
+          "label": "Keyword Planner",
+          "icon": {
+            "type": "material",
+            "value": "key"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "keyword_research"
+          },
+          "order": 7,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "competitor_analysis",
+          "label": "Competitor Analysis",
+          "icon": {
+            "type": "material",
+            "value": "query_stats"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "competitor_analysis"
+          },
+          "order": 8,
+          "access": {
+            "includedInPlans": [
+              "Basic Plan",
+              "Professional Plan",
+              "Premium Plan"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
           "key": "website_builder",
           "label": "Website Builder",
           "icon": {
@@ -152,7 +227,7 @@
             "type": "feature",
             "value": "web"
           },
-          "order": 6,
+          "order": 9,
           "access": {
             "includedInPlans": [
               "Basic Plan",
@@ -208,16 +283,16 @@
           "isActive": true
         },
         {
-          "key": "text_to_video",
-          "label": "Text to Video",
+          "key": "reels",
+          "label": "Reels",
           "icon": {
             "type": "material",
-            "value": "auto_awesome"
+            "value": "videocam"
           },
           "badge": "NEW",
           "action": {
             "type": "feature",
-            "value": "text_to_video"
+            "value": "reels"
           },
           "order": 2,
           "access": {
@@ -229,63 +304,100 @@
           "isActive": true
         },
         {
-          "key": "image_to_video",
-          "label": "Image to Video",
+          "key": "social_insights",
+          "label": "Insights",
           "icon": {
             "type": "material",
-            "value": "slideshow"
+            "value": "insights"
           },
-          "badge": "NEW",
+          "badge": null,
           "action": {
             "type": "feature",
-            "value": "image_to_video"
+            "value": "social_insights"
           },
           "order": 3,
           "access": {
-            "includedInPlans": [],
-            "freeForAll": false,
+            "includedInPlans": [
+              "Social Starter",
+              "Social Growth",
+              "Social Pro"
+            ],
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
           "isActive": true
         },
         {
-          "key": "ai_avatar_video",
-          "label": "AI Avatar Video",
+          "key": "comment_auto_reply",
+          "label": "Comment Auto Reply",
           "icon": {
             "type": "material",
-            "value": "face_retouching_natural"
+            "value": "forum"
           },
-          "badge": "NEW",
+          "badge": null,
           "action": {
             "type": "feature",
-            "value": "ai_avatar_video"
+            "value": "comment_auto_reply"
           },
           "order": 4,
           "access": {
-            "includedInPlans": [],
-            "freeForAll": false,
+            "includedInPlans": [
+              "Social Starter",
+              "Social Growth",
+              "Social Pro"
+            ],
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
           "isActive": true
         },
         {
-          "key": "cgi_video",
-          "label": "CGI Video",
+          "key": "dm_auto_reply",
+          "label": "DM Auto Reply",
           "icon": {
             "type": "material",
-            "value": "view_in_ar"
+            "value": "send"
           },
-          "badge": "NEW",
+          "badge": null,
           "action": {
             "type": "feature",
-            "value": "cgi_video"
+            "value": "dm_auto_reply"
           },
           "order": 5,
           "access": {
-            "includedInPlans": [],
-            "freeForAll": false,
+            "includedInPlans": [
+              "Social Starter",
+              "Social Growth",
+              "Social Pro"
+            ],
+            "freeForAll": true,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "isActive": true
+        },
+        {
+          "key": "delete_negative_comments",
+          "label": "Delete Negative Comments",
+          "icon": {
+            "type": "material",
+            "value": "delete_sweep"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "delete_negative_comments"
+          },
+          "order": 6,
+          "access": {
+            "includedInPlans": [
+              "Social Starter",
+              "Social Growth",
+              "Social Pro"
+            ],
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -303,7 +415,7 @@
             "type": "plans",
             "value": "services"
           },
-          "order": 6,
+          "order": 7,
           "access": {
             "includedInPlans": [],
             "freeForAll": false,

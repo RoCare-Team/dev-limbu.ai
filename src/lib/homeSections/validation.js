@@ -110,6 +110,15 @@ export function validateSection(body) {
     if (item.badge != null && !C.BADGES.includes(item.badge)) {
       errors.push(`${p}.badge must be null or one of: ${C.BADGES.join(", ")}`);
     }
+    if (item.comingSoon != null && typeof item.comingSoon !== "boolean") {
+      errors.push(`${p}.comingSoon must be true or false`);
+    }
+    if (
+      item.coinCost != null &&
+      !(Number.isInteger(item.coinCost) && item.coinCost >= 0)
+    ) {
+      errors.push(`${p}.coinCost must be a whole number (0 or more)`);
+    }
     validateAccess(item.access, `${p}.access`, errors);
   });
 

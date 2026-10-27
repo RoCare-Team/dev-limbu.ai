@@ -1,5 +1,5 @@
 /**
- * seed.json ke `gbp` aur `social_media` sections ke tiles live `home_sections`
+ * seed.json ke SECTION_KEYS wale sections (gbp, social_media, ai_tools, outreach) ke tiles live `home_sections`
  * collection me daal deta hai. seedIfEmpty() sirf khaali collection par chalta
  * hai, isliye seed.json badalne ke baad production DB update karne ke liye ye
  * script chahiye.
@@ -19,7 +19,7 @@ dotenv.config({ path: ".env.local" });
 dotenv.config();
 
 const APPLY = process.argv.includes("--apply");
-const SECTION_KEYS = ["gbp", "social_media"];
+const SECTION_KEYS = ["gbp", "social_media", "ai_tools", "outreach"];
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {
@@ -37,7 +37,7 @@ const sections = mongoose.connection.db.collection("home_sections");
 if (APPLY) {
   // Likhne se pehle purane sections ka backup — galti ho to isi se wapas daal sakte ho.
   const backup = await sections.find({ key: { $in: SECTION_KEYS } }).toArray();
-  const file = `home-sections-backup-${Date.now()}.json`;
+  const file = `${process.env.BACKUP_DIR || "."}/home-sections-backup-${Date.now()}.json`;
   writeFileSync(file, JSON.stringify(backup, null, 2));
   console.log(`Backup: ${file}`);
 }
@@ -49,7 +49,7 @@ for (const key of SECTION_KEYS) {
 
   console.log(`\n[${key}] ${existing ? "update" : "insert"}`);
   console.log("  pehle:", existing ? existing.items.map((i) => i.key).join(", ") : "(section nahi hai)");
-  console.log("  ab   :", items.map((i) => `${i.key}${i.access?.freeForAll ? " (FREE)" : ""}`).join(", "));
+  console.log("  ab   :", items.map((i) => `${i.key}${i.comingSoon ? " (COMING SOON)" : i.coinCost ? ` (${i.coinCost} COINS)` : i.access?.freeForAll ? " (FREE)" : ""}`).join(", "));
 
   if (!APPLY) continue;
 

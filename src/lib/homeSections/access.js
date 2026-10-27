@@ -30,8 +30,18 @@ export function isVisible(item, ctx) {
  *   3. tile has free uses left            -> free    + "FREE"  (+ freeRemaining)
  *   4. free uses finished / needs a plan  -> locked  + "UPGRADE"
  *   5. no plan rules on the tile          -> open    + admin badge (e.g. "NEW")
+ *
+ * item.comingSoon overrides all of the above -> coming_soon + "COMING SOON".
+ * item.coinCost > 0 (and no plan includes it)  -> coins       + "COINS".
  */
 export function resolveItemAccess(item, ctx) {
+  if (item.comingSoon) {
+    return {
+      badge: "COMING SOON",
+      access: { status: ACCESS_STATUS.COMING_SOON, planName: null, freeRemaining: null },
+    };
+  }
+
   const access = item.access || {};
   const included = (access.includedInPlans || []).map((p) =>
     String(p).trim().toLowerCase()
@@ -46,6 +56,13 @@ export function resolveItemAccess(item, ctx) {
     return {
       badge: "ACTIVE",
       access: { status: ACCESS_STATUS.ACTIVE, planName, freeRemaining: null },
+    };
+  }
+
+  if (Number(item.coinCost) > 0) {
+    return {
+      badge: "COINS",
+      access: { status: ACCESS_STATUS.COINS, planName: null, freeRemaining: null },
     };
   }
 

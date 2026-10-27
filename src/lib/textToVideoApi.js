@@ -8,9 +8,9 @@
 
 const TEXTTOVIDEO_API_URL =
   process.env.TEXTTOVIDEO_API_URL || "https://texttovideo.limbutech.in/api/generate-video";
-const TEXTTOVIDEO_API_KEY =
-  process.env.TEXTTOVIDEO_API_KEY ||
-  "7f3a9c2e8b1d4f6a0e5c3b8d2a7f1e9c4b6d8a0f2e5c7b9d1a3f6e8c0b2d4a7f";
+// GET {origin}/api/task/{task_id} — polled while wait=false generations run.
+const TEXTTOVIDEO_TASK_URL = `${new URL(TEXTTOVIDEO_API_URL).origin}/api/task`;
+const TEXTTOVIDEO_API_KEY = process.env.TEXTTOVIDEO_API_KEY || "DxWOW1vHj2W96WB8MaLcSFYeq";
 
 const DEFAULT_TIMEOUT_MS = 890 * 1000; // keep just under the route's 900s maxDuration
 
@@ -25,7 +25,11 @@ const DEFAULT_TIMEOUT_MS = 890 * 1000; // keep just under the route's 900s maxDu
  * @param {string} [params.keywords]
  * @param {string} [params.presenterGender] - "male" | "female"
  * @param {number} [params.duration] - target video length in seconds (10 | 20)
- * @param {boolean} [params.wait=true]
+ * @param {boolean} [params.captions] - burned-in captions + per-platform post copy (API default true)
+ * @param {boolean} [params.presenterLed] - allow a mostly talking-head ad (API default false)
+ * @param {string} [params.visualStyle] - "auto" | "cinematic" | "infographic" | "hybrid"
+ * @param {string} [params.onScreenLabels] - up to 3 headings separated by "|"
+ * @param {boolean} [params.wait=true] - false returns a task_id at once; poll it with getVideoTask()
  * @param {Record<string, File|Blob>} [params.files] - logo/character/background/product
  * @param {number} [params.timeoutMs]
  * @returns {Promise<{ok: boolean, status: number, data: any}>}
@@ -38,6 +42,10 @@ export async function generateVideo({
   keywords,
   presenterGender,
   duration,
+  captions,
+  presenterLed,
+  visualStyle,
+  onScreenLabels,
   wait = true,
   files = {},
   timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -60,6 +68,10 @@ export async function generateVideo({
   if (keywords) form.append("keywords", keywords);
   if (presenterGender) form.append("presenter_gender", presenterGender);
   if (duration) form.append("duration", String(duration));
+  if (typeof captions === "boolean") form.append("captions", String(captions));
+  if (typeof presenterLed === "boolean") form.append("presenter_led", String(presenterLed));
+  if (visualStyle) form.append("visual_style", visualStyle);
+  if (onScreenLabels) form.append("on_screen_labels", onScreenLabels);
 
   for (const [field, file] of Object.entries(files)) {
     if (file && typeof file === "object" && file.size > 0) {
@@ -81,6 +93,31 @@ export async function generateVideo({
   } finally {
     clearTimeout(timeoutId);
   }
+
+  const rawText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    data = { raw: rawText };
+  }
+
+  return { ok: res.ok, status: res.status, data };
+}
+
+/**
+ * Status of a wait=false generation. `data.status` is one of queued |
+ * generating_script | generating_video | merging | checking_audio | uploading |
+ * success | failed; `video_url` is set on success, `error` on failure.
+ *
+ * @param {string} taskId
+ * @returns {Promise<{ok: boolean, status: number, data: any}>}
+ */
+export async function getVideoTask(taskId) {
+  const res = await fetch(`${TEXTTOVIDEO_TASK_URL}/${encodeURIComponent(taskId)}`, {
+    headers: { "X-API-Key": TEXTTOVIDEO_API_KEY },
+    cache: "no-store",
+  });
 
   const rawText = await res.text();
   let data;

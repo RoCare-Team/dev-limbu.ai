@@ -43,6 +43,10 @@ const HomeSectionItemSchema = new mongoose.Schema(
     badge: { type: String, default: null }, // FREE | NEW | HOT | PRO | null
     action: { type: ActionSchema, required: true },
     access: { type: AccessSchema, default: () => ({}) },
+    // Shown but not usable yet -> "COMING SOON", overrides the access rules.
+    comingSoon: { type: Boolean, default: false },
+    // Coins charged per use (starting price for length-based videos). 0 = no coins.
+    coinCost: { type: Number, default: 0 },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

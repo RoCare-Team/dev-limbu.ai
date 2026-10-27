@@ -31,7 +31,19 @@ import { useVideoHistoryPosting } from "@/hooks/useVideoHistoryPosting";
 const GENERATION_COST = 300;
 // Video lengths offered to the user — kept in sync with the API route's allow-list.
 const DURATION_OPTIONS = [10, 20];
-const GENERATE_TIMEOUT_MS = 14.5 * 60 * 1000; // 14.5 minutes — server allows up to 15
+const GENERATE_TIMEOUT_MS = 20 * 60 * 1000; // give up polling after 20 minutes
+const POLL_INTERVAL_MS = 5000;
+
+const VISUAL_STYLE_OPTIONS = [
+  { value: "auto", label: "Auto" },
+  { value: "cinematic", label: "Cinematic" },
+  { value: "infographic", label: "Infographic" },
+  { value: "hybrid", label: "Hybrid" },
+];
+// On-screen labels are only drawn on infographic scenes.
+const LABEL_STYLES = ["infographic", "hybrid"];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const UPLOAD_FIELDS = [
   { key: "logo", label: "Logo", icon: ImageIcon },
@@ -173,14 +185,14 @@ function LanguagePicker({ value, onChange, disabled, groups }) {
 /* ----------------------------------------------------
    SKELETON CARD (loading state)
 ---------------------------------------------------- */
-function VideoSkeletonCard({ elapsed }) {
+function VideoSkeletonCard({ elapsed, progressMessage }) {
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
       <div className="relative h-56 sm:h-64 bg-gradient-to-br from-slate-100 via-slate-50 to-slate-100 animate-pulse flex items-center justify-center">
         <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
         <div className="relative flex flex-col items-center gap-2 text-slate-900/40">
           <Film className="w-8 h-8 animate-pulse text-[#EAB308]" />
-          <span className="text-xs font-bold">Rendering video…</span>
+          <span className="text-xs font-bold text-center px-4">{progressMessage || "Rendering video…"}</span>
           <span className="text-[11px] tabular-nums font-mono bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/30 px-2.5 py-0.5 rounded-full">
             {elapsed}s elapsed
           </span>
@@ -227,6 +239,11 @@ function VideoGenerationContent() {
   const [script, setScript] = useState("");
   const [presenterGender, setPresenterGender] = useState("male");
   const [duration, setDuration] = useState(DURATION_OPTIONS[0]);
+  const [visualStyle, setVisualStyle] = useState("auto");
+  const [onScreenLabels, setOnScreenLabels] = useState("");
+  const [captionsOn, setCaptionsOn] = useState(true);
+  const [presenterLed, setPresenterLed] = useState(false);
+  const [progressMessage, setProgressMessage] = useState("");
   const [files, setFiles] = useState({ logo: null, character: null, background: null, product: null });
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -347,9 +364,7 @@ function VideoGenerationContent() {
     }
 
     setIsGenerating(true);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS);
+    setProgressMessage("Starting…");
 
     try {
       const form = new FormData();
@@ -357,9 +372,16 @@ function VideoGenerationContent() {
       form.append(inputMode, activeContent.trim());
       // Language only applies to plain-text generation — a script already carries its own language.
       if (inputMode === "text") form.append("language", language);
-      form.append("wait", "true");
+      // Returns a task_id straight away; the video is polled below.
+      form.append("wait", "false");
       form.append("presenter_gender", presenterGender);
       form.append("duration", String(duration));
+      form.append("captions", String(captionsOn));
+      form.append("presenter_led", String(presenterLed));
+      form.append("visual_style", visualStyle);
+      if (LABEL_STYLES.includes(visualStyle) && onScreenLabels.trim()) {
+        form.append("on_screen_labels", onScreenLabels.trim());
+      }
       if (keywords.trim()) form.append("keywords", keywords.trim());
       Object.entries(files).forEach(([key, file]) => {
         if (file) form.append(key, file);
@@ -368,9 +390,7 @@ function VideoGenerationContent() {
       const res = await fetch("/api/video-generation", {
         method: "POST",
         body: form,
-        signal: controller.signal,
       });
-      clearTimeout(timeoutId);
 
       const result = await res.json().catch(() => ({}));
       if (!res.ok || !result.success) {
@@ -378,14 +398,33 @@ function VideoGenerationContent() {
       }
 
       const d = result.data || {};
-      const videoUrl =
-        d.video_url || d.videoUrl || d.output || d.url || d.secure_url || d.playback_url || null;
+      const taskId = d.task_id || null;
+      if (!taskId) throw new Error("Video generation did not start. Please try again.");
 
-      if (!videoUrl) {
-        throw new Error("Video generated but no video URL was returned.");
+      // Poll until the reel is ready. Script + captions come from the start response;
+      // the task status only carries progress and the final video_url.
+      let videoUrl = d.video_url || null;
+      const deadline = Date.now() + GENERATE_TIMEOUT_MS;
+      while (!videoUrl) {
+        if (Date.now() > deadline) throw new Error("Video generation timed out. Please try again.");
+        await sleep(POLL_INTERVAL_MS);
+
+        const pollRes = await fetch(`/api/video-generation/task/${encodeURIComponent(taskId)}`, {
+          cache: "no-store",
+        });
+        const poll = await pollRes.json().catch(() => ({}));
+        // A failed poll (network blip, 5xx) is retried on the next tick.
+        if (!pollRes.ok || !poll.success) continue;
+
+        const task = poll.data || {};
+        if (task.progress_message) setProgressMessage(task.progress_message);
+        if (task.status === "failed") throw new Error(task.error || "Video generation failed.");
+        if (task.status === "success") {
+          videoUrl = task.video_url;
+          if (!videoUrl) throw new Error("Video generated but no video URL was returned.");
+        }
       }
 
-      const taskId = d.task_id || null;
       const finalScript = d.final_script || null;
       const captions = d.captions || null; // { instagram, facebook, pinterest, linkedin }
 
@@ -460,14 +499,10 @@ function VideoGenerationContent() {
       setFiles({ logo: null, character: null, background: null, product: null });
     } catch (err) {
       console.error(err);
-      if (err.name === "AbortError") {
-        showToast("Video generation timed out. Please try again.", "error");
-      } else {
-        showToast(err.message || "Failed to generate video.", "error");
-      }
+      showToast(err.message || "Failed to generate video.", "error");
     } finally {
-      clearTimeout(timeoutId);
       setIsGenerating(false);
+      setProgressMessage("");
     }
   };
 
@@ -738,6 +773,72 @@ function VideoGenerationContent() {
               </div>
             </div>
 
+            {/* Visual style */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-900/90">Visual Style</label>
+              <div className="flex p-1 bg-slate-50 rounded-lg border border-slate-100">
+                {VISUAL_STYLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    disabled={isGenerating}
+                    onClick={() => setVisualStyle(opt.value)}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-md transition-all disabled:cursor-not-allowed ${
+                      visualStyle === opt.value
+                        ? "bg-[#EAB308] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]"
+                        : "text-slate-900/50 hover:text-slate-900/80"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* On-screen labels — only drawn on infographic scenes */}
+            {LABEL_STYLES.includes(visualStyle) && (
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-900/90">
+                  On-screen Labels <span className="text-slate-900/30 font-normal">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={onScreenLabels}
+                  onChange={(e) => setOnScreenLabels(e.target.value)}
+                  disabled={isGenerating}
+                  placeholder="RO Service|Home Visit|Call Now"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60"
+                />
+                <p className="text-[11px] text-slate-900/40">
+                  Up to 3 headings separated by &quot;|&quot;, max 6 words each. Shown on screen, never spoken.
+                </p>
+              </div>
+            )}
+
+            {/* Captions + presenter-led */}
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-900/90 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={captionsOn}
+                  onChange={(e) => setCaptionsOn(e.target.checked)}
+                  disabled={isGenerating}
+                  className="w-4 h-4 accent-[#EAB308]"
+                />
+                Captions on video
+              </label>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-900/90 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={presenterLed}
+                  onChange={(e) => setPresenterLed(e.target.checked)}
+                  disabled={isGenerating}
+                  className="w-4 h-4 accent-[#EAB308]"
+                />
+                Presenter-led (talking to camera)
+              </label>
+            </div>
+
             {/* Media uploads */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-slate-900/90">
@@ -803,7 +904,7 @@ function VideoGenerationContent() {
               Latest Video
             </h2>
             {isGenerating ? (
-              <VideoSkeletonCard elapsed={elapsed} />
+              <VideoSkeletonCard elapsed={elapsed} progressMessage={progressMessage} />
             ) : history.length === 0 ? (
               <div className="relative rounded-2xl border-2 border-dashed border-slate-200 bg-white min-h-[280px] flex flex-col items-center justify-center text-center p-8">
                 <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4">

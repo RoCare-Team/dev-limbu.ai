@@ -78,6 +78,8 @@ export function toPublicSection(doc, ctx) {
           badge,
           action: item.action,
           access,
+          comingSoon: Boolean(item.comingSoon),
+          coinCost: Number(item.coinCost) || 0,
           order: item.order,
         };
       }),

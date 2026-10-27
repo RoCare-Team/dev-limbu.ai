@@ -15,6 +15,7 @@ export const BRAND_ICONS = [
   "youtube",
   "linkedin",
   "pinterest",
+  "whatsapp",
 ];
 
 // icon.value when icon.type === "material" (Material icon names the app maps)
@@ -53,6 +54,7 @@ export const MATERIAL_ICONS = [
   "forum",
   "send",
   "delete_sweep",
+  "mail",
 ];
 
 // action.type
@@ -79,6 +81,8 @@ export const FEATURE_ACTIONS = [
   "dm_auto_reply",
   "delete_negative_comments",
   "reels",
+  "emailer",
+  "whatsapp_automation",
 ];
 
 // action.value when action.type === "plans" (tabs of the Service Plans screen)
@@ -99,8 +103,10 @@ export const ACCESS_STATUS = {
   FREE: "free", // free for this user (free for all, or free uses left)
   LOCKED: "locked", // needs a plan, or free uses are finished
   OPEN: "open", // no plan rules on this tile (just opens)
+  COINS: "coins", // usable by everyone, each use is paid from the coin wallet
+  COMING_SOON: "coming_soon", // tile is shown but the feature is not live yet
 };
 
 // Badges the API itself puts on tiles, on top of BADGES.
-export const COMPUTED_BADGES = ["ACTIVE", "UPGRADE"];
+export const COMPUTED_BADGES = ["ACTIVE", "UPGRADE", "COINS", "COMING SOON"];
 

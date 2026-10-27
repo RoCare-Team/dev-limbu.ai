@@ -8,6 +8,10 @@ export const maxDuration = 900; // seconds — generation can take up to ~15 min
 // Only these lengths are offered in the UI; anything else falls back to the default.
 const ALLOWED_VIDEO_DURATIONS = [10, 20];
 const DEFAULT_VIDEO_DURATION = 10;
+const VISUAL_STYLES = ["auto", "cinematic", "infographic", "hybrid"];
+
+// "true" / "false" form values -> boolean; anything else -> undefined (API default applies).
+const formBool = (v) => (v === "true" ? true : v === "false" ? false : undefined);
 
 export async function POST(req) {
   try {
@@ -35,6 +39,11 @@ export async function POST(req) {
     const language = !script ? incomingForm.get("language") || undefined : undefined;
     const keywords = incomingForm.get("keywords") || undefined;
     const presenterGender = incomingForm.get("presenter_gender") || undefined;
+    const captions = formBool(incomingForm.get("captions"));
+    const presenterLed = formBool(incomingForm.get("presenter_led"));
+    const requestedStyle = incomingForm.get("visual_style");
+    const visualStyle = VISUAL_STYLES.includes(requestedStyle) ? requestedStyle : undefined;
+    const onScreenLabels = (incomingForm.get("on_screen_labels") || "").toString().trim() || undefined;
 
     const requestedDuration = Number(incomingForm.get("duration"));
     const duration = ALLOWED_VIDEO_DURATIONS.includes(requestedDuration)
@@ -50,6 +59,12 @@ export async function POST(req) {
       keywords,
       presenterGender,
       duration,
+      captions,
+      presenterLed,
+      visualStyle,
+      onScreenLabels,
+      // wait=false returns a task_id at once — poll GET /api/video-generation/task/:taskId.
+      // Defaults to true so older clients that never send it keep getting video_url directly.
       wait: (incomingForm.get("wait") || "true") === "true",
       files,
     });

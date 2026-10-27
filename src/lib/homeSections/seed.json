@@ -234,7 +234,7 @@
               "Professional Plan",
               "Premium Plan"
             ],
-            "freeForAll": false,
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -276,7 +276,7 @@
               "Social Growth",
               "Social Pro"
             ],
-            "freeForAll": false,
+            "freeForAll": true,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -326,6 +326,7 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
+          "comingSoon": true,
           "isActive": true
         },
         {
@@ -351,6 +352,7 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
+          "comingSoon": true,
           "isActive": true
         },
         {
@@ -376,6 +378,7 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
+          "comingSoon": true,
           "isActive": true
         },
         {
@@ -401,6 +404,7 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
+          "comingSoon": true,
           "isActive": true
         },
         {
@@ -428,6 +432,194 @@
       "isActive": true
     },
     {
+      "key": "ai_tools",
+      "title": "AI Tools",
+      "subtitle": "Create AI videos & posts with coins",
+      "icon": {
+        "type": "material",
+        "value": "smart_toy"
+      },
+      "viewAll": {
+        "type": "feature",
+        "value": "text_to_video"
+      },
+      "order": 3,
+      "items": [
+        {
+          "key": "text_to_video",
+          "label": "Text to Video",
+          "icon": {
+            "type": "material",
+            "value": "slideshow"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "text_to_video"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "coinCost": 300,
+          "isActive": true
+        },
+        {
+          "key": "image_to_video",
+          "label": "Image to Video",
+          "icon": {
+            "type": "material",
+            "value": "photo_library"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "image_to_video"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "coinCost": 200,
+          "isActive": true
+        },
+        {
+          "key": "cgi_video",
+          "label": "CGI Video",
+          "icon": {
+            "type": "material",
+            "value": "view_in_ar"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "cgi_video"
+          },
+          "order": 3,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "coinCost": 300,
+          "isActive": true
+        },
+        {
+          "key": "ai_avatar_video",
+          "label": "AI Avatar Video",
+          "icon": {
+            "type": "material",
+            "value": "face_retouching_natural"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "ai_avatar_video"
+          },
+          "order": 4,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "coinCost": 350,
+          "isActive": true
+        },
+        {
+          "key": "ai_create_post",
+          "label": "Create Post",
+          "icon": {
+            "type": "material",
+            "value": "auto_awesome"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "create_post"
+          },
+          "order": 5,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "coinCost": 80,
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "key": "outreach",
+      "title": "Outreach",
+      "subtitle": "Reach customers on email & WhatsApp",
+      "icon": {
+        "type": "material",
+        "value": "campaign"
+      },
+      "viewAll": {
+        "type": "all_services",
+        "value": "outreach"
+      },
+      "order": 4,
+      "items": [
+        {
+          "key": "emailer",
+          "label": "Emailer",
+          "icon": {
+            "type": "material",
+            "value": "mail"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "emailer"
+          },
+          "order": 1,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": true,
+          "isActive": true
+        },
+        {
+          "key": "whatsapp_automation",
+          "label": "WhatsApp Automation",
+          "icon": {
+            "type": "brand",
+            "value": "whatsapp"
+          },
+          "badge": null,
+          "action": {
+            "type": "feature",
+            "value": "whatsapp_automation"
+          },
+          "order": 2,
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": true,
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
       "key": "website_seo",
       "title": "Website SEO",
       "subtitle": "Rank higher and get more traffic",
@@ -439,7 +631,7 @@
         "type": "all_services",
         "value": "seo"
       },
-      "order": 3,
+      "order": 5,
       "items": [
         {
           "key": "onpage_seo",
@@ -598,7 +790,7 @@
         "type": "all_services",
         "value": "paid_ads"
       },
-      "order": 4,
+      "order": 6,
       "items": [
         {
           "key": "google_ads",

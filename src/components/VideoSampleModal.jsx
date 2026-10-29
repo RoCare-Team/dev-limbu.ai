@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
+import AuthLink from "./AuthLink";
 import { ChevronLeft, ChevronRight, Coins, Sparkles, X } from "lucide-react";
 import { VIDEO_MIN_SECONDS, VIDEO_MAX_SECONDS, videoCoins } from "@/lib/videoPricing";
 
@@ -137,12 +137,12 @@ export default function VideoSampleModal({ item, videos, startIndex, onClose }) 
             </div>
           )}
 
-          <Link
+          <AuthLink
             href={item.href}
             className="mt-5 rounded-xl bg-[#facc15] py-3 text-center text-sm font-black uppercase tracking-wide text-black shadow-[0_8px_30px_rgba(250,204,21,0.35)] transition-transform hover:scale-[1.02]"
           >
             Create your {item.title}
-          </Link>
+          </AuthLink>
         </div>
       </div>
     </div>,

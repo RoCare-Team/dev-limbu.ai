@@ -37,7 +37,7 @@ export default function VideoPricingSection() {
         }}
       />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6">
+      <div className="relative z-10 mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
         {/* HEADER */}
         <div className="mb-10 text-center sm:mb-14">
           <span className="inline-flex items-center gap-2 rounded-full bg-[#facc15]/10 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.25em] text-[#facc15] ring-1 ring-[#facc15]/30">

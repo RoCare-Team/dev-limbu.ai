@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
+import AuthLink from "./AuthLink";
 import { ArrowRight, Coins, Image as ImageIcon, Minus, Plus, Box, Type, UserRound } from "lucide-react";
 import SampleReel from "./SampleReel";
 import VideoSampleModal from "./VideoSampleModal";
@@ -146,12 +146,12 @@ function PricingCard({ item, modalOpen, onOpen }) {
           </span>
         </div>
 
-        <Link
+        <AuthLink
           href={item.href}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#facc15] py-2.5 text-sm font-black uppercase tracking-wide text-black transition-all hover:gap-3 hover:bg-[#fde047]"
         >
           Create Video <ArrowRight size={16} />
-        </Link>
+        </AuthLink>
       </div>
     </div>
   );
@@ -165,7 +165,7 @@ export default function VideoPricingCalculator() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {VIDEO_PRICING.map((item) => (
           <PricingCard
             key={item.key}

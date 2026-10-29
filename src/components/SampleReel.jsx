@@ -66,7 +66,7 @@ export default function SampleReel({ videos, label, paused = false, onOpen }) {
         }
       }}
       aria-label={`Watch ${label} sample ${index + 1}`}
-      className="group/reel relative aspect-[9/16] w-full cursor-pointer overflow-hidden rounded-xl bg-slate-900 outline-none ring-[#facc15] focus-visible:ring-2"
+      className="group/reel relative h-56 w-full sm:h-60 cursor-pointer overflow-hidden rounded-xl bg-slate-900 outline-none ring-[#facc15] focus-visible:ring-2"
     >
       {inView || loaded ? (
         <video

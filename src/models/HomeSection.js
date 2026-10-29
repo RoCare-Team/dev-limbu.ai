@@ -35,6 +35,21 @@ const AccessSchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * Length-based coin price for video tiles. The app lets the user pick
+ * minSeconds..maxSeconds in steps of stepSeconds and shows
+ * total = seconds * coinsPerSecond.
+ */
+const PricingSchema = new mongoose.Schema(
+  {
+    coinsPerSecond: { type: Number, required: true },
+    minSeconds: { type: Number, default: 10 },
+    maxSeconds: { type: Number, default: 60 },
+    stepSeconds: { type: Number, default: 10 },
+  },
+  { _id: false }
+);
+
 const HomeSectionItemSchema = new mongoose.Schema(
   {
     key: { type: String, required: true, trim: true },
@@ -47,6 +62,7 @@ const HomeSectionItemSchema = new mongoose.Schema(
     comingSoon: { type: Boolean, default: false },
     // Coins charged per use (starting price for length-based videos). 0 = no coins.
     coinCost: { type: Number, default: 0 },
+    pricing: { type: PricingSchema, default: null },
     order: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

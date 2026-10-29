@@ -57,6 +57,23 @@ export async function seedIfEmpty() {
 
 const byOrder = (a, b) => (a.order ?? 0) - (b.order ?? 0);
 
+/**
+ * Length-based price with every allowed length and its total, so the app can
+ * render the duration picker without doing the maths itself.
+ */
+function toPublicPricing(pricing) {
+  if (!pricing || !(Number(pricing.coinsPerSecond) > 0)) return null;
+  const coinsPerSecond = Number(pricing.coinsPerSecond);
+  const minSeconds = Number(pricing.minSeconds) || 10;
+  const maxSeconds = Number(pricing.maxSeconds) || 60;
+  const stepSeconds = Number(pricing.stepSeconds) || 10;
+  const options = [];
+  for (let seconds = minSeconds; seconds <= maxSeconds; seconds += stepSeconds) {
+    options.push({ seconds, coins: seconds * coinsPerSecond });
+  }
+  return { coinsPerSecond, minSeconds, maxSeconds, stepSeconds, options };
+}
+
 /** Shape one DB section into the public API format, for this user. */
 export function toPublicSection(doc, ctx) {
   return {
@@ -80,6 +97,7 @@ export function toPublicSection(doc, ctx) {
           access,
           comingSoon: Boolean(item.comingSoon),
           coinCost: Number(item.coinCost) || 0,
+          pricing: toPublicPricing(item.pricing),
           order: item.order,
         };
       }),

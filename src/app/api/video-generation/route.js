@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { generateVideo } from "@/lib/textToVideoApi";
 import dbConnect from "@/lib/dbConnect";
 import TextToVideo from "@/models/TextToVideo";
+import { VIDEO_DURATION_OPTIONS, coinsPerSecondFor } from "@/lib/videoPricing";
 
 export const maxDuration = 900; // seconds — generation can take up to ~15 min
 
-// Only these lengths are offered in the UI; anything else falls back to the default.
-const ALLOWED_VIDEO_DURATIONS = [10, 20];
+// Only these lengths (10..60s) are offered in the UI; anything else falls back to the default.
+const ALLOWED_VIDEO_DURATIONS = VIDEO_DURATION_OPTIONS;
 const DEFAULT_VIDEO_DURATION = 10;
+const COINS_PER_SECOND = coinsPerSecondFor("text_to_video");
 const VISUAL_STYLES = ["auto", "cinematic", "infographic", "hybrid"];
 
 // "true" / "false" form values -> boolean; anything else -> undefined (API default applies).
@@ -102,7 +104,7 @@ export async function POST(req) {
             taskId: data?.task_id || null,
             finalScript: data?.final_script || null,
             captions: data?.captions || undefined,
-            cost: 300,
+            cost: duration * COINS_PER_SECOND,
           });
           return NextResponse.json({ success: true, data, saved: record });
         } catch (saveErr) {

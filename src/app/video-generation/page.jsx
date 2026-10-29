@@ -24,13 +24,14 @@ import { getLocalStorage } from "@/utils/storage";
 import PostCard from "@/components/post-management/PostCard";
 import UnlinkedVideoCard from "@/components/video-posting/UnlinkedVideoCard";
 import { useVideoHistoryPosting } from "@/hooks/useVideoHistoryPosting";
+import { VIDEO_DURATION_OPTIONS, coinsPerSecondFor } from "@/lib/videoPricing";
 
 /* ----------------------------------------------------
    CONSTANTS
 ---------------------------------------------------- */
-const GENERATION_COST = 300;
-// Video lengths offered to the user — kept in sync with the API route's allow-list.
-const DURATION_OPTIONS = [10, 20];
+// Charged per second of video (300 coins / 10s). Lengths 10..60s, same list as the API route.
+const COINS_PER_SECOND = coinsPerSecondFor("text_to_video");
+const DURATION_OPTIONS = VIDEO_DURATION_OPTIONS;
 const GENERATE_TIMEOUT_MS = 20 * 60 * 1000; // give up polling after 20 minutes
 const POLL_INTERVAL_MS = 5000;
 
@@ -239,6 +240,7 @@ function VideoGenerationContent() {
   const [script, setScript] = useState("");
   const [presenterGender, setPresenterGender] = useState("male");
   const [duration, setDuration] = useState(DURATION_OPTIONS[0]);
+  const generationCost = duration * COINS_PER_SECOND;
   const [visualStyle, setVisualStyle] = useState("auto");
   const [onScreenLabels, setOnScreenLabels] = useState("");
   const [captionsOn, setCaptionsOn] = useState(true);
@@ -335,7 +337,7 @@ function VideoGenerationContent() {
   const setFile = (key, file) => setFiles((prev) => ({ ...prev, [key]: file }));
   const removeFile = (key) => setFiles((prev) => ({ ...prev, [key]: null }));
 
-  const insufficientBalance = walletBalance !== null && walletBalance < GENERATION_COST;
+  const insufficientBalance = walletBalance !== null && walletBalance < generationCost;
   const activeContent = inputMode === "script" ? script : text;
   const canSubmit =
     !isGenerating &&
@@ -360,7 +362,7 @@ function VideoGenerationContent() {
       );
     }
     if (insufficientBalance) {
-      return showToast(`You need at least ${GENERATION_COST} coins to generate a video.`, "error");
+      return showToast(`You need at least ${generationCost} coins to generate a video.`, "error");
     }
 
     setIsGenerating(true);
@@ -443,7 +445,7 @@ function VideoGenerationContent() {
           taskId,
           finalScript,
           captions,
-          cost: GENERATION_COST,
+          cost: generationCost,
         });
         setHistory((prev) => [savedRecord, ...prev]);
       } catch (saveErr) {
@@ -472,7 +474,7 @@ function VideoGenerationContent() {
       // Deduct coins after a successful generation
       try {
         const walletData = await deductFromWalletAction(userId, {
-          amount: GENERATION_COST,
+          amount: generationCost,
           type: "deduct",
           reason: "video_generated_texttovideo",
           metadata: { businessName: businessName.trim(), inputMode, language, videoUrl },
@@ -480,13 +482,13 @@ function VideoGenerationContent() {
         const newBalance =
           walletData?.wallet ?? walletData?.data?.wallet ?? walletData?.user?.wallet;
         setWalletBalance(
-          typeof newBalance === "number" ? newBalance : (b) => Math.max(0, (b ?? 0) - GENERATION_COST)
+          typeof newBalance === "number" ? newBalance : (b) => Math.max(0, (b ?? 0) - generationCost)
         );
         if (typeof newBalance !== "number") {
-          setWalletBalance((b) => Math.max(0, (b ?? GENERATION_COST) - GENERATION_COST));
+          setWalletBalance((b) => Math.max(0, (b ?? generationCost) - generationCost));
         }
-        emitWalletDeduct(GENERATION_COST);
-        showToast(`${GENERATION_COST} coins deducted 💰`, "info");
+        emitWalletDeduct(generationCost);
+        showToast(`${generationCost} coins deducted 💰`, "info");
       } catch (walletErr) {
         console.error(walletErr);
         showToast("Video created, but coin deduction failed. Please contact support.", "warning");
@@ -588,8 +590,8 @@ function VideoGenerationContent() {
 
         <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-sm rounded-2xl px-4 py-3">
           <Coins className="w-4 h-4 text-[#EAB308]" />
-          <span className="text-xs font-bold text-slate-900/70">Cost per video</span>
-          <span className="text-sm font-black text-[#EAB308]">{GENERATION_COST} coins</span>
+          <span className="text-xs font-bold text-slate-900/70">Cost ({duration}s video)</span>
+          <span className="text-sm font-black text-[#EAB308]">{generationCost} coins</span>
         </div>
       </div>
 
@@ -753,23 +755,26 @@ function VideoGenerationContent() {
 
             {/* Video duration */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-900/90">Duration</label>
-              <div className="flex p-1 bg-slate-50 rounded-lg border border-slate-100 max-w-xs">
-                {DURATION_OPTIONS.map((sec) => (
-                  <button
-                    key={sec}
-                    type="button"
-                    disabled={isGenerating}
-                    onClick={() => setDuration(sec)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-md transition-all disabled:cursor-not-allowed ${
-                      duration === sec
-                        ? "bg-[#EAB308] text-black shadow-[0_0_15px_rgba(253,224,71,0.3)]"
-                        : "text-slate-900/50 hover:text-slate-900/80"
-                    }`}
-                  >
-                    {sec} sec
-                  </button>
-                ))}
+              <label htmlFor="ttv-duration" className="text-xs font-semibold text-slate-900/90">
+                Duration
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <select
+                  id="ttv-duration"
+                  value={duration}
+                  onChange={(e) => setDuration(Number(e.target.value))}
+                  disabled={isGenerating}
+                  className="w-full max-w-xs p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#EAB308]/50 focus:border-[#EAB308]/50 outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {DURATION_OPTIONS.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec} sec — {sec * COINS_PER_SECOND} coins
+                    </option>
+                  ))}
+                </select>
+                <span className="text-xs font-semibold text-slate-900/50">
+                  {COINS_PER_SECOND} coins / sec
+                </span>
               </div>
             </div>
 
@@ -863,7 +868,7 @@ function VideoGenerationContent() {
               <div className="flex items-center gap-2.5 bg-red-50 border border-red-200 text-red-700 text-xs px-4 py-3 rounded-lg">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 <span>
-                  You need {GENERATION_COST} coins to generate a video. Current balance:{" "}
+                  You need {generationCost} coins to generate a video. Current balance:{" "}
                   {walletBalance ?? 0}.{" "}
                   <Link href="/wallet" className="font-bold underline underline-offset-2">
                     Recharge wallet
@@ -885,7 +890,7 @@ function VideoGenerationContent() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  Generate Video — {GENERATION_COST} coins
+                  Generate Video — {generationCost} coins
                 </>
               )}
             </button>

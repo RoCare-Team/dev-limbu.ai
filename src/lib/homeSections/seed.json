@@ -465,6 +465,12 @@
             "visibleTo": "all"
           },
           "coinCost": 300,
+          "pricing": {
+            "coinsPerSecond": 30,
+            "minSeconds": 10,
+            "maxSeconds": 60,
+            "stepSeconds": 10
+          },
           "isActive": true
         },
         {
@@ -486,12 +492,18 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
-          "coinCost": 200,
+          "coinCost": 100,
+          "pricing": {
+            "coinsPerSecond": 10,
+            "minSeconds": 10,
+            "maxSeconds": 60,
+            "stepSeconds": 10
+          },
           "isActive": true
         },
         {
           "key": "cgi_video",
-          "label": "CGI Video",
+          "label": "CGI Product Video",
           "icon": {
             "type": "material",
             "value": "view_in_ar"
@@ -509,6 +521,12 @@
             "visibleTo": "all"
           },
           "coinCost": 300,
+          "pricing": {
+            "coinsPerSecond": 30,
+            "minSeconds": 10,
+            "maxSeconds": 60,
+            "stepSeconds": 10
+          },
           "isActive": true
         },
         {
@@ -530,7 +548,13 @@
             "freeLimit": 0,
             "visibleTo": "all"
           },
-          "coinCost": 350,
+          "coinCost": 200,
+          "pricing": {
+            "coinsPerSecond": 20,
+            "minSeconds": 10,
+            "maxSeconds": 60,
+            "stepSeconds": 10
+          },
           "isActive": true
         },
         {

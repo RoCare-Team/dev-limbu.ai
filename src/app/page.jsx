@@ -5,7 +5,7 @@ import StatsSection from "@/components/sections/StatsSection";
 import BusinessTypesSection from "@/components/sections/BusinessTypesSection";
 import PopularCitiesSection from "@/components/sections/PopularCitiesSection";
 import ExamplesSection from "@/components/sections/ExamplesSection";
-import VideoExamplesSection from "@/components/sections/VideoExamplesSection";
+import VideoPricingSection from "@/components/sections/VideoPricingSection";
 import FeaturesSection from "@/components/sections/FeaturesSection";
 import ClientGrowthSection from "@/components/sections/ClientGrowthSection";
 import CaseStudySection from "@/components/sections/CaseStudySection";
@@ -42,8 +42,8 @@ export default function HomePage() {
       {/* SSR */}
       <ExamplesSection />
 
-      {/* SSR */}
-      <VideoExamplesSection />
+      {/* SSR shell, client calculator */}
+      <VideoPricingSection />
 
       {/* SSR */}
       <FeaturesSection />

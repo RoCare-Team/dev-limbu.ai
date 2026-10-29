@@ -76,6 +76,30 @@ function validateAccess(access, path, errors) {
   }
 }
 
+function validatePricing(pricing, path, errors) {
+  if (pricing == null) return;
+  if (typeof pricing !== "object") {
+    errors.push(`${path} must be an object`);
+    return;
+  }
+  const isPositiveInt = (v) => Number.isInteger(v) && v > 0;
+  if (!isPositiveInt(pricing.coinsPerSecond)) {
+    errors.push(`${path}.coinsPerSecond must be a whole number above 0`);
+  }
+  for (const field of ["minSeconds", "maxSeconds", "stepSeconds"]) {
+    if (pricing[field] != null && !isPositiveInt(pricing[field])) {
+      errors.push(`${path}.${field} must be a whole number above 0`);
+    }
+  }
+  if (
+    isPositiveInt(pricing.minSeconds) &&
+    isPositiveInt(pricing.maxSeconds) &&
+    pricing.minSeconds > pricing.maxSeconds
+  ) {
+    errors.push(`${path}.minSeconds must not be more than maxSeconds`);
+  }
+}
+
 /**
  * Validates a full section body (create / update).
  * Returns an array of error strings; empty array means valid.
@@ -119,6 +143,7 @@ export function validateSection(body) {
     ) {
       errors.push(`${p}.coinCost must be a whole number (0 or more)`);
     }
+    validatePricing(item.pricing, `${p}.pricing`, errors);
     validateAccess(item.access, `${p}.access`, errors);
   });
 

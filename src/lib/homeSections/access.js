@@ -25,7 +25,7 @@ export function isVisible(item, ctx) {
 /**
  * Decides what one tile looks like for this user.
  *
- *   1. user's plan includes the tile     -> active  + "ACTIVE"
+ *   1. user's plan includes the tile     -> active  + "FREE" (included in their plan)
  *   2. tile is free for everyone          -> free    + "FREE"
  *   3. tile has free uses left            -> free    + "FREE"  (+ freeRemaining)
  *   4. free uses finished / needs a plan  -> locked  + "UPGRADE"
@@ -54,7 +54,7 @@ export function resolveItemAccess(item, ctx) {
       (ctx.user && ctx.user.subscription && ctx.user.subscription.plan) ||
       matchedPlan;
     return {
-      badge: "ACTIVE",
+      badge: "FREE",
       access: { status: ACCESS_STATUS.ACTIVE, planName, freeRemaining: null },
     };
   }

@@ -601,6 +601,8 @@ export default function FranchiseLeadsPage() {
   /** franchiseAdmin: pending strip — Call Not Picked vs Call Back Later */
   const [franchisePendingRemarkTab, setFranchisePendingRemarkTab] =
     useState("call_not_picked");
+  /** franchiseAdmin: pending strip starts collapsed — it lists hundreds of leads */
+  const [franchisePendingOpen, setFranchisePendingOpen] = useState(false);
 
   // Revenue state
   const [showRevenueModal, setShowRevenueModal] = useState(false);
@@ -3425,22 +3427,41 @@ export default function FranchiseLeadsPage() {
               {role === "franchiseAdmin" &&
                 franchisePendingFollowUpsInView.length > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/80 p-3 md:p-4 shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                      <p className="text-[11px] font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFranchisePendingOpen((o) => !o)}
+                      aria-expanded={franchisePendingOpen}
+                      className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-left"
+                    >
+                      <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2">
                         <AlertCircle
                           size={14}
                           className="text-orange-500 shrink-0"
                         />
                         Pending follow-ups (due or overdue)
-                      </p>
-                      <p className="text-[10px] text-slate-500 font-medium">
-                        Period:{" "}
-                        <span className="text-slate-800">
-                          {franchiseFollowUpFilterLabel}
+                        <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black text-white tabular-nums">
+                          {franchisePendingFollowUpsInView.length}
                         </span>
-                      </p>
-                    </div>
+                      </span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          Period:{" "}
+                          <span className="text-slate-800">
+                            {franchiseFollowUpFilterLabel}
+                          </span>
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-50">
+                          {franchisePendingOpen ? "Close" : "View"}
+                          <ChevronDown
+                            size={14}
+                            className={`transition-transform ${franchisePendingOpen ? "rotate-180" : ""}`}
+                          />
+                        </span>
+                      </span>
+                    </button>
 
+                    {franchisePendingOpen && (
+                    <div className="mt-3">
                     <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-slate-100/80 border border-slate-200/80 mb-3">
                       {[
                         {
@@ -3588,7 +3609,7 @@ export default function FranchiseLeadsPage() {
                       }
 
                       return (
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 max-h-80 overflow-y-auto pt-2 pr-1">
                           {tabLeads.map((l) => (
                             <button
                               key={String(l.leadId)}
@@ -3628,6 +3649,8 @@ export default function FranchiseLeadsPage() {
                         </div>
                       );
                     })()}
+                    </div>
+                    )}
                   </div>
                 )}
 

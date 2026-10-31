@@ -272,7 +272,9 @@ export async function GET(req) {
     if (status === "videos") {
       query.$or = [
         { mediaType: "video" },
-        { videoOutput: { $ne: "", $exists: true, $ne: null } },
+        // Not `{ $ne: "", $ne: null }` — a duplicate key keeps only the last one,
+        // which let every image post with videoOutput: "" into the Videos tab.
+        { videoOutput: { $exists: true, $nin: ["", null] } },
         {
           aiOutput: {
             $regex: "\\.(mp4|webm|mov)$",

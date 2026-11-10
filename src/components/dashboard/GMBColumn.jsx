@@ -9,6 +9,9 @@ import {
   LayoutDashboard,
   BarChart3,
   LogOut,
+  RefreshCw,
+  CheckCircle2,
+  CircleHelp,
 } from "lucide-react";
 import { startGmbConnect } from "@/hooks/useGmbConnection";
 import { toast } from "react-hot-toast";
@@ -28,9 +31,44 @@ const GMBColumn = React.memo(
     handleListingData,
     handleViewPerformanceInsights,
     handleDisconnectGMB,
+    handleManualRefresh,
+    gmbConnected,
+    gmbLoading,
+    gmbName,
+    gmbEmail,
+    gmbImage,
   }) => {
     const [isDisconnectModalOpen, setIsDisconnectModalOpen] =
       React.useState(false);
+    const [accountImageFailed, setAccountImageFailed] = React.useState(false);
+    const profileCount = summary?.total ?? listings?.length ?? 0;
+    React.useEffect(() => {
+      setAccountImageFailed(false);
+    }, [gmbImage]);
+    const connectionLabel = gmbLoading
+      ? "Checking connection"
+      : gmbConnected
+        ? "Connected"
+        : "Not connected";
+    const overviewActionLabel = gmbConnected
+      ? loading
+        ? "Refreshing profiles"
+        : profileCount > 0
+          ? "Refresh profiles"
+          : "Find profiles"
+      : "Connect Google";
+    const handleOverviewAction = React.useCallback(async () => {
+      if (gmbConnected) {
+        await handleManualRefresh?.();
+        return;
+      }
+
+      try {
+        await startGmbConnect("/dashboard");
+      } catch (err) {
+        toast.error(err.message);
+      }
+    }, [gmbConnected, handleManualRefresh]);
     // Pehle fallback me `signOut()` tha — GMB disconnect karne par user app se
     // hi logout ho jata tha. Ab disconnect sirf GMB connection hataata hai.
     const handleConfirmDisconnect = React.useCallback(async () => {
@@ -47,7 +85,7 @@ const GMBColumn = React.memo(
           platformName="GMB"
           customMessage="Are you sure you want to disconnect your Google Business Profile? This will remove the saved GMB profiles from this dashboard."
         />
-        <div className="bg-white rounded-3xl shadow-md border-2 border-slate-200 flex flex-col overflow-hidden w-full h-[calc(100vh-220px)] min-h-[500px]">
+        <div className="w-full min-w-0 overflow-hidden rounded-3xl border-2 border-slate-200 bg-white shadow-md">
           {/* Header */}
           <div className="p-4 sm:p-6 border-b-2 border-slate-100 bg-slate-50/50 flex-shrink-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -63,45 +101,48 @@ const GMBColumn = React.memo(
                 >
                   GMB Profile
                 </h2>
-                <span className="ml-2 text-[10px] bg-black text-yellow-400 font-bold px-3 py-1 rounded-full uppercase tracking-widest">
-                  {summary.total} Lists
-                </span>
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto">
                 {/* Summary / Filter Pills */}
                 <div className="flex gap-2 flex-1 md:flex-none">
                   <button
+                    type="button"
                     onClick={() => setFilterStatus("verified")}
+                    aria-pressed={filterStatus === "verified"}
                     className={`flex-1 md:flex-none py-2 px-4 rounded-xl border-2 text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
                       filterStatus === "verified"
                         ? "bg-black border-black text-yellow-400"
                         : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2`}
                   >
                     Verified ({summary.verified})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setFilterStatus("unverified")}
+                    aria-pressed={filterStatus === "unverified"}
                     className={`flex-1 md:flex-none py-2 px-4 rounded-xl border-2 text-[10px] font-bold uppercase tracking-wider transition-all duration-300 ${
                       filterStatus === "unverified"
                         ? "bg-black border-black text-yellow-400"
                         : "bg-white border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
+                    } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2`}
                   >
                     Unverified ({summary.unverified})
                   </button>
                   {filterStatus !== "all" && (
                     <button
+                      type="button"
                       onClick={() => setFilterStatus("all")}
-                      className="w-10 flex items-center justify-center text-slate-400 hover:text-black transition-colors border-2 border-transparent rounded-xl hover:bg-slate-100"
+                      aria-label="Clear verification filter"
+                      className="w-10 flex items-center justify-center text-slate-400 hover:text-black transition-colors border-2 border-transparent rounded-xl hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-500 focus-visible:ring-offset-2"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   )}
                 </div>
 
-                {listings && listings.length > 0 && (
+                {gmbConnected && (
                   <button
                     onClick={() => setIsDisconnectModalOpen(true)}
                     className="flex items-center gap-2 px-4 h-10 rounded-xl border-2 border-red-200 text-red-600 font-bold text-[10px] uppercase tracking-wider hover:bg-red-50 transition-colors"
@@ -116,7 +157,144 @@ const GMBColumn = React.memo(
           </div>
 
           {/* Scrollable Content */}
-          <div className="overflow-y-auto p-4 space-y-4 custom-scroll flex-1 bg-slate-50/50">
+          <div className="space-y-4 bg-slate-50/50 p-3 sm:p-4">
+            <section
+              aria-labelledby="gmb-overview-heading"
+              className="grid overflow-hidden rounded-2xl border border-slate-200 shadow-sm lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]"
+            >
+              <div className="relative flex min-w-0 flex-col justify-between gap-5 bg-slate-950 p-5 text-white sm:p-6">
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-y-0 left-0 w-1 bg-yellow-400"
+                />
+                <div className="min-w-0">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300">
+                      Google Business Profile
+                    </p>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+                        gmbLoading
+                          ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
+                          : gmbConnected
+                            ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-200"
+                            : "border-slate-500/40 bg-white/5 text-slate-300"
+                      }`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          gmbLoading
+                            ? "bg-amber-500"
+                            : gmbConnected
+                              ? "bg-emerald-500"
+                              : "bg-slate-400"
+                        }`}
+                      />
+                      {connectionLabel}
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 items-center gap-3">
+                    {gmbConnected && gmbImage && !accountImageFailed ? (
+                      <img
+                        src={gmbImage}
+                        alt=""
+                        onError={() => setAccountImageFailed(true)}
+                        className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                        <img
+                          src="/social-icon/gmb-icon.png"
+                          alt=""
+                          className="h-8 w-8 object-contain"
+                        />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3
+                        id="gmb-overview-heading"
+                        className="truncate text-base font-bold tracking-tight text-white"
+                        style={{ fontFamily: "var(--font-heading)" }}
+                      >
+                        {gmbConnected
+                          ? gmbName || "Google account connected"
+                          : gmbLoading
+                            ? "Checking Google account"
+                            : "Connect a Google account"}
+                      </h3>
+                      <p className="mt-0.5 truncate text-xs text-slate-300">
+                        {gmbConnected
+                          ? gmbEmail || "Google account details unavailable"
+                          : gmbLoading
+                            ? "Connection status is being checked"
+                            : "Connect to manage your Business Profiles"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOverviewAction}
+                    disabled={gmbLoading || (gmbConnected && loading)}
+                    className="mt-5 inline-flex min-h-10 w-fit items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-950 transition-colors hover:bg-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {gmbConnected ? (
+                      <RefreshCw className="h-3.5 w-3.5" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                    {overviewActionLabel}
+                  </button>
+                </div>
+              </div>
+              <div className="bg-yellow-50/80 p-5 sm:p-6">
+                <div className="mb-5 flex items-end justify-between gap-3 border-b border-yellow-200 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold tracking-tight text-slate-900">
+                      Profile health
+                    </h3>
+                    <p className="mt-1 text-[10px] font-medium text-slate-600">
+                      Verification across your business locations
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    {loading ? "Updating" : `${profileCount} total`}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-3 gap-3">
+                  <div className="flex min-w-0 flex-col border-l-2 border-slate-300 pl-3 sm:pl-4">
+                    <dt className="order-2 mt-2 text-[9px] font-bold uppercase tracking-wider text-slate-600">
+                      Profiles
+                    </dt>
+                    <dd className="order-1 text-3xl font-bold leading-none tracking-tight text-slate-900 sm:text-4xl">
+                      {loading ? "—" : profileCount}
+                    </dd>
+                  </div>
+                  <div className="flex min-w-0 flex-col border-l-2 border-emerald-500 pl-3 sm:pl-4">
+                    <dt className="order-2 mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-emerald-800">
+                      <CheckCircle2 className="h-3 w-3 shrink-0" />
+                      Verified
+                    </dt>
+                    <dd className="order-1 text-3xl font-bold leading-none tracking-tight text-slate-900 sm:text-4xl">
+                      {loading ? "—" : summary?.verified ?? 0}
+                    </dd>
+                  </div>
+                  <div className="flex min-w-0 flex-col border-l-2 border-amber-500 pl-3 sm:pl-4">
+                    <dt className="order-2 mt-2 flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-amber-800">
+                      <CircleHelp className="h-3 w-3 shrink-0" />
+                      Unverified
+                    </dt>
+                    <dd className="order-1 text-3xl font-bold leading-none tracking-tight text-slate-900 sm:text-4xl">
+                      {loading ? "—" : summary?.unverified ?? 0}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+
             {loading && (
               <div className="flex flex-col items-center justify-center py-20">
                 <CircularProgress size={30} sx={{ color: "#eab308" }} />
@@ -221,34 +399,22 @@ const GMBColumn = React.memo(
               </div>
             ) : (
               !loading && (
-                <div className="flex flex-col items-center justify-center h-full py-20 text-center px-6">
+                <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                   <img
                     src="/social-icon/gmb-icon.png"
                     alt="GMB"
                     className="w-20 h-20 object-contain mb-6"
                   />
                   <h3 className="text-black font-black uppercase tracking-tight mb-2">
-                    No Profiles Found
+                    {gmbConnected
+                      ? "No Business Profiles Found"
+                      : "Google Account Not Connected"}
                   </h3>
                   <p className="text-xs text-slate-400 font-bold leading-relaxed mb-8">
-                    Link your Google Business Profile to start optimizing your
-                    digital presence.
+                    {gmbConnected
+                      ? "Your Google account is connected, but it has no business profiles available yet. Refresh profiles from the account overview to check again."
+                      : "Connect your Google account from the overview above to find and manage your Business Profiles."}
                   </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        // userId ab server-side session se aata hai — URL me
-                        // bhejne ki zaroorat nahi (aur wo spoofable bhi tha).
-                        await startGmbConnect("/dashboard");
-                      } catch (err) {
-                        toast.error(err.message);
-                      }
-                    }}
-                    className="btn-lemon w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em]"
-                  >
-                    Connect Now ↗
-                  </button>
                 </div>
               )
             )}

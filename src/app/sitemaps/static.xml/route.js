@@ -1,4 +1,5 @@
 import { getPublicSiteUrl } from "@/lib/siteUrl";
+import { SEO_TOOL_LIST, seoToolPath } from "@/lib/seoTools";
 
 const STATIC_PATHS = [
   "/",
@@ -17,6 +18,9 @@ const STATIC_PATHS = [
   "/services/local-seo",
   "/google-business-management-service",
   "/city/gurugram",
+
+  // Website SEO tool pages
+  ...SEO_TOOL_LIST.map(seoToolPath),
 
   // Franchise
   "/bussiness/franchise-opportunities",

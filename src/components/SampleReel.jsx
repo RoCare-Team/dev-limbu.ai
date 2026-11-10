@@ -9,7 +9,14 @@ import { ChevronLeft, ChevronRight, Maximize2, Play } from "lucide-react";
  * The files are large (up to ~20 MB), so nothing is downloaded until the card
  * scrolls into view, and the video pauses again once it scrolls out.
  */
-export default function SampleReel({ videos, label, paused = false, onOpen }) {
+export default function SampleReel({
+  videos,
+  label,
+  paused = false,
+  onOpen,
+  frameClassName = "h-56 w-full sm:h-60 rounded-xl",
+  compact = false,
+}) {
   const wrapperRef = useRef(null);
   const videoRef = useRef(null);
   const [index, setIndex] = useState(0);
@@ -66,7 +73,7 @@ export default function SampleReel({ videos, label, paused = false, onOpen }) {
         }
       }}
       aria-label={`Watch ${label} sample ${index + 1}`}
-      className="group/reel relative h-56 w-full sm:h-60 cursor-pointer overflow-hidden rounded-xl bg-slate-900 outline-none ring-[#facc15] focus-visible:ring-2"
+      className={`group/reel relative ${frameClassName} cursor-pointer overflow-hidden bg-slate-900 outline-none ring-[#facc15] focus-visible:ring-2`}
     >
       {inView || loaded ? (
         <video
@@ -93,6 +100,13 @@ export default function SampleReel({ videos, label, paused = false, onOpen }) {
       <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/70 to-transparent" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 to-transparent" />
 
+      {compact ? (
+        // Small frames: just a play badge — the label sits outside the frame.
+        <span className="pointer-events-none absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-full bg-[#facc15] shadow-lg transition-transform duration-300 group-hover/reel:scale-110">
+          <Play size={14} className="ml-0.5 fill-black text-black" />
+        </span>
+      ) : (
+      <>
       {/* Label + counter */}
       <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-2">
         <span className="rounded-full bg-[#facc15] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-black shadow-lg">
@@ -157,6 +171,8 @@ export default function SampleReel({ videos, label, paused = false, onOpen }) {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

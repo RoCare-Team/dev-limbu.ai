@@ -28,7 +28,7 @@ const APP_ROUTE_SEGMENTS = new Set([
   "privacy-policy", "profile", "providers", "qr-dynamic",
   "realestate-marketing-software", "redirect", "restaurant-marketing-software",
   "review-management", "reviews", "salon-marketing-software", "serpResults",
-  "services", "signup", "sitemaps", "subscription", "terms-and-conditions",
+  "seo-tools", "services", "signup", "sitemaps", "subscription", "terms-and-conditions",
   "thank-you", "tour-travel-marketing-software", "user-activity",
   "user-settings", "video-generation", "video-management", "wallet", "webinar-demo", "work-with-us",
   "yoga-wellness-marketing-software",
@@ -103,6 +103,7 @@ function isAlwaysPublic(pathname) {
     pathname.startsWith("/franchise-panel") ||
     pathname.startsWith("/city") ||
     pathname.startsWith("/services") ||
+    pathname.startsWith("/seo-tools") ||
     pathname.startsWith("/bussiness/") ||
     pathname.startsWith("/blog/")
   ) {

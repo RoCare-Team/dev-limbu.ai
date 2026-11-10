@@ -1,13 +1,14 @@
 import HeaderSection from "@/components/sections/HeaderSection";
 import FestivalBannerSection from "@/components/sections/FestivalBannerSection";
-import HeroSection from "@/components/sections/HeroSection";
 import StatsSection from "@/components/sections/StatsSection";
+import HomeTools from "@/components/home/HomeTools";
 import BusinessTypesSection from "@/components/sections/BusinessTypesSection";
 import PopularCitiesSection from "@/components/sections/PopularCitiesSection";
 import ExamplesSection from "@/components/sections/ExamplesSection";
-import VideoPricingSection from "@/components/sections/VideoPricingSection";
-import FeaturesSection from "@/components/sections/FeaturesSection";
-import ClientGrowthSection from "@/components/sections/ClientGrowthSection";
+// Hidden for now — uncomment the import and the JSX below to bring back.
+// import VideoPricingSection from "@/components/sections/VideoPricingSection"; // "Videos Made With Limbu AI"
+// import FeaturesSection from "@/components/sections/FeaturesSection"; // "Built to dominate"
+// import ClientGrowthSection from "@/components/sections/ClientGrowthSection"; // "Real User GMB Profile Growth"
 import CaseStudySection from "@/components/sections/CaseStudySection";
 import AppDownloadSection from "@/components/sections/AppDownloadSection";
 import ComparisonSection from "@/components/sections/ComparisonSection";
@@ -19,7 +20,7 @@ import GlobalClientLayer from "@/components/GlobalClientLayer";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-white">
 
       {/* SSR */}
       <HeaderSection />
@@ -27,8 +28,8 @@ export default function HomePage() {
       {/* Festival creative — apni date window ke bahar khud hide ho jata hai */}
       <FestivalBannerSection />
 
-      {/* SSR */}
-      <HeroSection />
+      {/* SSR — page starts with the app's tiles (home_sections collection) */}
+      <HomeTools />
 
       {/* SSR */}
       <StatsSection />
@@ -42,14 +43,14 @@ export default function HomePage() {
       {/* SSR */}
       <ExamplesSection />
 
-      {/* SSR shell, client calculator */}
-      <VideoPricingSection />
+      {/* Hidden for now: "Videos Made With Limbu AI" */}
+      {/* <VideoPricingSection /> */}
 
-      {/* SSR */}
-      <FeaturesSection />
+      {/* Hidden for now: "Built to dominate" */}
+      {/* <FeaturesSection /> */}
 
-      {/* SSR */}
-      <ClientGrowthSection />
+      {/* Hidden for now: "Real User GMB Profile Growth — Last 3 Months" */}
+      {/* <ClientGrowthSection /> */}
 
       {/* SSR */}
       <CaseStudySection />
@@ -65,7 +66,6 @@ export default function HomePage() {
 
       {/* SSR */}
       <FooterSection />
-
 
       <GlobalClientLayer/>
     </div>

@@ -45,6 +45,8 @@ export async function GET(req) {
           userId: user ? user.userId : null,
           plan: user?.subscription?.plan || "Free",
           isPaid: ctx.isPaid,
+          // Feature groups the user's plans unlock: "gmb", "social"
+          planGroups: ctx.planGroups,
         },
         sections,
       },

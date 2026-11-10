@@ -13,7 +13,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Activity,
-  LayoutDashboard,
   FileText,
   Star,
   Image as LucideImage,
@@ -27,6 +26,9 @@ import {
   Inbox,
   Settings,
   Clapperboard,
+  Share2,
+  Globe,
+  ChevronDown,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 import {
@@ -41,6 +43,7 @@ import UserAvatar from "./sidebar/UserAvatar";
 import TopAppBar from "./sidebar/TopAppBar";
 
 const drawerWidth = 280;
+const CLOSED_SECTIONS_KEY = "sidebarClosedSections";
 
 export default function Sidebar({ children }) {
   const router = useRouter();
@@ -55,6 +58,30 @@ export default function Sidebar({ children }) {
   } = useSidebar();
 
   const [openDropdown, setOpenDropdown] = useState(null);
+  // Headings of the sidebar sections the user folded away. Remembered across
+  // pages, because every dashboard page mounts its own Sidebar.
+  const [closedSections, setClosedSections] = useState([]);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CLOSED_SECTIONS_KEY) || "[]");
+      if (Array.isArray(saved)) setClosedSections(saved);
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
+  const toggleSection = useCallback((heading) => {
+    setClosedSections((prev) => {
+      const next = prev.includes(heading)
+        ? prev.filter((h) => h !== heading)
+        : [...prev, heading];
+      try {
+        localStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify(next));
+      } catch {
+        /* storage blocked */
+      }
+      return next;
+    });
+  }, []);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const profileRef = useRef(null);
 
@@ -110,11 +137,7 @@ export default function Sidebar({ children }) {
 
   const menuItems = useMemo(
     () => [
-      {
-        text: "Overview",
-        icon: <LayoutDashboard size={18} />,
-        path: "/dashboard",
-      },
+      { heading: "Google Business Profile", collapsible: true },
       {
         text: "Post Management",
         icon: <FileText size={18} />,
@@ -124,11 +147,6 @@ export default function Sidebar({ children }) {
         text: "Review Management",
         icon: <Star size={18} />,
         path: "/review-management",
-      },
-      {
-        text: "Website Leads",
-        icon: <Inbox size={18} />,
-        path: "/limbu-website-leads",
       },
       {
         text: "Magic QR",
@@ -144,15 +162,11 @@ export default function Sidebar({ children }) {
         path: "/assets-management",
       },
       {
-        text: "AI Video",
-        icon: <Clapperboard size={18} />,
-        children: [
-          { text: "Image To Video", path: "/video-generation/image-to-video" },
-          { text: "Text To Video", path: "/video-generation" },
-          { text: "AI Avatar Video", path: "/video-generation/ai-avatar-video" },
-          { text: "CGI Video", path: "/video-generation/cgi-video" },
-        ],
+        text: "GMB Insights",
+        icon: <BarChart3 size={18} />,
+        path: "/gmb-insights",
       },
+      { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {
         text: "Keyword Planner",
         icon: <KeyRound size={18} />,
@@ -163,12 +177,35 @@ export default function Sidebar({ children }) {
         icon: <MapPin size={18} />,
         path: "/competitor-analysis",
       },
-      { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
       {
-        text: "GMB Insights",
-        icon: <BarChart3 size={18} />,
-        path: "/gmb-insights",
+        text: "Website Leads",
+        icon: <Inbox size={18} />,
+        path: "/limbu-website-leads",
       },
+      {
+        text: "Website Audit",
+        icon: <Globe size={18} />,
+        path: "/website-audit",
+        tag: "Free",
+      },
+      { heading: "Social Media", collapsible: true },
+      {
+        text: "Social Media",
+        icon: <Share2 size={18} />,
+        path: "/social-media",
+        requires: "paid", // any paid plan; or a plan group from lib/userPlans.js
+      },
+      {
+        text: "AI Video",
+        icon: <Clapperboard size={18} />,
+        children: [
+          { text: "Image To Video", path: "/video-generation/image-to-video" },
+          { text: "Text To Video", path: "/video-generation" },
+          { text: "AI Avatar Video", path: "/video-generation/ai-avatar-video" },
+          { text: "CGI Video", path: "/video-generation/cgi-video" },
+        ],
+      },
+      { heading: "Account" },
       {
         text: "User Settings",
         icon: <Settings size={18} />,
@@ -178,6 +215,8 @@ export default function Sidebar({ children }) {
     ],
     [],
   );
+
+  let section = null; // heading of the section being rendered, set in the nav loop
 
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-slate-50">
@@ -221,9 +260,50 @@ export default function Sidebar({ children }) {
         {/* Navigation Section */}
         <nav className="flex-1 overflow-y-auto pt-4 pb-6 custom-scroll-sidebar">
           {menuItems.map((item, idx) => {
+            if (item.heading) {
+              section = item;
+              // Collapsed sidebar: a thin divider instead of the label
+              if (!isOpen) {
+                return <div key={item.heading} className="mx-5 my-3 border-t border-slate-100" />;
+              }
+              const label =
+                "px-6 pt-4 pb-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400";
+              if (!item.collapsible) {
+                return (
+                  <p key={item.heading} className={label}>
+                    {item.heading}
+                  </p>
+                );
+              }
+              const closed = closedSections.includes(item.heading);
+              return (
+                <button
+                  key={item.heading}
+                  type="button"
+                  onClick={() => toggleSection(item.heading)}
+                  aria-expanded={!closed}
+                  className={`${label} flex w-full items-center justify-between transition-colors hover:text-slate-700`}
+                >
+                  {item.heading}
+                  <ChevronDown
+                    size={13}
+                    className={`transition-transform duration-200 ${closed ? "-rotate-90" : ""}`}
+                  />
+                </button>
+              );
+            }
             const isActive =
               pathname === item.path ||
               (item.children && item.children.some((c) => c.path === pathname));
+            // Folded section: hide its items, except the page you are on
+            if (
+              isOpen &&
+              section?.collapsible &&
+              closedSections.includes(section.heading) &&
+              !isActive
+            ) {
+              return null;
+            }
             return (
               <SidebarNavItem
                 key={idx}
@@ -236,6 +316,14 @@ export default function Sidebar({ children }) {
                 }
                 onNavigate={navigate}
                 pathname={pathname}
+                // planGroups is undefined until loaded — don't flash a lock
+                locked={
+                  !!item.requires &&
+                  Array.isArray(userData?.planGroups) &&
+                  (item.requires === "paid"
+                    ? userData.planGroups.length === 0
+                    : !userData.planGroups.includes(item.requires))
+                }
               />
             );
           })}

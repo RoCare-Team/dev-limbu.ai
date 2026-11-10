@@ -3,6 +3,7 @@
  * Only this file knows the shape of the user document.
  */
 import User from "@/models/User";
+import { getUserActivePlans } from "@/lib/userPlans";
 
 /** Keeps the last 10 digits, so "+91 98912 34890" and "9891234890" match. */
 export function normalizePhone(phone) {
@@ -12,9 +13,16 @@ export function normalizePhone(phone) {
 
 /**
  * Finds the user by userId first (what every other app API sends), then by
- * mobile number. Returns a plain object or null (guest / unknown user).
+ * mobile number. Returns a plain object with `activePlans` attached, or null
+ * (guest / unknown user).
  */
 export async function findUser({ userId, phone }) {
+  const user = await findUserDoc({ userId, phone });
+  if (!user) return null;
+  return { ...user, activePlans: await getUserActivePlans(user) };
+}
+
+async function findUserDoc({ userId, phone }) {
   const fields = "userId phone subscription freeUsedCount freeUsage";
 
   if (userId) {
@@ -37,17 +45,11 @@ export async function findUser({ userId, phone }) {
 }
 
 /**
- * Names of the plans the user currently has, lower-cased.
- * "Free" is not a paid plan, so it is never returned.
+ * Lower-cased names of the user's active, unexpired plans — worked out by
+ * findUser (see lib/userPlans.js). "Free" is never a plan.
  */
 export function getActivePlans(user) {
-  if (!user) return [];
-  const sub = user.subscription || {};
-  const plan = String(sub.plan || "").trim();
-  if (plan && plan.toLowerCase() !== "free" && sub.status === "active") {
-    return [plan.toLowerCase()];
-  }
-  return [];
+  return user?.activePlans || [];
 }
 
 /**

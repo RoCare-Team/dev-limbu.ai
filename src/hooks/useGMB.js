@@ -58,7 +58,14 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
   // `gmb` har render par naya object hai. useCallback/useEffect deps me use
   // karne se infinite re-render loop ban jata, isliye primitives + stable
   // callbacks hi deps me jaate hain.
-  const { connected: gmbConnected, refresh: refreshGmb, disconnect: disconnectGmb } = gmb;
+  const {
+    connected: gmbConnected,
+    refresh: refreshGmb,
+    disconnect: disconnectGmb,
+    name: gmbName,
+    email: gmbAccountEmail,
+    image: gmbImage,
+  } = gmb;
 
   const [accounts, setAccounts] = useState([]);      // Live Google Data
   const [listings, setListings] = useState([]);      // Database Listings (Impersonation)
@@ -305,6 +312,9 @@ export function useGMB(_legacySession, _legacyStatus, setUiState) {
     handleDisconnectGMB,
     // Connection state — UI "Connect" / "Reconnect" isse decide karta hai.
     gmbConnected: gmb.connected,
+    gmbName,
+    gmbEmail: gmbAccountEmail,
+    gmbImage,
     needsGmbReconnect: gmb.needsReconnect,
     connectGMB: gmb.connect,
   };

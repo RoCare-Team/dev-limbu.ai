@@ -1,5 +1,6 @@
 import { ACCESS_STATUS } from "./constants";
 import { getActivePlans, getFreeUsed } from "./user";
+import { planGroupsOf } from "@/lib/userPlans";
 
 /**
  * Builds the per-request user context once.
@@ -10,6 +11,7 @@ export function buildUserContext(user) {
   return {
     user,
     activePlans,
+    planGroups: planGroupsOf(activePlans),
     isPaid: activePlans.length > 0,
   };
 }

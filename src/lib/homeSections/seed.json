@@ -18,6 +18,7 @@
         {
           "key": "gbp_insight",
           "label": "GMB Insights",
+          "description": "See views, calls and direction requests at a glance",
           "icon": {
             "type": "material",
             "value": "bar_chart"
@@ -43,6 +44,7 @@
         {
           "key": "health_score",
           "label": "GMB Health",
+          "description": "Score your profile and fix what is missing",
           "icon": {
             "type": "material",
             "value": "star"
@@ -68,6 +70,7 @@
         {
           "key": "gbp_create_post",
           "label": "Post Management",
+          "description": "AI writes and schedules posts on your profile",
           "icon": {
             "type": "material",
             "value": "edit_square"
@@ -93,6 +96,7 @@
         {
           "key": "review_reply",
           "label": "Review Management",
+          "description": "Reply to every Google review with AI",
           "icon": {
             "type": "material",
             "value": "chat_bubble_outline"
@@ -118,6 +122,7 @@
         {
           "key": "magic_qr",
           "label": "Magic QR",
+          "description": "QR code that brings in 5-star reviews",
           "icon": {
             "type": "material",
             "value": "qr_code_2"
@@ -143,6 +148,7 @@
         {
           "key": "assets_management",
           "label": "Assets Management",
+          "description": "Upload and manage your listing photos and videos",
           "icon": {
             "type": "material",
             "value": "photo_library"
@@ -168,6 +174,7 @@
         {
           "key": "keyword_planner",
           "label": "Keyword Planner",
+          "description": "Find the keywords customers search for",
           "icon": {
             "type": "material",
             "value": "key"
@@ -193,6 +200,7 @@
         {
           "key": "competitor_analysis",
           "label": "Competitor Analysis",
+          "description": "See how you rank against nearby rivals",
           "icon": {
             "type": "material",
             "value": "query_stats"
@@ -218,6 +226,7 @@
         {
           "key": "website_builder",
           "label": "Website Builder",
+          "description": "Get a website built from your Google profile",
           "icon": {
             "type": "material",
             "value": "language"
@@ -258,33 +267,9 @@
       "order": 2,
       "items": [
         {
-          "key": "social_create_post",
-          "label": "Create Post",
-          "icon": {
-            "type": "material",
-            "value": "add_photo_alternate"
-          },
-          "badge": null,
-          "action": {
-            "type": "feature",
-            "value": "create_post"
-          },
-          "order": 1,
-          "access": {
-            "includedInPlans": [
-              "Social Starter",
-              "Social Growth",
-              "Social Pro"
-            ],
-            "freeForAll": true,
-            "freeLimit": 0,
-            "visibleTo": "all"
-          },
-          "isActive": true
-        },
-        {
           "key": "reels",
           "label": "Reels",
+          "description": "Make short reels from text, photos or an avatar",
           "icon": {
             "type": "material",
             "value": "videocam"
@@ -306,6 +291,7 @@
         {
           "key": "social_insights",
           "label": "Insights",
+          "description": "Track reach, likes and follower growth",
           "icon": {
             "type": "material",
             "value": "insights"
@@ -322,7 +308,7 @@
               "Social Growth",
               "Social Pro"
             ],
-            "freeForAll": true,
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -332,6 +318,7 @@
         {
           "key": "comment_auto_reply",
           "label": "Comment Auto Reply",
+          "description": "AI replies to comments automatically",
           "icon": {
             "type": "material",
             "value": "forum"
@@ -348,7 +335,7 @@
               "Social Growth",
               "Social Pro"
             ],
-            "freeForAll": true,
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -358,6 +345,7 @@
         {
           "key": "dm_auto_reply",
           "label": "DM Auto Reply",
+          "description": "Instant AI replies to customer messages",
           "icon": {
             "type": "material",
             "value": "send"
@@ -374,7 +362,7 @@
               "Social Growth",
               "Social Pro"
             ],
-            "freeForAll": true,
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -384,6 +372,7 @@
         {
           "key": "delete_negative_comments",
           "label": "Delete Negative Comments",
+          "description": "Hide spam and negative comments automatically",
           "icon": {
             "type": "material",
             "value": "delete_sweep"
@@ -400,7 +389,7 @@
               "Social Growth",
               "Social Pro"
             ],
-            "freeForAll": true,
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -410,6 +399,7 @@
         {
           "key": "social_plans",
           "label": "Social Plans",
+          "description": "Done-for-you social media plans",
           "icon": {
             "type": "material",
             "value": "workspace_premium"
@@ -424,7 +414,7 @@
             "includedInPlans": [],
             "freeForAll": false,
             "freeLimit": 0,
-            "visibleTo": "free_users"
+            "visibleTo": "all"
           },
           "isActive": true
         }
@@ -448,6 +438,7 @@
         {
           "key": "text_to_video",
           "label": "Text to Video",
+          "description": "Turn your offer or script into a ready reel",
           "icon": {
             "type": "material",
             "value": "slideshow"
@@ -476,6 +467,7 @@
         {
           "key": "image_to_video",
           "label": "Image to Video",
+          "description": "Bring a product or shop photo to life",
           "icon": {
             "type": "material",
             "value": "photo_library"
@@ -504,6 +496,7 @@
         {
           "key": "cgi_video",
           "label": "CGI Product Video",
+          "description": "Cinematic 3D-style ad for your product",
           "icon": {
             "type": "material",
             "value": "view_in_ar"
@@ -532,6 +525,7 @@
         {
           "key": "ai_avatar_video",
           "label": "AI Avatar Video",
+          "description": "An AI presenter talks about your business",
           "icon": {
             "type": "material",
             "value": "face_retouching_natural"
@@ -560,6 +554,7 @@
         {
           "key": "ai_create_post",
           "label": "Create Post",
+          "description": "AI image and caption in one click",
           "icon": {
             "type": "material",
             "value": "auto_awesome"
@@ -584,8 +579,8 @@
     },
     {
       "key": "outreach",
-      "title": "Outreach",
-      "subtitle": "Reach customers on email & WhatsApp",
+      "title": "Outreach & Engage",
+      "subtitle": "WhatsApp and email follow-ups that bring customers back",
       "icon": {
         "type": "material",
         "value": "campaign"
@@ -599,6 +594,7 @@
         {
           "key": "emailer",
           "label": "Emailer",
+          "description": "Send email campaigns to your customers",
           "icon": {
             "type": "material",
             "value": "mail"
@@ -621,6 +617,7 @@
         {
           "key": "whatsapp_automation",
           "label": "WhatsApp Automation",
+          "description": "Automatic WhatsApp messages and follow-ups",
           "icon": {
             "type": "brand",
             "value": "whatsapp"
@@ -660,23 +657,20 @@
         {
           "key": "onpage_seo",
           "label": "Onpage SEO",
+          "description": "Optimise titles, content and meta tags",
           "icon": {
             "type": "material",
             "value": "description"
           },
-          "badge": null,
+          "badge": "NEW",
           "action": {
             "type": "plans",
             "value": "services"
           },
           "order": 1,
           "access": {
-            "includedInPlans": [
-              "Basic SEO",
-              "Standard SEO",
-              "Advanced SEO"
-            ],
-            "freeForAll": true,
+            "includedInPlans": [],
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -685,23 +679,20 @@
         {
           "key": "technical_seo",
           "label": "Technical SEO",
+          "description": "Fix site speed, indexing and errors",
           "icon": {
             "type": "material",
             "value": "settings"
           },
-          "badge": null,
+          "badge": "NEW",
           "action": {
             "type": "plans",
             "value": "services"
           },
           "order": 2,
           "access": {
-            "includedInPlans": [
-              "Basic SEO",
-              "Standard SEO",
-              "Advanced SEO"
-            ],
-            "freeForAll": true,
+            "includedInPlans": [],
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -710,23 +701,20 @@
         {
           "key": "offpage_seo",
           "label": "Offpage SEO",
+          "description": "Backlinks and citations that build authority",
           "icon": {
             "type": "material",
             "value": "link"
           },
-          "badge": null,
+          "badge": "NEW",
           "action": {
             "type": "plans",
             "value": "services"
           },
           "order": 3,
           "access": {
-            "includedInPlans": [
-              "Basic SEO",
-              "Standard SEO",
-              "Advanced SEO"
-            ],
-            "freeForAll": true,
+            "includedInPlans": [],
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -735,6 +723,7 @@
         {
           "key": "keyword_research",
           "label": "Keyword Research",
+          "description": "Find keywords worth ranking for",
           "icon": {
             "type": "material",
             "value": "key"
@@ -756,23 +745,20 @@
         {
           "key": "content_management",
           "label": "Content Management",
+          "description": "SEO blogs and pages written for you",
           "icon": {
             "type": "material",
             "value": "edit_note"
           },
-          "badge": null,
+          "badge": "NEW",
           "action": {
             "type": "plans",
             "value": "services"
           },
           "order": 5,
           "access": {
-            "includedInPlans": [
-              "Basic SEO",
-              "Standard SEO",
-              "Advanced SEO"
-            ],
-            "freeForAll": true,
+            "includedInPlans": [],
+            "freeForAll": false,
             "freeLimit": 0,
             "visibleTo": "all"
           },
@@ -781,6 +767,7 @@
         {
           "key": "local_rank_tracker",
           "label": "Local Rank Tracker",
+          "description": "Track your Google Maps rank area by area",
           "icon": {
             "type": "material",
             "value": "location_searching"
@@ -798,6 +785,263 @@
             "visibleTo": "all"
           },
           "isActive": true
+        },
+        {
+          "key": "website_audit",
+          "label": "Website Audit",
+          "description": "Full check of speed, SEO and errors with a fix list",
+          "icon": {
+            "type": "material",
+            "value": "fact_check"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 7,
+          "isActive": true
+        },
+        {
+          "key": "backlinker",
+          "label": "Backlinker",
+          "description": "Quality backlinks that build your site's authority",
+          "icon": {
+            "type": "material",
+            "value": "hub"
+          },
+          "badge": "NEW",
+          "action": {
+            "type": "plans",
+            "value": "services"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 8,
+          "isActive": true
+        }
+      ],
+      "isActive": true
+    },
+    {
+      "key": "website_development",
+      "title": "Website Development",
+      "subtitle": "Websites that turn visitors into customers",
+      "icon": {
+        "type": "material",
+        "value": "language"
+      },
+      "viewAll": {
+        "type": "plans",
+        "value": "web"
+      },
+      "order": 6,
+      "items": [
+        {
+          "key": "starter_website",
+          "label": "Starter Website",
+          "description": "5-page responsive site with contact form, from ₹9,999",
+          "icon": {
+            "type": "material",
+            "value": "language"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 1,
+          "isActive": true
+        },
+        {
+          "key": "business_website",
+          "label": "Business Website",
+          "description": "15 pages, custom design and admin panel, from ₹25,000",
+          "icon": {
+            "type": "material",
+            "value": "storefront"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 2,
+          "isActive": true
+        },
+        {
+          "key": "ecommerce_website",
+          "label": "E-commerce Store",
+          "description": "Online store with payment gateway, from ₹48,000",
+          "icon": {
+            "type": "material",
+            "value": "shopping_cart"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 3,
+          "isActive": true
+        },
+        {
+          "key": "custom_design",
+          "label": "Custom UI/UX Design",
+          "description": "A unique design made for your brand",
+          "icon": {
+            "type": "material",
+            "value": "palette"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 4,
+          "isActive": true
+        },
+        {
+          "key": "admin_panel",
+          "label": "Admin Panel",
+          "description": "Update products, prices and pages yourself",
+          "icon": {
+            "type": "material",
+            "value": "dashboard"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 5,
+          "isActive": true
+        },
+        {
+          "key": "payment_gateway",
+          "label": "Payment Gateway",
+          "description": "Take UPI, card and net banking payments",
+          "icon": {
+            "type": "material",
+            "value": "payments"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 6,
+          "isActive": true
+        },
+        {
+          "key": "seo_ready",
+          "label": "SEO & Analytics Setup",
+          "description": "SEO-ready pages with Google Analytics",
+          "icon": {
+            "type": "material",
+            "value": "trending_up"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 7,
+          "isActive": true
+        },
+        {
+          "key": "website_support",
+          "label": "Support & Maintenance",
+          "description": "1 to 6 months of updates and fixes included",
+          "icon": {
+            "type": "material",
+            "value": "support_agent"
+          },
+          "badge": null,
+          "action": {
+            "type": "plans",
+            "value": "web"
+          },
+          "access": {
+            "includedInPlans": [],
+            "freeForAll": false,
+            "freeLimit": 0,
+            "visibleTo": "all"
+          },
+          "comingSoon": false,
+          "coinCost": 0,
+          "order": 8,
+          "isActive": true
         }
       ],
       "isActive": true
@@ -814,11 +1058,12 @@
         "type": "all_services",
         "value": "paid_ads"
       },
-      "order": 6,
+      "order": 7,
       "items": [
         {
           "key": "google_ads",
           "label": "Google Ads",
+          "description": "Search and Maps ads that bring calls",
           "icon": {
             "type": "brand",
             "value": "google"
@@ -840,6 +1085,7 @@
         {
           "key": "youtube_ads",
           "label": "YouTube Ads",
+          "description": "Video ads that reach local viewers",
           "icon": {
             "type": "brand",
             "value": "youtube"
@@ -861,6 +1107,7 @@
         {
           "key": "facebook_ads",
           "label": "Facebook Ads",
+          "description": "Targeted ads for local Facebook users",
           "icon": {
             "type": "brand",
             "value": "facebook"
@@ -882,6 +1129,7 @@
         {
           "key": "instagram_ads",
           "label": "Instagram Ads",
+          "description": "Reach customers in feed and reels",
           "icon": {
             "type": "brand",
             "value": "instagram"
@@ -903,6 +1151,7 @@
         {
           "key": "linkedin_ads",
           "label": "LinkedIn Ads",
+          "description": "Reach business owners and decision makers",
           "icon": {
             "type": "brand",
             "value": "linkedin"
@@ -924,6 +1173,7 @@
         {
           "key": "all_ad_plans",
           "label": "All Ad Plans",
+          "description": "Compare every paid ads plan",
           "icon": {
             "type": "material",
             "value": "insights"

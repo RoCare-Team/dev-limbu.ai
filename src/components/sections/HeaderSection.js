@@ -45,12 +45,13 @@ export default function Navbar() {
         {/* LOGO */}
        {/* LOGO */}
 <Link href="/" className="cursor-pointer flex items-center gap-2 shrink-0">
+  {/* Cropped lemon (no transparent padding), so the gap to the text is just gap-2 */}
   <Image
-    src="/images/bg-logo.png"
+    src="/images/logo-mark.png"
     alt="Limbu.ai Logo"
-    width={200}
-    height={186}
-    className="object-contain h-14 w-auto"
+    width={119}
+    height={144}
+    className="object-contain h-10 w-auto"
     priority
   />
   <span className="text-xl font-black tracking-tight text-black">

@@ -3,6 +3,7 @@ import FranchiseRevenue from "@/models/FranchiseRevenue";
 import mongoose from "mongoose";
 import { NextResponse } from "next/server";
 import { mongooseConnectionUri } from "@/lib/mongoConnectionUri";
+import { getUserActivePlans, planGroupsOf } from "@/lib/userPlans";
 
 // ✅ GET: Fetch all users or single user by userId
 async function connectDB() {
@@ -104,10 +105,14 @@ const uniqueServices = Object.values(
 
 
 
+// Feature groups ("gmb", "social") the user's active plans unlock — drives the sidebar.
+const planGroups = planGroupsOf(await getUserActivePlans(user));
+
 return NextResponse.json({
   success: true,
   user: {
     ...user.toObject(),
+    planGroups,
 
     activePackages: uniquePackages.map((p) => ({
   _id: p._id,

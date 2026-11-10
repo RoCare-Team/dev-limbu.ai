@@ -91,6 +91,7 @@ export function toPublicSection(doc, ctx) {
         return {
           key: item.key,
           label: item.label,
+          description: item.description || "",
           icon: item.icon,
           badge,
           action: item.action,

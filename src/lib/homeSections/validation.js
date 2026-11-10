@@ -129,6 +129,12 @@ export function validateSection(body) {
     else seenKeys.add(item.key);
 
     if (!isNonEmptyString(item.label)) errors.push(`${p}.label is required`);
+    if (
+      item.description != null &&
+      (typeof item.description !== "string" || item.description.length > 120)
+    ) {
+      errors.push(`${p}.description must be text of 120 characters or less`);
+    }
     validateIcon(item.icon, `${p}.icon`, errors);
     validateAction(item.action, `${p}.action`, errors);
     if (item.badge != null && !C.BADGES.includes(item.badge)) {

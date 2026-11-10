@@ -144,7 +144,8 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
 
   const [filterStatus, setFilterStatus] = useState("all");
-  const [activeTab, setActiveTab] = useState("gmb");
+  // ?tab=facebook etc. opens that platform's tab (used by /social-media "Connect").
+  const [activeTab, setActiveTab] = useState(() => searchParams?.get("tab") || "gmb");
 
   // --- Consolidated UI State ---
   const [uiState, setUiState] = useState({
@@ -168,6 +169,9 @@ export default function DashboardPage() {
     handleManualRefresh,
     handleDisconnectGMB,
     gmbConnected,
+    gmbName,
+    gmbEmail,
+    gmbImage,
     connectGMB,
   } = useGMB(null, null, setUiState);
 
@@ -741,6 +745,12 @@ export default function DashboardPage() {
             handleListingData={handleListingData}
             handleViewPerformanceInsights={handleViewPerformanceInsights}
             handleDisconnectGMB={handleDisconnectGMB}
+            handleManualRefresh={handleManualRefresh}
+            gmbConnected={gmbConnected}
+            gmbLoading={gmbLoading}
+            gmbName={gmbName}
+            gmbEmail={gmbEmail}
+            gmbImage={gmbImage}
           />
         )}
 

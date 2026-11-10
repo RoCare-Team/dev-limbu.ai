@@ -38,7 +38,8 @@ import InhousePinterestShareModal from "../../components/post-management/Inhouse
 import YouTubeShareModal from "../../components/post-management/YouTubeShareModal";
 import PreviewSection from "../../components/post-management/PreviewSection";
 import PostManagementHeader from "../../components/post-management/PostManagementHeader";
-import PostCard from "../../components/post-management/PostCard";
+import PostsGrid from "../../components/post-management/PostsGrid";
+import InhousePinterestBanner from "../../components/post-management/InhousePinterestBanner";
 import ImageToVideoModal from "@/components/post-management/ImageToVideoModal";
 
 import { useSession } from "@/hooks/useAppSession";
@@ -61,8 +62,7 @@ import { usePinterest } from "@/hooks/usePinterest";
 import { useLinkedin } from "@/hooks/useLinkedin";
 import { useYouTube } from "@/hooks/useYouTube";
 import "./PostManagement.module.css";
-import Lottie from "lottie-react";
-import animationData from "@/assets/animation/Loading.json";
+import { usePostingProgress } from "@/hooks/usePostingProgress";
 
 import { emitWalletDeduct, emitWalletCredit } from "@/utils/walletEvents";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -257,10 +257,6 @@ export default function PostManagementPage() {
 
   const isInhousePinterestUser = activeUserEmail === INHOUSE_PINTEREST_EMAIL;
 
-  // modal posting
-  const [msgIndex, setMsgIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
-
   // Tab filter race: pehle har response seedha list me lag jata tha, chahe wo us
   // tab ka ho jise user chhod chuka hai. ALL → PENDING jaldi dabane par ALL ka der
   // se aaya reply PENDING tab ke neeche ALL ke posts dikha deta tha. Ab har page-1
@@ -378,7 +374,6 @@ export default function PostManagementPage() {
   );
 
   // gmb post success modal & dynamic platform tracking
-  const [dots, setDots] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [postingPlatform, setPostingPlatform] = useState("Google Business");
 
@@ -404,18 +399,7 @@ export default function PostManagementPage() {
     setPostingPlatform,
   });
 
-  useEffect(() => {
-    if (!isPosting) return;
-
-    const interval = setInterval(() => {
-      setDots((prev) => {
-        if (prev.length >= 3) return "";
-        return prev + ".";
-      });
-    }, 400);
-
-    return () => clearInterval(interval);
-  }, [isPosting]);
+  const { messages, msgIndex, timeLeft, dots } = usePostingProgress(isPosting);
 
   useEffect(() => {
     const stored = getLocalStorage("locationDetails");
@@ -1905,52 +1889,80 @@ export default function PostManagementPage() {
     if (bal) setUserWallet(parseInt(bal, 10));
   }, []);
 
-  const messages = [
-    "Please wait...",
-    "Posting...",
-    "Uploading...",
-    "Finalizing...",
-  ];
-  const MESSAGE_INTERVAL = 1500; // text change (1.5 sec)
-
-  useEffect(() => {
-    if (!isPosting) return;
-
-    setTimeLeft(20); // 🔥 start from 20
-    setMsgIndex(0);
-
-    // countdown (reverse)
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
+  // Pinterest / LinkedIn publish succeeded: close the modal, show the success
+  // overlay, mark the post as posted on that platform and refresh the list.
+  const markPublished = useCallback(
+    async (post, { platform, label, modalKey, result }) => {
+      updateUiState({ [modalKey]: false });
+      setSelectedMediaForAction(null);
+      setPostingPlatform(label);
+      setIsSuccess(true);
+      await updatePostStatusAction({
+        id: post._id,
+        userId,
+        status: "posted",
+        postedPlatform: platform,
+        whenPosted: buildWhenPostedUpdate(platform, result.data?.id || result.id || ""),
       });
-    }, 1000);
+      fetchPosts(1, true);
+    },
+    [fetchPosts, updatePostStatusAction, updateUiState, userId],
+  );
 
-    // message rotate
-    const msgInterval = setInterval(() => {
-      setMsgIndex((prev) => (prev + 1) % messages.length);
-    }, MESSAGE_INTERVAL);
+  const handlePinterestPublish = useCallback(
+    async (post, boardId, coverImageUrl, edited = {}) => {
+      const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
+      let description =
+        edited.description ||
+        post.piDescription ||
+        post.pinterestDescription ||
+        post.description ||
+        post.fbDescription ||
+        "";
+      if (description.length > 800) description = description.substring(0, 797) + "...";
 
-    return () => {
-      clearInterval(timer);
-      clearInterval(msgInterval);
-    };
-  }, [isPosting]);
+      const result = await publishPin({
+        title: edited.title || bussinessTitle || "Pinterest Post",
+        description,
+        boardId,
+        mediaUrl,
+        link: edited.link || availableLocations[0]?.websiteUrl || "",
+        // aiOutput is always an image (png/jpg), safe as the cover for video pins
+        coverImageUrl: post.aiOutput || coverImageUrl,
+      });
+      if (result?.success) {
+        await markPublished(post, { platform: "pinterest", label: "Pinterest", modalKey: "showPinterestModal", result });
+      }
+      return result;
+    },
+    [availableLocations, bussinessTitle, markPublished, publishPin, selectedMediaForAction],
+  );
 
-  useEffect(() => {
-    if (!isSuccess) return;
+  const handleLinkedinPublish = useCallback(
+    async (post, pageId) => {
+      const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
+      const isVideo =
+        selectedMediaForAction?.type === "video" ||
+        (!selectedMediaForAction && post.videoOutput && mediaUrl === post.videoOutput) ||
+        (mediaUrl && mediaUrl.includes(".mp4"));
+      // The modal passes the edited text in post.linkedinDescription
+      const text = post.linkedinDescription || post.liDescription || "";
+      const selectedPage = linkedinPages.find((p) => p.pageId === pageId);
 
-    const t = setTimeout(() => {
-      // agar auto close karna hai to yaha likh
-      // setIsSuccess(false);
-    }, 2000);
-
-    return () => clearTimeout(t);
-  }, [isSuccess]);
+      const result = await publishLinkedinPost({
+        text,
+        mediaUrl,
+        mediaType: isVideo ? "video" : "image",
+        pageId,
+        pageName: selectedPage?.pageName || "",
+      });
+      if (result?.success) {
+        await markPublished(post, { platform: "linkedin", label: "LinkedIn", modalKey: "showLinkedinModal", result });
+      }
+      return result;
+    },
+    [linkedinPages, markPublished, publishLinkedinPost, selectedMediaForAction],
+  );
 
   return (
     <div className="text-slate-900">
@@ -2090,54 +2102,7 @@ export default function PostManagementPage() {
             }
             defaultTitle={bussinessTitle || "Pinterest Post"}
             defaultLink={availableLocations[0]?.websiteUrl || ""}
-            onPost={async (post, boardId, coverImageUrl, edited = {}) => {
-              const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
-
-              let description =
-                edited.description ||
-                post.piDescription ||
-                post.pinterestDescription ||
-                post.description ||
-                post.fbDescription ||
-                "";
-
-              if (description.length > 800) {
-                description = description.substring(0, 797) + "...";
-              }
-
-              // ✅ aiOutput is always an image (png/jpg), safe to use as cover for video pins
-              const finalCoverImageUrl = post.aiOutput || coverImageUrl;
-
-              const result = await publishPin({
-                title: edited.title || bussinessTitle || "Pinterest Post",
-                description,
-                boardId,
-                mediaUrl,
-                link: edited.link || availableLocations[0]?.websiteUrl || "",
-                coverImageUrl: finalCoverImageUrl,
-              });
-
-              if (result && result.success) {
-                updateUiState({ showPinterestModal: false });
-                setSelectedMediaForAction(null);
-                setPostingPlatform("Pinterest");
-                setIsSuccess(true);
-
-                await updatePostStatusAction({
-                  id: post._id,
-                  userId,
-                  status: "posted",
-                  postedPlatform: "pinterest",
-                  whenPosted: buildWhenPostedUpdate(
-                    "pinterest",
-                    result.data?.id || result.id || "",
-                  ),
-                });
-                fetchPosts(1, true);
-              }
-
-              return result;
-            }}
+            onPost={handlePinterestPublish}
           />
         )}
         {uiState.showInhousePinterestMappingModal && (
@@ -2255,25 +2220,10 @@ export default function PostManagementPage() {
         />
 
         {isInhousePinterestUser && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-widest text-red-700">
-                Inhouse Pinterest
-              </p>
-              <p className="truncate text-xs font-semibold text-red-500/80">
-                {inhouseMappings.length} city board mapping(s) saved
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                updateUiState({ showInhousePinterestMappingModal: true })
-              }
-              className="shrink-0 rounded-xl bg-[#E60023] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-[#c5001f]"
-            >
-              Edit Mapping
-            </button>
-          </div>
+          <InhousePinterestBanner
+            mappingCount={inhouseMappings.length}
+            onEdit={() => updateUiState({ showInhousePinterestMappingModal: true })}
+          />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
@@ -2344,121 +2294,50 @@ export default function PostManagementPage() {
           ))}
         </div>
 
-        {uiState.isLoadingPosts ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <Lottie
-              animationData={animationData}
-              loop={true}
-              className="w-32 h-32"
-            />
-            <p className="text-gray-500 mt-4">Loading your creatives...</p>
-          </div>
-        ) : posts.length > 0 ? (
-          <>
-            <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6 mt-6">
-              {posts.map((post) => (
-                <PostCard
-                  key={post._id}
-                  post={post}
-                  scheduleDates={scheduleDates}
-                  onDateChange={handleDateChange}
-                  handleDownload={handleDownload}
-                  handleShare={handleShare}
-                  onUpdateStatus={handleUpdateStatus}
-                  onReject={handleReject}
-                  handlePost={handlePost}
-                  onEditDescription={handleEditDescription}
-                  handleDeleteFromGMB={handleDeleteFromGMB}
-                  onToggleCheckmark={handleToggleCheckmark}
-                  handleFacebookPost={handleFacebookPost}
-                  handleInstagramPost={handleInstagramPost}
-                  handlePinterestPost={handlePinterestPost}
-                  handleLinkedinPost={handleLinkedinPost}
-                  handleYoutubePost={handleYoutubePost}
-                  onConvertToVideo={handleAutoConvertToVideo}
-                  convertingVideoPostId={convertingVideoPostId}
-                  videoGenerationCoins={VIDEO_GENERATION_COINS}
-                />
-              ))}
-            </div>
-            <div ref={loaderRef} className="h-10 w-full" />
-            {uiState.isLoadingMore && (
-              <div className="flex justify-center py-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-500"></div>
-              </div>
-            )}
+        <PostsGrid
+          posts={posts}
+          isLoading={uiState.isLoadingPosts}
+          isLoadingMore={uiState.isLoadingMore}
+          activeTab={activeTab}
+          loaderRef={loaderRef}
+          cardProps={{
+            scheduleDates,
+            onDateChange: handleDateChange,
+            handleDownload,
+            handleShare,
+            onUpdateStatus: handleUpdateStatus,
+            onReject: handleReject,
+            handlePost,
+            onEditDescription: handleEditDescription,
+            handleDeleteFromGMB,
+            onToggleCheckmark: handleToggleCheckmark,
+            handleFacebookPost,
+            handleInstagramPost,
+            handlePinterestPost,
+            handleLinkedinPost,
+            handleYoutubePost,
+            onConvertToVideo: handleAutoConvertToVideo,
+            convertingVideoPostId,
+            videoGenerationCoins: VIDEO_GENERATION_COINS,
+          }}
+        />
 
-            <GMBModal
-              showGmbExpiredModal={showGmbExpiredModal}
-              setShowGmbExpiredModal={setShowGmbExpiredModal}
-            />
-
-            <ImageGeneratedModal
-              isOpen={isImageGenerated}
-              onClose={() => setIsImageGenerated(false)}
-            />
-
-            <LinkedinShareModal
-              isOpen={uiState.showLinkedinModal}
-              onClose={() => updateUiState({ showLinkedinModal: false })}
-              post={socialState.postToLinkedin}
-              linkedinPages={linkedinPages}
-              onPost={async (post, pageId) => {
-                const mediaUrl = selectedMediaForAction?.url || post.aiOutput;
-                // Safely determine mediaType without relying on undefined postHasVideoAsset
-                const isVideo =
-                  selectedMediaForAction?.type === "video" ||
-                  (!selectedMediaForAction &&
-                    post.videoOutput &&
-                    mediaUrl === post.videoOutput) ||
-                  (mediaUrl && mediaUrl.includes(".mp4"));
-                const mediaType = isVideo ? "video" : "image";
-
-                // The modal passes the newly edited text inside `post.linkedinDescription`
-                let text = post.linkedinDescription || post.liDescription || "";
-
-                const selectedPage = linkedinPages.find(
-                  (p) => p.pageId === pageId,
-                );
-
-                const result = await publishLinkedinPost({
-                  text,
-                  mediaUrl,
-                  mediaType,
-                  pageId,
-                  pageName: selectedPage?.pageName || "",
-                });
-
-                if (result && result.success) {
-                  updateUiState({ showLinkedinModal: false });
-                  setSelectedMediaForAction(null);
-                  setPostingPlatform("LinkedIn");
-                  setIsSuccess(true);
-
-                  await updatePostStatusAction({
-                    id: post._id,
-                    userId,
-                    status: "posted",
-                    postedPlatform: "linkedin",
-                    whenPosted: buildWhenPostedUpdate(
-                      "linkedin",
-                      result.data?.id || result.id || "",
-                    ),
-                  });
-                  fetchPosts(1, true);
-                }
-
-                return result;
-              }}
-            />
-          </>
-        ) : (
-          <div className="bg-white rounded-3xl p-16 text-center border-3 border-dashed border-slate-200 shadow-xl">
-            <div className="text-8xl mb-6">📭</div>
-            <h3 className="text-xl font-bold mb-2">No posts found</h3>
-            <p className="text-slate-900/70">{`No ${activeTab} posts yet`}</p>
-          </div>
-        )}
+        {/* Rendered even with an empty list (they used to sit inside the "has posts" branch) */}
+        <GMBModal
+          showGmbExpiredModal={showGmbExpiredModal}
+          setShowGmbExpiredModal={setShowGmbExpiredModal}
+        />
+        <ImageGeneratedModal
+          isOpen={isImageGenerated}
+          onClose={() => setIsImageGenerated(false)}
+        />
+        <LinkedinShareModal
+          isOpen={uiState.showLinkedinModal}
+          onClose={() => updateUiState({ showLinkedinModal: false })}
+          post={socialState.postToLinkedin}
+          linkedinPages={linkedinPages}
+          onPost={handleLinkedinPublish}
+        />
       </div>
       {/* <SupportModal showToast={showToast} /> */}
       <WhatsAppButton />

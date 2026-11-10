@@ -59,8 +59,8 @@ export function useSidebar() {
 
   activePackages: data?.user?.activePackages || [],
   activeServices: data?.user?.activeServices || [],
+  planGroups: data?.user?.planGroups || [],
 }));
-console.log("USER PLAN DATA =>", data.user);
     }
   } catch (err) {
     console.error("Plan fetch error", err);

@@ -54,6 +54,8 @@ const HomeSectionItemSchema = new mongoose.Schema(
   {
     key: { type: String, required: true, trim: true },
     label: { type: String, required: true, trim: true },
+    // One short line about what the tool does (shown under the label).
+    description: { type: String, default: "", trim: true },
     icon: { type: IconSchema, required: true },
     badge: { type: String, default: null }, // FREE | NEW | HOT | PRO | null
     action: { type: ActionSchema, required: true },

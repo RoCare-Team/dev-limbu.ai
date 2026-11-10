@@ -136,12 +136,12 @@ export default function FestivalBannerSection() {
 
   if (!show) {
     // Fixed navbar ke liye jagah — banner na dikhe tab bhi spacing stable rahe.
-    return <div className="h-20 lg:h-28" aria-hidden="true" />;
+    return <div className="h-[65px]" aria-hidden="true" />;
   }
 
   return (
     <>
-      <div className="h-20 lg:h-28" aria-hidden="true" />
+      <div className="h-[65px]" aria-hidden="true" />
 
       <section
         className="w-full px-4 sm:px-6 lg:px-8 pb-10 sm:pb-12"

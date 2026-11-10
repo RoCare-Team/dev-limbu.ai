@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronUp, ChevronDown, Lock } from "lucide-react";
 
 const SidebarNavItem = React.memo(({
   item,
@@ -9,6 +9,7 @@ const SidebarNavItem = React.memo(({
   onToggleDropdown,
   onNavigate,
   pathname,
+  locked = false,
 }) => {
   const isDropdown = !!item.children;
   
@@ -31,6 +32,25 @@ const SidebarNavItem = React.memo(({
             <span className="flex-1 text-left text-[13px] font-bold tracking-tight truncate font-sans">
               {item.text}
             </span>
+            {item.tag && !locked && (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                  isActive ? "bg-[#facc15] text-black" : "bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {item.tag}
+              </span>
+            )}
+            {locked && (
+              <span
+                title="Not in your plan, upgrade to unlock"
+                className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                  isActive ? "bg-white/10 text-[#facc15]" : "bg-amber-50 text-amber-700"
+                }`}
+              >
+                <Lock size={9} strokeWidth={3} /> Upgrade
+              </span>
+            )}
             {isDropdown && (
               <span className={isActive ? "text-white/40" : "text-slate-300"}>
                 {isDropdownOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}

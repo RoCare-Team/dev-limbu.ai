@@ -55,6 +55,13 @@ export const MATERIAL_ICONS = [
   "send",
   "delete_sweep",
   "mail",
+  "shopping_cart",
+  "palette",
+  "dashboard",
+  "payments",
+  "support_agent",
+  "fact_check",
+  "hub",
 ];
 
 // action.type

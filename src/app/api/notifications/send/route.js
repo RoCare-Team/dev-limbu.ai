@@ -1,197 +1,63 @@
-// App push notification bhejne ki API
-// Token 3 tarikon se resolve hota hai: direct token, userId, ya phone
-// userId/phone case me User document se fcmToken uthaya jata hai (login pe save hota hai)
+// App push notification bhejne ki API (admin JWT ya x-api-key zaroori).
+//
+// POST body:
+//   title, message            (zaroori)
+//   target, inme se ek:       token | tokens[] | userId | userIds[] | phone | city | all: true
+//                             (city: "Gurgaon" — Gurugram bhi match hota hai)
+//   type, screen, action, image, sound, data{}   (optional, app routing ke liye)
+//
+// userId/phone/all case me User.fcmToken uthaya jata hai; dead tokens apne aap saaf hote hain.
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/dbConnect";
-import { messaging } from "@/lib/firebaseAdmin";
-import User from "@/models/User";
+import { checkSender } from "@/lib/notifications/auth";
+import { resolveTokens, sendPushToTokens } from "@/lib/notifications/push";
 
 export const dynamic = "force-dynamic"; // build-time prerender skip karega
+export const maxDuration = 60; // "all users" me kai batches lag sakte hain
 
-// FCM data payload me sirf string values ja sakti hain, isliye allowed keys ko String() karke bhejo
-function buildDataPayload(body) {
-  const allowedKeys = [
-    "type",
-    "screen",
-    "action",
-    "title",
-    "message",
-    "body",
-    "image",
-    "sound",
-  ];
-
-  const data = {};
-
-  for (const key of allowedKeys) {
-    if (body[key] !== undefined && body[key] !== null) {
-      data[key] = String(body[key]);
-    }
-  }
-
-  // Flutter apps ko foreground/background notification tap handle karne ke liye chahiye
-  data.click_action = "FLUTTER_NOTIFICATION_CLICK";
-
-  return data;
-}
-
-// Notification sound: custom > lead-type default > system default
-function getSoundConfig(type, sound) {
-  if (sound) {
-    return {
-      androidSound: sound,
-      iosSound: `${sound}.caf`,
-    };
-  }
-
-  if (type === "lead") {
-    return {
-      androidSound: "notification_sound",
-      iosSound: "notification_sound.caf",
-    };
-  }
-
-  return {
-    androidSound: "default",
-    iosSound: "default",
-  };
-}
+const fail = (status, message) => NextResponse.json({ success: false, message }, { status });
 
 export async function POST(req) {
+  const denied = checkSender(req);
+  if (denied) return fail(denied.status, denied.message);
+
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return fail(400, "Invalid JSON body");
+  }
+
+  const { title = "", message = "" } = body;
+  if (!title || !message) return fail(400, "title and message are required");
+
   try {
     await dbConnect();
 
-    const body = await req.json();
+    const target = await resolveTokens(body);
+    if (!target) return fail(400, "Send one of: token, tokens, userId, userIds, phone, city or all: true");
+    if (!target.tokens.length) return fail(404, "No active FCM token found for this target");
 
-    const {
-      userId = "",
-      phone = "",
-      token = "",
-      title = "",
-      message = "",
-      type = "",
-      screen = "",
-      action = "",
-      image = "",
-      sound = "",
-    } = body;
-
-    if (!title || !message) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "title and message are required",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Token resolve karo: direct > userId > phone
-    let tokens = [];
-
-    if (token) {
-      tokens = [token];
-    } else if (userId) {
-      // userId field User model me `userId` (e.g. USR123) hai, _id nahi
-      const user = await User.findOne({ userId }).select("fcmToken").lean();
-      if (user?.fcmToken) tokens = [user.fcmToken];
-    } else if (phone) {
-      const user = await User.findOne({ phone }).select("fcmToken").lean();
-      if (user?.fcmToken) tokens = [user.fcmToken];
-    } else {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Either token or userId or phone is required",
-        },
-        { status: 400 },
-      );
-    }
-
-    // Duplicate/empty tokens hata do
-    tokens = [...new Set(tokens.filter(Boolean))];
-
-    if (!tokens.length) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "No active FCM token found for this user",
-        },
-        { status: 404 },
-      );
-    }
-
-    const dataPayload = buildDataPayload(body);
-    const soundConfig = getSoundConfig(type, sound);
-
-    const multicastMessage = {
-      tokens,
-      notification: {
-        title,
-        body: message,
-        ...(image ? { imageUrl: image } : {}),
-      },
-      data: {
-        ...dataPayload,
-        type: type || "",
-        screen: screen || "",
-        action: action || "",
-        image: image || "",
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "limbu_push_channel",
-          sound: soundConfig.androidSound,
-          clickAction: "FLUTTER_NOTIFICATION_CLICK",
-          ...(image ? { imageUrl: image } : {}),
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: soundConfig.iosSound,
-          },
-        },
-      },
-    };
-
-    // messaging ab lazy-init function hai (firebaseAdmin.js me), isliye () lagakar call karo
-    const response = await messaging().sendEachForMulticast(multicastMessage);
-
-    const failedTokens = [];
-
-    response.responses.forEach((r, index) => {
-      if (!r.success) {
-        failedTokens.push({
-          token: tokens[index],
-          error: r.error ? r.error.message : "Unknown error",
-        });
-      }
+    const result = await sendPushToTokens(target.tokens, {
+      title,
+      message,
+      type: body.type || "",
+      screen: body.screen || "",
+      action: body.action || "",
+      image: body.image || "",
+      sound: body.sound || "",
+      data: body.data,
     });
 
     return NextResponse.json({
       success: true,
       message: "Notification send attempt completed",
-      successCount: response.successCount,
-      failureCount: response.failureCount,
-      failedTokens,
-      responses: response.responses.map((r, index) => ({
-        token: tokens[index],
-        success: r.success,
-        messageId: r.messageId || null,
-        error: r.error ? r.error.message : null,
-      })),
+      targetedDevices: target.tokens.length,
+      matchedUsers: target.matchedUsers,
+      ...result,
     });
   } catch (error) {
     console.error("Send notification error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: error.message || "Failed to send notification",
-      },
-      { status: 500 },
-    );
+    return fail(500, error.message || "Failed to send notification");
   }
 }

@@ -1,22 +1,25 @@
 import { X, Check, Zap } from "lucide-react";
 
 export default function ComparisonSection() {
+  // Same order on both sides: each "old way" row is answered by the row beside it.
   const oldWay = [
-    "Manual, delayed review responses",
-    "Fragmented apps & messy spreadsheets",
-    "Chaos when managing multiple locations",
-    "Password sharing risks and poor security",
-    "Guessing what content performs best",
-    "Hours spent managing GMB weekly",
+    "A different agency for GMB, social media, SEO, ads and website",
+    "Hours spent writing posts and replying to every Google review",
+    "Paying an editor for every reel and video",
+    "Customer follow-ups lost in WhatsApp chats and notebooks",
+    "No idea why your website doesn't rank on Google",
+    "Ad money spent on campaigns nobody set up or tracks properly",
+    "Separate bills, logins and payments for every tool",
   ];
 
   const limbuWay = [
-    "Instant AI-driven SEO optimization",
-    "Unified multi-platform dashboard",
-    "Easily manage 100+ locations in one click",
-    "Official API, 100% Encrypted & Secure",
-    "Data-driven insights & automated planning",
-    "Set it and forget it automation",
+    "GMB, social media, SEO, ads, websites and apps in one place",
+    "AI writes your posts and replies to every review",
+    "Create reels and AI videos in minutes, pay only in coins",
+    "WhatsApp and email campaigns that bring customers back",
+    "Free website audit with a clear, prioritised fix list",
+    "Experts set up your Google, Meta and LinkedIn ads with tracking",
+    "Add every service you need to one cart and pay once",
   ];
 
   return (
@@ -66,8 +69,8 @@ export default function ComparisonSection() {
           </h2>
 
           <p className="text-sm sm:text-base leading-relaxed max-w-xl mx-auto font-semibold text-slate-600">
-            Experience the shift from traditional management to AI-powered
-            dominance.
+            One AI platform for your Google profile, social media, website and
+            ads, instead of five agencies and ten tools.
           </p>
         </div>
 

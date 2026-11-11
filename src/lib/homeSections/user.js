@@ -23,7 +23,7 @@ export async function findUser({ userId, phone }) {
 }
 
 async function findUserDoc({ userId, phone }) {
-  const fields = "userId phone subscription freeUsedCount freeUsage";
+  const fields = "userId phone subscription planPurchases freeUsedCount freeUsage";
 
   if (userId) {
     const byId = await User.findOne({ userId: String(userId).trim() })

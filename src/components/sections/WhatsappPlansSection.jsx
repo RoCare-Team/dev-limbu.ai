@@ -79,7 +79,7 @@ export default function WhatsappPlansSection({ plans, handlePlanClick }) {
                   handlePlanClick({
                     title: plan.title,
                     planType: "our-package",
-                    planDuration: "monthly",
+                    planDuration: "yearly", // priced per year ("/ One year"), so 12 months of access
                     price: `₹${plan.basePrice.toLocaleString()}`,
                     totalPrice: Math.round(plan.basePrice * 1.18),
                     gstAmount: `₹${Math.round(plan.basePrice * 0.18).toLocaleString()}`,

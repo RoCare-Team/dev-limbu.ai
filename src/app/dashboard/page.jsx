@@ -7,6 +7,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 
 import { CheckCircle, XCircle, RefreshCw, LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 import { fetchAllPostsAction } from "../actions/postActions";
 // import SupportModal from "../../components/SupportModal";
@@ -14,7 +15,6 @@ import FirstPostModal from "@/components/FirstPostModal";
 import PerformanceInsightsModal from "@/components/PerformanceInsightsModal";
 import LocationSelectionModal from "@/components/LocationSelectionModal";
 import { getPerformanceInsightsWindows } from "@/lib/performanceInsightsUtils";
-import NavLinks from "@/components/dashboard/NavLinks";
 import GMBColumn from "@/components/dashboard/GMBColumn";
 import FacebookColumn from "@/components/dashboard/FacebookColumn";
 import InstagramColumn from "@/components/dashboard/InstagramColumn";
@@ -550,50 +550,6 @@ export default function DashboardPage() {
     );
   }
 
-  const tabData = [
-    {
-      id: "gmb",
-      label: "GMB Profile",
-      icon: "/social-icon/gmb-icon.png",
-      count: accounts.length > 0 ? summary.total : 0,
-    },
-    {
-      id: "facebook",
-      label: "Facebook",
-      icon: "/social-icon/facebook-icon.png",
-      count: facebookPages.length,
-    },
-    {
-      id: "instagram",
-      label: "Instagram",
-      icon: "/social-icon/instagram-icon.png",
-      count: instagramPages.length,
-    },
-    {
-      id: "whatsapp",
-      label: "WhatsApp",
-      icon: "/social-icon/whatsaap-icon.png",
-      count: whatsappStatus?.exists ? 1 : 0,
-    },
-    {
-      id: "linkedin",
-      label: "LinkedIn",
-      icon: "/social-icon/linkedin.png",
-      count: linkedinPages?.length || 0,
-    },
-    {
-      id: "youtube",
-      label: "YouTube",
-      icon: "/social-icon/youtube-icon.svg",
-      count: youtubeChannels?.length || 0,
-    },
-    {
-      id: "pinterest",
-      label: "Pinterest",
-      icon: "/social-icon/pinterest-icon.png",
-      count: pinterestProfiles?.length || 0,
-    },
-  ];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -661,7 +617,6 @@ export default function DashboardPage() {
 
       <div className=" border-b border-black/5">
         <div className="w-full ">
-          <NavLinks isAuthenticated={gmbConnected} />
           <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mt-6">
             <div className="flex-1">
               <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full border border-yellow-400/20 bg-yellow-400/10">
@@ -698,38 +653,17 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* --- Tab Navigation --- */}
-      <div className="mt-6 mb-4 flex gap-3 overflow-x-auto custom-scroll pb-4 px-2 sm:px-0">
-        {tabData.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-5 py-3 rounded-2xl border-2 whitespace-nowrap font-bold text-xs uppercase tracking-wider transition-all duration-300 shrink-0 ${
-              activeTab === tab.id
-                ? "bg-yellow-50 border-yellow-300 text-slate-800 shadow-md ring-2 ring-yellow-400/20"
-                : "bg-white border-slate-200 text-slate-500 hover:border-yellow-300 hover:bg-slate-50 hover:text-slate-700"
-            }`}
-          >
-            <img
-              src={tab.icon}
-              alt={tab.label}
-              className="w-5 h-5 object-contain"
-            />
-            {tab.label}
-            {tab.count > 0 && (
-              <span
-                className={`ml-1.5 px-2 py-0.5 rounded-full text-[10px] shadow-sm ${
-                  activeTab === tab.id
-                    ? "bg-yellow-400 text-black"
-                    : "bg-slate-100 text-slate-500 border border-slate-200"
-                }`}
-              >
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* Overview shows only the Google Business Profile accounts. Social platforms
+          open here only via /dashboard?tab=<platform> from the Social Media page. */}
+      {activeTab !== "gmb" && (
+        <Link
+          href="/social-media"
+          className="mt-6 mb-4 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 hover:text-slate-800"
+        >
+          ← Back to Social Media
+        </Link>
+      )}
+      <div className="mt-6" />
 
       <main className="w-full pb-10 bg-slate-50/30">
         {activeTab === "gmb" && (

@@ -18,6 +18,20 @@ import WebsiteFooter from "@/components/WebsiteFooter";
 import WebsiteLeadForm from "@/components/WebsiteLeadForm";
 import { buildLocalBusinessSchema } from "@/lib/websiteSchema";
 import { getWhatsAppLink } from "@/utils/whatsappLink";
+import HomePageContent from "@/components/home/HomePageContent";
+import { cityToSlug, findCityBySlug } from "@/utils/citySlug";
+
+/**
+ * /<city> on the main domain (limbu.ai/gurgaon) is a city landing page: the
+ * home page with the city in its headlines. Tenant microsites keep working on
+ * their subdomain (the proxy marks those requests with x-is-subdomain-site).
+ * Returns the city's display name, or null for a tenant site.
+ */
+async function cityForPath(slug) {
+  const h = await headers();
+  if (h.get("x-is-subdomain-site") === "1") return null;
+  return findCityBySlug(slug);
+}
 
 /* ================================
    Fetch site data
@@ -40,6 +54,18 @@ async function getSiteData(slug) {
 ================================ */
 export async function generateMetadata({ params }) {
   const p = await params;
+  const city = await cityForPath(p?.slug);
+  if (city) {
+    const title = `Google Business Profile, SEO & Digital Marketing in ${city} | Limbu AI`;
+    const description = `Grow your business in ${city} with Limbu AI: Google Business Profile management, social media, AI videos, website SEO, websites and ads for local businesses in ${city}.`;
+    const url = `https://www.limbu.ai/${cityToSlug(city)}`;
+    return {
+      title,
+      description,
+      alternates: { canonical: url },
+      openGraph: { title, description, url, siteName: "Limbu.ai", type: "website", locale: "en_IN" },
+    };
+  }
   const site = await getSiteData(p?.slug);
   if (!site) return { title: "Business Website" };
 
@@ -55,6 +81,9 @@ export default async function SitePage({ params }) {
   const p = await params;
   const slug = p?.slug;
   if (!slug) return notFound();
+
+  const city = await cityForPath(slug);
+  if (city) return <HomePageContent city={city} />;
 
   const siteData = await getSiteData(slug);
 

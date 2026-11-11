@@ -160,25 +160,21 @@ const GMBColumn = React.memo(
           <div className="space-y-4 bg-slate-50/50 p-3 sm:p-4">
             <section
               aria-labelledby="gmb-overview-heading"
-              className="grid overflow-hidden rounded-2xl border border-slate-200 shadow-sm lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]"
+              className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]"
             >
-              <div className="relative flex min-w-0 flex-col justify-between gap-5 bg-slate-950 p-5 text-white sm:p-6">
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-y-0 left-0 w-1 bg-yellow-400"
-                />
+              <div className="relative flex min-w-0 flex-col justify-between gap-5 bg-white p-5 sm:p-6">
                 <div className="min-w-0">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
                       Google Business Profile
                     </p>
                     <span
                       className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
                         gmbLoading
-                          ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
                           : gmbConnected
-                            ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-200"
-                            : "border-slate-500/40 bg-white/5 text-slate-300"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-slate-200 bg-slate-50 text-slate-500"
                       }`}
                       role="status"
                       aria-live="polite"
@@ -202,10 +198,10 @@ const GMBColumn = React.memo(
                         src={gmbImage}
                         alt=""
                         onError={() => setAccountImageFailed(true)}
-                        className="h-12 w-12 shrink-0 rounded-full border border-white/20 object-cover"
+                        className="h-12 w-12 shrink-0 rounded-full border border-slate-200 object-cover"
                       />
                     ) : (
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
                         <img
                           src="/social-icon/gmb-icon.png"
                           alt=""
@@ -216,7 +212,7 @@ const GMBColumn = React.memo(
                     <div className="min-w-0">
                       <h3
                         id="gmb-overview-heading"
-                        className="truncate text-base font-bold tracking-tight text-white"
+                        className="truncate text-base font-bold tracking-tight text-slate-900"
                         style={{ fontFamily: "var(--font-heading)" }}
                       >
                         {gmbConnected
@@ -225,7 +221,7 @@ const GMBColumn = React.memo(
                             ? "Checking Google account"
                             : "Connect a Google account"}
                       </h3>
-                      <p className="mt-0.5 truncate text-xs text-slate-300">
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
                         {gmbConnected
                           ? gmbEmail || "Google account details unavailable"
                           : gmbLoading
@@ -239,7 +235,7 @@ const GMBColumn = React.memo(
                     type="button"
                     onClick={handleOverviewAction}
                     disabled={gmbLoading || (gmbConnected && loading)}
-                    className="mt-5 inline-flex min-h-10 w-fit items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-950 transition-colors hover:bg-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-5 inline-flex min-h-10 w-fit items-center justify-center gap-2 rounded-xl bg-yellow-400 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-950 transition-colors hover:bg-yellow-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {gmbConnected ? (
                       <RefreshCw className="h-3.5 w-3.5" />
@@ -250,13 +246,13 @@ const GMBColumn = React.memo(
                   </button>
                 </div>
               </div>
-              <div className="bg-yellow-50/80 p-5 sm:p-6">
-                <div className="mb-5 flex items-end justify-between gap-3 border-b border-yellow-200 pb-3">
+              <div className="border-t border-slate-200 bg-slate-50/60 p-5 sm:p-6 lg:border-l lg:border-t-0">
+                <div className="mb-5 flex items-end justify-between gap-3 border-b border-slate-200 pb-3">
                   <div>
                     <h3 className="text-sm font-bold tracking-tight text-slate-900">
                       Profile health
                     </h3>
-                    <p className="mt-1 text-[10px] font-medium text-slate-600">
+                    <p className="mt-1 text-[10px] font-medium text-slate-500">
                       Verification across your business locations
                     </p>
                   </div>

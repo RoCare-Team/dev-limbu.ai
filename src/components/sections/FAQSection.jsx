@@ -3,34 +3,54 @@ import { ChevronDown, HelpCircle } from "lucide-react";
 
 const faqs = [
   {
-    question: "What is Limbu.ai and how does it help Local SEO?",
+    question: "What is Limbu AI and what can it do for my business?",
     answer:
-      "Limbu.ai is an AI marketing platform that automates Google Business Profile activity. By consistently posting updates and replying to reviews instantly (two major Google ranking factors), it helps improve your visibility in local 'near me' search results.",
+      "Limbu AI is an all-in-one AI marketing platform for local businesses. It manages your Google Business Profile, social media, AI reels and videos, WhatsApp and email campaigns, website SEO, website development, paid ads, and even custom CRMs and mobile apps, all from one place.",
+  },
+  {
+    question: "Which services can I buy, and how much do they cost?",
+    answer:
+      "GMB tools start at ₹999/month (billed yearly), social media plans at ₹2,400/month (yearly), the Emailer plan at ₹500/month (yearly), SEO from ₹5,999/month, ad account setup from ₹2,500 one-time and websites from ₹9,999 one-time. All prices are plus 18% GST. Open any service on the home page to see its plans.",
+  },
+  {
+    question: "Can I buy more than one service together?",
+    answer:
+      "Yes. Open any service, pick a plan and tap “Add to Cart”. Add as many services as you need and pay for all of them in one secure Razorpay payment. Each plan activates as soon as the payment goes through.",
+  },
+  {
+    question: "How do the AI tools and coins work?",
+    answer:
+      "AI tools like Text to Video, Image to Video, AI Avatar Video, CGI Video and AI post creation use coins from your wallet, so you only pay for what you create. New users get 500 coins when they sign up, and you can top up your wallet any time.",
+  },
+  {
+    question: "Is the website audit really free?",
+    answer:
+      "Yes. Run the Website Audit from your dashboard on any website and get a score with 50+ checks across SEO, speed, security, mobile and local SEO, plus a prioritised fix list. If you want our team to fix the issues, pick an SEO plan.",
+  },
+  {
+    question: "Is the ad budget included in the ads setup price?",
+    answer:
+      "No. The setup fee covers our work: account setup, audience and keyword research, tracking and ad copy. Your ad spend is paid directly to Google, Meta or LinkedIn from your own account, so you stay in full control of the budget.",
   },
   {
     question: "Is it safe to connect my Google and Facebook accounts?",
     answer:
-      "Yes. Limbu.ai uses official, secure OAuth interactions directly approved by Google and Meta. We never store your passwords, and our connection is encrypted with enterprise-grade security.",
+      "Yes. Limbu AI connects through the official, secure sign-in (OAuth) of Google and Meta. We never see or store your passwords, and you can disconnect at any time.",
   },
   {
-    question: "Can I manage multiple locations for different clients?",
+    question: "Can I manage multiple business locations?",
     answer:
-      "Absolutely. Limbu.ai is built for scale. Whether you operate multiple branches, franchises, or brands, you can manage them all from a single dashboard—making it the perfect solution for growing multi-location businesses.",
+      "Yes. Whether you run several branches, franchises or brands, you can manage all your Google Business Profile locations and their posts, reviews and insights from one dashboard.",
   },
   {
-    question: "Does Limbu.ai actually write the content for me?",
+    question: "Do you build custom CRMs and mobile apps?",
     answer:
-      "Yes. Our generative AI helps create captions, suggest hashtags, and draft review replies. You always have full control to edit or approve content before it goes live.",
+      "Yes. We build CRMs around how your sales work (leads, pipeline, follow-ups, team roles, reports) and Android and iPhone apps with an admin panel. Tap “Get a Free Quote” in those sections to share your requirements on WhatsApp.",
   },
   {
-    question: "How long does it take to see results in rankings?",
+    question: "Do plans renew automatically?",
     answer:
-      "While SEO is a long-term game, our users typically see increased engagement within the first 30 days. Consistent GBP activity is one of the fastest ways to signal relevance to Google's local algorithm.",
-  },
-  {
-    question: "Is there a long-term commitment required?",
-    answer:
-      "No. Our subscription plans are flexible. You can choose monthly billing and cancel at any time, or opt for quarterly and yearly plans to save up to 20%.",
+      "No. Each plan is a one-time payment for the period you choose (a month, a year, or a one-time service). Nothing is charged again automatically; you renew only when you want to.",
   },
 ];
 
@@ -90,7 +110,7 @@ export default function FAQSection() {
           </h2>
 
           <p className="text-sm sm:text-base leading-relaxed max-w-xl mx-auto font-semibold text-slate-700">
-            Everything you need to know about Limbu.ai and our automation
+            Everything you need to know about Limbu AI, our plans and our
             services.
           </p>
         </div>

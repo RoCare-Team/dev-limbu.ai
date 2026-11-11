@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin } from "lucide-react";
+import { cityToSlug } from "@/utils/citySlug";
 
 const popularCities = [
   {
@@ -106,12 +107,13 @@ export default function PopularCitiesSection() {
         <div className="animate-marquee gap-6 px-4">
 
           {marqueeCities.map((city, idx) => {
-            const slug = city.name.toLowerCase();
+            // Links to the city landing page at /<city> (app/[slug]/page.jsx)
+            const slug = cityToSlug(city.name);
 
             return (
               <Link
                 key={`${slug}-${idx}`}
-                href={`/services/google-bussiness-profile-management-${slug}`}
+                href={`/${slug}`}
                 className="group relative w-64 h-48 rounded-2xl overflow-hidden shrink-0 block shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border border-slate-100"
               >
 

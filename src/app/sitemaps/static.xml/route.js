@@ -1,5 +1,6 @@
 import { getPublicSiteUrl } from "@/lib/siteUrl";
 import { SEO_TOOL_LIST, seoToolPath } from "@/lib/seoTools";
+import { AD_SERVICE_LIST, adServicePath } from "@/lib/adServices";
 
 const STATIC_PATHS = [
   "/",
@@ -21,6 +22,7 @@ const STATIC_PATHS = [
 
   // Website SEO tool pages
   ...SEO_TOOL_LIST.map(seoToolPath),
+  ...AD_SERVICE_LIST.map(adServicePath),
 
   // Franchise
   "/bussiness/franchise-opportunities",

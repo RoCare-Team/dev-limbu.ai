@@ -15,10 +15,10 @@ export default function ToolBadge({ badge, coinCost }) {
         </span>
       );
     case "UNLOCK":
-      // Quiet lock; the GMB banner above the cards explains the plan.
+      // Quiet lock; the plans banner above the cards explains the offer.
       return (
         <span
-          title="Unlock with the GMB Plan"
+          title="Unlock with a plan"
           className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400 transition-colors group-hover:bg-slate-900 group-hover:text-[#facc15]"
         >
           <Lock size={11} strokeWidth={2.5} />

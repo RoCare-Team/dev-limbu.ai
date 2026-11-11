@@ -3,8 +3,9 @@
  * Server-only (reads FranchiseRevenue). One source of truth for the
  * home-sections API, the dashboard sidebar and plan-gated pages.
  *
- * A plan counts when it is active and not expired, from either place it is stored:
+ * A plan counts when it is active and not expired, from any place it is stored:
  *   - user.subscription            (single plan bought on the website)
+ *   - user.planPurchases           (plans bought together from the website cart)
  *   - FranchiseRevenue records      (plans added by franchise / admin, can be several)
  */
 import FranchiseRevenue from "@/models/FranchiseRevenue";
@@ -13,6 +14,10 @@ import FranchiseRevenue from "@/models/FranchiseRevenue";
 export const PLAN_GROUPS = {
   gmb: ["gmb plan", "basic plan", "professional plan", "premium plan", "standard plan"],
   social: ["social starter", "social growth", "social pro"],
+  outreach: ["emailer plan", "whatsapp automation plan"],
+  seo: ["basic seo", "standard seo", "advanced seo"],
+  ads: ["google ads account setup", "meta ads account setup", "linkedin ads account setup"],
+  web: ["starter website", "business website", "enterprise website"],
 };
 
 /** "Basic" / "basic plan " / "Basic Plan" -> "basic plan". */
@@ -35,6 +40,13 @@ export async function getUserActivePlans(user) {
   if (sub.status === "active" && notExpired(sub.expiry, now)) {
     const name = normalizePlanName(sub.plan);
     if (name) plans.add(name);
+  }
+
+  for (const p of user.planPurchases || []) {
+    if (p?.expiry && notExpired(p.expiry, now)) {
+      const name = normalizePlanName(p.plan);
+      if (name) plans.add(name);
+    }
   }
 
   const records = await FranchiseRevenue.find({

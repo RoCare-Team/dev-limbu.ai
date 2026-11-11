@@ -64,12 +64,12 @@ export default function AccountSetupSection({ plans, handlePlanClick }) {
             className="text-sm sm:text-base leading-relaxed max-w-xl mx-auto font-semibold mb-8"
             style={{ color: "rgba(15, 23, 42, 0.85)" }}
           >
-            Professional Google & Meta account setup to jumpstart your digital presence.
+            Professional Google, Meta & LinkedIn account setup to jumpstart your digital presence.
           </p>
         </div>
 
         {/* ── Cards ── */}
-        <div className="grid md:grid-cols-2 gap-8 justify-center">
+        <div className={`grid md:grid-cols-2 gap-8 justify-center ${plans.length > 2 ? "lg:grid-cols-3" : ""}`}>
           {plans.map((plan, idx) => (
             <div
               key={idx}

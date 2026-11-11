@@ -1,11 +1,11 @@
 import SectionArt from "./SectionArt";
 import { ToolCard } from "./ToolCard";
-import GmbToolGrid from "./GmbToolGrid";
+import OfferToolGrid from "./OfferToolGrid";
 import { copyFor } from "./sectionCopy";
 import SectionHeader from "./section/SectionHeader";
 import StepList from "./section/StepList";
 import SectionBenefits from "./section/SectionBenefits";
-import { HeroActions, ViewAllAction } from "./section/SectionActions";
+import { HeroActions, QuoteButton, ViewAllAction } from "./section/SectionActions";
 import { PlayableArt, VideoButton } from "./section/VideoButton";
 import { sectionLink } from "@/lib/homeSections/links";
 
@@ -14,10 +14,12 @@ import { sectionLink } from "@/lib/homeSections/links";
  * then its tools. The first section is the top of the page, so it carries the
  * H1 and the signup buttons. Copy, benefits and videos come from sectionCopy.js.
  */
-export default function ToolSection({ section, index }) {
-  const copy = copyFor(section);
+export default function ToolSection({ section, index, city = null }) {
+  const copy = copyFor(section, city);
   const isFirst = index === 0;
   const isGbp = section.key === "gbp";
+  // Sections that sell a plan offer (lib/planOffers.js) above their tools
+  const offerKey = { gbp: "gmb", social_media: "social", outreach: "outreach", website_seo: "seo", paid_ads: "ads", website_development: "web" }[section.key];
   const link = sectionLink(section);
   // Alternate the screen side so the page doesn't feel repetitive.
   const artFirst = index % 2 === 1;
@@ -48,7 +50,9 @@ export default function ToolSection({ section, index }) {
             {isFirst ? (
               <HeroActions />
             ) : (
-              <ViewAllAction link={link}>
+              // Offer sections sell their plans in the strip below, so no "View All Tools" there
+              <ViewAllAction link={offerKey ? null : link}>
+                {copy.cta && <QuoteButton cta={copy.cta} />}
                 {copy.video && <VideoButton video={copy.video} />}
               </ViewAllAction>
             )}
@@ -56,13 +60,19 @@ export default function ToolSection({ section, index }) {
 
           {/* Screens hide on phones to keep the page short, except the top one */}
           <div className={`${isFirst ? "block" : "hidden sm:block"} ${artFirst ? "lg:order-1" : ""}`}>
-            {copy.video ? <PlayableArt video={copy.video}>{art}</PlayableArt> : art}
+            {/* A YouTube video gets a play button over the screen; a built-in demo already plays there */}
+            {copy.video?.url ? <PlayableArt video={copy.video}>{art}</PlayableArt> : art}
           </div>
         </div>
 
-        {/* TOOLS — GMB tools are locked behind the GMB Plan */}
-        {isGbp ? (
-          <GmbToolGrid items={section.items} />
+        {/* TOOLS — offer sections get the subscribe strip + plans modal */}
+        {offerKey ? (
+          <OfferToolGrid
+            items={section.items}
+            offerKey={offerKey}
+            variant={isGbp ? "gbp" : undefined}
+            countTools={isGbp}
+          />
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-10 lg:grid-cols-3">
             {section.items.map((item) => (

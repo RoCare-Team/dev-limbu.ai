@@ -20,15 +20,12 @@ export const SECTION_COPY = {
       "AI creates the post image and caption",
       "Comments and DMs get instant AI replies",
     ],
-    benefits: [
-      { icon: "reach", title: "More local reach" },
-      { icon: "time", title: "Hours saved weekly" },
-      { icon: "sales", title: "Followers into buyers" },
-    ],
     // Plays from the section's "Watch" button and the phone screen.
+    // Built-in animated demo (art/SocialDemo.jsx): plays in the phone and in a modal.
     video: {
-      url: "https://youtu.be/eQUd6u36w3g",
+      demo: "social",
       title: "How to grow your social presence",
+      duration: "20-sec demo",
     },
   },
   ai_tools: {
@@ -71,6 +68,28 @@ export const SECTION_COPY = {
       "Go live with SEO, analytics and support",
     ],
   },
+  custom_crm: {
+    title: "Manage Every Lead",
+    highlight: "with a Custom CRM",
+    text: "A CRM built around your business: every lead, follow-up and sale in one place.",
+    steps: [
+      "Tell us how your sales process works",
+      "We build your CRM with your leads, team and workflows",
+      "Track every lead and follow-up from one dashboard",
+    ],
+    cta: { label: "Get a Free CRM Quote", whatsapp: "Hi Limbu AI, I want a custom CRM for my business." },
+  },
+  mobile_app: {
+    title: "Launch Your Own",
+    highlight: "Mobile App",
+    text: "Android and iPhone apps for your business, built, published and supported by our team.",
+    steps: [
+      "Share your idea and features",
+      "We design and build the app with an admin panel",
+      "Go live on the Play Store and App Store",
+    ],
+    cta: { label: "Get a Free App Quote", whatsapp: "Hi Limbu AI, I want a mobile app for my business." },
+  },
   paid_ads: {
     title: "Get More Leads from Ads",
     highlight: "with Limbu AI",
@@ -84,10 +103,28 @@ export const SECTION_COPY = {
 };
 
 /** Copy for a section key; falls back to the API title/subtitle for new sections. */
-export const copyFor = (section) =>
+const baseCopy = (section) =>
   SECTION_COPY[section.key] || {
     title: section.title,
     highlight: "with Limbu AI",
     text: section.subtitle,
     steps: [],
   };
+
+/**
+ * Copy for a section; falls back to the API title/subtitle for new sections.
+ * With `city` (city landing pages) the headline names the city, and the top
+ * (GBP) section speaks to businesses there.
+ */
+export function copyFor(section, city = null) {
+  const copy = baseCopy(section);
+  if (!city) return copy;
+  if (section.key === "gbp") {
+    return {
+      ...copy,
+      title: `Grow Your Business in ${city}`,
+      text: `Rank higher on Google Maps in ${city} and turn local searches into calls, visits and 5-star reviews. 9 AI tools, one simple plan.`,
+    };
+  }
+  return { ...copy, title: `${copy.title} in ${city}` };
+}

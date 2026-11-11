@@ -137,6 +137,23 @@ const userSchema = new mongoose.Schema(
     },
 
     /**
+     * Plans bought together from the website cart (one Razorpay payment, several
+     * plans). `subscription` above holds a single plan, so each cart item is kept
+     * here; lib/userPlans.js counts the unexpired ones as active plans.
+     */
+    planPurchases: [
+      {
+        plan: { type: String },
+        cycle: { type: String }, // yearly | monthly | one-time
+        date: { type: Date },
+        expiry: { type: Date },
+        amount: { type: Number }, // incl. GST, in rupees
+        paymentId: { type: String },
+        orderId: { type: String },
+      },
+    ],
+
+    /**
      * Lead ka sheher. Meta lead forms "city" / "location" / "area" / "district"
      * me se jo bhara ho wahi aata hai (meta-leads-import isse nikalta hai).
      * Schema me ye field na hone ki wajah se Mongoose ise chup-chaap gira deta

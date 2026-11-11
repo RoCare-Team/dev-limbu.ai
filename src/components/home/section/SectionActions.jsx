@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
+import { whatsappHref } from "@/lib/seoTools";
 import AuthLink from "../../AuthLink";
 import HeroButtons from "../../sections/HeroButtons";
 
@@ -39,5 +41,19 @@ export function ViewAllAction({ link, children }) {
       )}
       {children}
     </div>
+  );
+}
+
+/** WhatsApp "Get a Free Quote" button for service sections (sectionCopy `cta`). */
+export function QuoteButton({ cta }) {
+  return (
+    <a
+      href={whatsappHref(cta.whatsapp)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-slate-700"
+    >
+      <FaWhatsapp size={16} className="text-[#25D366]" /> {cta.label}
+    </a>
   );
 }

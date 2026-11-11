@@ -9,6 +9,7 @@ import {
   Phone,
   MapPin,
 } from "lucide-react";
+import { SITE_SERVICES } from "@/lib/siteServices";
 
 function PinterestIcon(props) {
   return (
@@ -25,17 +26,8 @@ function PinterestIcon(props) {
 
 const footerSections = [
   {
-    title: "Platform",
-    links: [
-      { label: "Post Management", href: "/post-management" },
-      { label: "Review Management", href: "/review-management" },
-      { label: "Magic QR", href: "/get-magic-qr" },
-      {
-        label: "Google Business Service",
-        href: "/services/google-bussiness-profile-management",
-      },
-      { label: "Local SEO", href: "/services/local-seo" },
-    ],
+    title: "Services",
+    links: SITE_SERVICES.map((s) => ({ label: s.name, href: s.href })),
   },
   {
     title: "Company",

@@ -1,0 +1,58 @@
+"use client";
+
+import { CheckCircle2, Lock, PlayCircle } from "lucide-react";
+import { formatInr } from "@/lib/seoPlans";
+import { cycleInfo } from "@/lib/planOffers";
+
+/**
+ * Strip above a locked section's tools: entry plan price, Watch Demo and
+ * Subscribe Now, or a green "unlocked" note once the user has a matching plan.
+ */
+export default function UnlockBanner({ offer, unlocked, toolCount, onWatchDemo, onSubscribe }) {
+  if (unlocked) {
+    return (
+      <div className="mt-7 flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800 ring-1 ring-emerald-200 sm:mt-8 lg:mt-10">
+        <CheckCircle2 size={18} /> {offer.toolsLabel} unlocked, open any tool below.
+      </div>
+    );
+  }
+
+  const cycle = cycleInfo(offer);
+  const [first, ...rest] = offer.tiers;
+  const others = rest.map((t) => t.title).join(" & ");
+
+  return (
+    <div className="mt-7 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.65)] sm:flex-row sm:items-center sm:justify-between sm:p-5 lg:mt-10">
+      <div className="flex items-center gap-3.5">
+        <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#facc15] text-slate-950">
+          <Lock size={18} strokeWidth={2.5} />
+        </span>
+        <div>
+          <p className="text-[15px] font-black leading-snug text-white">
+            {first.title}: {toolCount ? `all ${toolCount} tools` : "everything you need"} from{" "}
+            <span className="text-[#facc15]">{formatInr(first.perMonth)}{cycle.months === 1 && offer.cycle === "one-time" ? " one-time" : "/month"}</span>
+          </p>
+          <p className="mt-1 text-xs font-semibold text-slate-300">
+            {cycle.billed} + GST{others ? ` · Also available: ${others}` : ""}
+          </p>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-shrink-0">
+        <button
+          type="button"
+          onClick={onWatchDemo}
+          className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-slate-600 bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-slate-400 hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#facc15] focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
+        >
+          <PlayCircle size={15} /> Watch Demo
+        </button>
+        <button
+          type="button"
+          onClick={onSubscribe}
+          className="min-h-11 w-full whitespace-nowrap rounded-xl bg-[#facc15] px-5 py-2.5 text-sm font-black text-slate-950 transition-colors hover:bg-amber-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:w-auto"
+        >
+          Subscribe Now
+        </button>
+      </div>
+    </div>
+  );
+}

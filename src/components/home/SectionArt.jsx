@@ -5,6 +5,8 @@ import OutreachArt from "./art/OutreachArt";
 import SeoArt from "./art/SeoArt";
 import AdsArt from "./art/AdsArt";
 import WebDevArt from "./art/WebDevArt";
+import CrmArt from "./art/CrmArt";
+import AppArt from "./art/AppArt";
 
 /*
  * Big "product screen" for each home section, showing the tool doing its job.
@@ -19,6 +21,8 @@ const ART = {
   website_seo: SeoArt,
   website_development: WebDevArt,
   paid_ads: AdsArt,
+  custom_crm: CrmArt,
+  mobile_app: AppArt,
 };
 
 export default function SectionArt({ sectionKey }) {

@@ -3,12 +3,78 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuthStore } from "@/stores/useAuthStore";
+import CartButton from "@/components/cart/CartButton";
+import { SITE_SERVICES } from "@/lib/siteServices";
+import CartDrawer from "@/components/cart/CartDrawer";
 
-import { ChevronDown, BookOpen, User, Info, Link as LinkIcon, MessageSquare, QrCode, Send, PhoneCall } from "lucide-react";
+import {
+  ChevronDown, BookOpen, Link as LinkIcon, MessageSquare, QrCode, Send, PhoneCall,
+  MapPin, Share2, Sparkles, Megaphone, Search, Globe, Target,
+} from "lucide-react";
+
+// Services menu (same list as the footer), with an icon per service.
+const SERVICE_ICONS = { gmb: MapPin, social: Share2, ai: Sparkles, outreach: Megaphone, seo: Search, web: Globe, ads: Target };
+const SERVICE_LINKS = SITE_SERVICES.map((s) => ({ ...s, icon: SERVICE_ICONS[s.key] }));
+
+/** Hover dropdown in the desktop nav. `wide` lays the links out in two columns. */
+function NavDropdown({ label, links, wide = false }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex items-center gap-1 text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition cursor-pointer"
+      >
+        {label} <ChevronDown size={14} className={`transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
+      </button>
+      <div
+        className={`absolute top-full -left-4 pt-4 transition-all duration-300 ${open ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}
+      >
+        <div className={`bg-white border border-black/5 rounded-2xl shadow-2xl p-2 ${wide ? "grid grid-cols-2 gap-1 w-[540px]" : "min-w-[260px]"}`}>
+          {links.map((sub) => (
+            <Link
+              key={sub.name}
+              href={sub.href}
+              onClick={() => setOpen(false)}
+              className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-all group/item"
+            >
+              <sub.icon size={18} className="text-lemon-hover mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-black/80 group-hover/item:text-black transition-colors">{sub.name}</p>
+                {sub.sub && <p className="text-[10px] text-black/60 font-medium leading-tight mt-0.5">{sub.sub}</p>}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/** A titled list of links in the mobile menu. */
+function MobileLinkGroup({ title, links, onNavigate }) {
+  return (
+    <div className="flex flex-col gap-3 mt-2 border-t border-black/5 pt-4">
+      <p className="text-[10px] font-black uppercase tracking-widest text-black/60">{title}</p>
+      <div className="grid grid-cols-1 gap-2">
+        {links.map((sub) => (
+          <Link key={sub.name} href={sub.href} className="flex items-center gap-3 py-2 text-sm font-semibold text-black/70" onClick={onNavigate}>
+            <sub.icon size={16} className="text-lemon-hover" />
+            <div>
+              <span>{sub.name}</span>
+              {sub.sub && <p className="text-[9px] text-black/60 font-medium -mt-1">{sub.sub}</p>}
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Zustand Store
   const { isLoggedIn, logout, checkAuth, setModalOpen } = useAuthStore();
@@ -19,7 +85,6 @@ export default function Navbar() {
   }, [checkAuth]);
 
   const navLinks = [
-    { name: "Features", href: "/#features" },
     { name: "Pricing", href: "/pricing" },
     { name: "Franchise", href: "/bussiness/franchise-opportunities" },
   ];
@@ -62,6 +127,7 @@ export default function Navbar() {
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center gap-8 font-inter">
           <ul className="flex items-center gap-8 list-none m-0 p-0">
+            <NavDropdown label="Services" links={SERVICE_LINKS} wide />
             {navLinks.map((item) => (
               <li key={item.name}>
                 <Link
@@ -73,39 +139,7 @@ export default function Navbar() {
               </li>
             ))}
 
-            {/* Resources Dropdown */}
-            <li className="relative group">
-              <button
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-                className="flex items-center gap-1 text-black text-sm font-semibold hover:text-[var(--lemon-hover)] transition cursor-pointer"
-              >
-                GBP Guide <ChevronDown size={14} className={`transition-transform duration-300 ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Dropdown Menu */}
-              <div
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-                className={`absolute top-full -left-4 pt-4 transition-all duration-300 ${dropdownOpen ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}
-              >
-                <div className="bg-white border border-black/5 rounded-2xl shadow-2xl p-2 min-w-[260px]">
-                  {resourceLinks.map((sub) => (
-                    <Link
-                      key={sub.name}
-                      href={sub.href}
-                      className="flex items-start gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-all group/item"
-                    >
-                      <sub.icon size={18} className="text-lemon-hover mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-bold text-black/80 group-hover/item:text-black transition-colors">{sub.name}</p>
-                        {sub.sub && <p className="text-[10px] text-black/60 font-medium leading-tight mt-0.5">{sub.sub}</p>}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </li>
+            <NavDropdown label="GBP Guide" links={resourceLinks} />
 
             <li>
               <Link
@@ -120,6 +154,7 @@ export default function Navbar() {
           <div className="w-px h-5 bg-black/15" />
 
           <div className="flex items-center gap-3">
+            <CartButton />
             <a
               href="tel:+919289344726"
               className="btn-ghost btn-sm text-black border-black/20 hover:bg-black/5 flex items-center gap-2"
@@ -144,7 +179,8 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Hamburger */}
+        {/* Mobile: cart + hamburger */}
+        <CartButton className="md:hidden ml-auto mr-3" />
         <button
           className="md:hidden flex flex-col gap-1.5 p-1 z-50"
           onClick={() => setMenuOpen(!menuOpen)}
@@ -167,6 +203,8 @@ export default function Navbar() {
       {/* Mobile Dropdown */}
       {menuOpen && (
         <div className="md:hidden flex flex-col gap-4 px-6 pt-6 pb-6 bg-white/95 backdrop-blur-md border-b border-black/10 shadow-lg max-h-[85vh] overflow-y-auto font-inter">
+          <MobileLinkGroup title="Services" links={SERVICE_LINKS} onNavigate={() => setMenuOpen(false)} />
+
           {navLinks.map((item) => (
             <Link
               key={item.name}
@@ -178,26 +216,7 @@ export default function Navbar() {
             </Link>
           ))}
 
-          {/* Mobile Resources Section */}
-          <div className="flex flex-col gap-3 mt-2 border-t border-black/5 pt-4">
-            <p className="text-[10px] font-black uppercase tracking-widest text-black/60">GMB Mastery Guide</p>
-            <div className="grid grid-cols-1 gap-2">
-              {resourceLinks.map((sub) => (
-                <Link
-                  key={sub.name}
-                  href={sub.href}
-                  className="flex items-center gap-3 py-2 text-sm font-semibold text-black/70"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <sub.icon size={16} className="text-lemon-hover" />
-                  <div>
-                    <span>{sub.name}</span>
-                    {sub.sub && <p className="text-[9px] text-black/60 font-medium -mt-1">{sub.sub}</p>}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
+          <MobileLinkGroup title="GMB Mastery Guide" links={resourceLinks} onNavigate={() => setMenuOpen(false)} />
 
           <Link
             href="/blog"
@@ -236,6 +255,8 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      <CartDrawer />
     </nav>
   );
 }

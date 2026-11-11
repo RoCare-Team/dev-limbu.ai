@@ -98,6 +98,7 @@ export function usePlanCheckout() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         planId: selectedPlan?.title,
+        planDuration: selectedPlan?.planDuration || "monthly",
         amount: parsedAmount,
         receipt: `plan_${Date.now()}`,
         notes: { plan_name: selectedPlan?.title, user_email: email },
@@ -130,6 +131,7 @@ export function usePlanCheckout() {
             body: JSON.stringify({
               userId,
               plan: selectedPlan?.title,
+              planDuration: selectedPlan?.planDuration || "monthly",
               payment: {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_order_id: response.razorpay_order_id,

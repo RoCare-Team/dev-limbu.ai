@@ -8,6 +8,7 @@ import FooterSection from "@/components/sections/FooterSection";
 import { SEO_PLANS } from "@/lib/seoPlans";
 import { WEB_DEVELOPMENT_PLANS } from "@/lib/webPlans";
 import { usePlanCheckout } from "@/hooks/usePlanCheckout";
+import { AD_PLANS } from "@/lib/adServices";
 
 // ── Lazily loaded pricing sections ──
 const SubscriptionSection = lazy(
@@ -196,37 +197,7 @@ export default function PricingPage() {
 
   const seoPlans = SEO_PLANS;
 
-  const accountSetupPlans = [
-    {
-      title: "Google Ads Account Setup",
-      basePrice: 2500,
-      description:
-        "Complete Google Ads setup with keywords, tracking, and analytics.",
-      staticFeatures: [
-        "Account creation",
-        "Billing config",
-        "Keyword research",
-        "Negative keywords",
-        "GA4 setup",
-        "Conversion tracking",
-      ],
-    },
-    {
-      title: "Meta Ads Account Setup",
-      basePrice: 3500,
-      popular: true,
-      description:
-        "Complete Meta (FB & IG) setup with audience research and pixel tracking.",
-      staticFeatures: [
-        "Business Manager setup",
-        "Ad account config",
-        "Audience research",
-        "Pixel/CAPI setup",
-        "Creative strategy",
-        "Copywriting",
-      ],
-    },
-  ];
+  const accountSetupPlans = AD_PLANS;
 
   const whatsappPlans = [
     {

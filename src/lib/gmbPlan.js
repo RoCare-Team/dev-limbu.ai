@@ -1,14 +1,13 @@
-import { GST_RATE, formatInr } from "@/lib/seoPlans";
-
 /**
- * The monthly plan that unlocks every Google Business Profile tool on the
- * home page. "GMB Plan" is in the `gmb` plan group (lib/userPlans.js), so
- * buying it unlocks the same tools as Basic / Professional / Premium.
+ * The plan that unlocks every Google Business Profile tool on the home page,
+ * sold yearly at ₹999/month. "GMB Plan" is in the `gmb` plan group
+ * (lib/userPlans.js), so buying it unlocks the same tools as Basic /
+ * Professional / Premium.
  */
 export const GMB_PLAN = {
   title: "GMB Plan",
-  basePrice: 999,
-  description: "Every Google Business Profile tool, unlocked for a month",
+  basePrice: 999, // per month on the yearly cycle — the headline price
+  description: "Every Google Business Profile tool, unlocked for your whole plan",
   staticFeatures: [
     "GMB Insights & Health Score",
     "AI Post Management",
@@ -36,19 +35,54 @@ export const GMB_TOOL_COPY = {
 // Same demo the home page "Watch Demo" button plays.
 export const GMB_DEMO_VIDEO_ID = "eQUd6u36w3g";
 
-export const GMB_GST = Math.round(GMB_PLAN.basePrice * GST_RATE);
-export const GMB_TOTAL = GMB_PLAN.basePrice + GMB_GST;
-
-/** GMB Plan in the shape ServiceBookingModal / Razorpay checkout expects. */
-export function gmbCheckoutPlan() {
-  return {
+// Plans offered in the unlock modal, all billed yearly. Annual price follows the
+// pricing page rule (yearly = 50% off the monthly list price), except the GMB Plan,
+// which is ₹999/month yearly by design. Pricing helpers live in lib/planOffers.js.
+export const GMB_TIERS = [
+  {
+    key: "gmb",
     title: GMB_PLAN.title,
-    planType: "our-package",
-    planDuration: "monthly",
-    subtitle: GMB_PLAN.description,
+    tagline: "All GMB tools, do-it-yourself",
+    perMonth: GMB_PLAN.basePrice,
+    listPerMonth: null,
     features: GMB_PLAN.staticFeatures,
-    price: formatInr(GMB_PLAN.basePrice),
-    gstAmount: formatInr(GMB_GST),
-    totalPrice: GMB_TOTAL,
-  };
-}
+    addon: "Unlock all GMB tools",
+  },
+  {
+    key: "professional",
+    title: "Professional Plan",
+    tagline: "Best for growing businesses looking for better visibility",
+    perMonth: 1750,
+    listPerMonth: 3500,
+    // Same as the pricing page on the yearly cycle (20 posts / 5 citations a month)
+    features: [
+      "240 GMB Posts",
+      "60 Citations",
+      "Review Reply Management",
+      "Custom QR Code Generation",
+      "Business Insights Dashboard",
+      "Category Setup & Optimization",
+      "Social Media Management",
+    ],
+    addon: "Unlock all GMB tools",
+  },
+  {
+    key: "premium",
+    title: "Premium Plan",
+    tagline: "Perfect for brands focused on automation and maximum reach",
+    perMonth: 2750,
+    listPerMonth: 5500,
+    popular: true,
+    // Same as the pricing page on the yearly cycle (30 posts / 10 citations a month)
+    features: [
+      "360 GMB Posts",
+      "120 Citations",
+      "Review Reply Management",
+      "Custom QR Code Generation",
+      "Business Insights Dashboard",
+      "Category Addition & Optimization",
+      "Social Media Management",
+    ],
+    addon: "Unlock all GMB tools",
+  },
+];

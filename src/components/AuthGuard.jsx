@@ -11,7 +11,7 @@ import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
  * bare domain) they are reached as /<slug>, so the guard must not redirect.
  */
 const APP_ROUTE_SEGMENTS = new Set([
-  "about", "actions", "admin", "adminLogin", "api", "assets-management",
+  "about", "actions", "admin", "adminLogin", "ads", "api", "assets-management",
   "auth", "automation-logs", "automation-settings", "bakery-marketing-software",
   "blog", "build-website", "bulk-schduled", "bussiness", "cancellation-policy",
   "car-garage-marketing-software", "checkHealth", "checkout", "city",
@@ -104,6 +104,7 @@ function isAlwaysPublic(pathname) {
     pathname.startsWith("/city") ||
     pathname.startsWith("/services") ||
     pathname.startsWith("/seo-tools") ||
+    pathname.startsWith("/ads/") ||
     pathname.startsWith("/bussiness/") ||
     pathname.startsWith("/blog/")
   ) {

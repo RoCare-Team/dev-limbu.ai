@@ -13,6 +13,7 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   Activity,
+  LayoutDashboard,
   FileText,
   Star,
   Image as LucideImage,
@@ -138,6 +139,11 @@ export default function Sidebar({ children }) {
   const menuItems = useMemo(
     () => [
       { heading: "Google Business Profile", collapsible: true },
+      {
+        text: "Overview",
+        icon: <LayoutDashboard size={18} />,
+        path: "/dashboard",
+      },
       {
         text: "Post Management",
         icon: <FileText size={18} />,

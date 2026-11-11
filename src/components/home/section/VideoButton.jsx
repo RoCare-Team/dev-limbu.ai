@@ -1,18 +1,60 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Play, X } from "lucide-react";
 import { useAuthStore } from "@/stores/useAuthStore";
+import SocialDemo from "../art/SocialDemo";
+
+// Built-in animated demos, by sectionCopy `video.demo` key.
+const DEMOS = { social: SocialDemo };
+
+/** Modal that plays a built-in demo larger. */
+function DemoModal({ video, onClose }) {
+  const Demo = DEMOS[video.demo];
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+  if (!Demo) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={video.title}
+        className="relative max-h-[94vh] overflow-y-auto rounded-3xl bg-white px-6 pb-6 pt-12 shadow-2xl sm:px-10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+          <X size={18} />
+        </button>
+        <p className="mb-5 text-center text-lg font-black text-slate-900">{video.title}</p>
+        <Demo large />
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 /**
- * "Watch: <title>" pill that opens the site-wide video modal (VideoModal in
- * GlobalClientLayer). `video` is { url, title, duration? } from sectionCopy.
+ * "Watch: <title>" pill. A YouTube `video.url` opens the site-wide video modal
+ * (VideoModal in GlobalClientLayer); a built-in `video.demo` opens DemoModal.
+ * `video` is { url | demo, title, duration? } from sectionCopy.
  */
 export function VideoButton({ video, className = "" }) {
   const setSelectedVideo = useAuthStore((s) => s.setSelectedVideo);
+  const [demoOpen, setDemoOpen] = useState(false);
   return (
+    <>
     <button
       type="button"
-      onClick={() => setSelectedVideo(video.url)}
+      onClick={() => (video.demo ? setDemoOpen(true) : setSelectedVideo(video.url))}
       className={`group inline-flex items-center gap-2.5 rounded-full py-1.5 pl-1.5 pr-3 text-left transition hover:bg-slate-50 ${className}`}
     >
       <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#facc15] text-black transition-transform group-hover:scale-110">
@@ -25,6 +67,8 @@ export function VideoButton({ video, className = "" }) {
         )}
       </span>
     </button>
+    {demoOpen && <DemoModal video={video} onClose={() => setDemoOpen(false)} />}
+    </>
   );
 }
 

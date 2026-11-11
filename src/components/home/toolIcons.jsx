@@ -7,6 +7,7 @@ import {
   MessageSquareHeart, MessagesSquare, MonitorSmartphone, Network, NotebookPen,
   Palette, QrCode, Search, SearchCheck, Send, Settings, ShoppingCart, Sparkles,
   SquarePen, Star, Store, Swords, Trash2, TrendingUp, UserRound, Video,
+  Bell, ChartPie, Contact, Layers, Rocket, Smartphone, SquareKanban, Users, Workflow,
 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import {
@@ -16,6 +17,8 @@ import {
   FaPinterest,
   FaWhatsapp,
   FaYoutube,
+  FaAndroid,
+  FaApple,
 } from "react-icons/fa";
 
 // App icon names (constants.js) -> web icons.
@@ -62,6 +65,16 @@ const MATERIAL_ICONS = {
   support_agent: Headset,
   fact_check: ClipboardCheck,
   hub: Network,
+  // website-only sections (webOnlySections.js)
+  contacts: Contact,
+  view_kanban: SquareKanban,
+  groups: Users,
+  pie_chart: ChartPie,
+  workflow: Workflow,
+  smartphone: Smartphone,
+  layers: Layers,
+  notifications: Bell,
+  rocket: Rocket,
 };
 
 const BRAND_ICONS = {
@@ -72,6 +85,8 @@ const BRAND_ICONS = {
   linkedin: { Icon: FaLinkedin, color: "#0A66C2" },
   pinterest: { Icon: FaPinterest, color: "#E60023" },
   whatsapp: { Icon: FaWhatsapp, color: "#25D366" },
+  android: { Icon: FaAndroid, color: "#3DDC84" },
+  apple: { Icon: FaApple, color: "#0f172a" },
 };
 
 // Google Business Profile tools get a more specific icon than the app's

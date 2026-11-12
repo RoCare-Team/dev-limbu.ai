@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { isTokenAlive, clearStaleAdminLogin } from "@/lib/clientSession";
+import { isTokenAlive, clearStaleAdminLogin, isImpersonatingNow } from "@/lib/clientSession";
+import { UNLOCK_PATHS, canOpen, landingPathFor, planNeededFor } from "@/lib/planAccess";
 
 /**
  * Every real top-level segment under src/app. Anything else with a single
@@ -19,7 +20,7 @@ const APP_ROUTE_SEGMENTS = new Set([
   "connect-google-business",
   "contact", "dashboard", "data", "education-marketing-software",
   "franchise-opportunities", "franchise-panel", "get-magic-qr", "gmb-health",
-  "gmb-insights", "google-business-management-service", "gym-marketing-software",
+  "gmb-insights", "google-business-management-service", "guide", "gym-marketing-software",
   "handyman-marketing-software", "hooks", "how-to-connect-gmb",
   "how-to-create-post", "how-to-generate-magic-qr", "how-to-post-on-gmb",
   "how-to-reply-review", "impersonate-login", "instructions", "keyword-planner",
@@ -106,7 +107,9 @@ function isAlwaysPublic(pathname) {
     pathname.startsWith("/seo-tools") ||
     pathname.startsWith("/ads/") ||
     pathname.startsWith("/bussiness/") ||
-    pathname.startsWith("/blog/")
+    pathname.startsWith("/blog/") ||
+    pathname === "/guide" ||
+    pathname.startsWith("/guide/")
   ) {
     return true;
   }
@@ -154,8 +157,9 @@ export default function AuthGuard({ children }) {
 
     // Already-signed-in users should not sit on a login screen. These routes are
     // public, so the redirect runs without ever hiding the rendered page.
+    // Users without a plan go to the home page plans, not the dashboard.
     if (userId && pathname === "/login") {
-      router.replace("/dashboard");
+      landingPathFor(userId).then((to) => router.replace(to));
       setIsChecking(false);
       return;
     }
@@ -168,6 +172,23 @@ export default function AuthGuard({ children }) {
       );
       setIsChecking(false);
       return;
+    }
+
+    // Plan gate (lib/planAccess.js): dashboard pages open only with the plan they
+    // need. Runs before the public check because some gated pages (/social-media)
+    // are public for guests. Admins and admins viewing a user are never gated.
+    const need = planNeededFor(pathname);
+    if (need && userId && !isAdmin && !isImpersonatingNow()) {
+      let cancelled = false;
+      setIsChecking(true); // hide the page until we know (client-side navigation too)
+      canOpen(userId, need).then((ok) => {
+        if (cancelled) return;
+        if (ok) setIsChecking(false);
+        else router.replace(UNLOCK_PATHS[need] || UNLOCK_PATHS.any);
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (isAlwaysPublic(pathname)) {

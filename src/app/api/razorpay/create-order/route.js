@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { encodeCart, offerPricing, offerTierByTitle, priceCart } from "@/lib/planOffers";
+import { encodeCart, offerCycles, offerPricing, offerTierByTitle, priceCart } from "@/lib/planOffers";
 
 const CYCLES = ["monthly", "quarterly", "half-yearly", "yearly"];
 
@@ -20,14 +20,15 @@ export async function POST(request) {
     }
 
     // Plans sold from the home page offers (GMB, Social, Outreach, SEO) are priced
-    // on the server in their offer's cycle, so the browser cannot pay less. Other
-    // cycles of the pricing-page plans keep the sent amount.
+    // on the server in any of their offer's cycles, so the browser cannot pay less.
+    // Other cycles of the pricing-page plans keep the sent amount.
     const match = cart ? null : offerTierByTitle(planId);
     if (match) {
-      if (match.fixedCycle && planDuration !== match.offer.cycle) {
-        return NextResponse.json({ error: `${planId} is billed ${match.offer.cycle} only` }, { status: 400 });
+      const sold = offerCycles(match.offer);
+      if (match.fixedCycle && !sold.includes(planDuration)) {
+        return NextResponse.json({ error: `${planId} is billed ${sold.join(" or ")} only` }, { status: 400 });
       }
-      if (planDuration === match.offer.cycle) orderAmount = offerPricing(match.offer, match.tier).total;
+      if (sold.includes(planDuration)) orderAmount = offerPricing(match.offer, match.tier, planDuration).total;
     }
 
     if ((!amount && !cart) || !receipt) {

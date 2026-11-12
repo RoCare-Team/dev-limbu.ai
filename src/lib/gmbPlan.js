@@ -1,12 +1,13 @@
 /**
  * The plan that unlocks every Google Business Profile tool on the home page,
- * sold yearly at ₹999/month. "GMB Plan" is in the `gmb` plan group
+ * sold yearly at ₹999/month or quarterly at the pricing page Basic Plan rate. "GMB Basic Plan" is in the `gmb` plan group
  * (lib/userPlans.js), so buying it unlocks the same tools as Basic /
  * Professional / Premium.
  */
 export const GMB_PLAN = {
-  title: "GMB Plan",
-  basePrice: 999, // per month on the yearly cycle — the headline price
+  title: "GMB Basic Plan",
+  basePrice: 999, // per month on the yearly plan — the headline price
+  listPrice: 2000, // pricing page Basic Plan, per month (quarterly = 20% off)
   description: "Every Google Business Profile tool, unlocked for your whole plan",
   staticFeatures: [
     "GMB Insights & Health Score",
@@ -35,54 +36,54 @@ export const GMB_TOOL_COPY = {
 // Same demo the home page "Watch Demo" button plays.
 export const GMB_DEMO_VIDEO_ID = "eQUd6u36w3g";
 
-// Plans offered in the unlock modal, all billed yearly. Annual price follows the
-// pricing page rule (yearly = 50% off the monthly list price), except the GMB Plan,
-// which is ₹999/month yearly by design. Pricing helpers live in lib/planOffers.js.
+// Plans offered in the unlock modal, billed quarterly or yearly. Prices follow the
+// pricing page rule (quarterly = 20% off the monthly list price, yearly = 50% off),
+// except the GMB Basic Plan: the pricing page Basic Plan price quarterly (₹2,000 − 20%
+// = ₹1,600/month) and ₹999/month yearly. `byCycle` holds what
+// changes on the yearly cycle; pricing helpers live in lib/planOffers.js.
+
+// Posts / citations a month and the fixed features, as on the pricing page.
+const gmbPackageFeatures = (posts, citations, extras, months) => [
+  `${posts * months} GMB Posts`,
+  `${citations * months} Citations`,
+  ...extras,
+  // Annual-only perk on the pricing page
+  ...(months === 12 ? ["Social Media Management"] : []),
+];
+
+const PRO_EXTRAS = ["Review Reply Management", "Custom QR Code Generation", "Business Insights Dashboard", "Category Setup & Optimization"];
+const PREMIUM_EXTRAS = ["Review Reply Management", "Custom QR Code Generation", "Business Insights Dashboard", "Category Addition & Optimization"];
+
 export const GMB_TIERS = [
   {
     key: "gmb",
     title: GMB_PLAN.title,
     tagline: "All GMB tools, do-it-yourself",
-    perMonth: GMB_PLAN.basePrice,
-    listPerMonth: null,
+    perMonth: Math.round(GMB_PLAN.listPrice * 0.8), // ₹1,600 — same as the pricing page quarterly
+    listPerMonth: GMB_PLAN.listPrice,
     features: GMB_PLAN.staticFeatures,
+    byCycle: { yearly: { perMonth: GMB_PLAN.basePrice } }, // ₹999 = 50% off ₹2,000
     addon: "Unlock all GMB tools",
   },
   {
     key: "professional",
     title: "Professional Plan",
     tagline: "Best for growing businesses looking for better visibility",
-    perMonth: 1750,
+    perMonth: 2800,
     listPerMonth: 3500,
-    // Same as the pricing page on the yearly cycle (20 posts / 5 citations a month)
-    features: [
-      "240 GMB Posts",
-      "60 Citations",
-      "Review Reply Management",
-      "Custom QR Code Generation",
-      "Business Insights Dashboard",
-      "Category Setup & Optimization",
-      "Social Media Management",
-    ],
+    features: gmbPackageFeatures(20, 5, PRO_EXTRAS, 3),
+    byCycle: { yearly: { perMonth: 1750, features: gmbPackageFeatures(20, 5, PRO_EXTRAS, 12) } },
     addon: "Unlock all GMB tools",
   },
   {
     key: "premium",
     title: "Premium Plan",
     tagline: "Perfect for brands focused on automation and maximum reach",
-    perMonth: 2750,
+    perMonth: 4400,
     listPerMonth: 5500,
     popular: true,
-    // Same as the pricing page on the yearly cycle (30 posts / 10 citations a month)
-    features: [
-      "360 GMB Posts",
-      "120 Citations",
-      "Review Reply Management",
-      "Custom QR Code Generation",
-      "Business Insights Dashboard",
-      "Category Addition & Optimization",
-      "Social Media Management",
-    ],
+    features: gmbPackageFeatures(30, 10, PREMIUM_EXTRAS, 3),
+    byCycle: { yearly: { perMonth: 2750, features: gmbPackageFeatures(30, 10, PREMIUM_EXTRAS, 12) } },
     addon: "Unlock all GMB tools",
   },
 ];

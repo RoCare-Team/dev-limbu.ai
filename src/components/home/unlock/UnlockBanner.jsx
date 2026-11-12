@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Lock, PlayCircle } from "lucide-react";
 import { formatInr } from "@/lib/seoPlans";
-import { cycleInfo } from "@/lib/planOffers";
+import { cycleInfo, offerCycles } from "@/lib/planOffers";
 
 /**
  * Strip above a locked section's tools: entry plan price, Watch Demo and
@@ -18,7 +18,11 @@ export default function UnlockBanner({ offer, unlocked, toolCount, onWatchDemo, 
   }
 
   const cycle = cycleInfo(offer);
+  // "Billed quarterly or yearly" when the buyer can pick the cycle in the modal
+  const billed = offerCycles(offer).length > 1 ? `Billed ${offerCycles(offer).join(" or ")}` : cycle.billed;
   const [first, ...rest] = offer.tiers;
+  // Lowest monthly price of the entry plan across the cycles on offer
+  const fromPrice = Math.min(first.perMonth, ...Object.values(first.byCycle || {}).map((c) => c.perMonth || Infinity));
   const others = rest.map((t) => t.title).join(" & ");
 
   return (
@@ -30,10 +34,10 @@ export default function UnlockBanner({ offer, unlocked, toolCount, onWatchDemo, 
         <div>
           <p className="text-[15px] font-black leading-snug text-white">
             {first.title}: {toolCount ? `all ${toolCount} tools` : "everything you need"} from{" "}
-            <span className="text-[#facc15]">{formatInr(first.perMonth)}{cycle.months === 1 && offer.cycle === "one-time" ? " one-time" : "/month"}</span>
+            <span className="text-[#facc15]">{formatInr(fromPrice)}{cycle.months === 1 && offer.cycle === "one-time" ? " one-time" : "/month"}</span>
           </p>
           <p className="mt-1 text-xs font-semibold text-slate-300">
-            {cycle.billed} + GST{others ? ` · Also available: ${others}` : ""}
+            {billed} + GST{others ? ` · Also available: ${others}` : ""}
           </p>
         </div>
       </div>

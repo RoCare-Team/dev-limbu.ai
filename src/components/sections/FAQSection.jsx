@@ -10,7 +10,7 @@ const faqs = [
   {
     question: "Which services can I buy, and how much do they cost?",
     answer:
-      "GMB tools start at ₹999/month (billed yearly), social media plans at ₹2,400/month (yearly), the Emailer plan at ₹500/month (yearly), SEO from ₹5,999/month, ad account setup from ₹2,500 one-time and websites from ₹9,999 one-time. All prices are plus 18% GST. Open any service on the home page to see its plans.",
+      "The GMB Basic Plan is ₹999/month on a yearly plan (₹1,600/month quarterly), social media plans at ₹2,400/month and the Emailer plan at ₹500/month (billed yearly, or quarterly at a higher monthly rate), SEO from ₹5,999/month (20% off on a yearly plan), ad account setup from ₹2,500 one-time and websites from ₹9,999 one-time. All prices are plus 18% GST. Open any service on the home page to see its plans.",
   },
   {
     question: "Can I buy more than one service together?",
@@ -50,7 +50,7 @@ const faqs = [
   {
     question: "Do plans renew automatically?",
     answer:
-      "No. Each plan is a one-time payment for the period you choose (a month, a year, or a one-time service). Nothing is charged again automatically; you renew only when you want to.",
+      "No. Each plan is a one-time payment for the period you choose (a month, a quarter, or a one-time service). Nothing is charged again automatically; you renew only when you want to.",
   },
 ];
 
@@ -116,29 +116,29 @@ export default function FAQSection() {
         </div>
 
         {/* FAQ List */}
-        <div className="max-w-5xl mx-auto space-y-4">
+        <div className="max-w-4xl mx-auto space-y-3">
           {faqs.map((faq, index) => (
             <details
               key={index}
-              className="group relative bg-white border rounded-2xl overflow-hidden transition-all duration-300"
+              className="group relative bg-white border rounded-xl overflow-hidden transition-all duration-300"
               style={{
                 borderColor: "rgba(15, 23, 42, 0.08)",
               }}
             >
-              <summary className="list-none cursor-pointer p-6 sm:p-8 flex items-center justify-between">
-                <span className="text-base sm:text-lg font-bold tracking-tight text-slate-700 group-open:text-black transition-colors duration-300">
+              <summary className="list-none cursor-pointer px-5 py-4 sm:px-6 flex items-center justify-between gap-4">
+                <span className="text-sm sm:text-base font-semibold text-slate-800 group-open:text-black transition-colors duration-300">
                   {faq.question}
                 </span>
 
-                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 transition-all duration-300 group-open:bg-yellow-500 group-open:text-white group-open:rotate-180">
+                <div className="w-7 h-7 flex-shrink-0 rounded-full flex items-center justify-center bg-slate-50 text-slate-400 transition-all duration-300 group-open:bg-yellow-500 group-open:text-white group-open:rotate-180">
                   <ChevronDown className="w-4 h-4" />
                 </div>
               </summary>
 
-              <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-                <div className="h-px w-full bg-slate-100 mb-6" />
+              <div className="px-5 sm:px-6 pb-5">
+                <div className="h-px w-full bg-slate-100 mb-4" />
 
-                <p className="text-sm sm:text-base leading-relaxed font-medium text-slate-600">
+                <p className="text-sm leading-relaxed text-slate-600">
                   {faq.answer}
                 </p>
               </div>

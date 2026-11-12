@@ -12,7 +12,7 @@ import FranchiseRevenue from "@/models/FranchiseRevenue";
 
 // Feature groups a plan unlocks. Names are matched lower-cased, "plan" suffix optional.
 export const PLAN_GROUPS = {
-  gmb: ["gmb plan", "basic plan", "professional plan", "premium plan", "standard plan"],
+  gmb: ["gmb basic plan", "gmb plan", "basic plan", "professional plan", "premium plan", "standard plan"],
   social: ["social starter", "social growth", "social pro"],
   outreach: ["emailer plan", "whatsapp automation plan"],
   seo: ["basic seo", "standard seo", "advanced seo"],

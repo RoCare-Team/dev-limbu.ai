@@ -107,6 +107,10 @@ function normalizeWhatsappUri(chatUrl, phoneFallback) {
   return d.length >= 10 ? `https://wa.me/${d}` : '';
 }
 
+// Google rejects special (holiday) hours on a location with no regular hours.
+const SPECIAL_HOURS_NEED_REGULAR =
+  "Holiday / special hours need your regular opening hours first. Set your weekly hours (Edit Monday–Sunday) and save, then push the holidays again.";
+
 // Google puts the precise reason in error.details[].fieldViolations[].description
 // (e.g. "Invalid phone number for region IN"). error.message is generic ("Request
 // contains an invalid argument."), so dig into the violations for a useful message.
@@ -122,6 +126,7 @@ function googleErrorDetail(errData) {
       if (d.reason === 'THROTTLED') {
         return `Google is rate-limiting edits to this field${fld}. It was changed too many times recently — wait a while (often a few hours / up to ~24h) before saving it again. Other fields were saved.`;
       }
+      if (d.reason === 'SPECIAL_HOURS_SET_WITHOUT_REGULAR_HOURS') return SPECIAL_HOURS_NEED_REGULAR;
       return `${d.reason}${fld}`;
     }
   }
@@ -187,6 +192,16 @@ async function fetchLocationCategoryGcids(accessToken, locationId) {
     ? d.categories.additionalCategories.map((c) => norm(c?.name)).filter(Boolean)
     : [];
   return { primary, all: [primary, ...additional].filter(Boolean) };
+}
+
+// Does the location already have regular (weekly) opening hours on Google?
+// null when it cannot be read, so the caller lets Google decide.
+async function locationHasRegularHours(accessToken, locationId) {
+  const url = `${GMB_BASE}/locations/${encodeURIComponent(locationId)}?readMask=regularHours`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+  if (!res.ok) return null;
+  const d = await res.json().catch(() => ({}));
+  return Array.isArray(d?.regularHours?.periods) && d.regularHours.periods.length > 0;
 }
 
 // Generic attributes PATCH — one call for all attributes, using a combined
@@ -765,7 +780,29 @@ export async function POST(request) {
       results.push({ field: 'regularHours', ...r });
     }
 
+    // Special hours are only accepted once the location has regular hours —
+    // either saved in this same request or already on Google. Otherwise skip the
+    // call and say what to do, instead of Google's SPECIAL_HOURS_SET_WITHOUT_REGULAR_HOURS.
+    let canSetSpecialHours = true;
     if (specialHoursBody && specialHoursBody.specialHours.specialHourPeriods.length) {
+      const regularSavedNow =
+        hasRegularHoursPayload &&
+        regularHoursPeriods.length > 0 &&
+        results.some((x) => x.field === 'regularHours' && x.ok);
+      if (!regularSavedNow) {
+        canSetSpecialHours = (await locationHasRegularHours(accessToken, locationId)) !== false;
+      }
+      if (!canSetSpecialHours) {
+        results.push({
+          field: 'specialHours',
+          ok: false,
+          status: 400,
+          data: { error: { message: SPECIAL_HOURS_NEED_REGULAR } },
+        });
+      }
+    }
+
+    if (canSetSpecialHours && specialHoursBody && specialHoursBody.specialHours.specialHourPeriods.length) {
       const r = await patchLocationResource(
         accessToken,
         locationId,

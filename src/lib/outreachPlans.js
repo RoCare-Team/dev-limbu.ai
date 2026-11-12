@@ -1,13 +1,15 @@
-// Outreach plans sold from the home page "Reach & Engage" section, billed yearly.
-// WhatsApp plan matches the pricing page (₹15,000 a year).
+// Outreach plans sold from the home page "Reach & Engage" section, billed quarterly or yearly
+// (yearly = 20% off the quarterly rate, which is shown struck through).
+// Monthly rates match the pricing page (WhatsApp ₹15,000 a year = ₹1,250 a month).
 
 export const OUTREACH_TIERS = [
   {
     key: "emailer",
     title: "Emailer Plan",
     tagline: "Email campaigns that bring customers back",
-    perMonth: 500,
+    perMonth: 625,
     listPerMonth: null,
+    byCycle: { yearly: { perMonth: 500, listPerMonth: 625 } },
     features: [
       "Email campaigns",
       "AI-written emails",
@@ -23,6 +25,7 @@ export const OUTREACH_TIERS = [
     tagline: "Complete WhatsApp automation for your business",
     perMonth: 1250,
     listPerMonth: null,
+    byCycle: { yearly: { perMonth: 1000, listPerMonth: 1250 } },
     popular: true,
     features: [
       "Unlimited AI Agents",

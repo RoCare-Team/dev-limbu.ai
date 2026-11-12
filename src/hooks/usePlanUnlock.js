@@ -8,7 +8,7 @@ import { useUserHomeSections } from "@/hooks/useUserHomeSections";
  * State for a locked home section and its subscribe modal.
  * `planGroup` is the group a plan must be in to unlock (lib/userPlans.js).
  * Returns { unlocked, justPaid, modal, openModal, closeModal, checkout } where
- * modal is null (closed) or { tool, demo }.
+ * modal is null (closed) or { tool }.
  */
 export function usePlanUnlock(planGroup) {
   const { planGroups } = useUserHomeSections();
@@ -21,7 +21,7 @@ export function usePlanUnlock(planGroup) {
     if (bookingSuccess) setJustPaid(true);
   }, [bookingSuccess]);
 
-  const openModal = useCallback((tool = null, demo = false) => setModal({ tool, demo }), []);
+  const openModal = useCallback((tool = null) => setModal({ tool }), []);
   const closeModal = useCallback(() => setModal(null), []);
 
   return {

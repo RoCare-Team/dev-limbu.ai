@@ -8,8 +8,9 @@ import { actionHref, needsLogin } from "@/lib/homeSections/links";
 /**
  * One tool card. Coming-soon tools are not clickable.
  * `onLockedClick` (client callers only): a locked card calls it instead of linking to /pricing.
+ * `onCardClick` (client callers only): any live card calls it instead of linking (e.g. an enquiry form).
  */
-export function ToolCard({ item, onLockedClick, variant }) {
+export function ToolCard({ item, onLockedClick, onCardClick, variant }) {
   const comingSoon = item.comingSoon || item.access?.status === "coming_soon";
   const isGbp = variant === "gbp";
   // Not in the user's plan -> the card sells the plan instead of opening the tool.
@@ -81,6 +82,14 @@ export function ToolCard({ item, onLockedClick, variant }) {
   }
 
   const activeClassName = `${className} border-slate-200/80 shadow-[0_2px_10px_rgba(15,23,42,0.05)] hover:-translate-y-1.5 hover:border-amber-300 hover:shadow-[0_20px_40px_-12px_rgba(234,179,8,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none`;
+
+  if (onCardClick && !comingSoon) {
+    return (
+      <button type="button" onClick={() => onCardClick(item)} className={`${activeClassName} w-full text-left`}>
+        {body}
+      </button>
+    );
+  }
 
   if (locked && onLockedClick) {
     return (

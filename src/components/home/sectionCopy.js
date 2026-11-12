@@ -4,7 +4,7 @@ export const SECTION_COPY = {
   gbp: {
     title: "Grow Your Local Business",
     highlight: "with Limbu AI",
-    text: "Rank higher on Google Maps and turn searches into calls, visits and 5-star reviews. 9 AI tools, one simple monthly plan.",
+    text: "Rank higher on Google Maps and turn searches into calls, visits and 5-star reviews. 9 AI tools, one simple plan.",
     steps: [
       "Connect your Google Business Profile in one click",
       "AI posts weekly updates and replies to every review",
@@ -77,7 +77,8 @@ export const SECTION_COPY = {
       "We build your CRM with your leads, team and workflows",
       "Track every lead and follow-up from one dashboard",
     ],
-    cta: { label: "Get a Free CRM Quote", whatsapp: "Hi Limbu AI, I want a custom CRM for my business." },
+    // Opens the enquiry form (components/leads) for this service; tiles do too.
+    cta: { label: "Get a Free CRM Quote", lead: "Custom CRM" },
   },
   mobile_app: {
     title: "Launch Your Own",
@@ -88,7 +89,7 @@ export const SECTION_COPY = {
       "We design and build the app with an admin panel",
       "Go live on the Play Store and App Store",
     ],
-    cta: { label: "Get a Free App Quote", whatsapp: "Hi Limbu AI, I want a mobile app for my business." },
+    cta: { label: "Get a Free App Quote", lead: "Custom App" },
   },
   paid_ads: {
     title: "Get More Leads from Ads",

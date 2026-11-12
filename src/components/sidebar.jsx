@@ -40,6 +40,7 @@ import { clearGmbSessionCookie, clearGmbDataCache } from "@/lib/gmbClientCache";
 
 import { useSidebar } from "@/hooks/useSidebar";
 import SidebarNavItem from "./sidebar/SidebarNavItem";
+import { UNLOCK_PATHS, hasPlan } from "@/lib/planAccess";
 import UserAvatar from "./sidebar/UserAvatar";
 import TopAppBar from "./sidebar/TopAppBar";
 
@@ -59,6 +60,9 @@ export default function Sidebar({ children }) {
   } = useSidebar();
 
   const [openDropdown, setOpenDropdown] = useState(null);
+  // Read after mount (localStorage), so server and first client render match
+  const [impersonating, setImpersonating] = useState(false);
+  useEffect(() => setImpersonating(isImpersonatingNow()), []);
   // Headings of the sidebar sections the user folded away. Remembered across
   // pages, because every dashboard page mounts its own Sidebar.
   const [closedSections, setClosedSections] = useState([]);
@@ -143,20 +147,24 @@ export default function Sidebar({ children }) {
         text: "Overview",
         icon: <LayoutDashboard size={18} />,
         path: "/dashboard",
+        requires: "any", // any active plan (lib/planAccess.js)
       },
       {
         text: "Post Management",
         icon: <FileText size={18} />,
         path: "/post-management",
+        requires: ["gmb", "social"], // social plans post from here too
       },
       {
         text: "Review Management",
         icon: <Star size={18} />,
         path: "/review-management",
+        requires: "gmb",
       },
       {
         text: "Magic QR",
         icon: <Wand size={18} />,
+        requires: "gmb",
         children: [
           { text: "Get Magic QR", path: "/get-magic-qr" },
           { text: "Customer Reviews", path: "/reviews/get-customer-review" },
@@ -166,27 +174,32 @@ export default function Sidebar({ children }) {
         text: "Assets Management",
         icon: <LucideImage size={18} />,
         path: "/assets-management",
+        requires: "gmb",
       },
       {
         text: "GMB Insights",
         icon: <BarChart3 size={18} />,
         path: "/gmb-insights",
+        requires: "gmb",
       },
-      { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health" },
+      { text: "GMB Health", icon: <Activity size={18} />, path: "/gmb-health", requires: "gmb" },
       {
         text: "Keyword Planner",
         icon: <KeyRound size={18} />,
         path: "/keyword-planner",
+        requires: "gmb",
       },
       {
         text: "Competitor Analysis",
         icon: <MapPin size={18} />,
         path: "/competitor-analysis",
+        requires: "gmb",
       },
       {
         text: "Website Leads",
         icon: <Inbox size={18} />,
         path: "/limbu-website-leads",
+        requires: "gmb",
       },
       {
         text: "Website Audit",
@@ -199,7 +212,7 @@ export default function Sidebar({ children }) {
         text: "Social Media",
         icon: <Share2 size={18} />,
         path: "/social-media",
-        requires: "paid", // any paid plan; or a plan group from lib/userPlans.js
+        requires: "social", // a plan group from lib/userPlans.js, or "any"
       },
       {
         text: "AI Video",
@@ -322,14 +335,16 @@ export default function Sidebar({ children }) {
                 }
                 onNavigate={navigate}
                 pathname={pathname}
-                // planGroups is undefined until loaded — don't flash a lock
+                // planGroups is undefined until loaded — don't flash a lock.
+                // Impersonating admins see everything open.
                 locked={
                   !!item.requires &&
+                  !impersonating &&
                   Array.isArray(userData?.planGroups) &&
-                  (item.requires === "paid"
-                    ? userData.planGroups.length === 0
-                    : !userData.planGroups.includes(item.requires))
+                  !hasPlan(userData.planGroups, item.requires)
                 }
+                // A locked item opens that section's plans on the home page
+                lockedHref={UNLOCK_PATHS[item.requires] || UNLOCK_PATHS.any}
               />
             );
           })}

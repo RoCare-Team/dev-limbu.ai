@@ -1,6 +1,7 @@
 import { getPublicSiteUrl } from "@/lib/siteUrl";
 import { SEO_TOOL_LIST, seoToolPath } from "@/lib/seoTools";
 import { AD_SERVICE_LIST, adServicePath } from "@/lib/adServices";
+import { SERVICE_GUIDES, guidePath } from "@/lib/serviceGuides";
 
 const STATIC_PATHS = [
   "/",
@@ -48,6 +49,10 @@ const STATIC_PATHS = [
   "/how-to-generate-magic-qr",
   "/how-to-post-on-gmb",
   "/how-to-reply-review",
+
+  // Service guides
+  "/guide",
+  ...SERVICE_GUIDES.map(guidePath),
 ];
 
 export async function GET() {

@@ -5,7 +5,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 
 /**
  * Website cart: plans picked from the home page offer modals, paid together in
- * one Razorpay checkout (see components/cart). Items are { offer, tier } keys
+ * one Razorpay checkout (see components/cart). Items are { offer, tier, cycle } keys
  * from lib/planOffers.js; one plan per offer, so adding another tier of the
  * same offer replaces it. Prices are always worked out from planOffers (and
  * re-checked on the server), never stored here.
@@ -16,9 +16,9 @@ export const useCartStore = create(
       items: [],
       isOpen: false,
 
-      addItem: (offer, tier) =>
+      addItem: (offer, tier, cycle) =>
         set((state) => ({
-          items: [...state.items.filter((i) => i.offer !== offer), { offer, tier }],
+          items: [...state.items.filter((i) => i.offer !== offer), { offer, tier, ...(cycle ? { cycle } : {}) }],
         })),
       removeItem: (offer) => set((state) => ({ items: state.items.filter((i) => i.offer !== offer) })),
       clear: () => set({ items: [] }),

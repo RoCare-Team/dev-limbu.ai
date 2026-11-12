@@ -5,16 +5,25 @@ import Link from "next/link";
 import { useAuthStore } from "@/stores/useAuthStore";
 import CartButton from "@/components/cart/CartButton";
 import { SITE_SERVICES } from "@/lib/siteServices";
+import { SERVICE_GUIDES, guidePath } from "@/lib/serviceGuides";
 import CartDrawer from "@/components/cart/CartDrawer";
 
 import {
-  ChevronDown, BookOpen, Link as LinkIcon, MessageSquare, QrCode, Send, PhoneCall,
-  MapPin, Share2, Sparkles, Megaphone, Search, Globe, Target,
+  ChevronDown, BookOpen, PhoneCall,
+  MapPin, Share2, Sparkles, Megaphone, Search, Globe, Target, Contact, Smartphone,
 } from "lucide-react";
 
 // Services menu (same list as the footer), with an icon per service.
-const SERVICE_ICONS = { gmb: MapPin, social: Share2, ai: Sparkles, outreach: Megaphone, seo: Search, web: Globe, ads: Target };
+const SERVICE_ICONS = {
+  gmb: MapPin, social: Share2, ai: Sparkles, outreach: Megaphone, seo: Search, web: Globe, ads: Target, crm: Contact, app: Smartphone,
+};
 const SERVICE_LINKS = SITE_SERVICES.map((s) => ({ ...s, icon: SERVICE_ICONS[s.key] }));
+
+// Guide menu: one step-by-step guide per service (lib/serviceGuides.js), then all guides.
+const GUIDE_LINKS = [
+  ...SERVICE_GUIDES.map((g) => ({ name: g.name, sub: g.menuSub, href: guidePath(g), icon: SERVICE_ICONS[g.key] })),
+  { name: "All Guides", sub: "Every service, step by step", href: "/guide", icon: BookOpen },
+];
 
 /** Hover dropdown in the desktop nav. `wide` lays the links out in two columns. */
 function NavDropdown({ label, links, wide = false }) {
@@ -89,19 +98,6 @@ export default function Navbar() {
     { name: "Franchise", href: "/bussiness/franchise-opportunities" },
   ];
 
-  const resourceLinks = [
-    {
-      name: "How To Connect GBP",
-      sub: "Step-by-step connection guide",
-      href: "/how-to-connect-gmb",
-      icon: LinkIcon
-    },
-    { name: "Create AI Post", href: "/how-to-create-post", icon: BookOpen },
-    { name: "Reply to Reviews", href: "/how-to-reply-review", icon: MessageSquare },
-    { name: "Generate Magic QR", href: "/how-to-generate-magic-qr", icon: QrCode },
-    { name: "Post on GBP", href: "/how-to-post-on-gmb", icon: Send },
-  ];
-
   return (
     <nav
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white/80 backdrop-blur-md border-b border-black/10 py-3 shadow-sm"
@@ -139,7 +135,7 @@ export default function Navbar() {
               </li>
             ))}
 
-            <NavDropdown label="GBP Guide" links={resourceLinks} />
+            <NavDropdown label="Guide" links={GUIDE_LINKS} wide />
 
             <li>
               <Link
@@ -216,7 +212,7 @@ export default function Navbar() {
             </Link>
           ))}
 
-          <MobileLinkGroup title="GMB Mastery Guide" links={resourceLinks} onNavigate={() => setMenuOpen(false)} />
+          <MobileLinkGroup title="Guide" links={GUIDE_LINKS} onNavigate={() => setMenuOpen(false)} />
 
           <Link
             href="/blog"

@@ -24,6 +24,7 @@ import {
   Cpu,
 } from "lucide-react";
 import Image from "next/image";
+import { landingPathFor } from "@/lib/planAccess";
 
 /* ─── Validators ─── */
 const validatePhone = (v) => /^[6-9]\d{9}$/.test(v.trim());
@@ -124,7 +125,9 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (localStorage.getItem("token")) router.replace("/dashboard");
+    // Signed in already: dashboard if they have a plan, else the home page plans
+    const uid = localStorage.getItem("userId");
+    if (localStorage.getItem("token") && uid) landingPathFor(uid).then((to) => router.replace(to));
   }, [router]);
 
   useEffect(() => {
@@ -218,7 +221,9 @@ export default function LoginPage() {
         localStorage.setItem("paidPackage", data.user.paidPackage || "");
         localStorage.setItem("paidService", data.user.paidService || "");
         msg("Login successful! Redirecting…", "success");
-        setTimeout(() => router.push("/dashboard"), 800);
+        // Dashboard only with a plan; otherwise the home page plans (lib/planAccess.js)
+        const to = await landingPathFor(data.user.userId);
+        setTimeout(() => router.push(to), 800);
       } else msg(data.error || "Invalid OTP", "error");
     } catch (e) {
       msg(e.message || "Unexpected error", "error");
@@ -265,7 +270,8 @@ export default function LoginPage() {
           console.error("Registration email failed:", emailErr);
         }
         msg("Registration complete!", "success");
-        setTimeout(() => router.push("/dashboard"), 800);
+        const to = await landingPathFor(data.user.userId); // new users have no plan yet: home page plans
+        setTimeout(() => router.push(to), 800);
       } else msg(data.error || "Registration failed", "error");
     } catch (e) {
       msg(e.message || "Unexpected error", "error");

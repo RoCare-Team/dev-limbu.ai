@@ -122,7 +122,7 @@ const PinterestColumn = React.memo(({
                       onClick={() => router.push(`/post-management`)}
                       className="bg-yellow-400 hover:bg-yellow-500 text-black w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-2 transition-colors"
                     >
-                      <LayoutDashboard className="w-3.5 h-3.5" /> Manage Profile
+                      <LayoutDashboard className="w-3.5 h-3.5" /> Create Post
                     </button>
                   </div>
                 </div>

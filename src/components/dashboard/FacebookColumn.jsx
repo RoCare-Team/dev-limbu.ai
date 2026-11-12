@@ -114,7 +114,7 @@ const FacebookColumn = React.memo(({
                       onClick={() => router.push(`/post-management`)}
                       className="bg-yellow-400 hover:bg-yellow-500 text-black w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm transition-colors"
                     >
-                      Manage Page
+                      Create Post
                     </button>
                   </div>
                 </div>

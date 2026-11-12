@@ -1,6 +1,7 @@
 import SectionArt from "./SectionArt";
 import { ToolCard } from "./ToolCard";
 import OfferToolGrid from "./OfferToolGrid";
+import { LeadButton, LeadToolGrid } from "../leads/LeadTriggers";
 import { copyFor } from "./sectionCopy";
 import SectionHeader from "./section/SectionHeader";
 import StepList from "./section/StepList";
@@ -29,7 +30,7 @@ export default function ToolSection({ section, index, city = null }) {
   return (
     <section id={`tools-${section.key}`} className="scroll-mt-24">
       <div
-        className={`relative overflow-hidden rounded-[28px] border border-slate-200 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:rounded-[32px] sm:p-8 lg:p-10 ${
+        className={`relative overflow-hidden rounded-[28px] border border-slate-200 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:rounded-[32px] sm:p-8 lg:p-10 ${isFirst ? "pt-4 sm:pt-5 lg:pt-6 " : ""}${
           isGbp
             ? "bg-[radial-gradient(ellipse_at_90%_0%,rgba(250,204,21,0.12),transparent_40%),#fff]"
             : "bg-white"
@@ -52,7 +53,11 @@ export default function ToolSection({ section, index, city = null }) {
             ) : (
               // Offer sections sell their plans in the strip below, so no "View All Tools" there
               <ViewAllAction link={offerKey ? null : link}>
-                {copy.cta && <QuoteButton cta={copy.cta} />}
+                {copy.cta?.lead ? (
+                  <LeadButton service={copy.cta.lead} label={copy.cta.label} />
+                ) : (
+                  copy.cta && <QuoteButton cta={copy.cta} />
+                )}
                 {copy.video && <VideoButton video={copy.video} />}
               </ViewAllAction>
             )}
@@ -66,7 +71,9 @@ export default function ToolSection({ section, index, city = null }) {
         </div>
 
         {/* TOOLS — offer sections get the subscribe strip + plans modal */}
-        {offerKey ? (
+        {copy.cta?.lead ? (
+          <LeadToolGrid items={section.items} service={copy.cta.lead} />
+        ) : offerKey ? (
           <OfferToolGrid
             items={section.items}
             offerKey={offerKey}

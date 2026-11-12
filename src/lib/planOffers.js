@@ -1,7 +1,8 @@
 /**
  * Plan offers sold from the home page unlock modal (GMB, Social Media,
- * Outreach, Website SEO, Paid Ads and Website Development sections). Each offer has one billing cycle; the
- * server prices orders from here too (see /api/razorpay/create-order).
+ * Outreach, Website SEO, Paid Ads and Website Development sections). Each offer has a
+ * default billing `cycle` and the `cycles` the buyer can pick from; the server prices
+ * orders from here too (see /api/razorpay/create-order).
  */
 import { GST_RATE, SEO_PLANS, formatInr } from "@/lib/seoPlans";
 import { GMB_DEMO_VIDEO_ID, GMB_PLAN, GMB_TIERS } from "@/lib/gmbPlan";
@@ -13,6 +14,7 @@ import { WEB_DEVELOPMENT_PLANS } from "@/lib/webPlans";
 // months = billing periods charged; unit / short label the headline price.
 const CYCLES = {
   yearly: { months: 12, label: "Annual plan", every: "once a year", note: "All plans billed yearly", billed: "Billed yearly", unit: "/ month", short: "/mo" },
+  quarterly: { months: 3, label: "Quarterly plan", every: "every 3 months", note: "All plans billed quarterly", billed: "Billed quarterly", unit: "/ month", short: "/mo" },
   monthly: { months: 1, label: "Monthly plan", every: "every month", note: "All plans billed monthly", billed: "Billed monthly", unit: "/ month", short: "/mo" },
   "one-time": { months: 1, label: "One-time fee", every: "once", note: "One-time fee", billed: "One-time fee", unit: "one-time", short: "" },
 };
@@ -39,7 +41,8 @@ const WEB_TIERS = WEB_DEVELOPMENT_PLANS.map((p) => ({
   features: [`Up to ${p.basePages} pages`, ...p.staticFeatures],
 }));
 
-// Same packages as the pricing page; SEO is sold monthly at its list price.
+// Same packages as the pricing page; SEO is sold monthly at its list price, or
+// yearly at 20% off (the monthly price shown struck through).
 const SEO_TIERS = SEO_PLANS.map((p) => ({
   key: p.title.toLowerCase().replace(/\s+/g, "-"),
   title: p.title,
@@ -48,6 +51,7 @@ const SEO_TIERS = SEO_PLANS.map((p) => ({
   listPerMonth: null,
   popular: !!p.popular,
   features: p.staticFeatures,
+  byCycle: { yearly: { perMonth: Math.round(p.basePrice * 0.8), listPerMonth: p.basePrice } },
   addon: "Free website audit included",
 }));
 
@@ -55,7 +59,8 @@ export const PLAN_OFFERS = {
   gmb: {
     key: "gmb",
     planGroup: "gmb", // lib/userPlans.js PLAN_GROUPS
-    cycle: "yearly",
+    cycle: "yearly", // opens on Yearly; Quarterly is the other option
+    cycles: ["quarterly", "yearly"],
     heading: "Unlock all GMB tools",
     toolsLabel: "GMB tools",
     homeHref: "/dashboard",
@@ -65,7 +70,8 @@ export const PLAN_OFFERS = {
   social: {
     key: "social",
     planGroup: "social",
-    cycle: "yearly",
+    cycle: "yearly", // opens on Yearly; Quarterly is the other option
+    cycles: ["quarterly", "yearly"],
     heading: "Grow your social media",
     toolsLabel: "Social media tools",
     homeHref: "/social-media",
@@ -75,7 +81,8 @@ export const PLAN_OFFERS = {
   outreach: {
     key: "outreach",
     planGroup: "outreach",
-    cycle: "yearly",
+    cycle: "yearly", // opens on Yearly; Quarterly is the other option
+    cycles: ["quarterly", "yearly"],
     heading: "Reach & engage customers",
     toolsLabel: "Outreach tools",
     homeHref: "/dashboard?tab=whatsapp",
@@ -85,7 +92,8 @@ export const PLAN_OFFERS = {
   seo: {
     key: "seo",
     planGroup: "seo",
-    cycle: "monthly",
+    cycle: "yearly", // opens on Yearly; Monthly is the other option
+    cycles: ["monthly", "yearly"],
     heading: "Rank higher on Google",
     toolsLabel: "SEO services",
     homeHref: "/seo-tools/website-audit",
@@ -118,27 +126,38 @@ export const PLAN_OFFERS = {
   },
 };
 
-// Plans sold only in their offer's cycle; the others also have more cycles on /pricing.
+// Plans sold only in their offer's cycles; the others also have more cycles on /pricing.
 const FIXED_CYCLE = new Set([GMB_PLAN.title, ...OUTREACH_TIERS.map((t) => t.title)]);
 
-export const cycleInfo = (offer) => CYCLES[offer.cycle] || CYCLES.yearly;
+/** Billing cycles the buyer can pick for an offer, shortest first (`offer.cycle` is the default). */
+export const offerCycles = (offer) => offer.cycles || [offer.cycle];
 
-/** Price for one billing period: { ...tier, months, price, gst, total, savePct }. */
-export function offerPricing(offer, tier) {
-  const { months } = cycleInfo(offer);
+/** The offer's cycle if `cycle` is one it sells, else its default. */
+export const pickCycle = (offer, cycle) => (offerCycles(offer).includes(cycle) ? cycle : offer.cycle);
+
+export const cycleInfo = (offer, cycle) => CYCLES[pickCycle(offer, cycle)] || CYCLES.yearly;
+
+/** A tier with its `byCycle` overrides (price, features) for `cycle` applied. */
+export const tierForCycle = (tier, cycle) => ({ ...tier, ...(tier.byCycle?.[cycle] || {}) });
+
+/** Price for one billing period: { ...tier, cycle, months, price, gst, total, savePct }. */
+export function offerPricing(offer, baseTier, wantedCycle) {
+  const cycle = pickCycle(offer, wantedCycle);
+  const tier = tierForCycle(baseTier, cycle);
+  const { months } = CYCLES[cycle];
   const price = tier.perMonth * months;
   const gst = Math.round(price * GST_RATE);
   const savePct = tier.listPerMonth ? Math.round((1 - tier.perMonth / tier.listPerMonth) * 100) : 0;
-  return { ...tier, months, price, gst, total: price + gst, savePct };
+  return { ...tier, cycle, months, price, gst, total: price + gst, savePct };
 }
 
 /** A tier in the shape ServiceBookingModal / Razorpay checkout expects. */
-export function toOfferCheckoutPlan(offer, tier) {
-  const p = offerPricing(offer, tier);
+export function toOfferCheckoutPlan(offer, tier, cycle) {
+  const p = offerPricing(offer, tier, cycle);
   return {
     title: p.title,
     planType: "our-package",
-    planDuration: offer.cycle,
+    planDuration: p.cycle,
     subtitle: p.tagline,
     features: p.features,
     price: formatInr(p.price),
@@ -161,7 +180,7 @@ export function offerTierByTitle(title) {
 const MAX_CART_ITEMS = 10;
 
 /**
- * Validates and prices a cart of { offer, tier } keys on the server.
+ * Validates and prices a cart of { offer, tier, cycle } keys on the server.
  * One plan per offer. Returns { lines, total } or { error }.
  * Each line: { offerKey, tierKey, title, cycle, months, price, gst, total }.
  */
@@ -176,12 +195,13 @@ export function priceCart(items) {
     if (!offer || !tier) return { error: "A plan in your cart is no longer available" };
     if (seen.has(offer.key)) return { error: "Only one plan per service can be bought at a time" };
     seen.add(offer.key);
-    const p = offerPricing(offer, tier);
+    if (item.cycle && !offerCycles(offer).includes(item.cycle)) return { error: `${tier.title} is not sold ${item.cycle}` };
+    const p = offerPricing(offer, tier, item.cycle);
     lines.push({
       offerKey: offer.key,
       tierKey: tier.key,
       title: tier.title,
-      cycle: offer.cycle,
+      cycle: p.cycle,
       months: p.months,
       price: p.price,
       gst: p.gst,
@@ -191,13 +211,13 @@ export function priceCart(items) {
   return { lines, total: lines.reduce((sum, l) => sum + l.total, 0) };
 }
 
-/** Compact cart for Razorpay order notes ("gmb:gmb|seo:basic-seo"), and back. */
-export const encodeCart = (lines) => lines.map((l) => `${l.offerKey}:${l.tierKey}`).join("|");
+/** Compact cart for Razorpay order notes ("gmb:gmb:yearly|seo:basic-seo:monthly"), and back. */
+export const encodeCart = (lines) => lines.map((l) => `${l.offerKey}:${l.tierKey}:${l.cycle}`).join("|");
 export const decodeCart = (text) =>
   String(text || "")
     .split("|")
     .filter(Boolean)
     .map((pair) => {
-      const [offer, tier] = pair.split(":");
-      return { offer, tier };
+      const [offer, tier, cycle] = pair.split(":"); // older notes have no cycle (= the default)
+      return { offer, tier, ...(cycle ? { cycle } : {}) };
     });

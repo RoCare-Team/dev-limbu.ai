@@ -15,10 +15,10 @@ const INPUT =
 /** Cart items with their offer, tier and price (items that no longer exist are dropped). */
 function cartLines(items) {
   return items
-    .map(({ offer, tier }) => {
+    .map(({ offer, tier, cycle }) => {
       const o = PLAN_OFFERS[offer];
       const t = o?.tiers.find((x) => x.key === tier);
-      return o && t ? { offer: o, tier: t, pricing: offerPricing(o, t) } : null;
+      return o && t ? { offer: o, tier: t, pricing: offerPricing(o, t, cycle) } : null;
     })
     .filter(Boolean);
 }
@@ -119,7 +119,7 @@ export default function CartDrawer() {
           <form onSubmit={onPay} className="flex flex-1 flex-col overflow-hidden">
             <div className="flex-1 space-y-3 overflow-y-auto px-5 py-4">
               {lines.map(({ offer, tier, pricing }) => {
-                const cycle = cycleInfo(offer);
+                const cycle = cycleInfo(offer, pricing.cycle);
                 return (
                   <div key={offer.key} className="flex items-start gap-3 rounded-2xl border border-slate-200 p-3.5">
                     <div className="min-w-0 flex-1">

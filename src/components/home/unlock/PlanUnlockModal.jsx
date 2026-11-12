@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Loader2, Lock, PlayCircle, ShieldCheck, ShoppingCart, Sparkles, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, Loader2, Lock, ShieldCheck, ShoppingCart, Sparkles, X } from "lucide-react";
 import { useCartStore } from "@/stores/useCartStore";
 import { TileIcon } from "../toolIcons";
-import { cycleInfo, offerPricing, toOfferCheckoutPlan } from "@/lib/planOffers";
+import { cycleInfo, offerCycles, offerPricing, tierForCycle, toOfferCheckoutPlan } from "@/lib/planOffers";
 import { actionHref } from "@/lib/homeSections/links";
 import { formatInr } from "@/lib/seoPlans";
 
@@ -13,19 +13,19 @@ const INPUT =
   "w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-[#eab308] focus:bg-white focus:ring-4 focus:ring-[#facc15]/20";
 
 /**
- * Subscribe without leaving the home page: the offer's plan tabs (billed in the
- * offer's cycle, see lib/planOffers.js), the buyer's details (guests) and Razorpay
+ * Subscribe without leaving the home page: the offer's plan tabs, a Quarterly /
+ * Yearly switch when the offer sells more than one cycle (see lib/planOffers.js), the buyer's details (guests) and Razorpay
  * checkout in one modal, then an "unlocked" screen with a button into the tool.
  *
  * `checkout` is usePlanCheckout() from the parent (it owns the Razorpay flow);
  * `paid` flips true after a verified payment. `tool` is the card that was
- * clicked, or null from the banner. `showDemo` opens with the video playing.
+ * clicked, or null from the banner.
  */
-export default function PlanUnlockModal({ offer, open, tool, showDemo = false, onClose, checkout, paid }) {
+export default function PlanUnlockModal({ offer, open, tool, onClose, checkout, paid }) {
   const { handlePlanClick, modalProps } = checkout;
   const { isLoggedIn, loggedInUser, serviceForm, setServiceForm, handleServicePayment } = modalProps;
-  const [demo, setDemo] = useState(showDemo);
   const [tierKey, setTierKey] = useState(offer.tiers[0].key);
+  const [billing, setBilling] = useState(offer.cycle);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
   const cartItems = useCartStore((s) => s.items);
@@ -36,17 +36,17 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
   useEffect(() => {
     if (!open) return;
     setTierKey(offer.tiers[0].key);
-    setDemo(showDemo);
+    setBilling(offer.cycle);
     setError("");
-  }, [open, showDemo, offer]);
+  }, [open, offer]);
 
   const tier = offer.tiers.find((t) => t.key === tierKey) || offer.tiers[0];
 
   // Hand the chosen plan to the Razorpay flow (usePlanCheckout).
   useEffect(() => {
-    if (open) handlePlanClick(toOfferCheckoutPlan(offer, tier));
+    if (open) handlePlanClick(toOfferCheckoutPlan(offer, tier, billing));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, tierKey]);
+  }, [open, tierKey, billing]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,10 +61,11 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
 
   if (!open) return null;
 
-  const plan = offerPricing(offer, tier);
-  const inCart = cartItems.some((i) => i.offer === offer.key && i.tier === tier.key);
+  const plan = offerPricing(offer, tier, billing);
+  const inCart = cartItems.some((i) => i.offer === offer.key && i.tier === tier.key && (i.cycle || offer.cycle) === plan.cycle);
   const cartCount = cartItems.length;
-  const cycle = cycleInfo(offer);
+  const cycle = cycleInfo(offer, billing);
+  const cycles = offerCycles(offer);
   const oneTime = offer.cycle === "one-time";
   const period = oneTime ? "one-time" : `${plan.months} month${plan.months > 1 ? "s" : ""}`;
   const setField = (name, value) => setServiceForm({ ...serviceForm, [name]: value });
@@ -150,7 +151,11 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
                     <TileIcon icon={tool.icon} size={13} /> {tool.label}
                   </span>
                 )}
-                <span className="text-xs font-semibold text-slate-400">{offer.note || cycle.note}</span>
+                {cycles.length > 1 ? (
+                  <CycleSwitch offer={offer} tier={tier} cycles={cycles} value={plan.cycle} onChange={setBilling} />
+                ) : (
+                  <span className="text-xs font-semibold text-slate-400">{offer.note || cycle.note}</span>
+                )}
               </div>
               <div role="tablist" aria-label="Plans" className="mt-4 flex gap-1 overflow-x-auto">
                 {offer.tiers.map((t) => {
@@ -170,7 +175,7 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
                         {t.title}
                         {t.popular && <span className="rounded-full bg-[#facc15] px-1.5 py-0.5 text-[9px] font-black uppercase text-black">Popular</span>}
                       </span>
-                      <span className="block text-xs font-bold">{formatInr(t.perMonth)}{cycle.short}</span>
+                      <span className="block text-xs font-bold">{formatInr(tierForCycle(t, plan.cycle).perMonth)}{cycle.short}</span>
                       {selected && <span className="absolute inset-x-3 bottom-0 h-[3px] rounded-full bg-[#facc15]" />}
                     </button>
                   );
@@ -181,17 +186,6 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
             <div className="grid md:grid-cols-[1.1fr_1fr]">
               {/* ── Plan details ── */}
               <div className="border-b border-slate-100 p-6 sm:p-8 md:border-b-0 md:border-r">
-                {demo && (
-                  <div className="mb-5 aspect-video overflow-hidden rounded-2xl bg-black">
-                    <iframe
-                      src={`https://www.youtube.com/embed/${offer.demoVideoId}?autoplay=1&rel=0&modestbranding=1`}
-                      title={`${offer.heading} demo`}
-                      className="h-full w-full"
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                )}
                 <h2 className="text-2xl font-black leading-tight text-slate-900">{plan.title}</h2>
                 <p className="mt-1 text-sm text-slate-500">{plan.tagline}</p>
 
@@ -213,11 +207,6 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
                   </div>
                 )}
 
-                {!demo && (
-                  <button type="button" onClick={() => setDemo(true)} className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-slate-700 hover:text-slate-900">
-                    <PlayCircle size={18} className="text-[#eab308]" /> Watch the 1-minute demo
-                  </button>
-                )}
               </div>
 
               {/* ── Checkout ── */}
@@ -313,7 +302,7 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
                 ) : (
                   <button
                     type="button"
-                    onClick={() => addToCart(offer.key, tier.key)}
+                    onClick={() => addToCart(offer.key, tier.key, plan.cycle)}
                     className="mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-800 transition hover:border-slate-400"
                   >
                     <ShoppingCart size={16} /> Add to Cart
@@ -327,6 +316,41 @@ export default function PlanUnlockModal({ offer, open, tool, showDemo = false, o
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+const CYCLE_NAMES = { monthly: "Monthly", quarterly: "Quarterly", yearly: "Yearly" };
+
+/**
+ * Quarterly / Yearly pill switch. Each side shows the chosen plan's discount off
+ * its monthly price on the pricing page (savePct), e.g. Professional: 20% / 50%.
+ * Plans with no monthly list price (GMB Basic, Outreach) show no badge.
+ */
+function CycleSwitch({ offer, tier, cycles, value, onChange }) {
+  const off = Object.fromEntries(cycles.map((c) => [c, offerPricing(offer, tier, c).savePct]));
+  return (
+    <div role="radiogroup" aria-label="Billing cycle" className="inline-flex rounded-full bg-slate-100 p-1 ring-1 ring-slate-200">
+      {cycles.map((c) => {
+        const active = value === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            onClick={() => onChange(c)}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#facc15] ${
+              active ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {CYCLE_NAMES[c] || c}
+            {off[c] > 0 && (
+              <span className="rounded-full bg-emerald-100 px-1.5 py-px text-[10px] font-black text-emerald-700">{off[c]}% off</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -10,13 +10,15 @@ const SidebarNavItem = React.memo(({
   onNavigate,
   pathname,
   locked = false,
+  lockedHref = "/",
 }) => {
   const isDropdown = !!item.children;
   
   return (
     <div className="px-3 mb-0.5">
       <button
-        onClick={() => isDropdown ? onToggleDropdown() : onNavigate(item.path)}
+        // Locked: go to the plans for it instead of the page (or its sub-menu)
+        onClick={() => (locked ? onNavigate(lockedHref) : isDropdown ? onToggleDropdown() : onNavigate(item.path))}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-300 cursor-pointer group relative ${
           isActive
             ? "bg-slate-900 text-white shadow-md shadow-slate-200"
@@ -51,7 +53,7 @@ const SidebarNavItem = React.memo(({
                 <Lock size={9} strokeWidth={3} /> Upgrade
               </span>
             )}
-            {isDropdown && (
+            {isDropdown && !locked && (
               <span className={isActive ? "text-white/40" : "text-slate-300"}>
                 {isDropdownOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </span>
@@ -60,7 +62,7 @@ const SidebarNavItem = React.memo(({
         )}
       </button>
 
-      {isDropdown && isDropdownOpen && !collapsed && (
+      {isDropdown && isDropdownOpen && !collapsed && !locked && (
         <div className="mt-1 ml-4 pl-3 space-y-0.5 border-l-2 border-slate-100">
           {item.children.map((sub, i) => {
             const subActive = sub.path === pathname;

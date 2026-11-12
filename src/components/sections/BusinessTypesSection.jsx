@@ -83,13 +83,13 @@ export default function BusinessTypesSection() {
         {/* HEADER */}
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight text-black">
-            Built for <span className="text-black">Small Business Owners</span>
+            Made for <span className="text-yellow-500">Every Local Business</span>
           </h2>
 
           <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto font-medium">
-            You focus on your business, we automate your{" "}
+            Gyms, clinics, salons, restaurants and more. You run the business,{" "}
             <span className="font-bold text-black">
-              Google Business growth with Limbu AI
+              Limbu AI brings you the customers
             </span>
           </p>
         </div>

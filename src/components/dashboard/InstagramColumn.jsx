@@ -116,7 +116,7 @@ const InstagramColumn = React.memo(({
                       }
                       className="bg-yellow-400 hover:bg-yellow-500 text-black w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider shadow-sm transition-colors"
                     >
-                      Manage Profile
+                      Create Post
                     </button>
                   </div>
                 </div>

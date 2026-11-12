@@ -46,7 +46,7 @@ export const WEB_ONLY_SECTIONS = [
   },
   {
     key: "mobile_app",
-    title: "Mobile App Development",
+    title: "Custom App Development",
     icon: { type: "material", value: "smartphone" },
     viewAll: null,
     items: [
@@ -60,9 +60,14 @@ export const WEB_ONLY_SECTIONS = [
   },
 ];
 
-/** Appends the website-only sections and sorts everything by WEB_SECTION_ORDER. */
+// Website names for app sections (the app keeps its own titles).
+const WEB_TITLES = { ai_tools: "Create Video" };
+
+/** Appends the website-only sections, renames per WEB_TITLES and sorts by WEB_SECTION_ORDER. */
 export function withWebSections(sections) {
-  const all = [...sections, ...WEB_ONLY_SECTIONS.filter((w) => !sections.some((s) => s.key === w.key))];
+  const all = [...sections, ...WEB_ONLY_SECTIONS.filter((w) => !sections.some((s) => s.key === w.key))].map((s) =>
+    WEB_TITLES[s.key] ? { ...s, title: WEB_TITLES[s.key] } : s
+  );
   const rank = (key) => {
     const i = WEB_SECTION_ORDER.indexOf(key);
     return i === -1 ? WEB_SECTION_ORDER.length : i;

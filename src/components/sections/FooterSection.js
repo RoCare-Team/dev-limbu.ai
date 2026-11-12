@@ -33,6 +33,7 @@ const footerSections = [
     title: "Company",
     links: [
       { label: "Contact", href: "/contact" },
+      { label: "Franchise", href: "/bussiness/franchise-opportunities" },
       { label: "Privacy Policy", href: "/privacy-policy" },
       { label: "Terms & Conditions", href: "/terms-and-conditions" },
       { label: "Work With Us", href: "/work-with-us" },
@@ -71,11 +72,11 @@ const socialLinks = [
 
 export default function FooterSection() {
   return (
-    <footer className="bg-[#fafafa] border-t border-slate-200 pt-16 pb-10">
+    <footer className="bg-[#fafafa] border-t border-slate-200 pt-12 pb-8">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-y-12 md:gap-x-10">
+        <div className="grid grid-cols-1 gap-y-10 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-12 lg:gap-x-10">
           {/* LEFT */}
-          <div className="md:col-span-4 flex flex-col gap-5">
+          <div className="lg:col-span-3 flex flex-col gap-5">
             {/* Logo */}
             <div className="flex items-center gap-3">
               <Image
@@ -131,14 +132,14 @@ export default function FooterSection() {
           </div>
 
           {/* MIDDLE */}
-          <div className="md:col-span-4 grid grid-cols-2 gap-8">
-            {footerSections.map((section) => (
-              <div key={section.title}>
-                <h3 className="text-xs font-bold tracking-[0.2em] text-slate-900 mb-6 uppercase">
+          {/* Services (long list) runs in two columns so it is no taller than the others */}
+          {footerSections.map((section, i) => (
+              <div key={section.title} className={i === 0 ? "lg:col-span-4" : "lg:col-span-2"}>
+                <h3 className="text-xs font-bold tracking-[0.2em] text-slate-900 mb-5 uppercase">
                   {section.title}
                 </h3>
 
-                <ul className="space-y-3">
+                <ul className={i === 0 ? "grid grid-cols-2 gap-x-6 gap-y-3" : "space-y-3"}>
                   {section.links.map((link) => (
                     <li key={link.label}>
                       <Link
@@ -152,11 +153,10 @@ export default function FooterSection() {
                 </ul>
               </div>
             ))}
-          </div>
 
           {/* RIGHT */}
-          <div className="md:col-span-4">
-            <h3 className="text-xs font-bold tracking-[0.2em] text-slate-900 mb-6 uppercase">
+          <div className="lg:col-span-3">
+            <h3 className="text-xs font-bold tracking-[0.2em] text-slate-900 mb-5 uppercase">
               Connect With Us
             </h3>
 
@@ -201,7 +201,7 @@ export default function FooterSection() {
         </div>
 
         {/* Bottom */}
-        <div className="mt-12 pt-6 border-t border-slate-200 text-center md:text-left text-xs text-slate-500">
+        <div className="mt-10 pt-6 border-t border-slate-200 text-center md:text-left text-xs text-slate-500">
           © 2026 Limbu.ai. All rights reserved.
         </div>
       </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Clapperboard, PenSquare } from "lucide-react";
+import { Clapperboard } from "lucide-react";
 import SocialHub from "@/components/social-media/SocialHub";
 import { getHomeSectionsForWeb } from "@/lib/homeSections/web";
 
@@ -23,16 +23,10 @@ export default async function SocialMediaPage() {
             Social Media
           </h1>
           <p className="mt-1 text-sm font-medium text-slate-500">
-            Connect your accounts, create posts and reels, and grow your audience.
+            Connect your accounts, manage them and grow your audience with AI.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link
-            href="/post-management"
-            className="inline-flex items-center gap-2 rounded-xl bg-[#facc15] px-4 py-2.5 text-sm font-black text-black transition-colors hover:bg-[#fde047]"
-          >
-            <PenSquare size={16} /> Create Post
-          </Link>
           <Link
             href="/video-generation"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 transition-colors hover:border-slate-900"

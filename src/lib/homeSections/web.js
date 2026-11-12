@@ -47,12 +47,20 @@ function withAdPages(section) {
   };
 }
 
-// Tiles the app shows but the website does not.
-const HIDDEN_ON_WEB = new Set(["social_plans", "all_ad_plans"]);
+// Tiles the app shows but the website does not. The website packages are
+// already the tabs of the Website Development plans modal.
+const HIDDEN_ON_WEB = new Set(["social_plans", "all_ad_plans", "starter_website", "business_website", "ecommerce_website"]);
+
+// "Coming soon" tiles are hidden on the website for now (the app still shows them).
+// Set to true to bring them back.
+const SHOW_COMING_SOON_ON_WEB = false;
+const isComingSoon = (item) => item.comingSoon || item.access?.status === "coming_soon";
 
 const withoutHiddenTiles = (section) => ({
   ...section,
-  items: section.items.filter((item) => !HIDDEN_ON_WEB.has(item.key)),
+  items: section.items.filter(
+    (item) => !HIDDEN_ON_WEB.has(item.key) && (SHOW_COMING_SOON_ON_WEB || !isComingSoon(item))
+  ),
 });
 
 /** Extra outreach channels, website only (the app does not have these screens yet). */
@@ -103,7 +111,7 @@ function withOutreachAddOns(section) {
 
 /**
  * Google Business Profile tiles on the website: none are free, they unlock
- * with the GMB Plan (lib/gmbPlan.js). Locked is the guest view; OfferToolGrid
+ * with the GMB plans (lib/gmbPlan.js). Locked is the guest view; OfferToolGrid
  * shows them unlocked for a user whose plan includes them.
  */
 function withGmbLock(section) {
@@ -157,6 +165,6 @@ export const getHomeSectionsForWeb = unstable_cache(
       return [];
     }
   },
-  ["home-sections-web-v14"],
+  ["home-sections-web-v18"],
   { revalidate: 300 }
 );

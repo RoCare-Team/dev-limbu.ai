@@ -5,6 +5,7 @@ import UnlockBanner from "./unlock/UnlockBanner";
 import PlanUnlockModal from "./unlock/PlanUnlockModal";
 import { usePlanUnlock } from "@/hooks/usePlanUnlock";
 import { PLAN_OFFERS } from "@/lib/planOffers";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 /**
  * A home section's tools with its plan offer (lib/planOffers.js): subscribe
@@ -15,6 +16,8 @@ import { PLAN_OFFERS } from "@/lib/planOffers";
 export default function OfferToolGrid({ items, offerKey, variant, countTools = false }) {
   const offer = PLAN_OFFERS[offerKey];
   const { unlocked, justPaid, modal, openModal, closeModal, checkout } = usePlanUnlock(offer.planGroup);
+  // "Watch Demo" plays in the site-wide video modal (GlobalClientLayer), not the plans modal
+  const setSelectedVideo = useAuthStore((s) => s.setSelectedVideo);
 
   const cards = unlocked
     ? items.map((item) =>
@@ -30,7 +33,7 @@ export default function OfferToolGrid({ items, offerKey, variant, countTools = f
         offer={offer}
         unlocked={unlocked}
         toolCount={countTools ? items.length : null}
-        onWatchDemo={() => openModal(null, true)}
+        onWatchDemo={() => setSelectedVideo(`https://www.youtube.com/watch?v=${offer.demoVideoId}`)}
         onSubscribe={() => openModal()}
       />
 
@@ -44,7 +47,6 @@ export default function OfferToolGrid({ items, offerKey, variant, countTools = f
         offer={offer}
         open={!!modal}
         tool={modal?.tool || null}
-        showDemo={!!modal?.demo}
         onClose={closeModal}
         checkout={checkout}
         paid={justPaid}

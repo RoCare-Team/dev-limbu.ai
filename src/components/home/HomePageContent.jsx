@@ -15,6 +15,7 @@ import ComparisonSection from "@/components/sections/ComparisonSection";
 import FAQSection from "@/components/sections/FAQSection";
 import FooterSection from "@/components/sections/FooterSection";
 import GlobalClientLayer from "@/components/GlobalClientLayer";
+import LeadFormModal from "@/components/leads/LeadFormModal";
 
 /**
  * The home page sections. `city` (e.g. "Gurgaon") localises the headlines for
@@ -70,6 +71,9 @@ export default function HomePageContent({ city = null }) {
       <FooterSection />
 
       <GlobalClientLayer/>
+
+      {/* Enquiry form for quote-based services (Custom CRM / Custom App) */}
+      <LeadFormModal />
     </div>
   );
 }

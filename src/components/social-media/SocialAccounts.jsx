@@ -16,8 +16,8 @@ const PLATFORMS = {
 function AccountCard({ id, count, ready, locked }) {
   const p = PLATFORMS[id];
   const connected = count > 0;
-  // Connecting happens on the dashboard tab that already owns each OAuth flow.
-  const href = `/dashboard?tab=${id}`;
+  // Manage opens the platform page; connecting starts on the dashboard tab that owns each OAuth flow.
+  const href = connected ? `/social-media/${id}` : `/dashboard?tab=${id}`;
 
   return (
     <div

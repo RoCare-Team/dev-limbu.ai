@@ -146,7 +146,7 @@ const LinkedinColumn = React.memo(
                           : "bg-blue-500 hover:bg-blue-600 text-white"
                       }`}
                     >
-                      Manage {page.type === "organization" ? "Page" : "Profile"}
+                      Create Post
                     </button>
                   </div>
                 </div>

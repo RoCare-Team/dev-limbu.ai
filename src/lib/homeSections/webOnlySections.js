@@ -61,7 +61,7 @@ export const WEB_ONLY_SECTIONS = [
 ];
 
 // Website names for app sections (the app keeps its own titles).
-const WEB_TITLES = { ai_tools: "Create Video" };
+const WEB_TITLES = { ai_tools: "Create AI Video" };
 
 /** Appends the website-only sections, renames per WEB_TITLES and sorts by WEB_SECTION_ORDER. */
 export function withWebSections(sections) {

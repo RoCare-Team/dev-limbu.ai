@@ -1,6 +1,7 @@
 "use client";
 
 import { ToolCard } from "./ToolCard";
+import ToolGrid from "./ToolGrid";
 import UnlockBanner from "./unlock/UnlockBanner";
 import PlanUnlockModal from "./unlock/PlanUnlockModal";
 import { usePlanUnlock } from "@/hooks/usePlanUnlock";
@@ -37,11 +38,11 @@ export default function OfferToolGrid({ items, offerKey, variant, countTools = f
         onSubscribe={() => openModal()}
       />
 
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+      <ToolGrid className="mt-4">
         {cards.map((item) => (
           <ToolCard key={item.key} item={item} onLockedClick={openModal} variant={variant} />
         ))}
-      </div>
+      </ToolGrid>
 
       <PlanUnlockModal
         offer={offer}

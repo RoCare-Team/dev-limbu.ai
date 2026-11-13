@@ -13,7 +13,7 @@ export default function SectionHeader({ section, copy, as: Heading = "h2", hero 
     <>
       {/* Hero: title balanced on its own lines (no lone word), highlight below */}
       <span className={hero ? "block [text-wrap:balance]" : ""}>{copy.title}</span>{" "}
-      <span className="relative inline-block whitespace-nowrap text-[#eab308]">
+      <span className="relative inline-block text-[#eab308] sm:whitespace-nowrap">
         {copy.highlight}
         <span className="absolute -bottom-1 left-0 right-0 h-1 rounded-full bg-[#facc15]/70" />
       </span>

@@ -28,13 +28,13 @@ export function Window({ url, children }) {
 export function Chip({ className = "", icon: Icon, title, sub }) {
   return (
     <div
-      className={`absolute z-10 flex items-center gap-2 rounded-2xl border border-white bg-white px-3 py-2 shadow-[0_14px_34px_rgba(15,23,42,0.16)] ${className}`}
+      className={`absolute z-10 flex items-center gap-2 rounded-2xl border border-white bg-white px-2.5 py-1.5 sm:px-3 sm:py-2 shadow-[0_14px_34px_rgba(15,23,42,0.16)] ${className}`}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50">
+      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-50 sm:h-8 sm:w-8">
         <Icon size={16} className="text-amber-600" />
       </span>
       <div>
-        <div className="text-xs font-black leading-tight text-slate-900">{title}</div>
+        <div className="text-[11px] font-black leading-tight text-slate-900 sm:text-xs">{title}</div>
         {sub && <div className="text-[10px] font-semibold text-slate-500">{sub}</div>}
       </div>
     </div>

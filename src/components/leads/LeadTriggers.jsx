@@ -2,6 +2,7 @@
 
 import { Send } from "lucide-react";
 import { ToolCard } from "@/components/home/ToolCard";
+import ToolGrid from "@/components/home/ToolGrid";
 import { useLeadModalStore } from "@/stores/useLeadModalStore";
 
 /** "Get a Free Quote" button that opens the enquiry form for `service`. */
@@ -22,10 +23,10 @@ export function LeadButton({ service, label }) {
 export function LeadToolGrid({ items, service }) {
   const open = useLeadModalStore((s) => s.open);
   return (
-    <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-10 lg:grid-cols-3">
+    <ToolGrid className="mt-6 sm:mt-8 lg:mt-10">
       {items.map((item) => (
         <ToolCard key={item.key} item={item} onCardClick={() => open(service, item.label)} />
       ))}
-    </div>
+    </ToolGrid>
   );
 }

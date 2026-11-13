@@ -37,9 +37,9 @@ export default function ComparisonSection() {
         }}
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-6">
         {/* Header */}
-        <div className="text-center mb-12 sm:mb-16">
+        <div className="text-center mb-8 sm:mb-16">
           {/* Label */}
           <div
             className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full"
@@ -75,7 +75,7 @@ export default function ComparisonSection() {
         </div>
 
         {/* Comparison */}
-        <div className="flex flex-col lg:flex-row items-stretch justify-center gap-8 lg:gap-12 relative">
+        <div className="flex flex-col lg:flex-row items-stretch justify-center gap-4 sm:gap-8 lg:gap-12 relative">
           {/* VS Badge */}
           <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full border-4 border-slate-50 items-center justify-center z-20 shadow-xl">
             <span
@@ -87,18 +87,18 @@ export default function ComparisonSection() {
           </div>
 
           {/* Old Way */}
-          <div className="flex-1 rounded-3xl bg-slate-50 border border-slate-200 p-8 sm:p-10 relative overflow-hidden transition-all duration-500 hover:shadow-lg">
+          <div className="flex-1 rounded-3xl bg-slate-50 border border-slate-200 p-5 sm:p-10 relative overflow-hidden transition-all duration-500 hover:shadow-lg">
             <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-bl-full -mr-16 -mt-16" />
 
             <div className="relative z-10">
               <h3
-                className="text-2xl sm:text-3xl font-black text-slate-400 mb-8 tracking-tight uppercase"
+                className="text-2xl sm:text-3xl font-black text-slate-400 mb-5 sm:mb-8 tracking-tight uppercase"
                 style={{ fontFamily: "var(--font-heading)" }}
               >
                 The Old Way
               </h3>
 
-              <ul className="space-y-6">
+              <ul className="space-y-4 sm:space-y-6">
                 {oldWay.map((item, idx) => (
                   <li key={idx} className="flex items-start gap-4">
                     <div className="mt-1 w-6 h-6 rounded-full bg-red-100 flex items-center justify-center shrink-0">
@@ -116,7 +116,7 @@ export default function ComparisonSection() {
 
           {/* Limbu AI */}
           <div
-            className="flex-1 rounded-3xl p-8 sm:p-10 relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border bg-white"
+            className="flex-1 rounded-3xl p-5 sm:p-10 relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 border bg-white"
             style={{
               borderColor: "rgba(250, 204, 21, 0.4)",
               boxShadow: "0 20px 40px -10px rgba(250, 204, 21, 0.2)",

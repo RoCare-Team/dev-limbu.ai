@@ -2,8 +2,9 @@ import { unstable_cache } from "next/cache";
 import dbConnect from "@/lib/dbConnect";
 import HomeSection from "@/models/HomeSection";
 import { SEO_TOOLS, seoToolPath } from "@/lib/seoTools";
-import { GMB_TOOL_COPY } from "@/lib/gmbPlan";
+import { GMB_TOOL_COPY, GMB_TOOL_ORDER } from "@/lib/gmbPlan";
 import { OUTREACH_LIVE_TOOLS } from "@/lib/outreachPlans";
+import { withLiveSocialTools } from "@/lib/social/liveTools";
 import { withWebSections } from "./webOnlySections";
 import { AD_SERVICES, adServicePath } from "@/lib/adServices";
 import { buildUserContext } from "./access";
@@ -59,7 +60,9 @@ const isComingSoon = (item) => item.comingSoon || item.access?.status === "comin
 const withoutHiddenTiles = (section) => ({
   ...section,
   items: section.items.filter(
-    (item) => !HIDDEN_ON_WEB.has(item.key) && (SHOW_COMING_SOON_ON_WEB || !isComingSoon(item))
+    (item) =>
+      !HIDDEN_ON_WEB.has(item.key) &&
+      (SHOW_COMING_SOON_ON_WEB || !isComingSoon(item))
   ),
 });
 
@@ -90,20 +93,19 @@ const OUTREACH_ADD_ONS = [
  * locked until the user has an outreach plan, so a click opens the plans
  * modal), every other channel is "Soon".
  */
+const WHATSAPP_APP_URL = "https://whatsapp.limbu.ai/";
+
 function withOutreachAddOns(section) {
   if (section.key !== "outreach") return section;
   const have = new Set(section.items.map((i) => i.key));
   const soon = (item) => ({ ...item, badge: "COMING SOON", comingSoon: true, access: { status: "coming_soon" } });
   const items = section.items.map((item) =>
-    OUTREACH_LIVE_TOOLS.includes(item.key)
-      ? {
-          ...item,
-          badge: "NEW",
-          comingSoon: false,
-          access: { ...item.access, status: "locked" },
-          ...(item.key === "whatsapp_automation" && { action: { type: "url", value: "/dashboard?tab=whatsapp" } }),
-        }
-      : soon(item)
+    item.key === "whatsapp_automation"
+      ? // WhatsApp Automation is its own app: the tile always opens it (new tab)
+        { ...item, badge: "NEW", comingSoon: false, access: { status: "open" }, action: { type: "url", value: WHATSAPP_APP_URL } }
+      : OUTREACH_LIVE_TOOLS.includes(item.key)
+        ? { ...item, badge: "NEW", comingSoon: false, access: { ...item.access, status: "locked" } }
+        : soon(item)
   );
   const extra = OUTREACH_ADD_ONS.filter((a) => !have.has(a.key)).map((a) => soon({ ...a, coinCost: 0 }));
   return { ...section, items: [...items, ...extra] };
@@ -116,9 +118,13 @@ function withOutreachAddOns(section) {
  */
 function withGmbLock(section) {
   if (section.key !== "gbp") return section;
+  const rank = (key) => {
+    const i = GMB_TOOL_ORDER.indexOf(key);
+    return i === -1 ? GMB_TOOL_ORDER.length : i;
+  };
   return {
     ...section,
-    items: section.items.map((item) =>
+    items: [...section.items].sort((a, b) => rank(a.key) - rank(b.key)).map((item) =>
       item.comingSoon
         ? item
         : {
@@ -151,7 +157,7 @@ export const getHomeSectionsForWeb = unstable_cache(
               .map((doc) =>
                 withoutHiddenTiles(
                   withAdPages(
-                    withOutreachAddOns(withGmbLock(withSeoToolPages(toPublicSection(doc, ctx))))
+                    withOutreachAddOns(withGmbLock(withLiveSocialTools(withSeoToolPages(toPublicSection(doc, ctx)))))
                   )
                 )
               )
@@ -165,6 +171,6 @@ export const getHomeSectionsForWeb = unstable_cache(
       return [];
     }
   },
-  ["home-sections-web-v18"],
+  ["home-sections-web-v24"],
   { revalidate: 300 }
 );

@@ -36,7 +36,7 @@ export default function AppDownloadSection() {
   return (
     <section className="w-full overflow-hidden border-y border-slate-100 bg-white">
       <div className="mx-auto max-w-7xl px-2 py-2.5">
-        <div className="relative flex flex-col items-center gap-10 overflow-hidden rounded-3xl border border-amber-100 bg-[linear-gradient(160deg,#ffffff_0%,#fffbeb_60%,#f0f9ff_100%)] px-6 py-10 text-center md:flex-row md:justify-between md:px-16 md:py-12 md:text-left">
+        <div className="relative flex flex-col items-center gap-8 overflow-hidden rounded-3xl border border-amber-100 bg-[linear-gradient(160deg,#ffffff_0%,#fffbeb_60%,#f0f9ff_100%)] px-4 py-8 sm:px-6 sm:py-10 text-center md:flex-row md:justify-between md:px-16 md:py-12 md:text-left">
           {/* Copy + actions */}
           <div className="z-10 max-w-xl flex-1">
             <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold text-amber-800">

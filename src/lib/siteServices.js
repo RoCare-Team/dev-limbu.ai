@@ -3,7 +3,7 @@
 export const SITE_SERVICES = [
   { key: "gmb", name: "GMB Management", sub: "Rank higher on Google Maps", href: "/#tools-gbp" },
   { key: "social", name: "Social Media Management", sub: "Posts, reels and auto replies", href: "/#tools-social_media" },
-  { key: "ai", name: "Create Video", sub: "Reels, videos and AI posts", href: "/#tools-ai_tools" },
+  { key: "ai", name: "Create AI Video", sub: "Reels, videos and AI posts", href: "/#tools-ai_tools" },
   { key: "outreach", name: "Outreach & Engage", sub: "WhatsApp and email campaigns", href: "/#tools-outreach" },
   { key: "seo", name: "Website SEO", sub: "Audit, on-page and backlinks", href: "/#tools-website_seo" },
   { key: "web", name: "Website Development", sub: "Websites that bring enquiries", href: "/website-development" },

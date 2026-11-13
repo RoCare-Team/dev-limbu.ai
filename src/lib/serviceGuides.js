@@ -117,7 +117,7 @@ export const SERVICE_GUIDES = [
   {
     key: "ai",
     slug: "create-video",
-    name: "Create Video",
+    name: "Create AI Video",
     menuSub: "AI reels, videos and posts",
     title: "How to Create Videos with Limbu AI",
     intro:
@@ -126,7 +126,7 @@ export const SERVICE_GUIDES = [
       {
         icon: "Coins",
         title: "Add coins to your wallet",
-        text: "Log in and click the + coins button at the top, or open Wallet, to top up. Every video type shows its coin cost before you start.",
+        text: "Top up from the Create AI Video section on the home page with just your mobile number, or log in and open Wallet. Every video type shows its coin cost before you start.",
         action: { label: "Open wallet", href: "/wallet" },
       },
       {
@@ -177,7 +177,7 @@ export const SERVICE_GUIDES = [
         icon: "MessageCircle",
         title: "Connect WhatsApp",
         text: "For WhatsApp Automation, open the WhatsApp tab and connect your WhatsApp Business number with the guided sign-up.",
-        action: { label: "Open WhatsApp", href: "/dashboard?tab=whatsapp" },
+        action: { label: "Open WhatsApp Automation", href: "https://whatsapp.limbu.ai/", external: true },
       },
       {
         icon: "Mail",

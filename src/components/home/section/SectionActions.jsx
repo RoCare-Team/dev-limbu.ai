@@ -11,13 +11,18 @@ const TRUST_POINTS = ["Demo before you pay", "2-minute setup", "Made for local b
 export function HeroActions() {
   return (
     <>
-      <div className="[&>div]:justify-start [&_a]:whitespace-nowrap [&_button]:whitespace-nowrap">
+      {/* Phones: full-width stacked buttons; larger screens: side by side */}
+      <div className="[&>div]:mt-6 [&>div]:grid [&>div]:grid-cols-1 [&>div]:gap-3 sm:[&>div]:mt-8 sm:[&>div]:flex sm:[&>div]:justify-start [&_a]:w-full [&_a]:whitespace-nowrap [&_button]:w-full [&_button]:whitespace-nowrap sm:[&_a]:w-auto sm:[&_button]:w-auto">
         <HeroButtons />
       </div>
-      <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+      {/* Trust points: hidden on phones to keep the top short; one line on larger screens */}
+      <ul className="mt-5 hidden sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
         {TRUST_POINTS.map((p) => (
-          <li key={p} className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
-            <CheckCircle2 size={16} className="fill-slate-900 text-white" /> {p}
+          <li
+            key={p}
+            className="flex flex-col items-center gap-1 rounded-xl bg-white/70 px-1 py-2 text-center text-[11px] font-semibold leading-tight text-slate-600 ring-1 ring-slate-200 sm:flex-row sm:gap-1.5 sm:bg-transparent sm:p-0 sm:text-left sm:text-sm sm:ring-0"
+          >
+            <CheckCircle2 size={16} className="shrink-0 fill-slate-900 text-white" /> {p}
           </li>
         ))}
       </ul>

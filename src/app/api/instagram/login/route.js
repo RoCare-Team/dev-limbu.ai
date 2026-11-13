@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AUTOMATION_SCOPES } from "@/lib/social/metaGraph";
 import {
   normalizeMetaPhoneDigits,
   resolveDashboardUserIdByPhone,
@@ -9,6 +10,9 @@ import { resolveOAuthRedirectOrigin } from "@/lib/oauthRedirectOrigin";
 export async function GET(req) {
   const baseUrl = resolveOAuthRedirectOrigin(req);
   const { searchParams } = new URL(req.url);
+  // ?automation=1: also ask for the social automation permissions (insights,
+  // comment / DM replies, hiding comments). Normal logins are unchanged.
+  const wantsAutomation = searchParams.get("automation") === "1";
 
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId");
@@ -84,8 +88,10 @@ export async function GET(req) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
     redirect_uri: `${baseUrl}/api/instagram/callback`,
-    scope:
+    scope: [
       "pages_show_list,instagram_basic,instagram_content_publish,pages_read_engagement",
+      ...(wantsAutomation ? AUTOMATION_SCOPES.instagram : []),
+    ].join(","),
     response_type: "code",
     state: oauthState,
   });

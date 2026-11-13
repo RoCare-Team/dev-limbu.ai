@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Lock, Sparkles } from "lucide-react";
 import HubSection from "./HubSection";
 import { ToolCard } from "../home/ToolCard";
+import { withLiveSocialTools } from "@/lib/social/liveTools";
 
 // Tool lists come from home_sections, so they match the home page and the app.
 const TOOL_SECTIONS = [
@@ -44,12 +45,15 @@ export default function SocialTools({ sections, planGroups }) {
     <>
       {needsUpgrade && <UpgradeBanner />}
       {TOOL_SECTIONS.map(({ key, title, text }) => {
-        const section = sections.find((s) => s.key === key);
-        if (!section?.items.length) return null;
+        // The app API still marks the new social tools "soon"; the website has their screens
+        const section = withLiveSocialTools(sections.find((s) => s.key === key), { unlocked: !needsUpgrade && Array.isArray(planGroups) });
+        // "Social Plans" is a link to the plans, not a tool
+        const items = section?.items.filter((i) => i.key !== "social_plans") || [];
+        if (!items.length) return null;
         return (
           <HubSection key={key} title={title} text={text}>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {section.items.map((item) => (
+              {items.map((item) => (
                 <ToolCard key={item.key} item={item} />
               ))}
             </div>

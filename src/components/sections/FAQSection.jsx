@@ -79,9 +79,9 @@ export default function FAQSection() {
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6">
         {/* Header */}
-        <div className="text-center mb-10 sm:mb-16">
+        <div className="text-center mb-6 sm:mb-16">
           {/* Label */}
           <div
             className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full"
@@ -125,7 +125,7 @@ export default function FAQSection() {
                 borderColor: "rgba(15, 23, 42, 0.08)",
               }}
             >
-              <summary className="list-none cursor-pointer px-5 py-4 sm:px-6 flex items-center justify-between gap-4">
+              <summary className="list-none cursor-pointer px-4 py-3.5 sm:px-6 sm:py-4 flex items-center justify-between gap-4">
                 <span className="text-sm sm:text-base font-semibold text-slate-800 group-open:text-black transition-colors duration-300">
                   {faq.question}
                 </span>
@@ -135,7 +135,7 @@ export default function FAQSection() {
                 </div>
               </summary>
 
-              <div className="px-5 sm:px-6 pb-5">
+              <div className="px-4 sm:px-6 pb-4 sm:pb-5">
                 <div className="h-px w-full bg-slate-100 mb-4" />
 
                 <p className="text-sm leading-relaxed text-slate-600">

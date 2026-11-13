@@ -60,7 +60,7 @@ const marqueeCities = [...popularCities, ...popularCities];
 
 export default function PopularCitiesSection() {
   return (
-    <section className="py-16 bg-white overflow-hidden relative border-y border-slate-100">
+    <section className="py-10 sm:py-16 bg-white overflow-hidden relative border-y border-slate-100">
 
       {/* CSS Animation */}
       <style>
@@ -87,7 +87,7 @@ export default function PopularCitiesSection() {
       </style>
 
       {/* HEADER */}
-      <div className="max-w-7xl mx-auto px-4 mb-10 text-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 mb-6 sm:mb-10 text-center">
 
         <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
           Serving Local Businesses Across India

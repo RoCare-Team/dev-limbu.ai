@@ -102,7 +102,7 @@ export default function Navbar() {
     <nav
       className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white/80 backdrop-blur-md border-b border-black/10 py-3 shadow-sm"
     >
-      <div className="flex items-center justify-between px-6 md:px-10 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between px-4 sm:px-6 md:px-10 max-w-7xl mx-auto">
         {/* LOGO */}
        {/* LOGO */}
 <Link href="/" className="cursor-pointer flex items-center gap-2 shrink-0">
@@ -121,7 +121,7 @@ export default function Navbar() {
 </Link>
 
         {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-8 font-inter">
+        <div className="hidden lg:flex items-center gap-8 font-inter">
           <ul className="flex items-center gap-8 list-none m-0 p-0">
             <NavDropdown label="Services" links={SERVICE_LINKS} wide />
             {navLinks.map((item) => (
@@ -176,9 +176,9 @@ export default function Navbar() {
         </div>
 
         {/* Mobile: cart + hamburger */}
-        <CartButton className="md:hidden ml-auto mr-3" />
+        <CartButton className="lg:hidden ml-auto mr-3" />
         <button
-          className="md:hidden flex flex-col gap-1.5 p-1 z-50"
+          className="lg:hidden flex flex-col gap-1.5 p-1 z-50"
           onClick={() => setMenuOpen(!menuOpen)}
         >
           <span
@@ -198,7 +198,7 @@ export default function Navbar() {
 
       {/* Mobile Dropdown */}
       {menuOpen && (
-        <div className="md:hidden flex flex-col gap-4 px-6 pt-6 pb-6 bg-white/95 backdrop-blur-md border-b border-black/10 shadow-lg max-h-[85vh] overflow-y-auto font-inter">
+        <div className="lg:hidden flex flex-col gap-4 px-4 pt-6 pb-6 bg-white/95 backdrop-blur-md border-b border-black/10 shadow-lg max-h-[85vh] overflow-y-auto font-inter">
           <MobileLinkGroup title="Services" links={SERVICE_LINKS} onNavigate={() => setMenuOpen(false)} />
 
           {navLinks.map((item) => (

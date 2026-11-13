@@ -16,19 +16,19 @@ export default function GbpArt() {
         />
       </div>
       <Chip
-        className="-left-1 top-8"
+        className="left-0 top-5 sm:-left-1 sm:top-8"
         icon={Sparkles}
         title="AI post published"
         sub="Today, 10:00 AM"
       />
       <Chip
-        className="-right-1 top-1/2"
+        className="right-0 top-1/2 sm:-right-1"
         icon={MessageSquareReply}
         title="Review replied"
         sub="in 2 seconds"
       />
       <Chip
-        className="bottom-1 left-8"
+        className="bottom-1 left-4 sm:left-8"
         icon={TrendingUp}
         title="+320% profile views"
         sub="in 3 months"

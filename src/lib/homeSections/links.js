@@ -14,6 +14,10 @@ const FEATURE_ROUTES = {
   reels: "/video-generation",
   assets: "/assets-management",
   competitor_analysis: "/competitor-analysis",
+  social_insights: "/social-media/insights",
+  comment_auto_reply: "/social-media/comment-auto-reply",
+  dm_auto_reply: "/social-media/dm-auto-reply",
+  delete_negative_comments: "/social-media/negative-comments",
 };
 
 /** App action -> website href. */

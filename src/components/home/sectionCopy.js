@@ -41,11 +41,11 @@ export const SECTION_COPY = {
   outreach: {
     title: "Reach & Engage Customers",
     highlight: "with Limbu AI",
-    text: "WhatsApp, SMS, RCS, voice call and email campaigns that bring customers back.",
+    text: "WhatsApp and email campaigns that bring customers back, written by AI.",
     steps: [
       "Upload or sync your customer list",
       "Pick a message or let AI write one",
-      "Send on WhatsApp, SMS, RCS or email automatically",
+      "Send on WhatsApp or email, now or on a schedule",
     ],
   },
   website_seo: {

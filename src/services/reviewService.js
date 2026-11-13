@@ -22,7 +22,7 @@ function getBusinessInfo(locationId) {
 
     if (!matched) {
       console.warn(
-        `[getBusinessInfo] No location matched for locationId: "${locationId}". Available IDs:`,
+        `[getBusinessInfo] No location + for locationId: "${locationId}". Available IDs:`,
         locations.map((l) => l.locationId)
       );
       throw new Error(`LOCATION_NOT_MATCHED: No location found for locationId "${locationId}"`);
@@ -34,7 +34,7 @@ function getBusinessInfo(locationId) {
 
     if (!businessCategory) {
       throw new Error(
-        `BUSINESS_CATEGORY_MISSING: No category or title found for locationId "${locationId}"`
+        `=: No category or title found for locationId "${locationId}"`
       );
     }
 

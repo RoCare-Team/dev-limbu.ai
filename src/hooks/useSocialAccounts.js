@@ -42,11 +42,12 @@ export function useSocialAccounts() {
   return {
     ready,
     accounts: [
-      { id: "facebook", count: fb.facebookPages?.length || 0 },
-      { id: "instagram", count: ig.instagramPages?.length || 0 },
-      { id: "linkedin", count: li.linkedinPages?.length || 0 },
-      { id: "youtube", count: yt.youtubeChannels?.length || 0 },
-      { id: "pinterest", count: pin.pinterestProfiles?.length || 0 },
+      // `names`: the connected pages / profiles, shown on the Social Media overview
+      { id: "facebook", count: fb.facebookPages?.length || 0, names: (fb.facebookPages || []).map((p) => p.pageName).filter(Boolean) },
+      { id: "instagram", count: ig.instagramPages?.length || 0, names: (ig.instagramPages || []).map((p) => p.igUsername && `@${p.igUsername}`).filter(Boolean) },
+      { id: "linkedin", count: li.linkedinPages?.length || 0, names: (li.linkedinPages || []).map((p) => p.pageName).filter(Boolean) },
+      { id: "youtube", count: yt.youtubeChannels?.length || 0, names: (yt.youtubeChannels || []).map((c) => c.channelTitle).filter(Boolean) },
+      { id: "pinterest", count: pin.pinterestProfiles?.length || 0, names: (pin.pinterestProfiles || []).map((p) => p.username && `@${p.username}`).filter(Boolean) },
     ],
   };
 }

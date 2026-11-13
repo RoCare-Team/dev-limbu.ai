@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { AUTOMATION_SCOPES } from "@/lib/social/metaGraph";
 import {
   normalizeMetaPhoneDigits,
   resolveDashboardUserIdByPhone,
@@ -9,6 +10,9 @@ const BASE_URL = "https://limbu.ai";
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
+  // ?automation=1: also ask for the social automation permissions (insights,
+  // comment / DM replies, hiding comments). Normal logins are unchanged.
+  const wantsAutomation = searchParams.get("automation") === "1";
 
   const userIdParam = searchParams.get("userId");
   let userId = searchParams.get("userId");
@@ -108,7 +112,10 @@ export async function GET(req) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
     redirect_uri: `${BASE_URL}/api/facebook/callback`,
-    scope: "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,business_management",
+    scope: [
+      "pages_show_list,pages_manage_posts,pages_read_engagement,pages_manage_metadata,business_management",
+      ...(wantsAutomation ? AUTOMATION_SCOPES.facebook : []),
+    ].join(","),
     response_type: "code",
     state: oauthState,
   });

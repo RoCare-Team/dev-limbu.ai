@@ -12,7 +12,7 @@ export const GMB_PLAN = {
   staticFeatures: [
     "GMB Insights & Health Score",
     "AI Post Management",
-    "AI Review Replies",
+    "Review Management",
     "Magic QR for 5-star reviews",
     "Assets Management",
     "Keyword Planner & Competitor Analysis",
@@ -21,13 +21,30 @@ export const GMB_PLAN = {
 };
 
 // Website card copy for the GMB tools, keyed by home-section item key.
+/**
+ * Order of the GMB tiles on the website, as a customer uses them: research
+ * (keywords, competitors), fix the profile, then post, reviews, QR, brand
+ * assets, results and the website. Tiles not listed keep their order at the end.
+ */
+export const GMB_TOOL_ORDER = [
+  "keyword_planner",
+  "competitor_analysis",
+  "health_score",
+  "gbp_create_post",
+  "review_reply",
+  "magic_qr",
+  "assets_management",
+  "gbp_insight",
+  "website_builder",
+];
+
 export const GMB_TOOL_COPY = {
   gbp_insight: { label: "GMB Insights", description: "Calls, views and direction requests in one clear report" },
   health_score: { label: "Profile Health Score", description: "Find and fix what is holding your profile back" },
-  gbp_create_post: { label: "AI Post Scheduler", description: "Fresh Google posts written and published for you" },
-  review_reply: { label: "AI Review Replies", description: "Every review answered in seconds, in your tone" },
+  gbp_create_post: { label: "Post Management", description: "AI writes and publishes your Google posts" },
+  review_reply: { label: "Review Management", description: "Every review answered in seconds, in your tone" },
   magic_qr: { label: "Magic Review QR", description: "One scan takes customers straight to your review page" },
-  assets_management: { label: "Photos & Videos", description: "Upload and manage your listing media in one place" },
+  assets_management: { label: "Assets Management", description: "Your logo and brand images, used in every AI post" },
   keyword_planner: { label: "Keyword Planner", description: "Discover what local customers search for" },
   competitor_analysis: { label: "Competitor Analysis", description: "See how you rank against nearby businesses" },
   website_builder: { label: "Website Builder", description: "A ready website built from your Google profile" },

@@ -85,6 +85,8 @@ const nextConfig = {
     // 16 widths → 10 widths.
     deviceSizes: [640, 750, 828, 1080, 1920],
     imageSizes: [32, 64, 128, 256, 384],
+    // Business-type tiles use quality 70; without it Next warns in dev ("1 Issue").
+    qualities: [70, 75],
 
     // Optimizer ka apna cache — upstream (S3) koi Cache-Control nahi bhejta,
     // to bina iske har baar re-fetch + re-encode hota hai.

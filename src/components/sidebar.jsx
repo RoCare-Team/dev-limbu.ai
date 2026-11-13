@@ -30,6 +30,9 @@ import {
   Share2,
   Globe,
   ChevronDown,
+  MessageSquareReply,
+  Send,
+  ShieldAlert,
 } from "lucide-react";
 import logoDash from "../../public/images/bg-logo.png";
 import {
@@ -208,12 +211,18 @@ export default function Sidebar({ children }) {
         tag: "Free",
       },
       { heading: "Social Media", collapsible: true },
+      // Overview first (accounts + all tools), then each social tool
       {
-        text: "Social Media",
+        text: "Overview",
         icon: <Share2 size={18} />,
         path: "/social-media",
         requires: "social", // a plan group from lib/userPlans.js, or "any"
       },
+      { text: "Reels", icon: <Clapperboard size={18} />, path: "/video-generation" },
+      { text: "Insights", icon: <BarChart3 size={18} />, path: "/social-media/insights", requires: "social" },
+      { text: "Comment Auto Reply", icon: <MessageSquareReply size={18} />, path: "/social-media/comment-auto-reply", requires: "social" },
+      { text: "DM Auto Reply", icon: <Send size={18} />, path: "/social-media/dm-auto-reply", requires: "social" },
+      { text: "Delete Negative Comments", icon: <ShieldAlert size={18} />, path: "/social-media/negative-comments", requires: "social" },
       {
         text: "AI Video",
         icon: <Clapperboard size={18} />,

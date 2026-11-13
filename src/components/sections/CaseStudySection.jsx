@@ -53,8 +53,8 @@ export default function CaseStudySection() {
   return (
     <section className="py-12 bg-white overflow-hidden border-t border-black/5">
       {/* Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="text-center mb-8 sm:mb-16">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
             <span className="w-3.5 h-3.5 rounded-full bg-emerald-600" />
 

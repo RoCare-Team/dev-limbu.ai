@@ -1,6 +1,8 @@
 import SectionArt from "./SectionArt";
 import { ToolCard } from "./ToolCard";
 import OfferToolGrid from "./OfferToolGrid";
+import ToolGrid from "./ToolGrid";
+import WalletTopup from "./WalletTopup";
 import { LeadButton, LeadToolGrid } from "../leads/LeadTriggers";
 import { copyFor } from "./sectionCopy";
 import SectionHeader from "./section/SectionHeader";
@@ -30,13 +32,13 @@ export default function ToolSection({ section, index, city = null }) {
   return (
     <section id={`tools-${section.key}`} className="scroll-mt-24">
       <div
-        className={`relative overflow-hidden rounded-[28px] border border-slate-200 p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:rounded-[32px] sm:p-8 lg:p-10 ${isFirst ? "pt-4 sm:pt-5 lg:pt-6 " : ""}${
+        className={`relative overflow-hidden rounded-3xl border border-slate-200 p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:rounded-[32px] sm:p-8 lg:p-10 ${isFirst ? "pt-4 sm:pt-5 lg:pt-6 " : ""}${
           isGbp
             ? "bg-[radial-gradient(ellipse_at_90%_0%,rgba(250,204,21,0.12),transparent_40%),#fff]"
             : "bg-white"
         }`}
       >
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+        <div className="grid items-center gap-6 sm:gap-8 lg:grid-cols-2 lg:gap-12">
           <div className={artFirst ? "lg:order-2" : ""}>
             <SectionHeader
               section={section}
@@ -63,8 +65,8 @@ export default function ToolSection({ section, index, city = null }) {
             )}
           </div>
 
-          {/* Screens hide on phones to keep the page short, except the top one */}
-          <div className={`${isFirst ? "block" : "hidden sm:block"} ${artFirst ? "lg:order-1" : ""}`}>
+          {/* Screens hide on phones (the top one too) to keep the page short */}
+          <div className={`hidden sm:block ${artFirst ? "lg:order-1" : ""}`}>
             {/* A YouTube video gets a play button over the screen; a built-in demo already plays there */}
             {copy.video?.url ? <PlayableArt video={copy.video}>{art}</PlayableArt> : art}
           </div>
@@ -80,12 +82,15 @@ export default function ToolSection({ section, index, city = null }) {
             variant={isGbp ? "gbp" : undefined}
             countTools={isGbp}
           />
+        ) : section.key === "ai_tools" ? (
+          // Create AI Video runs on coins: cards + top-up banner/modal (by mobile number)
+          <WalletTopup items={section.items} />
         ) : (
-          <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-10 lg:grid-cols-3">
+          <ToolGrid className="mt-6 sm:mt-8 lg:mt-10">
             {section.items.map((item) => (
               <ToolCard key={item.key} item={item} />
             ))}
-          </div>
+          </ToolGrid>
         )}
       </div>
     </section>

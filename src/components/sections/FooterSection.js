@@ -73,7 +73,7 @@ const socialLinks = [
 export default function FooterSection() {
   return (
     <footer className="bg-[#fafafa] border-t border-slate-200 pt-12 pb-8">
-      <div className="max-w-7xl mx-auto px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 gap-y-10 sm:grid-cols-2 sm:gap-x-8 lg:grid-cols-12 lg:gap-x-10">
           {/* LEFT */}
           <div className="lg:col-span-3 flex flex-col gap-5">

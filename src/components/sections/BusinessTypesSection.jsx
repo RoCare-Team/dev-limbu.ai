@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import ToolGrid from "@/components/home/ToolGrid";
 
 const businessTypes = [
   {
@@ -78,15 +79,15 @@ const businessTypes = [
 
 export default function BusinessTypesSection() {
   return (
-    <section className="py-14 px-4 sm:px-6 lg:px-8 bg-white overflow-hidden">
+    <section className="py-10 px-3 sm:py-14 sm:px-6 lg:px-8 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto">
         {/* HEADER */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-6 tracking-tight text-black">
+        <div className="text-center mb-8 sm:mb-16">
+          <h2 className="text-[28px] sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-6 tracking-tight text-black">
             Made for <span className="text-yellow-500">Every Local Business</span>
           </h2>
 
-          <p className="text-gray-600 text-lg sm:text-xl max-w-2xl mx-auto font-medium">
+          <p className="text-gray-600 text-base sm:text-xl max-w-2xl mx-auto font-medium">
             Gyms, clinics, salons, restaurants and more. You run the business,{" "}
             <span className="font-bold text-black">
               Limbu AI brings you the customers
@@ -94,22 +95,26 @@ export default function BusinessTypesSection() {
           </p>
         </div>
 
-        {/* GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
+        {/* Phones: swipeable slider (two rows); larger screens: grid */}
+        <ToolGrid
+          slide="auto-cols-[44%]"
+          grid="sm:grid-cols-2 lg:grid-cols-4 lg:gap-8"
+          bleed="-mx-3 px-3 scroll-px-3"
+        >
           {businessTypes.map((type) => (
             <Link href={type.slug} key={type.slug}>
               <div
-                className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex items-center ${type.bgColor} border border-black/5 cursor-pointer`}
+                className={`relative group h-40 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 flex flex-col-reverse sm:flex-row sm:items-center ${type.bgColor} border border-black/5 cursor-pointer`}
               >
                 {/* TEXT */}
-                <div className="flex-1 p-6 z-10">
-                  <h3 className="text-lg font-bold leading-tight text-black">
+                <div className="px-3 pb-3 pt-1 sm:flex-1 sm:p-6 z-10">
+                  <h3 className="text-[13px] sm:text-lg font-bold leading-tight text-black">
                     {type.title}
                   </h3>
                 </div>
 
                 {/* IMAGE */}
-                <div className="w-1/2 h-full relative">
+                <div className="relative w-full flex-1 sm:w-1/2 sm:h-full sm:flex-none">
                   {/*
                     Yeh box kabhi ~175px se bada nahi hota (card ka aadha,
                     h-40 = 160px tall). Pehle `sizes` 100vw/50vw tha, to mobile
@@ -132,7 +137,7 @@ export default function BusinessTypesSection() {
               </div>
             </Link>
           ))}
-        </div>
+        </ToolGrid>
       </div>
     </section>
   );
